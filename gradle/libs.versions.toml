@@ -1,0 +1,21 @@
+[versions]
+kotest = "6.0.7"
+kotlin = "2.2.21"
+mockito = "5.21.0"
+
+[libraries]
+kotest-junit5-jvm = { module = "io.kotest:kotest-runner-junit5-jvm", version.ref = "kotest" }
+kotest-assertions-core-jvm = { module = "io.kotest:kotest-assertions-core-jvm", version.ref = "kotest" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+
+[bundles]
+kotlin-testing = [ "kotest-junit5-jvm", "kotest-assertions-core-jvm", "mockito-core" ]
+
+[plugins]
+dokka = "org.jetbrains.dokka:2.0.0"
+gitSemVer = "org.danilopianini.git-sensitive-semantic-versioning:7.0.7"
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-qa = "org.danilopianini.gradle-kotlin-qa:0.99.0"
+multiJvmTesting = "org.danilopianini.multi-jvm-test-plugin:4.3.2"
+publishOnCentral = "org.danilopianini.publish-on-central:9.1.8"
+taskTree = "com.dorongold.task-tree:4.0.1"

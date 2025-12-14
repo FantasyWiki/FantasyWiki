@@ -1,6 +1,3 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "github>DanySK/renovate-config:kotlin"
-  ]
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json"
 }

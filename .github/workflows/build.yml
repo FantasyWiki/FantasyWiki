@@ -47,47 +47,9 @@ jobs:
           maven-central-password: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           signing-key: ${{ secrets.SIGNING_KEY }}
           signing-password: ${{ secrets.SIGNING_PASSWORD }}
-  release:
-    permissions:
-      contents: write
-      packages: write
-    needs:
-      - build
-    runs-on: ubuntu-latest
-    if: >-
-      !github.event.repository.fork
-      && (
-        github.event_name != 'pull_request'
-        || github.event.pull_request.head.repo.full_name == github.repository
-      )
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.1
-        with:
-          token: ${{ secrets.DEPLOYMENT_TOKEN }}
-      - name: Install Node
-        uses: actions/setup-node@v6.1.0
-        with:
-          node-version-file: package.json
-      - uses: DanySK/build-check-deploy-gradle-action@4.0.17
-        with:
-          retries-on-failure: '1'
-          build-command: true
-          check-command: true
-          deploy-command: |
-            npm install
-            npx semantic-release
-          should-run-codecov: false
-          should-deploy: true
-          github-token: ${{ github.token }}
-          maven-central-username: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          maven-central-password: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-          signing-key: ${{ secrets.SIGNING_KEY }}
-          signing-password: ${{ secrets.SIGNING_PASSWORD }}
   success:
     runs-on: ubuntu-24.04
     needs:
-      - release
       - build
     if: >-
       always() && (

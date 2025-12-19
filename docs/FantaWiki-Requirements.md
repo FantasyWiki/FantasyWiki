@@ -20,6 +20,7 @@ The gameplay combines:
 - *Account*: 
 - *Player*: Is a user that is authenticated inside the system
 - *Article*: an entity representing a unique Wikipedia Article, (excluding disambiguation, redirect, stub as explained [here](https://en.wikipedia.org/wiki/Wikipedia:What_is_an_article%3F)) 
+  - *Free-agent Article*: an article which is not currently bounded to a contract in a given league
 - *Language*: language of the wikipedia article
 - *Contract*: Time bounded possession of an article by a Team
 - *Team*: Is an aggregate of multiple contract owned by a single player in certain League
@@ -57,10 +58,55 @@ When a User try to visit a page of our website when is not authenticated it is r
 ### Player can join private league by invitation code
 When a player visit the invitation link, it join the league and it is redirected to the team creation page
 
+### A player can create a Team in a league he has joined
+As soon as a player joined a league the team creation page is showed. This page contains a form which asks for
+- Team name, inside a given league teams' names must be unique.
+A submit button is shown below and, when pressed, it directs to the team dashboard.
 
-### User can buy some article
+### A team can buy a free-agent article in the market's league
+When a Team wants to buy a new article page he can search articles he likes in a search bar. While typing, articles with similar titles are suggested. When the search button is pressed (or enter) all matching results are showed.
+Results are shown in a table containing the following columns:
+- article's title
+- article's performance indicator
+- article's price indicator
+- article's owner, if it is not free-agent
+- article's contract expiration date, if it is not free-agent
+- a button labeled "buy", which is present only if the article is free agent. When pressed a popup the contract creation popup is shown.
 
----
+### A Team can sign a contract for a free-agent article
+This operation is performed in a popup. This popup contains
+- the article's title
+- an input field for inserting the contract's duration
+- the contract price, which is determined by
+  - the last months performance of the article
+  - the contract duration length
+- a button for signing the contract, when pressed the system checks if the current team balance is enough for buying the player and the article joins the team; otherwise an error is shown
+- a cancel button, which closes the popup.
+
+### A Player can visit the team dashboard
+The page shows three panels:
+- The team performance summary
+  - Yesterday's points of the team
+  - The team standing the league
+  - The team credits
+- The team' articles, when you click on this your are directed to the the team management page
+  - The list of articles owned by your team, with 
+    - article's name
+    - yesterday's points
+    - current price
+- The league leaderboard, which is a table of all teams with
+  - team's standing
+  - team's name
+  - teams's cumulative points.
+
+### A player can choose the team formation
+The main panel shows the graphical formation of the team as a 4-3-3 with a goalkeeper. Links are shown between close players in formation: see FUT 2020 as reference. 
+The line between articles A and B are colored this way:
+- green if A references B and B references A
+- yellow if A references B but B does no references A
+- red otherwise.
+
+
 
 ## 1. Word Acquisition System (MODIFIED in v2.0)
 

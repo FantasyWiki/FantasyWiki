@@ -9,3 +9,5 @@ gitHooks {
 }
 
 rootProject.name = "FantasyWiki"
+
+include("frontend")

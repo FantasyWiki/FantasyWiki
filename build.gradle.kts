@@ -9,8 +9,8 @@ buildscript {
     }
 }
 
-// This is needed to make sure the "check" task exists for the CI to pass
 tasks.register("check") {
+    dependsOn(":frontend:check")
 }
 
 group = "io.github.FantasyWiki"

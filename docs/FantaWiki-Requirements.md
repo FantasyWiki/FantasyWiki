@@ -47,6 +47,10 @@ When a user presses the login button, they can perform a login with a Google acc
 
 When a player enters the dashboard page, they can see the leagues they have joined and are able to create or join new leagues.
 
+### A player can Logout
+
+When a player presses the logout button, they are logged out of the system and redirected to the login page.
+
 ### Player Can Create a League
 
 When a player enters the league creation page, they can create a league by specifying:
@@ -123,6 +127,10 @@ The line between articles A and B is colored this way:
 - **Green** if A references B and B references A (mutual link)
 - **Yellow** if A references B but B does not reference A (one-way link)
 - **Red** otherwise (no link)
+
+### A user can switch color themes
+
+When a user press es the theme switch button, the website switches between light and dark themes.
 
 ---
 

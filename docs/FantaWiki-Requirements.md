@@ -1,10 +1,10 @@
-# Fantasy Wiki - Game Design Document v5
+# Fantasy Word - Game Design Document v5.4
 
 ---
 
 ## Executive Summary
 
-FantasyWiki is a full-stack web application inspired by fantasy soccer, where players **instantly purchase words with a virtual budget**, accumulate points based on Wikipedia search volume, and **compete with other players in private and global leagues**.
+FantasyWord is a full-stack web application inspired by fantasy soccer, where players **instantly purchase words with a virtual budget**, accumulate points based on Wikipedia search volume, and **compete with other players in private and global leagues**.
 
 ### Target Audience
 
@@ -66,7 +66,7 @@ When a user tries to visit a page on the website while not authenticated, they a
 
 ### Player Can Join Private League by Invitation Code
 
-When a player visits the invitation link, they join the league and are redirected to the team creation page.
+When a player visits the invitation link, they join the league and is redirected to the team creation page.
 
 ### A Player Can Create a Team in a League They Have Joined
 
@@ -212,32 +212,38 @@ TEAM_DAILY_TOTAL = 23.5 + 7.75 + 6.25 + 3.0 + 1.5 = 42.0 points
 
 **Frequency**: 1 randomized event per week (Monday 09:00 UTC).
 
-Each week, one of the following events is triggered:
+Each week, one of the following events is triggered (calibrated to real Wikipedia distributions):
 
-#### Event Type 1: Wikipedia Trending
-- Applies to the top 50 articles globally by views
-- Bonus: **+2 points per article** in this category
+#### Event Type 1: Momentum Surge
+- **Tier A (Hot Movers)**: Articles with growth > 150% in the past week: **+4 points**
+- **Tier B (Top Performers)**: Top 50 articles globally by views: **+3 points**
+- **Rationale**: Unifies trending + volatility into one event. Tier A rewards emerging hot articles (mid-tier gaining traction), Tier B rewards established powerhouses (top 50 stable). A mid-tier article spiking +150% gets +4; a top-50 stable article gets +3. Momentum slightly outweighed, but both matter strategically.
 
-#### Event Type 2: Volatility Spike
-- Articles with growth > 150% in the past week: **+3 points**
-- Articles with decline > 70% in the past week: No penalty (high views already penalize downside via tiered base)
-
-#### Event Type 3: Low Views Protection
+#### Event Type 2: Low Views Protection
 - Articles with < 500 views/day: **+1 point** (prevents extinction of niche words)
+- **Rationale**: Niche articles average 0.2-0.5 base points. +1 is a 2-5× multiplier, making them briefly competitive without being overpowered. Allows low-traffic strategies a spiky but not dominant week.
 
-#### Event Type 4: Double Synergy
+#### Event Type 3: Double Synergy
 - Synergy bonus is doubled this week (max cap increases to 6.0 points per article)
+- **Rationale**: For a team with avg. 1.5 synergy bonus per article, doubling pushes them +1.5 × 10 articles = +15 points total. Significant but not game-breaking given typical team scoring (40-250 points/day).
 
-#### Event Type 5: Cluster Bonus
-- If 3+ articles in your portfolio have semantic similarity (Jaccard Index > 0.40): **+3 bonus points** for the cluster
+#### Event Type 4: Cluster Bonus
+- If 3+ articles in your portfolio have semantic similarity (Jaccard Index > 0.40): **+5 bonus points** for the cluster
+- **Rationale**: Cluster bonuses reward thematic coherence. +5 per cluster encourages players to build around 2-3 tight groups, adding 5-15 points/day for well-constructed teams.
 
 #### Event Generation
 ```
-Seed = hash(user_id + week_number) mod 5
+Seed = hash(user_id + week_number) mod 4
 Event = available_events[seed]
 ```
 
 This ensures variety and prevents players from gaming a single event type.
+
+#### Impact Summary
+- **Momentum Surge** (Tier A: +4, Tier B: +3): Rewards both emerging trends (better) and established dominance (good). Differentiated from pure trending.
+- **Low Views Protection** (+1): Makes niche articles briefly viable as a risky strategy
+- **Double Synergy** (+15 max): Synergy-heavy teams have one week of dominance per cycle
+- **Cluster Bonus** (+5): Thematic teams consistently rewarded with small bonuses
 
 ---
 
@@ -315,11 +321,10 @@ TUESDAY-SUNDAY (6 days):
 SUNDAY 21:00 UTC:
 ├─ Tournament ends
 ├─ Final standings calculated
-├─ Bonus points awarded to main game
+├─ Bonus points awarded to main game (one-time, based on ranking)
 ├─ Weekly badges distributed
 │
 MONDAY 09:00 UTC:
-├─ Bonus points applied live in main game
 ├─ New Weekly Tournament begins
 └─ Cycle repeats
 ```
@@ -348,7 +353,7 @@ Sunday 21:00:
 ├─ Tournament ends: Points calculated with original [Bitcoin, AI, Cloud]
 ├─ Main Game: Now contains [Ethereum, AI, Cloud, + others]
 ├─ Tournament points finalized
-├─ Bonus points applied to main game
+├─ Bonus points applied to main game (one-time lump sum)
 
 Monday 09:00 (New Tournament):
 ├─ New snapshot taken: [Ethereum, AI, Cloud, + others]
@@ -396,36 +401,39 @@ TOURNAMENT TOTAL (7 days) = Daily_1 + Daily_2 + ... + Daily_7
 │ 1000 | NoobTrader   | 42.3       | 6.0     | Rest   │
 │                                                      │
 │ You are: 4th (225.6 points)                         │
-│ Tier: Top 10 → +20 bonus points/day main game       │
+│ Tier: Top 10 → +84 bonus points (one-time)          │
 │                                                      │
 └──────────────────────────────────────────────────────┘
 ```
 
 #### 4.2.5 Weekly Tournament Rewards (Main Game Bonus)
 
-**Applied Monday 09:00 UTC** (when new tournament begins):
+**Applied Sunday 21:00 UTC** (when tournament ends):
 
 ```
-BONUS POINTS AWARDED (7 days duration):
+BONUS POINTS AWARDED (one-time lump sum added to main game):
 
-Top 10:        +20 bonus points/day × 7 = +140 points total
-Top 50:        +10 bonus points/day × 7 = +70 points total
-Top 100:       +5 bonus points/day × 7 = +35 points total
-Top 500:       +2 bonus points/day × 7 = +14 points total
+Top 1:         +126 bonus points
+Top 10:        +84 bonus points
+Top 50:        +42 bonus points
+Top 100:       +21 bonus points
+Top 500:       +7 bonus points
 Rest:          +0 bonus points
 
 PLUS: Weekly badges (cosmetic, non-playing value)
 
 EXAMPLE:
-├─ Last week: Finished 8th in Weekly Tournament
-├─ This Monday: +140 bonus points added to main game
+├─ Week 1: Tournament runs Mon-Sun
+├─ Sunday 21:00: Tournament ends, you finish 8th (Top 10)
+├─ Reward: +84 bonus points added to your main game score immediately
 ├─ Badge: "Top 10 Finisher" displayed on profile
-└─ Next week: Compete again in new tournament
+└─ You now have +84 more cumulative points in main game leaderboard
 ```
 
 **Rationale**: 
-- Rewards consistency and engagement
-- Bonus stacks with daily scoring (not separate)
+- Immediate reward for tournament performance (psychological satisfaction)
+- Bonus added once to cumulative score (permanent advantage)
+- Clear, simple prize structure
 - Badges provide cosmetic prestige (social proof)
 
 ---
@@ -452,17 +460,20 @@ Selection: Top 100 players at month-end
 ├─ Scoring identical to weekly/main game
 ├─ Updated daily, leaderboard shown in "Power" tab
 
-Rewards:
-├─ Top 3: Special badge + 1% reduction in future contract costs
-├─ Top 10: +500 bonus credits (usable only in next month)
-├─ Top 50: +250 bonus credits
-└─ Top 100: Prestige badge (cosmetic)
+Rewards (one-time lump sum at month-end):
+├─ Top 1: +126 bonus points + Special badge
+├─ Top 10: +84 bonus points
+├─ Top 25: +42 bonus points
+├─ Top 50: +21 bonus points
+└─ Top 100: +7 bonus points + Prestige badge (cosmetic)
 ```
 
 **Rationale**: 
 - Prevents AFK farming of bonus points
 - Creates aspirational content (players want to reach Top 100)
 - Monthly cycle prevents permanent inequality
+- Qualification to Top 100 itself is the major advantage; bonus points same as weekly
+- Elite prestige comes from the badge and leaderboard position, not disproportionate rewards
 
 ---
 
@@ -590,7 +601,7 @@ Each Monday (with tournament start):
 
 ---
 
-## 10. Summary of Changes (v5)
+## 10. Summary of Changes (v5.4)
 
 ✅ **Replaced linear base** with tiered scoring (addresses viral article over-dominance)
 ✅ **Simplified synergy** to additive bonus (mutual + one-way links only)
@@ -600,6 +611,12 @@ Each Monday (with tournament start):
 ✅ **Chemistry multiplier actually matters**: Low-traffic articles can reach competitive tiers with excellent synergy
 ✅ **Top tier is balanced compromise**: Best strategy is mixing high-traffic anchor + synergized mid-tier articles
 ✅ **Removed redundant mechanics**: Malus, Breakout bonus (already handled by tiered base)
+✅ **Unified event system**: Merged Trending + Volatility into single **Momentum Surge** event (Tier A: +4 for hot movers, Tier B: +3 for top 50)
+✅ **Reduced event count**: 4 events per week instead of 5 (cleaner cycle, better variety)
+✅ **Softened Low Views**: +1 instead of +2 (2-5× multiplier instead of 4-10×, more balanced)
+✅ **Tournament bonuses as lump sums**: Weekly and Power tournament rewards given as one-time bonuses (clear, simple prize structure)
+✅ **Balanced Power Tournament**: Rewards match weekly scale; advantage comes from Top 100 qualification itself, not disproportionate point bonuses
+✅ **Removed cost reduction**: No 1% contract discount (simplifies rewards)
 
 ---
 

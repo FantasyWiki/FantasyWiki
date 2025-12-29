@@ -1,15 +1,17 @@
 import { createRouter, createWebHistory } from '@ionic/vue-router';
 import { RouteRecordRaw } from 'vue-router';
+import TeamDashboard from '@/views/TeamDashboard.vue';
 
 const routes: Array<RouteRecordRaw> = [
   {
-    path: '',
-    redirect: '/folder/Inbox'
+    path: '/',
+    redirect: '/dashboard'
   },
   {
-    path: '/folder/:id',
-    component: () => import ('../views/FolderPage.vue')
-  }
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: TeamDashboard
+  },
 ]
 
 const router = createRouter({

@@ -7,7 +7,6 @@
     "dev": "vite",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
-    "test-e2e": "cypress run",
     "test-unit": "vitest run",
     "lint": "eslint . --cache"
   },
@@ -29,7 +28,6 @@
     "@vitejs/plugin-vue": "^6.0.3",
     "@vue/eslint-config-typescript": "^12.0.0",
     "@vue/test-utils": "^2.3.0",
-    "cypress": "^15.0.0",
     "eslint": "^8.35.0",
     "eslint-plugin-vue": "^9.9.0",
     "jsdom": "^22.1.0",

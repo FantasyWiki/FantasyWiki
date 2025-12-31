@@ -1,3 +1,4 @@
 {
-  "$schema": "github>DanySK/renovate-config:gradle-plugin"
+  "$schema": "github>DanySK/renovate-config:gradle-plugin",
+  "platformAutomerge": true
 }

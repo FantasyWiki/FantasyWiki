@@ -114,3 +114,25 @@ http://ionicframework.com/docs/theming/ */
 	--ion-background-color-step-900: #758a80;
 	--ion-background-color-step-950: #6e8479;
 }
+
+:root {
+  --font-family-headings: 'Libre Baskerville', Georgia, serif;
+}
+
+:root {
+  --ion-margin: 80px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family-headings);
+  font-weight: 700;
+  color: var(--ion-color-dark);
+}
+
+h1 {
+	font-size: 3rem;
+}
+
+strong {
+  color: var(--ion-color-primary);
+}

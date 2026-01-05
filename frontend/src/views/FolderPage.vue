@@ -20,6 +20,24 @@
         <p class="ion-no-margin">{{ stat.description }}</p>
       </section>
     </ion-item-group>
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title class="ion-text-start">
+          Top articles this week
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content class="ion-text-center">
+        <ion-list>
+          <ion-item v-for="n in 5" :key="n">
+            <ion-label class="ion-text-start">
+              <h3 class="ion-no-margin">Article Title {{ n }}</h3>
+              <p class="ion-no-margin">Brief description of the article...</p>
+            </ion-label>
+            <ion-badge slot="end" color="primary">+{{ n * 100 }} pts</ion-badge>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
   </ion-content>
 </template>
 
@@ -39,4 +57,5 @@ ion-content {
 .border-right {
   border-right: 1px solid var(--ion-color-light-shade);
 }
+
 </style>

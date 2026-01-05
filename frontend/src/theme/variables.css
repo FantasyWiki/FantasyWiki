@@ -121,9 +121,12 @@ http://ionicframework.com/docs/theming/ */
 
 h1 {
   font-size: 2.25rem;
-  font-family: var(--font-family-headings);
   font-weight: 700;
-  color: var(--ion-color-dark);
+}
+
+h1, h2, ion-card-title {
+	font-family: var(--font-family-headings);
+	color: var(--ion-color-dark);
 }
 
 strong {

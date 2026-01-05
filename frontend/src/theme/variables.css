@@ -119,18 +119,11 @@ http://ionicframework.com/docs/theming/ */
   --font-family-headings: 'Libre Baskerville', Georgia, serif;
 }
 
-:root {
-  --ion-margin: 80px;
-}
-
-h1, h2, h3, h4, h5, h6 {
+h1 {
+  font-size: 2.25rem;
   font-family: var(--font-family-headings);
   font-weight: 700;
   color: var(--ion-color-dark);
-}
-
-h1 {
-	font-size: 3rem;
 }
 
 strong {

@@ -13,11 +13,30 @@
         <ion-icon slot="end" :icon="arrowForwardOutline"></ion-icon>
       </ion-button>
     </ion-item-group>
+    <p>Start with 1,000 credits • No credit card required</p>
+    <ion-item-group class="ion-display-flex ion-justify-content-center ion-flex-wrap ion-padding-vertical">
+      <section v-for="(stat, i) in stats" v-bind:key="i" class="ion-padding-horizontal" :class="i !== stats.length - 1 ? 'border-right' : ''">
+        <h2 class="ion-no-margin"><strong>{{ stat.title }}</strong></h2>
+        <p class="ion-no-margin">{{ stat.description }}</p>
+      </section>
+    </ion-item-group>
   </ion-content>
 </template>
 
 <script setup lang="ts">
 import { arrowForwardOutline } from 'ionicons/icons';
+const stats = [
+  { title: '50K+', description: 'Articles drafted' },
+  { title: '1M+', description: 'Points earned' },
+  { title: '10K+', description: 'Active users' },
+];
 </script>
+<style scoped>
+ion-content {
+  --ion-margin: 80px;
+}
 
-<style scoped></style>
+.border-right {
+  border-right: 1px solid var(--ion-color-light-shade);
+}
+</style>

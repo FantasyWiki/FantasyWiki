@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from '@ionic/vue-router';
 import { RouteRecordRaw } from 'vue-router';
-import HomePage from '@/views/MockHome.vue';
+import HomeMock from '@/views/MockHome.vue';
+import HomePage from '@/views/HomePage.vue';
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -8,9 +9,19 @@ const routes: Array<RouteRecordRaw> = [
     redirect: '/home'
   },
   {
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: HomePage
+  },
+  {
     path: '/home',
     name: 'Home',
     component: HomePage
+  },
+  {
+    path: '/leagues',
+    name: 'Leagues',
+    component: HomeMock
   }
 ]
 

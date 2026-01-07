@@ -1,4 +1,9 @@
 {
   "$schema": "github>DanySK/renovate-config:gradle-plugin",
-  "platformAutomerge": true
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "automerge": true
+    }
+  ]
 }

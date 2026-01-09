@@ -129,7 +129,7 @@ const isActive = (href: string) => {
 // Theme toggle
 const toggleTheme = () => {
   isDark.value = !isDark.value;
-  document.body.classList.toggle('dark', isDark.value);
+  document.body.classList.toggle('ion-palette-dark', isDark.value);
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light');
 };
 

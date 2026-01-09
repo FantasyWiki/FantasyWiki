@@ -114,8 +114,8 @@ http://ionicframework.com/docs/theming/ */
   --ion-background-color-step-950: #6e8479;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+:root {
+  .ion-palette-dark {
     --ion-background-color: #111c16;
     --ion-background-color-rgb: 17, 28, 22;
 
@@ -163,7 +163,7 @@ http://ionicframework.com/docs/theming/ */
     --ion-background-color-step-950: #7b9282;
   }
 
-  :root {
+  .ion-palette-dark {
     --ion-color-primary: #39c674;
     --ion-color-primary-rgb: 57, 198, 116;
     --ion-color-primary-contrast: #000000;

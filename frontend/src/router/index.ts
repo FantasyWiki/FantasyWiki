@@ -10,19 +10,26 @@ const routes: Array<RouteRecordRaw> = [
   },
   {
     path: '/dashboard',
-    name: 'Dashboard',
-    component: HomePage
+    redirect: '/home'
+  },
+  {
+    path: '/how-it-works',
+    redirect: '/home'
+  },
+  {
+    path: '/leagues',
+    name: 'Leagues',
+    component: HomeMock
+  },
+  {
+    path: '/community',
+    redirect: '/home'
   },
   {
     path: '/home',
     name: 'Home',
     component: HomePage
   },
-  {
-    path: '/leagues',
-    name: 'Leagues',
-    component: HomeMock
-  }
 ]
 
 const router = createRouter({

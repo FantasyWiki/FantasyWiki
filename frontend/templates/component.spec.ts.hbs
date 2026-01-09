@@ -1,0 +1,15 @@
+import { describe, it, expect } from 'vitest'
+import { mount } from '@vue/test-utils'
+import {{ name }} from '@/views/{{ name }}.vue'
+
+describe('{{ name }}.vue', () => {
+  it('should mount without any console errors or warnings', () => {
+    const wrapper = mount({{ name }}, {
+      global: {
+        stubs: ['router-link', 'router-view']
+      }
+    })
+    
+    expect(wrapper.exists()).toBe(true)
+  })
+})

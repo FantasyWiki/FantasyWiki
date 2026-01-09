@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
 import router from "@/router/index";
-import {{ name }} from '@/views/{{ name }}.vue';
+import NavBar from '@/layout/NavBar.vue';
 
-describe('{{ name }}.vue', () => {
+describe('NavBar.vue', () => {
   it('should mount without any console errors or warnings', () => {
     router.push("/");
     router.isReady().then(() => {
-      const wrapper = mount({{ name }}, {
+      const wrapper = mount(NavBar, {
         global: {
           plugins: [router],
         },

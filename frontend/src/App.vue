@@ -13,14 +13,4 @@ import {
 </script>
 
 <style>
-/* GLOBAL STYLES */
-:root {
-  --ion-background-color: #0d1411;
-  --ion-text-color: #ffffff;
-}
-
-body {
-  background-color: var(--ion-background-color);
-}
-
 </style>

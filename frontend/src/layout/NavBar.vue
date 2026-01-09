@@ -68,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import {
   IonHeader,
@@ -160,31 +160,19 @@ const handleAuth = () => {
     router.push('/signin');
   }
 };
-
-// Initialize theme on mount
-onMounted(() => {
-  const savedTheme = localStorage.getItem('theme');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
-
-  if (savedTheme) {
-    isDark.value = savedTheme === 'dark';
-  } else {
-    isDark.value = prefersDark.matches;
-  }
-
-  document.body.classList.toggle('dark', isDark.value);
-
-  // Listen for system theme changes
-  prefersDark.addEventListener('change', (e) => {
-    if (!localStorage.getItem('theme')) {
-      isDark.value = e.matches;
-      document.body.classList.toggle('dark', e.matches);
-    }
-  });
-});
 </script>
 
 <style scoped>
+.nav-link {
+	--ion-toolbar-color: var(--ion-text-color);
+}
+
+.action-btn {
+  --color: var(--ion-color-dark);
+  --background: var(--ion-background-color-step-100);
+}
+
+
 /* ===================================
    HEADER & TOOLBAR
    ================================== */
@@ -281,7 +269,6 @@ ion-toolbar {
 }
 
 .nav-link {
-  --color: var(--ion-color-medium);
   --padding-start: 12px;
   --padding-end: 12px;
   font-size: 0.875rem;
@@ -316,7 +303,6 @@ ion-toolbar {
 }
 
 .action-btn {
-  --color: var(--ion-color-medium);
   --padding-start: 8px;
   --padding-end: 8px;
   font-size: 0.875rem;
@@ -344,15 +330,4 @@ ion-footer {
   border-top: 1px solid var(--ion-background-color-step-350);
 }
 
-/* ===================================
-   DARK MODE ADJUSTMENTS
-   ================================== */
-
-body.dark ion-header {
-  background: rgba(var(--ion-background-color-rgb), 0.9);
-}
-
-body.dark .logo-badge {
-  box-shadow: 0 0 8px var(--wiki-gold);
-}
 </style>

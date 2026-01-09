@@ -32,7 +32,7 @@ const routes: Array<RouteRecordRaw> = [
     component: HomePage
   },
   {
-    path: '/login',
+    path: '/signin',
     name: 'Login',
     component: LoginPage
   },

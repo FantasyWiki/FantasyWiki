@@ -1,15 +1,9 @@
-import { vi, beforeEach, afterEach } from 'vitest'
+import { vi } from 'vitest';
 
-beforeEach(() => {
-  vi.spyOn(console, 'error').mockImplementation((msg) => {
-    throw new Error(`Error found in console: ${msg}`)
-  })
+const failOn = ['warn', 'error'];
 
-  vi.spyOn(console, 'warn').mockImplementation((msg) => {
-    throw new Error(`Warning found in console: ${msg}`)
-  })
-})
-
-afterEach(() => {
-  vi.restoreAllMocks()
-})
+failOn.forEach((method) => {
+  vi.spyOn(console, method as any).mockImplementation((msg) => {
+    throw new Error(`Failing test due to console.${method}: ${msg}`);
+  });
+});

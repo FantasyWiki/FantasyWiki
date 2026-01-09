@@ -1,97 +1,74 @@
 <template>
   <!-- Top Header -->
-  <ion-header class="ion-no-border transparent-top-layer">
-    <ion-toolbar class="transparent-bot-layer">
-      <!-- Logo -->
-      <div slot="start" class="logo-container" @click="router.push('/')">
-        <div class="logo-icon-wrapper">
-          <ion-icon :icon="bookOutline" color="primary" />
-          <div class="logo-badge"></div>
+  <ion-page>
+    <ion-header class="ion-no-border transparent-top-layer">
+      <ion-toolbar class="transparent-bot-layer">
+        <!-- Logo -->
+        <div slot="start" class="logo-container" @click="router.push('/')">
+          <div class="logo-icon-wrapper">
+            <ion-icon :icon="bookOutline" color="primary" />
+            <div class="logo-badge"></div>
+          </div>
+          <ion-text class="logo-text">
+            Fantasy<span class="logo-accent">Wiki</span>
+          </ion-text>
         </div>
-        <ion-text class="logo-text">
-          Fantasy<span class="logo-accent">Wiki</span>
-        </ion-text>
-      </div>
 
-      <!-- Desktop Navigation -->
-      <div class="desktop-nav ion-hide-md-down">
-        <ion-button
-            v-for="link in navLinks"
-            :key="link.name"
-            :router-link="link.href"
-            router-direction="forward"
-            fill="clear"
-            class="nav-link"
-            :class="{ 'active': isActive(link.href) }"
-        >
-          <ion-icon v-if="link.icon" :icon="link.icon" slot="start" />
-          {{ link.name }}
-        </ion-button>
-      </div>
+        <!-- Desktop Navigation -->
+        <div class="desktop-nav ion-hide-md-down">
+          <ion-button v-for="link in navLinks" :key="link.name" :router-link="link.href" router-direction="forward"
+            fill="clear" class="nav-link" :class="{ 'active': isActive(link.href) }">
+            <ion-icon v-if="link.icon" :icon="link.icon" slot="start" />
+            {{ link.name }}
+          </ion-button>
+        </div>
 
-      <!-- Right Actions -->
-      <div slot="end" class="actions-container">
-        <!-- Language Selector (Desktop) -->
-        <ion-button
-            fill="solid"
-            size="small"
-            shape="round"
-            class="action-btn"
-            @click="openLanguageMenu"
-        >
-          <ion-icon :icon="globeOutline" slot="start" />
-          {{ currentLanguage }}
-        </ion-button>
+        <!-- Right Actions -->
+        <div slot="end" class="actions-container">
+          <!-- Language Selector (Desktop) -->
+          <ion-button fill="solid" size="small" shape="round" class="action-btn" @click="openLanguageMenu">
+            <ion-icon :icon="globeOutline" slot="start" />
+            {{ currentLanguage }}
+          </ion-button>
 
-        <!-- Theme Toggle -->
-        <ion-button
-            fill="solid"
-            size="small"
-            shape="round"
-            class="action-btn"
-            @click="toggleTheme"
-        >
-          <ion-icon :icon="isDark ? moonOutline : sunnyOutline" />
-        </ion-button>
+          <!-- Theme Toggle -->
+          <ion-button fill="solid" size="small" shape="round" class="action-btn" @click="toggleTheme">
+            <ion-icon :icon="isDark ? moonOutline : sunnyOutline" />
+          </ion-button>
 
-        <!-- Sign In Button (Desktop) -->
-        <ion-button
-            color="primary"
-            class="signin-btn ion-hide-sm-down"
-            @click="handleAuth"
-        >
-          {{ isLoggedIn ? 'Sign Out' : 'Sign In' }}
-        </ion-button>
-      </div>
+          <!-- Sign In Button (Desktop) -->
+          <ion-button color="primary" class="signin-btn ion-hide-sm-down" @click="handleAuth">
+            {{ isLoggedIn ? 'Sign Out' : 'Sign In' }}
+          </ion-button>
+        </div>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content :fullscreen="true" class="ion-padding">
+      <slot></slot>
+    </ion-content>
+
+  <ion-footer class="ion-hide-md-up">
+    <ion-toolbar>
+      <ion-segment>
+        <ion-segment-button v-for="link in mobileNavLinks" :key="link.name" :value="link.tab"
+          @click="router.push(link.href)">
+          <ion-icon :icon="link.icon" />
+          <ion-label class="ion-text-capitalize">{{ link.name }}</ion-label>
+        </ion-segment-button>
+
+        <ion-segment-button value="auth" @click="handleAuth">
+          <ion-icon :icon="isLoggedIn ? logOutOutline : logInOutline" />
+          <ion-label class="ion-text-capitalize">{{ isLoggedIn ? 'Sign Out' : 'Sign In' }}</ion-label>
+        </ion-segment-button>
+      </ion-segment>
     </ion-toolbar>
-  </ion-header>
-
-  <!-- Mobile Bottom Navigation -->
-  <ion-footer class="ion-no-border transparent-top-layer">
-
-  <ion-tab-bar slot="bottom" class="ion-hide-md-up mobile-tab-bar transparent-bot-layer">
-    <ion-tab-button
-        v-for="link in mobileNavLinks"
-        :key="link.name"
-        :tab="link.tab"
-        :href="link.href"
-        :class="{ 'active': isActive(link.href) }"
-    >
-      <ion-icon :icon="link.icon" />
-      <ion-label>{{ link.name }}</ion-label>
-    </ion-tab-button>
-
-    <!-- Sign In Tab Button (Mobile) -->
-    <ion-tab-button tab="auth" @click="handleAuth">
-      <ion-icon :icon="isLoggedIn ? logOutOutline : logInOutline" />
-      <ion-label>{{ isLoggedIn ? 'Sign Out' : 'Sign In' }}</ion-label>
-    </ion-tab-button>
-  </ion-tab-bar>
   </ion-footer>
+  </ion-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import {
   IonHeader,
@@ -99,9 +76,12 @@ import {
   IonButton,
   IonIcon,
   IonText,
-  IonTabBar,
-  IonTabButton,
+  IonContent,
+  IonFooter,
+  IonPage,
   IonLabel,
+  IonSegment,
+  IonSegmentButton,
   actionSheetController
 } from '@ionic/vue';
 import {
@@ -110,11 +90,11 @@ import {
   gridOutline,
   trophyOutline,
   peopleOutline,
-  logInOutline,
-  logOutOutline,
   moonOutline,
   sunnyOutline,
-  helpCircleOutline
+  helpCircleOutline,
+  logInOutline,
+  logOutOutline
 } from 'ionicons/icons';
 
 const router = useRouter();
@@ -149,7 +129,7 @@ const isActive = (href: string) => {
 // Theme toggle
 const toggleTheme = () => {
   isDark.value = !isDark.value;
-  document.body.classList.toggle('dark', isDark.value);
+  document.body.classList.toggle('ion-palette-dark', isDark.value);
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light');
 };
 
@@ -180,31 +160,19 @@ const handleAuth = () => {
     router.push('/signin');
   }
 };
-
-// Initialize theme on mount
-onMounted(() => {
-  const savedTheme = localStorage.getItem('theme');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
-
-  if (savedTheme) {
-    isDark.value = savedTheme === 'dark';
-  } else {
-    isDark.value = prefersDark.matches;
-  }
-
-  document.body.classList.toggle('dark', isDark.value);
-
-  // Listen for system theme changes
-  prefersDark.addEventListener('change', (e) => {
-    if (!localStorage.getItem('theme')) {
-      isDark.value = e.matches;
-      document.body.classList.toggle('dark', e.matches);
-    }
-  });
-});
 </script>
 
 <style scoped>
+.nav-link {
+	--ion-toolbar-color: var(--ion-text-color);
+}
+
+.action-btn {
+  --color: var(--ion-color-dark);
+  --background: var(--ion-background-color-step-100);
+}
+
+
 /* ===================================
    HEADER & TOOLBAR
    ================================== */
@@ -266,9 +234,12 @@ ion-toolbar {
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }
@@ -295,11 +266,9 @@ ion-toolbar {
   display: flex;
   gap: 4px;
   align-items: center;
-
 }
 
 .nav-link {
-  --color: var(--ion-color-medium);
   --padding-start: 12px;
   --padding-end: 12px;
   font-size: 0.875rem;
@@ -334,7 +303,6 @@ ion-toolbar {
 }
 
 .action-btn {
-  --color: var(--ion-color-medium);
   --padding-start: 8px;
   --padding-end: 8px;
   font-size: 0.875rem;
@@ -358,61 +326,8 @@ ion-toolbar {
   margin-left: 8px;
 }
 
-/* ===================================
-   MOBILE BOTTOM TAB BAR
-   ================================== */
-
-.mobile-tab-bar {
-  border-top: 1px solid var(--ion-border-color);
-  padding-bottom: env(safe-area-inset-bottom);
+ion-footer {
+  border-top: 1px solid var(--ion-background-color-step-350);
 }
 
-ion-tab-button {
-  --color: var(--ion-color-medium);
-  --color-selected: var(--ion-color-primary);
-  font-size: 0.75rem;
-}
-
-ion-tab-button ion-icon {
-  font-size: 1.5rem;
-  margin-bottom: 2px;
-  transition: transform 0.2s ease;
-}
-
-ion-tab-button.active ion-icon,
-ion-tab-button.tab-selected ion-icon {
-  transform: scale(1.1);
-}
-
-/* ===================================
-   RESPONSIVE ADJUSTMENTS
-   ================================== */
-
-@media (max-width: 768px) {
-  ion-toolbar {
-    --min-height: 56px;
-    --padding-start: 12px;
-    --padding-end: 12px;
-  }
-
-  .logo-text {
-    font-size: 1.125rem;
-  }
-
-  .logo-icon-wrapper ion-icon {
-    font-size: 28px;
-  }
-}
-
-/* ===================================
-   DARK MODE ADJUSTMENTS
-   ================================== */
-
-body.dark ion-header {
-  background: rgba(var(--ion-background-color-rgb), 0.9);
-}
-
-body.dark .logo-badge {
-  box-shadow: 0 0 8px var(--wiki-gold);
-}
 </style>

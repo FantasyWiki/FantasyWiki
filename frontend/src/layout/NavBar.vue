@@ -28,15 +28,18 @@
           </ion-button>
 
           <!-- Sign In Button (Desktop) -->
-          <ion-button color="primary" class="signin-btn ion-hide-sm-down" @click="handleAuth">
+          <ion-button color="primary" class="signin-btn ion-hide-sm-down" id="open-modal">
             {{ isLoggedIn ? 'Sign Out' : 'Sign In' }}
           </ion-button>
         </div>
       </ion-toolbar>
     </ion-header>
 
-    <ion-content :fullscreen="true" class="ion-padding">
+    <ion-content class="ion-padding">
       <slot></slot>
+      <ion-modal trigger="open-modal">
+        <login-page></login-page>
+      </ion-modal>
     </ion-content>
 
   <ion-footer class="ion-hide-md-up">
@@ -48,7 +51,7 @@
           <ion-label class="ion-text-capitalize">{{ link.name }}</ion-label>
         </ion-segment-button>
 
-        <ion-segment-button value="auth" @click="handleAuth">
+        <ion-segment-button value="auth" id="-open-modal">
           <ion-icon :icon="isLoggedIn ? logOutOutline : logInOutline" />
           <ion-label class="ion-text-capitalize">{{ isLoggedIn ? 'Sign Out' : 'Sign In' }}</ion-label>
         </ion-segment-button>
@@ -71,6 +74,7 @@ import {
   IonPage,
   IonLabel,
   IonSegment,
+  IonModal,
   IonSegmentButton,
   actionSheetController
 } from '@ionic/vue';
@@ -86,6 +90,7 @@ import {
   logOutOutline
 } from 'ionicons/icons';
 import AppLogo from '@/views/AppLogo.vue';
+import LoginPage from '@/views/LoginPage.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -138,18 +143,6 @@ const openLanguageMenu = async () => {
   });
   await actionSheet.present();
 };
-
-// Auth handler
-const handleAuth = () => {
-  if (isLoggedIn.value) {
-    // Handle sign out
-    isLoggedIn.value = false;
-    router.push('/');
-  } else {
-    // Handle sign in
-    router.push('/signin');
-  }
-};
 </script>
 
 <style scoped>
@@ -166,11 +159,6 @@ const handleAuth = () => {
 /* ===================================
    HEADER & TOOLBAR
    ================================== */
-.transparent-top-layer {
-  background: rgba(var(--ion-background-color-rgb), 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
 
 .transparent-bot-layer {
   --background: transparent;
@@ -253,6 +241,14 @@ ion-toolbar {
 
 ion-footer {
   border-top: 1px solid var(--ion-background-color-step-350);
+}
+
+ion-modal {
+  --width: fit-content;
+  --min-width: 250px;
+  --height: fit-content;
+  --border-radius: 6px;
+  --box-shadow: 0 28px 48px rgba(0, 0, 0, 0.4);
 }
 
 </style>

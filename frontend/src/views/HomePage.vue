@@ -31,13 +31,18 @@
           </ion-item-group>
         </ion-col>
         <ion-col size="12" size-lg="6">
-          <ion-card>
-            <ion-card-header>
-              <ion-card-title class="ion-text-start">
-                Top articles this week
-              </ion-card-title>
+          <ion-card class="ion-padding">
+            <ion-card-header class="ion-no-padding ion-margin-bottom">
+              <div class="ion-display-flex ion-justify-content-between">
+                <ion-card-title class="ion-text-start">
+                  Top articles this week
+                </ion-card-title>
+                <ion-text color="secondary">
+                  +12.5% today
+                </ion-text>
+              </div>
             </ion-card-header>
-            <ion-card-content class="ion-text-center">
+            <ion-card-content class="ion-text-center ion-no-padding">
               <ion-list>
                 <ion-item v-for="n in 5" :key="n">
                   <ion-label class="ion-text-start">
@@ -72,6 +77,7 @@ import {
   IonRow,
   IonCol,
   IonChip,
+  IonText,
   IonBadge
 } from '@ionic/vue';
 import { arrowForwardOutline, flashOutline } from 'ionicons/icons';
@@ -89,5 +95,19 @@ const stats = [
 
 ion-grid {
   --ion-grid-padding: 5rem;
+}
+
+ion-card {
+  border-radius: 1rem; /* There is no way to do this in Ionic */
+  --ion-padding: 1.5rem;
+}
+
+ion-card-title {
+  font-weight: bold;
+  --ion-margin: 1rem;
+}
+
+ion-card-header ion-text {
+  font-weight: 500;
 }
 </style>

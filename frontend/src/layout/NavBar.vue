@@ -327,7 +327,7 @@ ion-toolbar {
 }
 
 ion-footer {
-  border-top: 1px solid var(--ion-background-color-step-350);
+  border-top: 1px solid var(--ion-border-color);
 }
 
 </style>

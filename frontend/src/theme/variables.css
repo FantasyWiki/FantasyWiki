@@ -11,12 +11,12 @@ http://ionicframework.com/docs/theming/ */
 	--ion-color-primary-tint: #358e62;
 
 	/* Secondary Color - Sage */
-	--ion-color-secondary: #a8bfa8;
-	--ion-color-secondary-rgb: 168, 191, 168;
-	--ion-color-secondary-contrast: #2d3d2d;
-	--ion-color-secondary-contrast-rgb: 45, 61, 45;
-	--ion-color-secondary-shade: #94a894;
-	--ion-color-secondary-tint: #b1c5b1;
+	--ion-color-secondary: #f5c842;
+	--ion-color-secondary-rgb: 245,200,66;
+	--ion-color-secondary-contrast: #000000;
+	--ion-color-secondary-contrast-rgb: 0,0,0;
+	--ion-color-secondary-shade: #d8b03a;
+	--ion-color-secondary-tint: #f6ce55;
 
 	/* Tertiary Color - Mint Accent */
 	--ion-color-tertiary: #c2e8d9;

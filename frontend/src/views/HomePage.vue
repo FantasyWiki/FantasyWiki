@@ -44,7 +44,10 @@
             </ion-card-header>
             <ion-card-content class="ion-text-center ion-no-padding">
               <ion-list>
-                <ion-item v-for="n in 5" :key="n">
+                <ion-item v-for="n in 5" :key="n" class="ion-margin-bottom ion-no-padding">
+                  <ion-badge class="ion-margin ion-padding">
+                    <ion-icon :icon="trendingUpOutline"></ion-icon>
+                  </ion-badge>
                   <ion-label class="ion-text-start">
                     <h3 class="ion-no-margin">Article Title {{ n }}</h3>
                     <p class="ion-no-margin">Brief description of the article...</p>
@@ -80,7 +83,7 @@ import {
   IonText,
   IonBadge
 } from '@ionic/vue';
-import { arrowForwardOutline, flashOutline } from 'ionicons/icons';
+import { arrowForwardOutline, flashOutline, trendingUpOutline } from 'ionicons/icons';
 import NavBar from '@/layout/NavBar.vue';
 const stats = [
   { title: '50K+', description: 'Articles drafted' },
@@ -110,4 +113,21 @@ ion-card-title {
 ion-card-header ion-text {
   font-weight: 500;
 }
+
+ion-item {
+  --border-style: none;
+  --background: var(--ion-background-color);
+  --border-radius: 0.5rem;
+}
+
+ion-card ion-item ion-badge {
+  --ion-margin: 0.5rem;
+  --ion-padding: 0.5rem;
+  --background: var(--ion-background-color-step-450);
+}
+
+ion-badge ion-icon {
+  font-size: 1.3rem;
+}
+
 </style>

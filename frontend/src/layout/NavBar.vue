@@ -245,12 +245,12 @@ ion-toolbar {
   }
 }
 
-.logo-text {
+ion-text {
   font-family: 'Libre Baskerville', serif;
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: var(--ion-text-color);
+  color: var(--ion-text-dark);
 }
 
 .logo-accent {

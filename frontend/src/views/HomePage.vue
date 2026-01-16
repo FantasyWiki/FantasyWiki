@@ -2,7 +2,11 @@
   <nav-bar>
     <ion-grid class="ion-padding-horizontal ion-margin-horizontal">
       <ion-row>
-        <ion-col size="12" size-lg="6">
+        <ion-col size="12" size-lg="6" class="ion-text-center">
+          <ion-chip color="primary" class="ion-display-inline-flex ion-justify-content-evenly">
+            <ion-icon :icon="flashOutline" aria-hidden="true"></ion-icon>
+            <div>Fantasy Sports meets Wikipedia</div>
+          </ion-chip>
           <h1 class="ion-text-center ion-text-lg-left">Build Your <strong>Knowledge Empire</strong></h1>
           <p class="ion-padding-horizontal ion-text-center ion-text-lg-left">
             Draft Wikipedia articles, earn points from real search trends, and compete in weekly tournaments. The
@@ -67,9 +71,10 @@ import {
   IonGrid,
   IonRow,
   IonCol,
+  IonChip,
   IonBadge
 } from '@ionic/vue';
-import { arrowForwardOutline } from 'ionicons/icons';
+import { arrowForwardOutline, flashOutline } from 'ionicons/icons';
 import NavBar from '@/layout/NavBar.vue';
 const stats = [
   { title: '50K+', description: 'Articles drafted' },

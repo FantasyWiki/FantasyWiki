@@ -14,13 +14,19 @@
       <ion-list>
         <ion-item v-for="n in 5" :key="n" class="ion-margin-bottom ion-no-padding">
           <ion-badge class="ion-margin ion-padding">
-            <ion-icon :icon="trendingUpOutline"></ion-icon>
+            <ion-icon :icon="trendingUpOutline" aria-label="Going up"></ion-icon>
           </ion-badge>
-          <ion-label class="ion-text-start">
+          <ion-label class="ion-text-start ion-padding-horizontal">
             <h3 class="ion-no-margin">Article Title {{ n }}</h3>
-            <p class="ion-no-margin">Brief description of the article...</p>
+            <p class="ion-display-flex ion-align-items-center">
+              <ion-icon :icon="eyeOutline" aria-hidden="true" class="eye-icon ion-margin-end"></ion-icon>
+              Avg: 98.5K/day
+            </p>
           </ion-label>
-          <ion-badge slot="end" color="primary">+{{ n * 100 }} pts</ion-badge>
+          <ion-note slot="end" color="dark" class="ion-text-end">
+            <ion-text class="views ion-display-block">145.2K</ion-text>
+            <ion-text color="primary" class="ion-display-block">+47%</ion-text>
+          </ion-note>
         </ion-item>
       </ion-list>
     </ion-card-content>
@@ -38,9 +44,10 @@ import {
   IonLabel,
   IonText,
   IonBadge,
+  IonNote,
   IonIcon
 } from '@ionic/vue';
-import { trendingUpOutline } from 'ionicons/icons';
+import { eyeOutline, trendingUpOutline } from 'ionicons/icons';
 </script>
 
 <style scoped>
@@ -74,4 +81,20 @@ ion-item ion-badge {
 ion-badge ion-icon {
   font-size: 1.3rem;
 }
+
+ion-text.views {
+  font-weight: bold;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+ion-label {
+  --ion-padding: 8px;
+}
+
+.eye-icon {
+  font-size: 1rem;
+  --ion-margin: 4px;
+}
+
 </style>

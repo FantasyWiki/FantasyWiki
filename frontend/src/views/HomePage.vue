@@ -7,20 +7,16 @@
             <ion-icon :icon="flashOutline" aria-hidden="true"></ion-icon>
             <div>Fantasy Sports meets Wikipedia</div>
           </ion-chip>
-          <h1 class="ion-text-center ion-text-lg-left">Build Your <strong>Knowledge Empire</strong></h1>
-          <p class="ion-padding-horizontal ion-text-center ion-text-lg-left">
+          <h1 class="ion-text-center">Build Your <strong>Knowledge Empire</strong></h1>
+          <p class="ion-padding-horizontal ion-text-center">
             Draft Wikipedia articles, earn points from real search trends, and compete in weekly tournaments. The
             ultimate
             fantasy game for the curious mind.
           </p>
-          <ion-item-group class="ion-display-flex ion-justify-content-center">
-            <ion-searchbar :animated=true placeholder="Search articles... (e.g., Bitcoin, AI)"
-              color="light ion-text-start"></ion-searchbar>
-            <ion-button class="ion-text-nowrap ion-text-capitalize">
-              Get Started
-              <ion-icon slot="end" :icon="arrowForwardOutline"></ion-icon>
-            </ion-button>
-          </ion-item-group>
+          <ion-button class="ion-text-capitalize ion-padding-horizontal" size="large">
+            <ion-text>Get Started</ion-text>
+            <ion-icon slot="end" :icon="arrowForwardOutline"></ion-icon>
+          </ion-button>
           <p class="ion-text-center">Start with 1,000 credits • No credit card required</p>
           <ion-item-group class="ion-display-flex ion-justify-content-center ion-flex-no-wrap ion-padding-vertical">
             <section v-for="(stat, i) in stats" v-bind:key="i" class="ion-padding-horizontal"
@@ -66,7 +62,6 @@
 <script setup lang="ts">
 import {
   IonItemGroup,
-  IonSearchbar,
   IonButton,
   IonIcon,
   IonCard,
@@ -128,6 +123,16 @@ ion-card ion-item ion-badge {
 
 ion-badge ion-icon {
   font-size: 1.3rem;
+}
+
+ion-button {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  --ion-padding: 2rem;
+}
+
+ion-button {
+  --border-radius: 0.5rem;
 }
 
 </style>

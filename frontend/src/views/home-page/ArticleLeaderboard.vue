@@ -3,10 +3,10 @@
     <ion-card-header class="ion-no-padding ion-margin-bottom">
       <div class="ion-display-flex ion-justify-content-between">
         <ion-card-title class="ion-text-start">
-          Top articles this week
+          🔥 Trending Today
         </ion-card-title>
-        <ion-text color="secondary">
-          +12.5% today
+        <ion-text>
+          Most searched
         </ion-text>
       </div>
     </ion-card-header>
@@ -68,7 +68,7 @@ ion-item {
 ion-item ion-badge {
   --ion-margin: 0.5rem;
   --ion-padding: 0.5rem;
-  --background: var(--ion-background-color-step-450);
+  --background: var(--ion-background-color-step-500);
 }
 
 ion-badge ion-icon {

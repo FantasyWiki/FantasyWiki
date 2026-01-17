@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import router from "@/router/index";
-import HomePage from "@/views/HomePage.vue";
+import HomePage from "@/views/home-page/HomePage.vue";
 
 describe("HomePage.vue", () => {
   it("should mount without any console errors or warnings", () => {

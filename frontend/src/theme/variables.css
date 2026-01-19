@@ -85,15 +85,57 @@ http://ionicframework.com/docs/theming/ */
 	--ion-backdrop-opacity: 0.4;
 	--ion-overlay-background-color: #fbfbf7;
 
-	/* Toolbar */
-	--ion-toolbar-background: #fbfbf7;
-	--ion-toolbar-border-color: #cdd8cd;
-	--ion-toolbar-color: #171f1b;
-	--ion-toolbar-segment-color: #737f73;
-	--ion-toolbar-segment-color-checked: #1e7e50;
-	--ion-toolbar-segment-background: transparent;
-	--ion-toolbar-segment-background-checked: rgba(30, 126, 80, 0.1);
-	--ion-toolbar-segment-indicator-color: #1e7e50;
+	/* Button */
+
+	ion-button {
+		font-size: 0.875rem;
+		font-weight: 500;
+		justify-self: center;
+		--box-shadow:0 0px 0px rgba(0,0,0,0);
+	}
+
+	ion-button[fill="clear"]{
+		--color: var(--ion-color-medium);
+		text-transform: none;
+
+		/* Remove default Ionic hover effects */
+		--ripple-color: transparent;
+		--background-hover: transparent;
+		--background-focused: transparent;
+		--background-activated: transparent;
+
+		/* Smooth color transition */
+		transition: color 0.2s ease;
+	}
+
+	ion-button[fill="clear"]:hover {
+		--color: var(--ion-color-primary); /* Text turns green */
+	}
+
+	ion-button[fill="solid"] {
+		--color: var(--ion-color-dark);
+		--background: var(--ion-background-color-step-100);
+		--padding-start: 8px;
+		--padding-end: 8px;
+		text-transform: none;
+
+		/* Remove ripple, keep background hover */
+		--ripple-color: transparent;
+		--background-hover: var(--ion-color-secondary);
+		--background-focused: var(--ion-background-color-step-200);
+		--background-activated: var(--ion-background-color-step-300);
+		/* Smooth color transition */
+		transition: color 0.2s ease;
+	}
+
+	ion-button[color="primary"] {
+		font-weight: 600;
+
+		--background-hover: var(--ion-color-primary-shade);
+		--background-focused: var(--ion-color-primary-shade);
+		--background-activated: var(--ion-color-primary-tint);
+	}
+
 
 	/* Tab Bar */
 	--ion-tab-bar-background: #fbfbf7;
@@ -221,15 +263,7 @@ http://ionicframework.com/docs/theming/ */
 		--ion-backdrop-color: rgba(0, 0, 0, 0.6);
 		--ion-overlay-background-color: #1a221d;
 
-		/* Toolbar - Dark */
-		--ion-toolbar-background: #1a221d;
-		--ion-toolbar-border-color: #2d3d2d;
-		--ion-toolbar-color: #f0f0ed;
-		--ion-toolbar-segment-color: #8f9f8f;
-		--ion-toolbar-segment-color-checked: #3ab87a;
-		--ion-toolbar-segment-background: transparent;
-		--ion-toolbar-segment-background-checked: rgba(58, 184, 122, 0.15);
-		--ion-toolbar-segment-indicator-color: #3ab87a;
+
 
 		/* Tab Bar - Dark */
 		--ion-tab-bar-background: #1a221d;

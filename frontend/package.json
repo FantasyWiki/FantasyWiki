@@ -21,6 +21,7 @@
     "@ionic/vue": "^8.0.0",
     "@ionic/vue-router": "^8.0.0",
     "ionicons": "^8.0.0",
+    "pinia": "^3.0.4",
     "vue": "^3.3.0",
     "vue-router": "^4.2.0"
   },

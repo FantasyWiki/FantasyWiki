@@ -72,7 +72,7 @@ const router = useRouter();
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: var(--ion-text-color);
+  color: var(--ion-color-dark);
 }
 
 .logo-accent {

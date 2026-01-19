@@ -35,6 +35,7 @@ import "@ionic/vue/css/palettes/dark.class.css";
 import "./theme/variables.css";
 
 import "@fontsource/libre-baskerville";
+import {pin} from "ionicons/icons";
 
 const app = createApp(App).use(IonicVue).use(router);
 const pinia = createPinia();

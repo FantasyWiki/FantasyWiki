@@ -10,11 +10,10 @@ interface LanguageOption {
 
 // Available languages configuration
 const AVAILABLE_LANGUAGES: LanguageOption[] = [
-    { code: 'en', label: 'EN', fullName: 'English' },
-    { code: 'it', label: 'IT', fullName: 'Italiano' },
-    { code: 'es', label: 'ES', fullName: 'Español' },
-    { code: 'de', label: 'DE', fullName: 'Deutsch' },
-    { code: 'fr', label: 'FR', fullName: 'Français' }
+    { code: 'EN', label: '🇬🇧', fullName: 'English' },
+    { code: 'IT', label: '🇮🇹', fullName: 'Italiano' },
+    { code: 'ES', label: '🇪🇸', fullName: 'Español' },
+
 ]
 
 /**

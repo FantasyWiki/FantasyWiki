@@ -17,15 +17,33 @@
         <!-- Right Actions -->
         <div slot="end" class="actions-container">
           <!-- League Selector -->
-          <ion-button fill="solid" size="small" shape="round"  @click="">
-            <ion-text>{{leagueStore.currentLeague.icon}}</ion-text>
-            <ion-text class="ion-hide-sm-down">{{ leagueStore.currentLeague.name }}</ion-text>
+          <ion-button id="league-selector" fill="solid" size="small" shape="round"  @click="">
+            <ion-label>{{leagueStore.currentLeague.icon}}</ion-label>
+            <ion-label class="ion-hide-md-down">{{ leagueStore.currentLeague.name }}</ion-label>
           </ion-button>
+          <ion-popover trigger="league-selector" trigger-action="click">
+
+            <ion-list lines="none" class="ion-no-margin">
+              <ion-item class="ion-no-margin" :detail="false" v-for="lg in leagueStore.availableLeagues" :key="lg.id" :button="true" @click="leagueStore.setCurrentLeague(lg); $event.target.closest('ion-popover').dismiss()">
+                <ion-label >{{ lg.icon }}  {{lg.name}}</ion-label>
+              </ion-item>
+            </ion-list>
+
+          </ion-popover>
           <!-- Language Selector -->
-          <ion-button fill="solid" size="small" shape="round"  @click="openLanguageMenu">
+          <ion-button id="lang-selector" fill="solid" size="small" shape="round">
             <ion-icon :icon="globeOutline" slot="start" />
-            {{ appStore.currentLanguage.label }}
+            <ion-text class="ion-hide-md-down">{{appStore.currentLanguage.label}} {{ appStore.currentLanguage.code }}</ion-text>
           </ion-button>
+          <ion-popover trigger="lang-selector" trigger-action="click">
+
+                <ion-list lines="none" class="ion-no-margin">
+                  <ion-item class="ion-no-margin" :detail="false" v-for="lang in appStore.availableLanguages" :key="lang.code" :button="true" @click="appStore.setLanguage(lang.code); $event.target.closest('ion-popover').dismiss()">
+                    <ion-label >{{ lang.label }}  {{lang.fullName}}</ion-label>
+                  </ion-item>
+                </ion-list>
+
+          </ion-popover>
 
           <!-- Theme Toggle -->
           <ion-button fill="solid" size="small" shape="round" @click="toggleTheme">
@@ -115,46 +133,6 @@ const toggleTheme = () => {
   localStorage.setItem('theme', appStore.isDarkMode ? 'dark' : 'light');
 };
 
-// Language selector
-/**
- * Opens an action sheet for language selection
- * Shows all available languages with a checkmark on the current selection
- */
-async function openLanguageMenu() {
-  const actionSheet = await actionSheetController.create({
-    header: 'Select Language',
-    cssClass: 'language-action-sheet',
-    buttons: [
-      // Dynamically create buttons for each language
-      ...appStore.availableLanguages.map(lang => ({
-        text: `${lang.fullName} (${lang.label})`,
-        icon: appStore.isLanguage(lang.code) ? checkmarkCircle : undefined,
-        cssClass: appStore.isLanguage(lang.code) ? 'selected-language' : '',
-        handler: () => {
-          appStore.setLanguage(lang.code)
-          return true // Close the action sheet
-        }
-      })),
-      // Cancel button
-      {
-        text: 'Cancel',
-        icon: closeCircle,
-        role: 'cancel',
-        cssClass: 'cancel-button',
-        handler: () => {
-          console.log('Language selection cancelled')
-        }
-      }
-    ]
-  })
-
-  await actionSheet.present()
-
-  // Optional: Get the result when action sheet is dismissed
-  const { role, data } = await actionSheet.onDidDismiss()
-  console.log('Action sheet dismissed with role:', role)
-}
-
 
 // Auth handler
 const handleAuth = () => {
@@ -171,6 +149,20 @@ const handleAuth = () => {
 </script>
 
 <style scoped>
+
+ion-popover {
+  --backdrop-opacity: 0;
+  --border-radius: 6px;
+  --border-color: var(--ion-border-color);
+  --width: 10rem;
+}
+
+ion-item {
+  font-size: 0.875rem;
+  height: 2rem;
+  --min-height: 30px;
+
+}
 
 ion-header {
   border-bottom: 1px solid var(--ion-border-color);

@@ -11,8 +11,8 @@
       </div>
     </ion-card-header>
     <ion-card-content class="ion-text-center ion-no-padding">
-      <ion-list>
-        <ion-item v-for="n in 5" :key="n" class="ion-margin-bottom ion-no-padding">
+      <ion-list class="ion-no-padding">
+        <ion-item v-for="n in 4" :key="n" class="ion-margin-bottom ion-no-padding">
           <ion-badge class="ion-margin ion-padding">
             <ion-icon :icon="trendingUpOutline" aria-label="Going up"></ion-icon>
           </ion-badge>
@@ -29,6 +29,9 @@
           </ion-note>
         </ion-item>
       </ion-list>
+      <div class="top-border ion-padding-top">
+        Updated in real-time from Wikipedia
+      </div>
     </ion-card-content>
   </ion-card>
 </template>
@@ -95,6 +98,11 @@ ion-label {
 .eye-icon {
   font-size: 1rem;
   --ion-margin: 4px;
+}
+
+div.top-border {
+  border-top: 1px solid var(--ion-border-color);
+  --ion-padding: 16px;
 }
 
 </style>

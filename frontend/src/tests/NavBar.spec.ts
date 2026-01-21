@@ -1,19 +1,28 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { createPinia } from 'pinia';
 import router from "@/router/index";
 import NavBar from '@/layout/NavBar.vue';
 
 describe('NavBar.vue', () => {
-  it('should mount without any console errors or warnings', () => {
-    router.push("/");
-    router.isReady().then(() => {
-      const wrapper = mount(NavBar, {
-        global: {
-          plugins: [router],
-        },
-      });
+  let pinia;
 
-      expect(wrapper.exists()).toBe(true);
+  beforeEach(() => {
+    // Create a fresh Pinia instance for each test
+    pinia = createPinia();
+  });
+
+  it('should mount without any console errors or warnings', async () => {
+    // Wait for router to be ready
+    await router.push("/");
+    await router.isReady();
+
+    const wrapper = mount(NavBar, {
+      global: {
+        plugins: [router, pinia], // Add Pinia to plugins
+      },
     });
-  })
-})
+
+    expect(wrapper.exists()).toBe(true);
+  });
+});

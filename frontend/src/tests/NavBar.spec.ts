@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { createPinia } from 'pinia';
+import {createPinia, Pinia} from 'pinia';
 import router from "@/router/index";
 import NavBar from '@/layout/NavBar.vue';
 
 describe('NavBar.vue', () => {
-  let pinia;
+  let pinia: Pinia;
 
   beforeEach(() => {
     // Create a fresh Pinia instance for each test

@@ -20,10 +20,10 @@
           <p class="ion-text-center">Start with 1,000 credits • No credit card required</p>
           <app-stats></app-stats>
         </ion-col>
-        <ion-col size="12" size-lg="6">
+        <ion-col size="12" size-lg="6" class="ion-no-padding">
           <article-leaderboard></article-leaderboard>
-          <ion-chip color="danger" class="top-right">⚡Live data</ion-chip>
-          <ion-chip color="primary" class="bottom-left">📊 Over 2 million views today</ion-chip>
+          <ion-chip color="danger" class="top-right animate-float">⚡Live data</ion-chip>
+          <ion-chip color="primary" class="bottom-left animate-float">📊 Over 2 million views today</ion-chip>
         </ion-col>
       </ion-row>
     </ion-grid>
@@ -69,4 +69,14 @@ ion-chip.bottom-left {
   bottom: -1rem;
   left: -1rem;
 }
+
+ion-chip.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
 </style>

@@ -89,7 +89,12 @@ import {
   IonIcon,
   IonContent,
   IonFooter,
-  IonPage
+  IonPage,
+  IonPopover,
+  IonList,
+  IonItem,
+  IonLabel,
+  IonText
 } from '@ionic/vue';
 import {
   globeOutline,

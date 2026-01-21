@@ -22,6 +22,8 @@
         </ion-col>
         <ion-col size="12" size-lg="6">
           <article-leaderboard></article-leaderboard>
+          <ion-chip color="danger" class="top-right">⚡Live data</ion-chip>
+          <ion-chip color="primary" class="bottom-left">📊 Over 2 million views today</ion-chip>
         </ion-col>
       </ion-row>
     </ion-grid>
@@ -56,4 +58,15 @@ ion-button {
   --border-radius: 0.5rem;
 }
 
+ion-chip.top-right {
+  position: absolute;
+  top: -1rem;
+  right: -1rem;
+}
+
+ion-chip.bottom-left {
+  position: absolute;
+  bottom: -1rem;
+  left: -1rem;
+}
 </style>

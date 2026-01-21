@@ -104,5 +104,4 @@ div.top-border {
   border-top: 1px solid var(--ion-border-color);
   --ion-padding: 16px;
 }
-
 </style>

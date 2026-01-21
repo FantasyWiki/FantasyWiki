@@ -8,6 +8,6 @@ org.codehaus.groovy:groovy-bom:3.0.21=classpath
 org.codehaus.groovy:groovy:3.0.21=classpath
 org.danilopianini.git-sensitive-semantic-versioning:org.danilopianini.git-sensitive-semantic-versioning.gradle.plugin:7.0.9=classpath
 org.danilopianini:git-sensitive-semantic-versioning-gradle-plugin:7.0.9=classpath
-org.jetbrains.kotlin:kotlin-stdlib:2.2.20=classpath
+org.jetbrains.kotlin:kotlin-stdlib:2.2.21=classpath
 org.jetbrains:annotations:13.0=classpath
 empty=

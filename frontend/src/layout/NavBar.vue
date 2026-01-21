@@ -17,7 +17,7 @@
         <!-- Right Actions -->
         <div slot="end" class="actions-container">
           <!-- League Selector -->
-          <ion-button id="league-selector" fill="solid" size="small" shape="round"  @click="">
+          <ion-button id="league-selector" fill="solid" size="small" shape="round">
             <ion-label>{{leagueStore.currentLeague.icon}}</ion-label>
             <ion-label class="ion-hide-md-down">{{ leagueStore.currentLeague.name }}</ion-label>
           </ion-button>
@@ -89,8 +89,7 @@ import {
   IonIcon,
   IonContent,
   IonFooter,
-  IonPage,
-  actionSheetController
+  IonPage
 } from '@ionic/vue';
 import {
   globeOutline,
@@ -99,7 +98,7 @@ import {
   moonOutline,
   sunnyOutline,
   logInOutline,
-  logOutOutline, closeCircle, checkmarkCircle, storefrontOutline
+  logOutOutline, storefrontOutline
 } from 'ionicons/icons';
 import AppLogo from '@/views/AppLogo.vue';
 import {useAppStore} from "@/stores/app";

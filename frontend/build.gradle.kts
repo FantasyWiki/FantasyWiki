@@ -13,6 +13,7 @@ tasks.register("check") {
     dependsOn(
         "npm_audit",
         "npm_run_lint",
+        "npm_run_format",
         "npm_run_test-unit"
     )
 }

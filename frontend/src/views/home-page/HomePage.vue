@@ -22,7 +22,7 @@
         </ion-col>
         <ion-col size="12" size-lg="6" class="ion-no-padding">
           <article-leaderboard></article-leaderboard>
-          <ion-chip color="danger" class="top-right animate-float">⚡Live data</ion-chip>
+          <ion-chip color="secondary" class="top-right animate-float">⚡Live data</ion-chip>
           <ion-chip color="primary" class="bottom-left animate-float">📊 Over 2 million views today</ion-chip>
         </ion-col>
       </ion-row>

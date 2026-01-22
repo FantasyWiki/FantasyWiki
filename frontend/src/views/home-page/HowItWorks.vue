@@ -1,22 +1,19 @@
 <template>
   <section id="how-it-works" class="ion-padding-vertical bg-secondary">
+    <section class="ion-text-center ion-margin-bottom">
+      <h2 class="title ion-margin-bottom">
+        How Fantasy<strong>Wiki</strong> Works
+      </h2>
+      <p class="ion-margin-bottom">
+        Join thousands of players competing in the ultimate knowledge-based fantasy game.
+      </p>
+    </section>
+
     <ion-grid>
       <ion-row>
-        <ion-col size="12">
-          <div class="ion-text-center ion-margin-bottom">
-            <h2 class="title ion-margin-bottom">
-              How Fantasy<span class="text-primary">Wiki</span> Works
-            </h2>
-            <p class="ion-margin-bottom">
-              Join thousands of players competing in the ultimate knowledge-based fantasy game.
-            </p>
+        <ion-col v-for="(step, index) in steps" :key="step.title" size="12" size-md="6" size-lg="3">
+          <div class="step-number ion-display-flex ion-justify-content-center ion-align-items-center">{{ index + 1 }}
           </div>
-        </ion-col>
-      </ion-row>
-
-      <ion-row>
-        <ion-col v-for="(step, index) in steps" :key="step.title" size="6" size-lg="3">
-          <div class="step-number ion-display-flex ion-justify-content-center ion-align-items-center">{{ index + 1 }}</div>
           <ion-card class="step-card ion-padding">
             <ion-card-content class="ion-no-padding">
               <div
@@ -30,7 +27,7 @@
               </p>
             </ion-card-content>
           </ion-card>
-       </ion-col>
+        </ion-col>
       </ion-row>
     </ion-grid>
   </section>
@@ -77,18 +74,12 @@ const steps = [
   background-color: rgba(var(--ion-color-secondary-rgb), 0.1);
 }
 
-.title {
+
+h2 {
   font-size: clamp(1.875rem, 4vw, 2.25rem);
-  font-family: serif;
-  font-weight: bold;
-  color: var(--ion-color-dark);
 }
 
-.text-primary {
-  color: var(--ion-color-primary);
-}
-
-.step-card {
+step-card {
   border: 1px solid var(--ion-color-light-shade);
   border-radius: 0.75rem;
   transition: all 0.3s ease;
@@ -155,5 +146,4 @@ const steps = [
 ion-card {
   --ion-padding: 1.5rem;
 }
-
 </style>

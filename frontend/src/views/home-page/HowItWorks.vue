@@ -7,7 +7,7 @@
             <h2 class="title ion-margin-bottom">
               How Fantasy<span class="text-primary">Wiki</span> Works
             </h2>
-            <p class="subtitle ion-margin-bottom">
+            <p class="ion-margin-bottom">
               Join thousands of players competing in the ultimate knowledge-based fantasy game.
             </p>
           </div>
@@ -86,12 +86,6 @@ const steps = [
 
 .text-primary {
   color: var(--ion-color-primary);
-}
-
-.subtitle {
-  font-size: 1.125rem;
-  color: var(--ion-color-medium);
-  max-width: 42rem;
 }
 
 .step-card {

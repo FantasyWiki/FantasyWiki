@@ -16,12 +16,12 @@
 
       <ion-row>
         <ion-col v-for="(step, index) in steps" :key="step.title" size="6" size-lg="3">
-          <ion-card class="step-card">
-            <div class="step-number ion-display-flex ion-align-items-center ion-justify-content-center">
+          <ion-card class="step-card ion-padding">
+            <div class="step-number">
               {{ index + 1 }}
             </div>
 
-            <ion-card-content>
+            <ion-card-content class="ion-no-padding">
               <div
                 :class="['icon-wrapper ion-margin-bottom ion-display-flex ion-align-items-center ion-justify-content-center', step.colorClass]">
                 <ion-icon :icon="step.icon" size="large"></ion-icon>
@@ -33,11 +33,7 @@
               </p>
             </ion-card-content>
           </ion-card>
-
-          <div v-if="index < steps.length - 1" class="arrow-wrapper ion-display-none ion-display-lg-flex">
-            <ion-icon :icon="arrowForward" size="large"></ion-icon>
-          </div>
-        </ion-col>
+       </ion-col>
       </ion-row>
     </ion-grid>
   </section>
@@ -45,7 +41,7 @@
 
 <script setup lang="ts">
 import { IonGrid, IonRow, IonCol, IonCard, IonCardContent, IonIcon } from '@ionic/vue';
-import { search, cart, trendingUp, trophy, arrowForward } from 'ionicons/icons';
+import { search, cart, trendingUp, trophy } from 'ionicons/icons';
 
 const steps = [
   {
@@ -167,12 +163,8 @@ const steps = [
   line-height: 1.625;
 }
 
-.arrow-wrapper {
-  position: absolute;
-  top: 50%;
-  right: -0.75rem;
-  transform: translateY(-50%);
-  z-index: 10;
-  color: rgba(var(--ion-color-medium-rgb), 0.5);
+ion-card {
+  --ion-padding: 1.5rem;
 }
+
 </style>

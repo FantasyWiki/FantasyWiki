@@ -16,11 +16,8 @@
 
       <ion-row>
         <ion-col v-for="(step, index) in steps" :key="step.title" size="6" size-lg="3">
+          <div class="step-number ion-display-flex ion-justify-content-center ion-align-items-center">{{ index + 1 }}</div>
           <ion-card class="step-card ion-padding">
-            <div class="step-number">
-              {{ index + 1 }}
-            </div>
-
             <ion-card-content class="ion-no-padding">
               <div
                 :class="['icon-wrapper ion-margin-bottom ion-display-flex ion-align-items-center ion-justify-content-center', step.colorClass]">
@@ -111,8 +108,6 @@ const steps = [
 
 .step-number {
   position: absolute;
-  top: -0.75rem;
-  left: -0.75rem;
   height: 2rem;
   width: 2rem;
   border-radius: 50%;

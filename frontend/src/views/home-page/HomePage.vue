@@ -27,6 +27,7 @@
         </ion-col>
       </ion-row>
     </ion-grid>
+    <how-it-works></how-it-works>
   </nav-bar>
 </template>
 
@@ -44,6 +45,7 @@ import { arrowForwardOutline, flashOutline } from 'ionicons/icons';
 import NavBar from '@/layout/NavBar.vue';
 import AppStats from './AppStats.vue';
 import ArticleLeaderboard from './ArticleLeaderboard.vue';
+import HowItWorks from './HowItWorks.vue';
 
 </script>
 <style scoped>

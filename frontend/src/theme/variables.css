@@ -375,6 +375,7 @@ h2,
 ion-card-title {
   font-family: var(--font-family-headings);
   color: var(--ion-color-dark);
+  font-weight: bold;
 }
 
 strong {

@@ -375,3 +375,11 @@ h1, h2, h3, ion-card-title, ion-card-content h3 {
 strong {
   color: var(--ion-color-primary);
 }
+
+ion-button {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  --ion-padding: 2rem;
+  --border-radius: 0.5rem;
+}
+

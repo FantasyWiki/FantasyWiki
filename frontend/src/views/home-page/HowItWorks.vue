@@ -145,5 +145,6 @@ step-card {
 
 ion-card {
   --ion-padding: 1.5rem;
+  height: 100%;
 }
 </style>

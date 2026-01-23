@@ -15,17 +15,14 @@
           <ion-col v-for="(feature, index) in features" :key="feature.title" size="12" size-sm="6" size-lg="3">
             <ion-card class="feature-card ion-padding">
               <ion-card-content class="ion-no-padding">
-                <div 
+                <div
                   :class="['icon-wrapper ion-margin-bottom ion-display-flex ion-align-items-center ion-justify-content-center']"
-                  :style="{ animationDelay: `${index * 50}ms` }"
-                >
+                  :style="{ animationDelay: `${index * 50}ms` }">
                   <ion-icon :icon="feature.icon" size="large"></ion-icon>
                 </div>
 
                 <h3 class="feature-title ion-margin-bottom">{{ feature.title }}</h3>
-                <p class="feature-description">
-                  {{ feature.description }}
-                </p>
+                <p>{{ feature.description }}</p>
               </ion-card-content>
             </ion-card>
           </ion-col>
@@ -37,12 +34,12 @@
 
 <script setup lang="ts">
 import { IonGrid, IonRow, IonCol, IonCard, IonCardContent, IonIcon } from '@ionic/vue';
-import { 
-  timeOutline, 
-  flashOutline, 
-  shieldCheckmarkOutline, 
-  barChartOutline, 
-  peopleOutline, 
+import {
+  timeOutline,
+  flashOutline,
+  shieldCheckmarkOutline,
+  barChartOutline,
+  peopleOutline,
   trophyOutline,
   linkOutline,
   calendarOutline
@@ -98,17 +95,6 @@ const features = [
   margin: 0 auto;
 }
 
-h2 {
-  font-size: clamp(1.875rem, 4vw, 2.25rem);
-}
-
-.subtitle {
-  font-size: 1.125rem;
-  color: var(--ion-color-medium);
-  max-width: 42rem;
-  margin: 0 auto;
-}
-
 .feature-card {
   border: 1px solid var(--ion-color-light-shade);
   border-radius: 0.75rem;
@@ -135,20 +121,13 @@ h2 {
   transform: scale(1.05);
 }
 
-.feature-description {
-  color: var(--ion-color-medium);
-  font-size: 0.875rem;
-  line-height: 1.625;
-}
-
 ion-card {
   --ion-padding: 1.25rem;
   height: 100%;
 }
 
-@media (max-width: 576px) {
-  ion-col {
-    padding: 0.25rem;
-  }
+.feature-title {
+  font-weight: bold;
+  font-size: 1.125rem;
 }
 </style>

@@ -22,7 +22,7 @@
               </div>
 
               <h3 class="step-title ion-margin-bottom">{{ step.title }}</h3>
-              <p class="step-description">
+              <p>
                 {{ step.description }}
               </p>
             </ion-card-content>
@@ -131,16 +131,8 @@ step-card {
 }
 
 .step-title {
-  font-family: serif;
   font-weight: bold;
   font-size: 1.125rem;
-  color: var(--ion-color-dark);
-}
-
-.step-description {
-  color: var(--ion-color-medium);
-  font-size: 0.875rem;
-  line-height: 1.625;
 }
 
 ion-card {

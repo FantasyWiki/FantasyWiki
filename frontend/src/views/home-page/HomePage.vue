@@ -28,6 +28,7 @@
       </ion-row>
     </ion-grid>
     <how-it-works></how-it-works>
+    <app-feature></app-feature>
   </nav-bar>
 </template>
 
@@ -46,6 +47,7 @@ import NavBar from '@/layout/NavBar.vue';
 import AppStats from './AppStats.vue';
 import ArticleLeaderboard from './ArticleLeaderboard.vue';
 import HowItWorks from './HowItWorks.vue';
+import AppFeature from './AppFeature.vue';
 
 </script>
 <style scoped>

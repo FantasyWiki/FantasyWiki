@@ -365,13 +365,14 @@ http://ionicframework.com/docs/theming/ */
   --font-family-headings: "Libre Baskerville", Georgia, serif;
 }
 
-h1 {
+h1, h2, h3 {
   font-size: 2.25rem;
   font-weight: 700;
 }
 
 h1,
 h2,
+h3,
 ion-card-title {
   font-family: var(--font-family-headings);
   color: var(--ion-color-dark);

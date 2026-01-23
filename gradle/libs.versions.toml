@@ -1,5 +1,5 @@
 [plugins]
-gitSemVer = "org.danilopianini.git-sensitive-semantic-versioning:7.0.9"
+gitSemVer = "org.danilopianini.git-sensitive-semantic-versioning:7.0.10"
 taskTree = "com.dorongold.task-tree:4.0.1"
 node = "com.github.node-gradle.node:7.1.0"
 

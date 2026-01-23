@@ -22,8 +22,8 @@
         </ion-col>
         <ion-col size="12" size-lg="6" class="ion-no-padding">
           <article-leaderboard></article-leaderboard>
-          <ion-chip color="secondary" class="top-right animate-float">⚡Live data</ion-chip>
-          <ion-chip color="primary" class="bottom-left animate-float">📊 Over 2 million views today</ion-chip>
+          <ion-chip class="top-right animate-float">⚡Live data</ion-chip>
+          <ion-chip class="bottom-left animate-float">📊 Over 2 million views today</ion-chip>
         </ion-col>
       </ion-row>
     </ion-grid>
@@ -64,12 +64,15 @@ ion-chip.top-right {
   position: absolute;
   top: -1rem;
   right: -1rem;
+  --background: var(--ion-color-secondary);
 }
 
 ion-chip.bottom-left {
   position: absolute;
   bottom: -1rem;
   left: -1rem;
+  --background: var(--ion-color-primary);
+  --color: var(--ion-color-light);
 }
 
 ion-chip.animate-float {

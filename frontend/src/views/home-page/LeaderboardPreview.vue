@@ -44,7 +44,7 @@
         <ion-col size="12" size-lg="6">
           <ion-card class="leaderboard-card">
             <ion-card-header class="leaderboard-header">
-              <div class="header-content">
+              <div class="header-content ion-display-flex ion-align-items-center ion-justify-content-between">
                 <h3>🏆 Global Leaderboard</h3>
                 <span class="update-time">Updated hourly</span>
               </div>
@@ -53,7 +53,7 @@
             <ion-card-content class="ion-no-padding">
               <ion-list>
                 <ion-item v-for="player in leaderboardData" :key="player.rank"
-                  :class="['leaderboard-item', player.rank <= 3 ? 'top-3' : '']" lines="none">
+                  :class="['leaderboard-item ion-no-padding', player.rank <= 3 ? 'top-3' : '']" lines="none">
                   <div slot="start" class="rank-badge" :class="getRankClass(player.rank)">
                     {{ player.rank }}
                   </div>
@@ -220,33 +220,17 @@ ion-chip {
   padding: 1rem;
 }
 
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
 .header-content h3 {
   margin: 0;
-  font-weight: bold;
   font-size: 1rem;
-  font-family: Georgia, serif;
 }
 
 .update-time {
   font-size: 0.75rem;
-  color: var(--ion-color-medium);
 }
 
 /* Leaderboard Items */
-ion-list {
-  background: transparent;
-}
-
 .leaderboard-item {
-  --padding-start: 0;
-  --padding-end: 0;
-  --inner-padding-end: 0;
   padding: 1rem;
   transition: background-color 0.2s ease;
   --background: transparent;

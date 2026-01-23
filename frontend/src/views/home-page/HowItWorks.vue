@@ -79,7 +79,7 @@ h2 {
   font-size: clamp(1.875rem, 4vw, 2.25rem);
 }
 
-step-card {
+.step-card {
   border: 1px solid var(--ion-color-light-shade);
   border-radius: 0.75rem;
   transition: all 0.3s ease;

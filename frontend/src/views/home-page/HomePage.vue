@@ -29,6 +29,7 @@
     </ion-grid>
     <how-it-works></how-it-works>
     <app-feature></app-feature>
+    <leaderboard-preview></leaderboard-preview>
   </nav-bar>
 </template>
 
@@ -48,6 +49,7 @@ import AppStats from './AppStats.vue';
 import ArticleLeaderboard from './ArticleLeaderboard.vue';
 import HowItWorks from './HowItWorks.vue';
 import AppFeature from './AppFeature.vue';
+import LeaderboardPreview from './LeaderboardPreview.vue';
 
 </script>
 <style scoped>
@@ -55,12 +57,7 @@ ion-grid {
   --ion-grid-padding: 5rem;
 }
 
-ion-button {
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  --ion-padding: 2rem;
-  --border-radius: 0.5rem;
-}
+
 
 ion-chip.top-right {
   position: absolute;

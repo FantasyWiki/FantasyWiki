@@ -1,6 +1,6 @@
 <template>
   <section id="leagues" class="ion-padding-vertical">
-    <ion-grid>
+    <ion-grid class="home-section-container ion-padding">
       <ion-row class="ion-align-items-center">
         <!-- Left Content -->
         <ion-col size="12" size-lg="6" class="ion-margin-bottom">
@@ -201,6 +201,7 @@ const getRankClass = (rank: number) => {
 };
 </script>
 
+<style scoped src="./home-page.css"></style>
 <style scoped>
 ion-chip {
   font-weight: 500;

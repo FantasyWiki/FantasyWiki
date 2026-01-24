@@ -1,65 +1,51 @@
 <template>
   <section class="ion-padding-vertical">
-    <ion-grid>
-      <ion-row class="ion-justify-content-center">
-        <ion-col size="12" size-md="10" size-lg="8" size-xl="6">
-          <div class="cta-card ion-padding">
-            <!-- Pattern Overlay -->
-            <div class="pattern-overlay"></div>
+    <div class="home-section-container ion-padding">
+      <div class="cta-card ion-padding">
+        <!-- Pattern Overlay -->
+        <div class="pattern-overlay"></div>
 
-            <div class="cta-content ion-text-center">
-              <ion-chip color="light">
-                <ion-icon :icon="sparklesOutline" />
-                <ion-label>Start Playing Today</ion-label>
-              </ion-chip>
+        <div class="cta-content ion-text-center">
+          <ion-chip color="light">
+            <ion-icon :icon="sparklesOutline" />
+            <ion-label>Start Playing Today</ion-label>
+          </ion-chip>
 
-              <h2 class="cta-title ion-margin-top ion-margin-bottom">
-                <ion-text color="light">
-                  Ready to Build Your Knowledge Empire?
-                </ion-text>
-              </h2>
+          <h2 class="cta-title ion-margin-top ion-margin-bottom">
+            <ion-text color="light">
+              Ready to Build Your Knowledge Empire?
+            </ion-text>
+          </h2>
 
-              <ion-text color="light" class="cta-description ion-margin-bottom">
-                <p>
-                  Join thousands of players already competing in the world's first
-                  Wikipedia-based fantasy game. Start with 1,000 free credits.
-                </p>
-              </ion-text>
+          <ion-text color="light" class="cta-description ion-margin-bottom">
+            <p>
+              Join thousands of players already competing in the world's first
+              Wikipedia-based fantasy game. Start with 1,000 free credits.
+            </p>
+          </ion-text>
 
-              <div class="ion-margin-bottom">
-                <ion-button size="large" color="light">
-                  Create Free Account
-                  <ion-icon slot="end" :icon="arrowForward" />
-                </ion-button>
-              </div>
-
-              <ion-text color="light" class="cta-footer">
-                <p>
-                  No credit card required • Free to play • Win real rewards
-                </p>
-              </ion-text>
-            </div>
+          <div class="ion-margin-bottom">
+            <ion-button size="large" color="light">
+              Create Free Account
+              <ion-icon slot="end" :icon="arrowForward" />
+            </ion-button>
           </div>
-        </ion-col>
-      </ion-row>
-    </ion-grid>
+
+          <ion-text color="light" class="cta-footer">
+            <p>No credit card required • Free to play • Win real rewards</p>
+          </ion-text>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import {
-  IonButton,
-  IonChip,
-  IonIcon,
-  IonLabel,
-  IonGrid,
-  IonRow,
-  IonCol,
-  IonText,
-} from "@ionic/vue";
+import { IonButton, IonChip, IonIcon, IonLabel, IonText } from "@ionic/vue";
 import { sparklesOutline, arrowForward } from "ionicons/icons";
 </script>
 
+<style scoped src="./home-page.css"></style>
 <style scoped>
 .cta-card {
   position: relative;

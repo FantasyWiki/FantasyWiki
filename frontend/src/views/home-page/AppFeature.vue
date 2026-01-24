@@ -1,43 +1,41 @@
 <template>
   <section class="ion-padding-vertical">
-    <div class="container ion-padding">
-      <section class="ion-text-center ion-margin-bottom">
-        <h2 class="title ion-margin-bottom">Powerful Features</h2>
-        <p class="subtitle ion-margin-bottom">
-          Everything you need for the ultimate fantasy knowledge experience.
-        </p>
-      </section>
+    <section class="ion-text-center ion-margin-bottom">
+      <h2 class="title ion-margin-bottom">Powerful Features</h2>
+      <p class="subtitle ion-margin-bottom">
+        Everything you need for the ultimate fantasy knowledge experience.
+      </p>
+    </section>
 
-      <ion-grid>
-        <ion-row>
-          <ion-col
-            v-for="(feature, index) in features"
-            :key="feature.title"
-            size="12"
-            size-sm="6"
-            size-lg="3"
-          >
-            <ion-card class="feature-card ion-padding">
-              <ion-card-content class="ion-no-padding">
-                <div
-                  :class="[
-                    'icon-wrapper ion-margin-bottom ion-display-flex ion-align-items-center ion-justify-content-center',
-                  ]"
-                  :style="{ animationDelay: `${index * 50}ms` }"
-                >
-                  <ion-icon :icon="feature.icon" size="large"></ion-icon>
-                </div>
+    <ion-grid class="home-section-container ion-padding">
+      <ion-row>
+        <ion-col
+          v-for="(feature, index) in features"
+          :key="feature.title"
+          size="12"
+          size-sm="6"
+          size-lg="3"
+        >
+          <ion-card class="feature-card ion-padding">
+            <ion-card-content class="ion-no-padding">
+              <div
+                :class="[
+                  'icon-wrapper ion-margin-bottom ion-display-flex ion-align-items-center ion-justify-content-center',
+                ]"
+                :style="{ animationDelay: `${index * 50}ms` }"
+              >
+                <ion-icon :icon="feature.icon" size="large"></ion-icon>
+              </div>
 
-                <h3 class="feature-title ion-margin-bottom">
-                  {{ feature.title }}
-                </h3>
-                <p>{{ feature.description }}</p>
-              </ion-card-content>
-            </ion-card>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
-    </div>
+              <h3 class="feature-title ion-margin-bottom">
+                {{ feature.title }}
+              </h3>
+              <p>{{ feature.description }}</p>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
   </section>
 </template>
 
@@ -106,12 +104,8 @@ const features = [
 ];
 </script>
 
+<style scoped src="./home-page.css"></style>
 <style scoped>
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
 .feature-card {
   border: 1px solid var(--ion-color-light-shade);
   border-radius: 0.75rem;

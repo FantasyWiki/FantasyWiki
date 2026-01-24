@@ -20,3 +20,4 @@ android/
 package-lock.json
 pnpm-lock.yaml
 .gradle/
+**/*.hbs

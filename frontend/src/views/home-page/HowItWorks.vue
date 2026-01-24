@@ -10,13 +10,13 @@
       </p>
     </section>
 
-    <ion-grid>
-      <ion-row>
+    <ion-grid class="home-section-container ion-padding">
+      <ion-row class="ion-justify-content-center">
         <ion-col
           v-for="(step, index) in steps"
           :key="step.title"
           size="12"
-          size-md="6"
+          size-sm="6"
           size-lg="3"
         >
           <div
@@ -90,6 +90,7 @@ const steps = [
 ];
 </script>
 
+<style scoped src="./home-page.css"></style>
 <style scoped>
 #how-it-works {
   background: var(--ion-color-light);

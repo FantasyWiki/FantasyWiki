@@ -18,13 +18,7 @@
             <ion-icon slot="end" :icon="arrowForwardOutline"></ion-icon>
           </ion-button>
           <p class="ion-text-center">Start with 1,000 credits • No credit card required</p>
-          <ion-item-group class="ion-display-flex ion-justify-content-center ion-flex-no-wrap ion-padding-vertical">
-            <section v-for="(stat, i) in stats" v-bind:key="i" class="ion-padding-horizontal"
-              :class="i !== stats.length - 1 ? 'border-right' : ''">
-              <h2 class="ion-no-margin ion-text-center"><strong>{{ stat.title }}</strong></h2>
-              <p class="ion-no-margin">{{ stat.description }}</p>
-            </section>
-          </ion-item-group>
+          <app-stats></app-stats>
         </ion-col>
         <ion-col size="12" size-lg="6">
           <ion-card class="ion-padding">
@@ -61,7 +55,6 @@
 
 <script setup lang="ts">
 import {
-  IonItemGroup,
   IonButton,
   IonIcon,
   IonCard,
@@ -80,17 +73,10 @@ import {
 } from '@ionic/vue';
 import { arrowForwardOutline, flashOutline, trendingUpOutline } from 'ionicons/icons';
 import NavBar from '@/layout/NavBar.vue';
-const stats = [
-  { title: '50K+', description: 'Articles drafted' },
-  { title: '1M+', description: 'Points earned' },
-  { title: '10K+', description: 'Active users' },
-];
+import AppStats from './AppStats.vue';
+
 </script>
 <style scoped>
-.border-right {
-  border-right: 1px solid var(--ion-color-light-shade);
-}
-
 ion-grid {
   --ion-grid-padding: 5rem;
 }

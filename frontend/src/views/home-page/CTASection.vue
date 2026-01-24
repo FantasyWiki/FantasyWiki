@@ -3,24 +3,28 @@
     <ion-grid>
       <ion-row class="ion-justify-content-center">
         <ion-col size="12" size-md="10" size-lg="8" size-xl="6">
-          <div class="cta-card">
+          <div class="cta-card ion-padding">
             <!-- Pattern Overlay -->
             <div class="pattern-overlay"></div>
 
             <div class="cta-content ion-text-center">
-              <ion-chip class="cta-badge" color="light">
+              <ion-chip color="light">
                 <ion-icon :icon="sparklesOutline" />
                 <ion-label>Start Playing Today</ion-label>
               </ion-chip>
 
               <h2 class="cta-title ion-margin-top ion-margin-bottom">
-                Ready to Build Your Knowledge Empire?
+                <ion-text color="light">
+                  Ready to Build Your Knowledge Empire?
+                </ion-text>
               </h2>
 
-              <p class="cta-description ion-margin-bottom">
-                Join thousands of players already competing in the world's first
-                Wikipedia-based fantasy game. Start with 1,000 free credits.
-              </p>
+              <ion-text color="light" class="cta-description ion-margin-bottom">
+                <p>
+                  Join thousands of players already competing in the world's first
+                  Wikipedia-based fantasy game. Start with 1,000 free credits.
+                </p>
+              </ion-text>
 
               <div class="ion-margin-bottom">
                 <ion-button size="large" color="light">
@@ -29,9 +33,11 @@
                 </ion-button>
               </div>
 
-              <p class="cta-footer">
-                No credit card required • Free to play • Win real rewards
-              </p>
+              <ion-text color="light" class="cta-footer">
+                <p>
+                  No credit card required • Free to play • Win real rewards
+                </p>
+              </ion-text>
             </div>
           </div>
         </ion-col>
@@ -49,6 +55,7 @@ import {
   IonGrid,
   IonRow,
   IonCol,
+  IonText,
 } from "@ionic/vue";
 import { sparklesOutline, arrowForward } from "ionicons/icons";
 </script>
@@ -63,7 +70,7 @@ import { sparklesOutline, arrowForward } from "ionicons/icons";
     var(--ion-color-primary-shade)
   );
   overflow: hidden;
-  padding: 3rem;
+  --ion-padding: 3rem;
 }
 
 .pattern-overlay {
@@ -77,25 +84,15 @@ import { sparklesOutline, arrowForward } from "ionicons/icons";
   position: relative;
 }
 
-.cta-badge {
-  --background: rgba(255, 255, 255, 0.2);
-  --color: var(--ion-color-primary-contrast);
-}
-
 .cta-title {
   font-size: clamp(1.875rem, 5vw, 3rem);
-  font-weight: bold;
-  color: var(--ion-color-primary-contrast);
-  line-height: 1.2;
 }
 
 .cta-description {
   font-size: clamp(1rem, 2vw, 1.25rem);
-  color: rgba(255, 255, 255, 0.8);
 }
 
 .cta-footer {
   font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.6);
 }
 </style>

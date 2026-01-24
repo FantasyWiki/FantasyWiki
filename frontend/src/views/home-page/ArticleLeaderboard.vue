@@ -5,21 +5,30 @@
         <ion-card-title class="ion-text-start">
           🔥 Trending Today
         </ion-card-title>
-        <ion-text>
-          Most searched
-        </ion-text>
+        <ion-text> Most searched </ion-text>
       </div>
     </ion-card-header>
     <ion-card-content class="ion-text-center ion-no-padding">
       <ion-list class="ion-no-padding">
-        <ion-item v-for="n in 4" :key="n" class="ion-margin-bottom ion-no-padding">
+        <ion-item
+          v-for="n in 4"
+          :key="n"
+          class="ion-margin-bottom ion-no-padding"
+        >
           <ion-badge class="ion-margin ion-padding">
-            <ion-icon :icon="trendingUpOutline" aria-label="Going up"></ion-icon>
+            <ion-icon
+              :icon="trendingUpOutline"
+              aria-label="Going up"
+            ></ion-icon>
           </ion-badge>
           <ion-label class="ion-text-start ion-padding-horizontal">
             <h3 class="ion-no-margin">Article Title {{ n }}</h3>
             <p class="ion-display-flex ion-align-items-center">
-              <ion-icon :icon="eyeOutline" aria-hidden="true" class="eye-icon ion-margin-end"></ion-icon>
+              <ion-icon
+                :icon="eyeOutline"
+                aria-hidden="true"
+                class="eye-icon ion-margin-end"
+              ></ion-icon>
               Avg: 98.5K/day
             </p>
           </ion-label>
@@ -48,9 +57,9 @@ import {
   IonText,
   IonBadge,
   IonNote,
-  IonIcon
-} from '@ionic/vue';
-import { eyeOutline, trendingUpOutline } from 'ionicons/icons';
+  IonIcon,
+} from "@ionic/vue";
+import { eyeOutline, trendingUpOutline } from "ionicons/icons";
 </script>
 
 <style scoped>

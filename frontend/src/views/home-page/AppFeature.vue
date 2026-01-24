@@ -2,9 +2,7 @@
   <section class="ion-padding-vertical">
     <div class="container ion-padding">
       <section class="ion-text-center ion-margin-bottom">
-        <h2 class="title ion-margin-bottom">
-          Powerful Features
-        </h2>
+        <h2 class="title ion-margin-bottom">Powerful Features</h2>
         <p class="subtitle ion-margin-bottom">
           Everything you need for the ultimate fantasy knowledge experience.
         </p>
@@ -12,16 +10,27 @@
 
       <ion-grid>
         <ion-row>
-          <ion-col v-for="(feature, index) in features" :key="feature.title" size="12" size-sm="6" size-lg="3">
+          <ion-col
+            v-for="(feature, index) in features"
+            :key="feature.title"
+            size="12"
+            size-sm="6"
+            size-lg="3"
+          >
             <ion-card class="feature-card ion-padding">
               <ion-card-content class="ion-no-padding">
                 <div
-                  :class="['icon-wrapper ion-margin-bottom ion-display-flex ion-align-items-center ion-justify-content-center']"
-                  :style="{ animationDelay: `${index * 50}ms` }">
+                  :class="[
+                    'icon-wrapper ion-margin-bottom ion-display-flex ion-align-items-center ion-justify-content-center',
+                  ]"
+                  :style="{ animationDelay: `${index * 50}ms` }"
+                >
                   <ion-icon :icon="feature.icon" size="large"></ion-icon>
                 </div>
 
-                <h3 class="feature-title ion-margin-bottom">{{ feature.title }}</h3>
+                <h3 class="feature-title ion-margin-bottom">
+                  {{ feature.title }}
+                </h3>
                 <p>{{ feature.description }}</p>
               </ion-card-content>
             </ion-card>
@@ -33,7 +42,14 @@
 </template>
 
 <script setup lang="ts">
-import { IonGrid, IonRow, IonCol, IonCard, IonCardContent, IonIcon } from '@ionic/vue';
+import {
+  IonGrid,
+  IonRow,
+  IonCol,
+  IonCard,
+  IonCardContent,
+  IonIcon,
+} from "@ionic/vue";
 import {
   timeOutline,
   flashOutline,
@@ -42,14 +58,15 @@ import {
   peopleOutline,
   trophyOutline,
   linkOutline,
-  calendarOutline
-} from 'ionicons/icons';
+  calendarOutline,
+} from "ionicons/icons";
 
 const features = [
   {
     icon: timeOutline,
     title: "24/7 Live Markets",
-    description: "Buy, sell, and trade articles anytime. The market never sleeps.",
+    description:
+      "Buy, sell, and trade articles anytime. The market never sleeps.",
   },
   {
     icon: flashOutline,
@@ -104,7 +121,9 @@ const features = [
 
 .feature-card:hover {
   border-color: rgba(var(--ion-color-primary-rgb), 0.5);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 .icon-wrapper {

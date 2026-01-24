@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { describe, it, expect } from "vitest";
+import { mount } from "@vue/test-utils";
 import router from "@/router/index";
-import HowItWorks from '@/views/home-page/HowItWorks.vue';
+import HowItWorks from "@/views/home-page/HowItWorks.vue";
 
-describe('HowItWorks.vue', () => {
-  it('should mount without any console errors or warnings', () => {
+describe("HowItWorks.vue", () => {
+  it("should mount without any console errors or warnings", () => {
     router.push("/");
     router.isReady().then(() => {
       const wrapper = mount(HowItWorks, {
@@ -15,5 +15,5 @@ describe('HowItWorks.vue', () => {
 
       expect(wrapper.exists()).toBe(true);
     });
-  })
-})
+  });
+});

@@ -156,7 +156,7 @@ http://ionicframework.com/docs/theming/ */
     --background-hover: var(--wiki-mint);
     --border-radius: 4px;
   }
-  
+
   --ion-item-background: #ffffff;
   --ion-item-border-color: #cdd8cd;
   --ion-item-color: #171f1b;
@@ -365,7 +365,11 @@ http://ionicframework.com/docs/theming/ */
   --font-family-headings: "Libre Baskerville", Georgia, serif;
 }
 
-h1, h2, h3, ion-card-title, ion-card-content h3 {
+h1,
+h2,
+h3,
+ion-card-title,
+ion-card-content h3 {
   font-size: clamp(1.875rem, 4vw, 2.25rem);
   font-family: var(--font-family-headings);
   color: var(--ion-color-dark);
@@ -382,4 +386,3 @@ ion-button {
   --ion-padding: 2rem;
   --border-radius: 0.5rem;
 }
-

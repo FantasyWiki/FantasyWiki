@@ -11,9 +11,9 @@
 </template>
 
 <script setup lang="ts">
-import { bookOutline } from 'ionicons/icons';
-import { IonIcon, IonText } from '@ionic/vue';
-import { useRouter } from 'vue-router';
+import { bookOutline } from "ionicons/icons";
+import { IonIcon, IonText } from "@ionic/vue";
+import { useRouter } from "vue-router";
 const router = useRouter();
 </script>
 
@@ -55,7 +55,6 @@ const router = useRouter();
 }
 
 @keyframes pulse {
-
   0%,
   100% {
     opacity: 1;
@@ -67,7 +66,7 @@ const router = useRouter();
 }
 
 .logo-text {
-  font-family: 'Libre Baskerville', serif;
+  font-family: "Libre Baskerville", serif;
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -76,6 +75,6 @@ const router = useRouter();
 
 .logo-accent {
   color: var(--ion-color-primary);
-  font-family: 'Libre Baskerville', serif;
+  font-family: "Libre Baskerville", serif;
 }
 </style>

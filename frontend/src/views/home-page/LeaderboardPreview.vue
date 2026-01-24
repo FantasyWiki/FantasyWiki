@@ -6,7 +6,10 @@
         <ion-col size="12" size-lg="6" class="ion-margin-bottom">
           <div class="ion-margin-bottom">
             <ion-chip color="primary">
-              <ion-icon :icon="trophyOutline" class="ion-padding-end ion-no-margin"></ion-icon>
+              <ion-icon
+                :icon="trophyOutline"
+                class="ion-padding-end ion-no-margin"
+              ></ion-icon>
               Weekly Tournament
             </ion-chip>
           </div>
@@ -16,25 +19,37 @@
           </h2>
 
           <p class="subtitle ion-margin-bottom">
-            Every week, all active players automatically enter a competitive tournament.
-            Climb the ranks, earn bonus points, and prove your knowledge dominance.
+            Every week, all active players automatically enter a competitive
+            tournament. Climb the ranks, earn bonus points, and prove your
+            knowledge dominance.
           </p>
 
           <div class="ion-margin-bottom">
-            <div class="ion-display-flex ion-align-items-center ion-margin-vertical" v-for="reward in rewards" :key="reward.rank">
+            <div
+              class="ion-display-flex ion-align-items-center ion-margin-vertical"
+              v-for="reward in rewards"
+              :key="reward.rank"
+            >
               <div
                 class="reward-badge ion-display-flex ion-justify-content-center ion-align-items-center ion-padding ion-margin-end"
-                :class="reward.badgeClass">
+                :class="reward.badgeClass"
+              >
                 {{ reward.medal }}
               </div>
               <div>
-                <div class="reward-title ion-margin-bottom">{{ reward.rank }}</div>
+                <div class="reward-title ion-margin-bottom">
+                  {{ reward.rank }}
+                </div>
                 <div class="reward-description">{{ reward.description }}</div>
               </div>
             </div>
           </div>
 
-          <ion-button expand="block" size="large" class="ion-text-capitalize ion-padding-horizontal">
+          <ion-button
+            expand="block"
+            size="large"
+            class="ion-text-capitalize ion-padding-horizontal"
+          >
             Join the Competition
             <ion-icon :icon="trophyOutline" slot="end"></ion-icon>
           </ion-button>
@@ -44,7 +59,9 @@
         <ion-col size="12" size-lg="6">
           <ion-card class="leaderboard-card">
             <ion-card-header class="leaderboard-header">
-              <div class="header-content ion-display-flex ion-align-items-center ion-justify-content-between">
+              <div
+                class="header-content ion-display-flex ion-align-items-center ion-justify-content-between"
+              >
                 <h3>🏆 Global Leaderboard</h3>
                 <span class="update-time">Updated hourly</span>
               </div>
@@ -52,9 +69,20 @@
 
             <ion-card-content class="ion-no-padding">
               <ion-list>
-                <ion-item v-for="player in leaderboardData" :key="player.rank"
-                  :class="['leaderboard-item ion-no-padding', player.rank <= 3 ? 'top-3' : '']" lines="none">
-                  <div slot="start" class="rank-badge" :class="getRankClass(player.rank)">
+                <ion-item
+                  v-for="player in leaderboardData"
+                  :key="player.rank"
+                  :class="[
+                    'leaderboard-item ion-no-padding',
+                    player.rank <= 3 ? 'top-3' : '',
+                  ]"
+                  lines="none"
+                >
+                  <div
+                    slot="start"
+                    class="rank-badge"
+                    :class="getRankClass(player.rank)"
+                  >
                     {{ player.rank }}
                   </div>
 
@@ -63,10 +91,15 @@
                   </ion-label>
 
                   <div slot="end" class="player-stats">
-                    <div class="points">{{ player.points.toLocaleString() }}</div>
+                    <div class="points">
+                      {{ player.points.toLocaleString() }}
+                    </div>
                     <div class="trend" :class="`trend-${player.trend}`">
-                      <ion-icon :icon="getTrendIcon(player.trend)" class="trend-icon"></ion-icon>
-                      {{ player.change > 0 ? '+' : '' }}{{ player.change }}%
+                      <ion-icon
+                        :icon="getTrendIcon(player.trend)"
+                        class="trend-icon"
+                      ></ion-icon>
+                      {{ player.change > 0 ? "+" : "" }}{{ player.change }}%
                     </div>
                   </div>
                 </ion-item>
@@ -100,55 +133,60 @@ import {
   IonList,
   IonItem,
   IonLabel,
-  IonText
-} from '@ionic/vue';
-import { trophyOutline, trendingUp, trendingDown, removeOutline } from 'ionicons/icons';
+  IonText,
+} from "@ionic/vue";
+import {
+  trophyOutline,
+  trendingUp,
+  trendingDown,
+  removeOutline,
+} from "ionicons/icons";
 
 interface LeaderboardPlayer {
   rank: number;
   name: string;
   points: number;
   change: number;
-  trend: 'up' | 'down' | 'neutral';
+  trend: "up" | "down" | "neutral";
 }
 
 const leaderboardData: LeaderboardPlayer[] = [
-  { rank: 1, name: 'CryptoGod', points: 3850, change: 12, trend: 'up' },
-  { rank: 2, name: 'WordHunter', points: 3720, change: 5, trend: 'up' },
-  { rank: 3, name: 'BullishBot', points: 3610, change: -3, trend: 'down' },
-  { rank: 4, name: 'TrendMaster', points: 3480, change: 8, trend: 'up' },
-  { rank: 5, name: 'WikiWizard', points: 3350, change: 0, trend: 'neutral' },
-  { rank: 6, name: 'ArticleAce', points: 3210, change: -1, trend: 'down' },
-  { rank: 7, name: 'PageviewPro', points: 3100, change: 4, trend: 'up' },
-  { rank: 8, name: 'KnowledgeKing', points: 2980, change: 2, trend: 'up' },
+  { rank: 1, name: "CryptoGod", points: 3850, change: 12, trend: "up" },
+  { rank: 2, name: "WordHunter", points: 3720, change: 5, trend: "up" },
+  { rank: 3, name: "BullishBot", points: 3610, change: -3, trend: "down" },
+  { rank: 4, name: "TrendMaster", points: 3480, change: 8, trend: "up" },
+  { rank: 5, name: "WikiWizard", points: 3350, change: 0, trend: "neutral" },
+  { rank: 6, name: "ArticleAce", points: 3210, change: -1, trend: "down" },
+  { rank: 7, name: "PageviewPro", points: 3100, change: 4, trend: "up" },
+  { rank: 8, name: "KnowledgeKing", points: 2980, change: 2, trend: "up" },
 ];
 
 const rewards = [
   {
-    rank: 'Top 10',
-    medal: '🥇',
-    description: '+20 bonus points/day in main game',
-    badgeClass: 'badge-gold'
+    rank: "Top 10",
+    medal: "🥇",
+    description: "+20 bonus points/day in main game",
+    badgeClass: "badge-gold",
   },
   {
-    rank: 'Top 100',
-    medal: '🥈',
-    description: '+10 bonus points/day in main game',
-    badgeClass: 'badge-silver'
+    rank: "Top 100",
+    medal: "🥈",
+    description: "+10 bonus points/day in main game",
+    badgeClass: "badge-silver",
   },
   {
-    rank: 'Top 1000',
-    medal: '🥉',
-    description: '+5 bonus points/day in main game',
-    badgeClass: 'badge-bronze'
-  }
+    rank: "Top 1000",
+    medal: "🥉",
+    description: "+5 bonus points/day in main game",
+    badgeClass: "badge-bronze",
+  },
 ];
 
 const getTrendIcon = (trend: string) => {
   switch (trend) {
-    case 'up':
+    case "up":
       return trendingUp;
-    case 'down':
+    case "down":
       return trendingDown;
     default:
       return removeOutline;
@@ -156,10 +194,10 @@ const getTrendIcon = (trend: string) => {
 };
 
 const getRankClass = (rank: number) => {
-  if (rank === 1) return 'rank-1';
-  if (rank === 2) return 'rank-2';
-  if (rank === 3) return 'rank-3';
-  return 'rank-default';
+  if (rank === 1) return "rank-1";
+  if (rank === 2) return "rank-2";
+  if (rank === 3) return "rank-3";
+  return "rank-default";
 };
 </script>
 

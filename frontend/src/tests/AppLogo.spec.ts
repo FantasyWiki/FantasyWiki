@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { describe, it, expect } from "vitest";
+import { mount } from "@vue/test-utils";
 import router from "@/router/index";
-import AppLogo from '@/views/AppLogo.vue';
+import AppLogo from "@/views/AppLogo.vue";
 
-describe('AppLogo.vue', () => {
-  it('should mount without any console errors or warnings', () => {
+describe("AppLogo.vue", () => {
+  it("should mount without any console errors or warnings", () => {
     router.push("/");
     router.isReady().then(() => {
       const wrapper = mount(AppLogo, {
@@ -15,5 +15,5 @@ describe('AppLogo.vue', () => {
 
       expect(wrapper.exists()).toBe(true);
     });
-  })
-})
+  });
+});

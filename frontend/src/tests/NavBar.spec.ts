@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { mount } from '@vue/test-utils';
-import {createPinia, Pinia} from 'pinia';
+import { describe, it, expect, beforeEach } from "vitest";
+import { mount } from "@vue/test-utils";
+import { createPinia, Pinia } from "pinia";
 import router from "@/router/index";
-import NavBar from '@/layout/NavBar.vue';
+import NavBar from "@/layout/NavBar.vue";
 
-describe('NavBar.vue', () => {
+describe("NavBar.vue", () => {
   let pinia: Pinia;
 
   beforeEach(() => {
@@ -12,7 +12,7 @@ describe('NavBar.vue', () => {
     pinia = createPinia();
   });
 
-  it('should mount without any console errors or warnings', async () => {
+  it("should mount without any console errors or warnings", async () => {
     // Wait for router to be ready
     await router.push("/");
     await router.isReady();

@@ -5,19 +5,33 @@
         How Fantasy<strong>Wiki</strong> Works
       </h2>
       <p class="ion-margin-bottom">
-        Join thousands of players competing in the ultimate knowledge-based fantasy game.
+        Join thousands of players competing in the ultimate knowledge-based
+        fantasy game.
       </p>
     </section>
 
     <ion-grid>
       <ion-row>
-        <ion-col v-for="(step, index) in steps" :key="step.title" size="12" size-md="6" size-lg="3">
-          <div class="step-number ion-display-flex ion-justify-content-center ion-align-items-center">{{ index + 1 }}
+        <ion-col
+          v-for="(step, index) in steps"
+          :key="step.title"
+          size="12"
+          size-md="6"
+          size-lg="3"
+        >
+          <div
+            class="step-number ion-display-flex ion-justify-content-center ion-align-items-center"
+          >
+            {{ index + 1 }}
           </div>
           <ion-card class="step-card ion-padding">
             <ion-card-content class="ion-no-padding">
               <div
-                :class="['icon-wrapper ion-margin-bottom ion-display-flex ion-align-items-center ion-justify-content-center', step.colorClass]">
+                :class="[
+                  'icon-wrapper ion-margin-bottom ion-display-flex ion-align-items-center ion-justify-content-center',
+                  step.colorClass,
+                ]"
+              >
                 <ion-icon :icon="step.icon" size="large"></ion-icon>
               </div>
 
@@ -34,32 +48,43 @@
 </template>
 
 <script setup lang="ts">
-import { IonGrid, IonRow, IonCol, IonCard, IonCardContent, IonIcon } from '@ionic/vue';
-import { search, cart, trendingUp, trophy } from 'ionicons/icons';
+import {
+  IonGrid,
+  IonRow,
+  IonCol,
+  IonCard,
+  IonCardContent,
+  IonIcon,
+} from "@ionic/vue";
+import { search, cart, trendingUp, trophy } from "ionicons/icons";
 
 const steps = [
   {
     icon: search,
     title: "Search Articles",
-    description: "Explore millions of Wikipedia articles. Find trending topics, hidden gems, or your favorite subjects.",
+    description:
+      "Explore millions of Wikipedia articles. Find trending topics, hidden gems, or your favorite subjects.",
     colorClass: "bg-primary",
   },
   {
     icon: cart,
     title: "Build Your Portfolio",
-    description: "Buy articles with your 1,000 starting credits. Choose contract durations from 3 to 90 days.",
+    description:
+      "Buy articles with your 1,000 starting credits. Choose contract durations from 3 to 90 days.",
     colorClass: "bg-gold",
   },
   {
     icon: trendingUp,
     title: "Earn Points Daily",
-    description: "Score points based on real Wikipedia pageviews. Trending articles = more points!",
+    description:
+      "Score points based on real Wikipedia pageviews. Trending articles = more points!",
     colorClass: "bg-accent",
   },
   {
     icon: trophy,
     title: "Compete & Win",
-    description: "Climb the leaderboard, join weekly tournaments, and earn bonus rewards.",
+    description:
+      "Climb the leaderboard, join weekly tournaments, and earn bonus rewards.",
     colorClass: "bg-primary",
   },
 ];
@@ -74,7 +99,6 @@ const steps = [
   background-color: rgba(var(--ion-color-secondary-rgb), 0.1);
 }
 
-
 h2 {
   font-size: clamp(1.875rem, 4vw, 2.25rem);
 }
@@ -88,7 +112,9 @@ h2 {
 
 .step-card:hover {
   border-color: rgba(var(--ion-color-primary-rgb), 0.5);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 .step-number {

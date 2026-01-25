@@ -141,15 +141,14 @@ http://ionicframework.com/docs/theming/ */
     --box-shadow: 0 0px 0px 0 rgba(0, 0, 0, 0);
   }
 
-  /*
-
-
-	/* Tab Bar */
-  --ion-tab-bar-background: #fbfbf7;
-  --ion-tab-bar-background-focused: #f7f9f7;
-  --ion-tab-bar-border-color: #cdd8cd;
-  --ion-tab-bar-color: #737f73;
-  --ion-tab-bar-color-selected: #1e7e50;
+  /* Tab Bar */
+  ion-tab-bar {
+    --ion-tab-bar-background: #fbfbf7;
+    --ion-tab-bar-background-focused: #f7f9f7;
+    --ion-tab-bar-border-color: #cdd8cd;
+    --ion-tab-bar-color: #737f73;
+    --ion-tab-bar-color-selected: #1e7e50;
+  }
 
   /* Item */
   ion-item {
@@ -157,6 +156,7 @@ http://ionicframework.com/docs/theming/ */
     --background-hover: var(--wiki-mint);
     --border-radius: 4px;
   }
+
   --ion-item-background: #ffffff;
   --ion-item-border-color: #cdd8cd;
   --ion-item-color: #171f1b;
@@ -365,18 +365,24 @@ http://ionicframework.com/docs/theming/ */
   --font-family-headings: "Libre Baskerville", Georgia, serif;
 }
 
-h1 {
-  font-size: 2.25rem;
-  font-weight: 700;
-}
-
 h1,
 h2,
-ion-card-title {
+h3,
+ion-card-title,
+ion-card-content h3 {
+  font-size: clamp(1.875rem, 4vw, 2.25rem);
   font-family: var(--font-family-headings);
   color: var(--ion-color-dark);
+  font-weight: bold;
 }
 
 strong {
   color: var(--ion-color-primary);
+}
+
+ion-button {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  --ion-padding: 2rem;
+  --border-radius: 0.5rem;
 }

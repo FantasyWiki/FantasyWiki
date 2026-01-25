@@ -1,4 +1,8 @@
 export default function (plop) {
+  plop.setHelper("componentName", function (text) {
+    return text.split("/").pop();
+  });
+
   plop.setGenerator("component", {
     description: "Create a Vue component and its test",
     prompts: [

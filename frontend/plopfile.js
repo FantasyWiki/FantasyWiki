@@ -1,4 +1,5 @@
-import { readFile, writeFile } from "fs/promises";
+import { readFile, writeFile, access } from "fs/promises";
+import { constants } from "fs";
 import prettier from "prettier";
 
 export default function (plop) {
@@ -44,6 +45,13 @@ export default function (plop) {
 
       // Format both files
       for (const filePath of [viewPath, testPath]) {
+        // Check if file exists before formatting
+        try {
+          await access(filePath, constants.F_OK);
+        } catch {
+          continue; // Skip file if it doesn't exist
+        }
+
         const content = await readFile(filePath, "utf8");
         const formatted = await prettier.format(content, {
           ...prettierConfig,

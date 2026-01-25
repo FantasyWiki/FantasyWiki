@@ -3,6 +3,8 @@ import { execSync } from "child_process";
 import { existsSync, rmSync } from "fs";
 import path from "path";
 
+const FRONTEND_DIR = path.resolve(__dirname, "../../");
+
 describe("Plop Component Generator", () => {
   const testCases = [
     {
@@ -22,11 +24,21 @@ describe("Plop Component Generator", () => {
     },
   ];
 
+  const cleanupDirectory = (dirPath: string, basePath: string) => {
+    try {
+      if (existsSync(dirPath) && dirPath !== basePath) {
+        rmSync(dirPath, { recursive: true, force: true });
+      }
+    } catch {
+      // Ignore errors when cleaning up directories
+    }
+  };
+
   afterEach(() => {
     // Clean up generated files after each test
     testCases.forEach(({ viewPath, testPath }) => {
-      const viewFullPath = path.resolve(__dirname, "../../", viewPath);
-      const testFullPath = path.resolve(__dirname, "../../", testPath);
+      const viewFullPath = path.resolve(FRONTEND_DIR, viewPath);
+      const testFullPath = path.resolve(FRONTEND_DIR, testPath);
 
       // Remove files if they exist
       if (existsSync(viewFullPath)) {
@@ -40,41 +52,25 @@ describe("Plop Component Generator", () => {
       const viewDir = path.dirname(viewFullPath);
       const testDir = path.dirname(testFullPath);
 
-      try {
-        if (
-          existsSync(viewDir) &&
-          viewDir !== path.resolve(__dirname, "../../src/views")
-        ) {
-          rmSync(viewDir, { recursive: true, force: true });
-        }
-        if (
-          existsSync(testDir) &&
-          testDir !== path.resolve(__dirname, "../../src/tests")
-        ) {
-          rmSync(testDir, { recursive: true, force: true });
-        }
-      } catch {
-        // Ignore errors when cleaning up directories
-      }
+      cleanupDirectory(viewDir, path.resolve(FRONTEND_DIR, "src/views"));
+      cleanupDirectory(testDir, path.resolve(FRONTEND_DIR, "src/tests"));
     });
   });
 
   testCases.forEach(({ name, viewPath, testPath }) => {
     it(`should generate ${name} component and spec file that pass prettier`, () => {
-      const frontendDir = path.resolve(__dirname, "../../");
-
       // Generate component using plop
       try {
-        execSync(`npx plop component --name ${name}`, {
-          cwd: frontendDir,
+        execSync(`npx plop component --name "${name}"`, {
+          cwd: FRONTEND_DIR,
           stdio: "pipe",
         });
       } catch (error) {
         throw new Error(`Failed to generate component: ${error.message}`);
       }
 
-      const viewFullPath = path.resolve(frontendDir, viewPath);
-      const testFullPath = path.resolve(frontendDir, testPath);
+      const viewFullPath = path.resolve(FRONTEND_DIR, viewPath);
+      const testFullPath = path.resolve(FRONTEND_DIR, testPath);
 
       // Check if files were created
       expect(existsSync(viewFullPath)).toBe(true);
@@ -84,9 +80,9 @@ describe("Plop Component Generator", () => {
       let prettierOutput: string;
       try {
         prettierOutput = execSync(
-          `npx prettier --check ${viewFullPath} ${testFullPath}`,
+          `npx prettier --check "${viewFullPath}" "${testFullPath}"`,
           {
-            cwd: frontendDir,
+            cwd: FRONTEND_DIR,
             encoding: "utf-8",
             stdio: "pipe",
           }

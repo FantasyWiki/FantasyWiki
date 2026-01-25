@@ -29,14 +29,16 @@ export default function (plop) {
       },
       {
         type: "prettify",
-        path: "src/**/*.{vue,ts}",
       },
     ],
   });
 
-  plop.setActionType("prettify", function (answers, config) {
+  plop.setActionType("prettify", function (answers) {
+    const viewPath = `src/views/${answers.name}.vue`;
+    const testPath = `src/tests/${answers.name}.spec.ts`;
+    
     try {
-      execSync(`npx prettier --write ${config.path}`, {
+      execSync("npx prettier --write " + viewPath + " " + testPath, {
         stdio: "inherit",
         cwd: process.cwd(),
       });

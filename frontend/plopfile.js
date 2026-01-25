@@ -41,7 +41,7 @@ export default function (plop) {
 
     try {
       // Read prettier config
-      const prettierConfig = await prettier.resolveConfig(process.cwd());
+      const prettierConfig = (await prettier.resolveConfig(process.cwd())) ?? {};
 
       // Format both files
       for (const filePath of [viewPath, testPath]) {

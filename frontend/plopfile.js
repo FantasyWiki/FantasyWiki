@@ -1,7 +1,5 @@
 export default function (plop) {
-  // Add a custom helper to extract the component name from a path
   plop.setHelper('componentName', function(text) {
-    // Extract the last part of the path (the actual component name)
     return text.split('/').pop();
   });
 

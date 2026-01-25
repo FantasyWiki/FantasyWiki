@@ -1,4 +1,5 @@
-import { execSync } from "child_process";
+import { readFile, writeFile } from "fs/promises";
+import prettier from "prettier";
 
 export default function (plop) {
   plop.setHelper("componentName", function (text) {
@@ -33,18 +34,27 @@ export default function (plop) {
     ],
   });
 
-  plop.setActionType("prettify", function (answers) {
+  plop.setActionType("prettify", async function (answers) {
     const viewPath = `src/views/${answers.name}.vue`;
     const testPath = `src/tests/${answers.name}.spec.ts`;
-    
+
     try {
-      execSync("npx prettier --write " + viewPath + " " + testPath, {
-        stdio: "inherit",
-        cwd: process.cwd(),
-      });
+      // Read prettier config
+      const prettierConfig = await prettier.resolveConfig(process.cwd());
+
+      // Format both files
+      for (const filePath of [viewPath, testPath]) {
+        const content = await readFile(filePath, "utf8");
+        const formatted = await prettier.format(content, {
+          ...prettierConfig,
+          filepath: filePath,
+        });
+        await writeFile(filePath, formatted, "utf8");
+      }
+
       return "Prettier formatting completed";
     } catch (error) {
-      throw `Prettier formatting failed: ${error.message}`;
+      throw new Error(`Prettier formatting failed: ${error.message}`);
     }
   });
 }

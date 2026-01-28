@@ -1,11 +1,11 @@
 <template>
-  <section id="leagues" class="ion-padding-vertical">
+  <section class="ion-padding-vertical gold-background">
     <ion-grid class="home-section-container ion-padding">
       <ion-row class="ion-align-items-center">
         <!-- Left Content -->
         <ion-col size="12" size-lg="6" class="ion-margin-bottom">
           <div class="ion-margin-bottom">
-            <ion-chip color="primary">
+            <ion-chip color="dark">
               <ion-icon
                 :icon="trophyOutline"
                 class="ion-padding-end ion-no-margin"
@@ -15,7 +15,7 @@
           </div>
 
           <h2 class="ion-margin-bottom">
-            Compete for <ion-text color="secondary">Glory</ion-text>
+            Compete for <ion-text color="wiki-gold">Glory</ion-text>
           </h2>
 
           <p class="subtitle ion-margin-bottom">
@@ -46,6 +46,7 @@
           </div>
 
           <ion-button
+            color="wiki-gold"
             expand="block"
             size="large"
             class="ion-text-capitalize ion-padding-horizontal"
@@ -63,7 +64,7 @@
                 class="header-content ion-display-flex ion-align-items-center ion-justify-content-between"
               >
                 <h3>🏆 Global Leaderboard</h3>
-                <span class="update-time">Updated hourly</span>
+                <span class="update-time">Updated daily</span>
               </div>
             </ion-card-header>
 
@@ -109,7 +110,7 @@
             <ion-card-header class="leaderboard-footer">
               <div class="footer-content">
                 <span>Your Rank</span>
-                <span class="your-rank">#4,523</span>
+                <span class="your-rank ion-padding-end">#4,523</span>
               </div>
             </ion-card-header>
           </ion-card>
@@ -207,6 +208,10 @@ ion-chip {
   font-weight: 500;
 }
 
+.gold-background {
+  background-color: rgba(var(--ion-color-wiki-gold-rgb), 0.1);
+}
+
 .subtitle {
   font-size: 1.125rem;
   color: var(--ion-color-medium);
@@ -254,7 +259,7 @@ ion-chip {
 }
 
 .leaderboard-header {
-  background-color: rgba(var(--ion-color-secondary-rgb), 0.5);
+  background-color: rgba(var(--ion-color-wiki-gold-rgb), 0.5);
   border-bottom: 1px solid var(--ion-color-light-shade);
   padding: 1rem;
 }
@@ -276,7 +281,7 @@ ion-chip {
 }
 
 .leaderboard-item:hover {
-  --background: rgba(var(--ion-color-secondary-rgb), 0.5);
+  --background: rgba(var(--ion-color-wiki-gold-rgb), 0.5);
 }
 
 .leaderboard-item.top-3 {
@@ -344,7 +349,7 @@ ion-chip {
 }
 
 .trend-up {
-  color: var(--ion-color-primary);
+  color: var(--ion-color-success);
 }
 
 .trend-down {
@@ -356,7 +361,7 @@ ion-chip {
 }
 
 .leaderboard-footer {
-  background-color: rgba(var(--ion-color-secondary-rgb), 0.3);
+  background-color: rgba(var(--ion-color-wiki-gold-rgb), 0.3);
   border-top: 1px solid var(--ion-color-light-shade);
   padding: 1rem;
 }
@@ -370,7 +375,7 @@ ion-chip {
 
 .your-rank {
   font-weight: bold;
-  color: var(--ion-color-primary);
+  color: var(--ion-color-wiki-gold);
 }
 
 /* Responsive */

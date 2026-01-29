@@ -1,5 +1,5 @@
 <template>
-  <section class="ion-padding-vertical gold-background">
+  <section class="ion-padding-vertical background">
     <ion-grid class="home-section-container ion-padding">
       <ion-row class="ion-align-items-center">
         <!-- Left Content -->
@@ -208,8 +208,8 @@ ion-chip {
   font-weight: 500;
 }
 
-.gold-background {
-  background-color: rgba(var(--ion-color-wiki-gold-rgb), 0.1);
+.background {
+  background-color: rgba(var(--ion-color-secondary-rgb), 0.1);
 }
 
 .subtitle {
@@ -278,10 +278,6 @@ ion-chip {
   padding: 1rem;
   transition: background-color 0.2s ease;
   --background: transparent;
-}
-
-.leaderboard-item:hover {
-  --background: rgba(var(--ion-color-wiki-gold-rgb), 0.5);
 }
 
 .leaderboard-item.top-3 {

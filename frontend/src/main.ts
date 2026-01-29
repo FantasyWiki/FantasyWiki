@@ -33,6 +33,7 @@ import "@ionic/vue/css/palettes/dark.class.css";
 
 /* Theme variables */
 import "./theme/variables.css";
+import "./theme/dark-mode.css"
 
 import "@fontsource/libre-baskerville";
 

@@ -1,19 +1,21 @@
 <template>
   <div class="logo-container" @click="router.push('/')">
     <div class="logo-icon-wrapper">
-      <ion-icon :icon="bookOutline" color="primary" />
+      <ion-icon :icon="bookOutline" color="primary" class="ion-hide" />
+      <ion-img src="/logo.png" style="width: 40px; height: 40px" />
       <div class="logo-badge"></div>
     </div>
-    <ion-text class="logo-text">
+    <ion-text class="logo-text ion-hide-sm-down">
       Fantasy<span class="logo-accent">Wiki</span>
     </ion-text>
   </div>
 </template>
 
 <script setup lang="ts">
-import { bookOutline } from "ionicons/icons";
 import { IonIcon, IonText } from "@ionic/vue";
 import { useRouter } from "vue-router";
+import { bookOutline } from "ionicons/icons";
+
 const router = useRouter();
 </script>
 

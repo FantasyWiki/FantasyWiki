@@ -3,9 +3,11 @@
   <ion-page>
     <ion-header
       :translucent="true"
-      class="ion-no-border ion-padding-horizontal transparent-top-layer"
+      class="ion-no-border ion-padding-horizontal-md-up transparent-top-layer"
     >
-      <ion-toolbar class="transparent-bot-layer ion-padding-horizontal">
+      <ion-toolbar
+        class="transparent-bot-layer ion-padding-horizontal-md-up ion-display-flex ion-flex-wrap"
+      >
         <app-logo slot="start"></app-logo>
 
         <!-- Desktop Navigation -->
@@ -34,9 +36,15 @@
             shape="round"
           >
             <ion-label>{{ leagueStore.currentLeague.icon }}</ion-label>
-            <ion-label class="ion-hide-md-down">{{
-              leagueStore.currentLeague.name
-            }}</ion-label>
+            <ion-label class="ion-hide-md-down"
+              >{{ leagueStore.currentLeague.name }}
+            </ion-label>
+            <ion-badge
+              color="danger"
+              v-if="isThereNotifications(leagueStore.currentLeague.id)"
+            >
+              {{ renderNotificationBadge(leagueStore.currentLeague.id) }}
+            </ion-badge>
           </ion-button>
           <ion-popover trigger="league-selector" trigger-action="click">
             <ion-list lines="none" class="ion-no-margin">
@@ -52,6 +60,9 @@
                 "
               >
                 <ion-label>{{ lg.icon }} {{ lg.name }}</ion-label>
+                <ion-badge color="danger" v-if="isThereNotifications(lg.id)">
+                  {{ renderNotificationBadge(lg.id) }}
+                </ion-badge>
               </ion-item>
             </ion-list>
           </ion-popover>
@@ -65,8 +76,8 @@
             <ion-icon :icon="globeOutline" slot="start" />
             <ion-text class="ion-hide-md-down"
               >{{ appStore.currentLanguage.label }}
-              {{ appStore.currentLanguage.code }}</ion-text
-            >
+              {{ appStore.currentLanguage.code }}
+            </ion-text>
           </ion-button>
           <ion-popover trigger="lang-selector" trigger-action="click">
             <ion-list lines="none" class="ion-no-margin">
@@ -144,30 +155,30 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter, useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import {
-  IonHeader,
-  IonToolbar,
   IonButton,
-  IonIcon,
   IonContent,
   IonFooter,
-  IonPage,
-  IonPopover,
-  IonList,
+  IonHeader,
+  IonIcon,
   IonItem,
   IonLabel,
+  IonList,
+  IonPage,
+  IonPopover,
   IonText,
+  IonToolbar,
 } from "@ionic/vue";
 import {
   globeOutline,
   gridOutline,
-  trophyOutline,
-  moonOutline,
-  sunnyOutline,
   logInOutline,
   logOutOutline,
+  moonOutline,
   storefrontOutline,
+  sunnyOutline,
+  trophyOutline,
 } from "ionicons/icons";
 import AppLogo from "@/views/AppLogo.vue";
 import { useAppStore } from "@/stores/app";
@@ -227,6 +238,24 @@ const handleAuth = () => {
     // Handle sign in
     appStore.login();
     router.push("/signin");
+  }
+};
+
+const isThereNotifications = (leagueId: string) => {
+  const count = leagueStore.notificationsList.filter(
+    (notification) => !notification.read && notification.leagueId === leagueId
+  ).length;
+  return count > 0;
+};
+
+const renderNotificationBadge = (leagueId: string) => {
+  const count = leagueStore.notificationsList.filter(
+    (notification) => !notification.read && notification.leagueId === leagueId
+  ).length;
+  if (count > 99) {
+    return "...";
+  } else {
+    return count.toString();
   }
 };
 </script>

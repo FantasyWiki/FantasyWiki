@@ -73,7 +73,7 @@
             size="small"
             shape="round"
           >
-            <ion-icon :icon="globeOutline" slot="start" />
+            <ion-icon :icon="globeOutline" />
             <ion-text class="ion-hide-md-down"
               >{{ appStore.currentLanguage.label }}
               {{ appStore.currentLanguage.code }}

@@ -63,7 +63,12 @@ ion-chip.top-right {
   position: absolute;
   top: -1rem;
   right: -1rem;
-  --background: var(--ion-color-secondary);
+  --background: var(--ion-color-wiki-gold);
+  --color: var(--ion-color-dark);
+}
+
+:root .ion-palette-dark ion-chip.top-right {
+  --color: var(--ion-color-light);
 }
 
 ion-chip.bottom-left {

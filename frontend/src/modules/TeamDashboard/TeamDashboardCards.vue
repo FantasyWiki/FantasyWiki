@@ -1,139 +1,213 @@
 <template>
-  <ion-grid class="stats-grid">
+  <ion-grid class="ion-no-padding">
     <ion-row>
-      <!-- Card 1: Punti (Verde) -->
+      <!-- Yesterday's Points -->
       <ion-col size="12" size-md="6" size-lg="3">
-        <div class="stat-card">
-          <div class="card-content">
-            <span class="label">Yesterday's Points</span>
-            <div class="value-row">
-              <h2>127</h2>
-              <div class="icon-circle success">
-                <ion-icon :icon="trendingUp" />
+        <ion-card class="summary-card">
+          <ion-card-content>
+            <div class="card-header">
+              <div class="card-info">
+                <ion-text color="medium">
+                  <p class="card-label">Yesterday's Points</p>
+                </ion-text>
+                <h2 class="card-value">{{ summaryData.yesterdayPoints }}</h2>
+                <ion-text :color="summaryData.pointsChange >= 0 ? 'success' : 'danger'">
+                  <p class="card-change">
+                    {{ summaryData.pointsChange >= 0 ? '+' : '' }}{{ summaryData.pointsChange }}%
+                  </p>
+                </ion-text>
+              </div>
+              <div class="icon-wrapper icon-primary">
+                <ion-icon :icon="trendingUpOutline" />
               </div>
             </div>
-            <span class="subtext positive">+12.5%</span>
-          </div>
-        </div>
+          </ion-card-content>
+        </ion-card>
       </ion-col>
 
-      <!-- Card 2: Ranking (Giallo) -->
+      <!-- League Standing -->
       <ion-col size="12" size-md="6" size-lg="3">
-        <div class="stat-card">
-          <div class="card-content">
-            <span class="label">League Standing</span>
-            <div class="value-row">
-              <h2>#4</h2>
-              <div class="icon-circle warning">
-                <ion-icon :icon="trophy" />
+        <ion-card class="summary-card">
+          <ion-card-content>
+            <div class="card-header">
+              <div class="card-info">
+                <ion-text color="medium">
+                  <p class="card-label">League Standing</p>
+                </ion-text>
+                <h2 class="card-value">#{{ summaryData.leagueStanding }}</h2>
+                <ion-text color="medium">
+                  <p class="card-subtext">of {{ summaryData.totalPlayers }} players</p>
+                </ion-text>
+              </div>
+              <div class="icon-wrapper icon-gold">
+                <ion-icon :icon="trophyOutline" />
               </div>
             </div>
-            <span class="subtext">of 523 players</span>
-          </div>
-        </div>
+          </ion-card-content>
+        </ion-card>
       </ion-col>
 
-      <!-- Card 3: Crediti (Verde acqua) -->
+      <!-- Credits -->
       <ion-col size="12" size-md="6" size-lg="3">
-        <div class="stat-card">
-          <div class="card-content">
-            <span class="label">Available Credits</span>
-            <div class="value-row">
-              <h2>550</h2>
-              <div class="icon-circle info">
-                <ion-icon :icon="cash" />
+        <ion-card class="summary-card">
+          <ion-card-content>
+            <div class="card-header">
+              <div class="card-info">
+                <ion-text color="medium">
+                  <p class="card-label">Available Credits</p>
+                </ion-text>
+                <h2 class="card-value">{{ summaryData.credits }}</h2>
+                <ion-text color="medium">
+                  <p class="card-subtext">Portfolio: {{ summaryData.portfolioValue }} Cr</p>
+                </ion-text>
+              </div>
+              <div class="icon-wrapper icon-primary">
+                <ion-icon :icon="cashOutline" />
               </div>
             </div>
-            <span class="subtext">Portfolio: 450 Cr</span>
-          </div>
-        </div>
+          </ion-card-content>
+        </ion-card>
       </ion-col>
 
-      <!-- Card 4: Contratti (Bianco/Neutro) -->
+      <!-- Active Contracts -->
       <ion-col size="12" size-md="6" size-lg="3">
-        <div class="stat-card">
-          <div class="card-content">
-            <span class="label">Active Contracts</span>
-            <div class="value-row">
-              <h2>6/10</h2>
-              <div class="icon-circle default">
-                <ion-icon :icon="documentText" />
+        <ion-card class="summary-card">
+          <ion-card-content>
+            <div class="card-header">
+              <div class="card-info">
+                <ion-text color="medium">
+                  <p class="card-label">Active Contracts</p>
+                </ion-text>
+                <h2 class="card-value">{{ summaryData.activeContracts }}/{{ summaryData.maxContracts }}</h2>
+                <ion-text color="medium">
+                  <p class="card-subtext">{{ summaryData.maxContracts - summaryData.activeContracts }} slots available</p>
+                </ion-text>
+              </div>
+              <div class="icon-wrapper icon-accent">
+                <ion-icon :icon="documentTextOutline" />
               </div>
             </div>
-            <span class="subtext">4 slots available</span>
-          </div>
-        </div>
+          </ion-card-content>
+        </ion-card>
       </ion-col>
     </ion-row>
   </ion-grid>
 </template>
 
 <script setup lang="ts">
-import { IonGrid, IonRow, IonCol, IonIcon } from '@ionic/vue';
-import { trendingUp, trophy, cash, documentText } from 'ionicons/icons';
+import { ref } from "vue";
+import {
+  IonGrid,
+  IonRow,
+  IonCol,
+  IonCard,
+  IonCardContent,
+  IonIcon,
+  IonText,
+} from "@ionic/vue";
+import {
+  trendingUpOutline,
+  trophyOutline,
+  cashOutline,
+  documentTextOutline,
+} from "ionicons/icons";
+
+// Mock data - replace with real data from store/props
+const summaryData = ref({
+  yesterdayPoints: 127,
+  pointsChange: 12.5,
+  leagueStanding: 4,
+  totalPlayers: 523,
+  credits: 550,
+  portfolioValue: 450,
+  activeContracts: 6,
+  maxContracts: 10,
+});
 </script>
 
 <style scoped>
-
-/* Reset base per la griglia */
-.stats-grid {
-  padding: 0;
+.summary-card {
+  --background: var(--ion-background-color);
+  border: 1px solid var(--ion-border-color);
+  box-shadow: var(--ion-box-shadow-color) 0 2px 8px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Stile Card Base */
-.stat-card {
-  background: #15201b; /* Colore scuro dal tuo mockup */
-  border: 1px solid #2a3d35;
-  border-radius: 16px;
+.summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--ion-box-shadow-color) 0 4px 12px;
+}
+
+ion-card-content {
   padding: 20px;
-  height: 100%;
-  transition: transform 0.2s;
 }
 
-.label {
-  color: #8fa39a;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.value-row {
+.card-header {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
-  margin-top: 12px;
-  margin-bottom: 8px;
+  gap: 12px;
 }
 
-h2 {
+.card-info {
+  flex: 1;
+}
+
+.card-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin: 0 0 8px 0;
+}
+
+.card-value {
   font-size: 2rem;
   font-weight: 700;
-  color: white;
+  margin: 0 0 4px 0;
+  color: var(--ion-color-dark);
+}
+
+.card-change {
+  font-size: 0.875rem;
+  font-weight: 500;
   margin: 0;
 }
 
-/* Icone Cerchiate */
-.icon-circle {
+.card-subtext {
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.icon-wrapper {
   width: 48px;
   height: 48px;
-  border-radius: 50%;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+}
+
+.icon-wrapper ion-icon {
   font-size: 24px;
 }
 
-.icon-circle.success { background: rgba(46, 213, 115, 0.15); color: #2ed573; }
-.icon-circle.warning { background: rgba(255, 171, 0, 0.15); color: #ffab00; }
-.icon-circle.info    { background: rgba(50, 255, 126, 0.1); color: #7bed9f; }
-.icon-circle.default { background: rgba(255, 255, 255, 0.1); color: #ffffff; }
-
-/* Subtext */
-.subtext {
-  font-size: 0.85rem;
-  color: #63756e;
+.icon-primary {
+  background: var(--ion-color-primary-tint);
+  color: var(--ion-color-primary);
 }
 
-.subtext.positive {
-  color: #2ed573;
+.icon-gold {
+  background: rgba(245, 200, 66, 0.2);
+  color: var(--wiki-gold);
+}
+
+.icon-accent {
+  background: var(--ion-color-secondary-tint);
+  color: var(--ion-color-secondary-shade);
+}
+
+/* Dark mode adjustments */
+.ion-palette-dark .card-value {
+  color: var(--ion-color-light);
 }
 </style>

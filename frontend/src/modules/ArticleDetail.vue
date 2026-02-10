@@ -19,13 +19,17 @@
             <ion-text color="medium">
               <p class="detail-label">Yesterday's Points</p>
             </ion-text>
-            <h2 class="detail-value primary">{{ selectedContract.yesterdayPoints }}</h2>
+            <h2 class="detail-value primary">
+              {{ selectedContract.yesterdayPoints }}
+            </h2>
           </div>
           <div class="text-right">
             <ion-text color="medium">
               <p class="detail-label">Current Value</p>
             </ion-text>
-            <p class="detail-value">{{ selectedContract.currentPrice }} credits</p>
+            <p class="detail-value">
+              {{ selectedContract.currentPrice }} credits
+            </p>
           </div>
         </div>
       </div>
@@ -52,10 +56,14 @@
               <div class="info-box">
                 <ion-text color="medium">
                   <p class="info-label">
-                    <ion-icon :icon="calendarOutline" /> Expires
+                    <ion-icon :icon="calendarOutline" />
+                    Expires
                   </p>
                 </ion-text>
-                <p class="info-value" :class="selectedContract.expiresIn <= 3 ? 'text-danger' : ''">
+                <p
+                  class="info-value"
+                  :class="selectedContract.expiresIn <= 3 ? 'text-danger' : ''"
+                >
                   {{ selectedContract.expiresIn }} days
                 </p>
               </div>
@@ -79,7 +87,9 @@
                 <ion-text color="medium">
                   <p class="info-label">Purchase Price</p>
                 </ion-text>
-                <p class="info-value">{{ selectedContract.purchasePrice }} credits</p>
+                <p class="info-value">
+                  {{ selectedContract.purchasePrice }} credits
+                </p>
               </div>
             </ion-col>
             <ion-col size="6">
@@ -87,15 +97,26 @@
                 <ion-text color="medium">
                   <p class="info-label">Current Value</p>
                 </ion-text>
-                <p class="info-value">{{ selectedContract.currentPrice }} credits</p>
+                <p class="info-value">
+                  {{ selectedContract.currentPrice }} credits
+                </p>
               </div>
             </ion-col>
           </ion-row>
         </ion-grid>
 
-        <div class="value-change" :class="valueChange >= 0 ? 'positive' : 'negative'">
-          <ion-icon :icon="valueChange >= 0 ? trendingUpOutline : trendingDownOutline" />
-          <span>{{ valueChange >= 0 ? '+' : '' }}{{ valueChange }} credits ({{ valueChangePercent }}%)</span>
+        <div
+          class="value-change"
+          :class="valueChange >= 0 ? 'positive' : 'negative'"
+        >
+          <ion-icon
+            :icon="valueChange >= 0 ? trendingUpOutline : trendingDownOutline"
+          />
+          <span
+            >{{ valueChange >= 0 ? "+" : "" }}{{ valueChange }} credits ({{
+              valueChangePercent
+            }}%)</span
+          >
         </div>
       </div>
 
@@ -121,12 +142,11 @@
 </template>
 
 <script setup lang="ts">
-import { Contract } from "@/types/Article";
+import { Contract } from "@/types/models";
 import {
   calendarOutline,
   cashOutline,
   closeOutline,
-  // REMOVED 'contract' from here - it was conflicting!
   refreshOutline,
   timeOutline,
   trendingDownOutline,
@@ -151,26 +171,27 @@ import { computed } from "vue";
 
 // Props definition
 const props = defineProps<{
-  selectedContract: Contract | null,
-  isOpen: boolean
-}>()
+  selectedContract: Contract | null;
+  isOpen: boolean;
+}>();
 
 // Emits definition
 const emit = defineEmits<{
-  close: []
-}>()
+  close: [];
+}>();
 
 // Fixed computed - don't use .value on props
 const valueChange = computed(() => {
   if (!props.selectedContract) return 0;
-  return props.selectedContract.currentPrice - props.selectedContract.purchasePrice;
+  return (
+    props.selectedContract.currentPrice - props.selectedContract.purchasePrice
+  );
 });
 
 const valueChangePercent = computed(() => {
   if (!props.selectedContract) return "0";
   const change = valueChange.value;
-  const percent = ((change / props.selectedContract.purchasePrice) * 100).toFixed(1);
-  return percent;
+  return ((change / props.selectedContract.purchasePrice) * 100).toFixed(1);
 });
 </script>
 

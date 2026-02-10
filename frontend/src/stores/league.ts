@@ -1,87 +1,178 @@
+// frontend/src/stores/league.ts
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
-
-interface League {
-  id: string;
-  name: string;
-  icon: string;
-  season: string;
-}
-
-interface notification {
-  id: string;
-  leagueId: string;
-  message: string;
-  read: boolean;
-}
-
-//TODO: REMOVE AND ADD ACTUAL LOGIC
-const available_leagues: League[] = [
-  { id: "global", name: "Global", icon: "🌐", season: "2024" },
-  { id: "italy", name: "Italia", icon: "🍕", season: "2024" },
-];
-
-const notifications: notification[] = [
-  {
-    id: "1",
-    leagueId: "italy",
-    message: "Scambia morti nel 2026",
-    read: false,
-  },
-  { id: "2", leagueId: "italy", message: "Italia League News!", read: false },
-  { id: "3", leagueId: "global", message: "Global League Update", read: true },
-];
+import api from "@/services/api";
+import type { League, Notification, Team } from "@/types/models";
 
 /**
- * Store for managing current league context
- * Used across the app to track which league the user is viewing
+ * Store for managing league context and data
+ * Handles current league selection and league-related API calls
  */
 export const useLeagueStore = defineStore("league", () => {
   // ========== STATE ==========
-  const currentLeague = ref<League>(
-    // Try to restore from localStorage
-    JSON.parse(<string>localStorage.getItem("currentLeague")) ||
-      available_leagues[0]
-  );
-
-  const availableLeagues = ref<League[]>(available_leagues);
+  const currentLeague = ref<League | null>(null);
+  const availableLeagues = ref<League[]>([]);
+  const currentTeam = ref<Team | null>(null);
+  const notificationsList = ref<Notification[]>([]);
   const isLoading = ref(false);
-
-  const notificationsList = ref<notification[]>(notifications);
+  const error = ref<string | null>(null);
 
   // ========== GETTERS ==========
 
   const currentLeagueName = computed(() => {
-    return currentLeague.value.name || "No League Selected";
+    return currentLeague.value?.name || "No League Selected";
+  });
+
+  const currentLeagueId = computed(() => {
+    return currentLeague.value?.id || "null";
   });
 
   const currentNotifications = computed(() => {
+    if (!currentLeague.value) return [];
     return notificationsList.value.filter(
-      (notification) => notification.leagueId === currentLeague.value.id
+      (notification) => notification.leagueId === currentLeague.value!.id
     );
   });
 
+  const unreadNotifications = computed(() => {
+    return currentNotifications.value.filter((n) => !n.read);
+  });
+
+  const unreadCount = computed(() => {
+    return unreadNotifications.value.length;
+  });
+
   // ========== ACTIONS ==========
-  function setCurrentLeague(league: League) {
-    currentLeague.value = league;
-    // Persist to localStorage
-    localStorage.setItem("currentLeague", JSON.stringify(league));
-  }
 
-  function clearCurrentLeague() {
-    localStorage.removeItem("currentLeague");
-  }
-
+  /**
+   * Fetch all available leagues from API
+   */
   async function fetchLeagues() {
     isLoading.value = true;
+    error.value = null;
+
     try {
-      // TODO: Replace with your actual API call
-      const response = await fetch("/api/leagues");
-      availableLeagues.value = await response.json();
-    } catch (error) {
-      console.error("Failed to fetch leagues:", error);
+      availableLeagues.value = await api.leagues.getAll();
+
+      // If no current league is set, restore from localStorage or use first league
+      if (!currentLeague.value && availableLeagues.value.length > 0) {
+        const savedLeague = localStorage.getItem("currentLeague");
+        if (savedLeague) {
+          const parsed = JSON.parse(savedLeague);
+          const found = availableLeagues.value.find((l) => l.id === parsed.id);
+          if (found) {
+            currentLeague.value = found;
+          } else {
+            currentLeague.value = availableLeagues.value[0];
+          }
+        } else {
+          currentLeague.value = availableLeagues.value[0];
+        }
+      }
+    } catch (err) {
+      error.value =
+        err instanceof Error ? err.message : "Failed to fetch leagues";
+      console.error("Failed to fetch leagues:", err);
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /**
+   * Set the current league
+   */
+  function setCurrentLeague(league: League) {
+    currentLeague.value = league;
+    localStorage.setItem("currentLeague", JSON.stringify(league));
+
+    // Fetch team and notifications for this league
+    // fetchCurrentTeam()
+    // fetchNotifications();
+  }
+
+  /**
+   * Fetch the current player's team for the current league
+   */
+  async function fetchCurrentTeam() {
+    if (!currentLeague.value) return;
+
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      currentTeam.value = await api.leagues.getTeam(currentLeague.value.id);
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : "Failed to fetch team";
+      console.error("Failed to fetch team:", err);
+      currentTeam.value = null;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /**
+   * Fetch all notifications for the player
+   */
+  async function fetchAllNotifications() {
+    try {
+      notificationsList.value = await api.notifications.getAll();
+    } catch (err) {
+      console.error("Failed to fetch all notifications:", err);
+    }
+  }
+
+  /**
+   * Mark a notification as read
+   */
+  /*
+  async function markNotificationAsRead(notificationId: string) {
+    try {
+      const updated = await api.notifications.markAsRead(notificationId);
+
+      // Update local state
+      const index = notificationsList.value.findIndex(
+        (n) => n.id === notificationId
+      );
+      if (index !== -1) {
+        notificationsList.value[index] = updated;
+      }
+    } catch (err) {
+      console.error("Failed to mark notification as read:", err);
+    }
+  }
+  */
+
+  /**
+   * Clear current league
+   */
+  /*
+  function clearCurrentLeague() {
+    currentLeague.value = null;
+    currentTeam.value = null;
+    localStorage.removeItem("currentLeague");
+  }
+*/
+  /**
+   * Initialize the store
+   */
+  async function initialize() {
+    // Try to restore from localStorage
+    const savedLeague = localStorage.getItem("currentLeague");
+    if (savedLeague) {
+      try {
+        currentLeague.value = JSON.parse(savedLeague);
+      } catch (err) {
+        console.error("Failed to restore league from localStorage:", err);
+      }
+    }
+
+    // Fetch leagues and notifications
+    await fetchLeagues();
+    await fetchAllNotifications();
+
+    // If we have a current league, fetch its team
+    if (currentLeague.value) {
+      await fetchCurrentTeam();
     }
   }
 
@@ -89,14 +180,20 @@ export const useLeagueStore = defineStore("league", () => {
     // State
     currentLeague,
     availableLeagues,
+    currentTeam,
     notificationsList,
     isLoading,
+    error,
+
     // Getters
     currentLeagueName,
+    currentLeagueId,
     currentNotifications,
+    unreadNotifications,
+    unreadCount,
     // Actions
     setCurrentLeague,
-    clearCurrentLeague,
-    fetchLeagues,
+    fetchAllNotifications,
+    initialize,
   };
 });

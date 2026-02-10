@@ -9,7 +9,10 @@
           <div>
             <ion-card-title>Attention Needed</ion-card-title>
             <ion-card-subtitle>
-              {{ urgentArticles.length }} contract{{ urgentArticles.length !== 1 ? 's' : '' }} requiring action
+              {{ urgentArticles.length }} contract{{
+                urgentArticles.length !== 1 ? "s" : ""
+              }}
+              requiring action
             </ion-card-subtitle>
           </div>
         </div>
@@ -48,17 +51,28 @@
           <div class="article-content">
             <div class="article-info">
               <div class="article-header">
-                <span class="article-name">{{ contract.article.name }}</span>
-                <ion-badge :color="getTierColor(contract.tier)" class="tier-badge">
+                <span class="article-name">{{ contract.article }}</span>
+                <ion-badge
+                  :color="getTierColor(contract.tier)"
+                  class="tier-badge"
+                >
                   {{ contract.tier }}
                 </ion-badge>
               </div>
               <div class="article-badges">
-                <ion-badge v-if="contract.expiresIn <= 3" color="danger" class="status-badge">
+                <ion-badge
+                  v-if="contract.expiresIn <= 3"
+                  color="danger"
+                  class="status-badge"
+                >
                   <ion-icon :icon="timeOutline" />
                   {{ contract.expiresIn }}d left
                 </ion-badge>
-                <ion-badge v-if="hasTradeProposal(contract)" color="primary" class="status-badge">
+                <ion-badge
+                  v-if="hasTradeProposal(contract)"
+                  color="primary"
+                  class="status-badge"
+                >
                   <ion-icon :icon="swapHorizontalOutline" />
                   Trade Offer
                 </ion-badge>
@@ -66,9 +80,23 @@
             </div>
             <div class="article-stats">
               <span class="points">{{ contract.yesterdayPoints }} pts</span>
-              <div class="change" :class="contract.yesterdayPoints <= 100 ? 'positive' : 'negative'">
-                <ion-icon :icon="contract.yesterdayPoints <= 0 ? trendingUpOutline : trendingDownOutline" />
-                <span>{{ contract.yesterdayPoints <= 100 ? '+' : '' }}{{ 5 }}%</span>
+              <div
+                class="change"
+                :class="
+                  contract.yesterdayPoints <= 100 ? 'positive' : 'negative'
+                "
+              >
+                <ion-icon
+                  :icon="
+                    contract.yesterdayPoints <= 0
+                      ? trendingUpOutline
+                      : trendingDownOutline
+                  "
+                />
+                <span
+                  >{{ contract.yesterdayPoints <= 100 ? "+" : ""
+                  }}{{ 5 }}%</span
+                >
               </div>
             </div>
           </div>
@@ -87,37 +115,37 @@
 <script setup lang="ts">
 import { useLeagueStore } from "@/stores/league";
 import {
-  IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardSubtitle,
-  IonCardContent,
-  IonButton,
-  IonIcon,
-  IonList,
-  IonItem,
   IonBadge,
+  IonButton,
+  IonCard,
+  IonCardContent,
+  IonCardHeader,
+  IonCardSubtitle,
+  IonCardTitle,
+  IonIcon,
+  IonItem,
+  IonList,
   IonText,
 } from "@ionic/vue";
 import {
-  alertCircleOutline,
   addOutline,
+  alertCircleOutline,
   documentTextOutline,
-  timeOutline,
   swapHorizontalOutline,
-  trendingUpOutline,
+  timeOutline,
   trendingDownOutline,
+  trendingUpOutline,
 } from "ionicons/icons";
 import ArticleDetail from "@/modules/ArticleDetail.vue";
 import { computed, ref } from "vue";
-import { Contract, allContracts } from "@/types/Article";
+import { Contract } from "@/types/models";
 
 interface Props {
+  urgentContract: Contract[];
   onBuyArticles?: () => void;
 }
 
-const isModalOpen = ref(false)
-
+const isModalOpen = ref(false);
 
 const props = defineProps<Props>();
 const leagueStore = useLeagueStore();
@@ -125,23 +153,26 @@ const leagueStore = useLeagueStore();
 const selectedContract = ref<Contract | null>(null);
 
 function openModal(contract: Contract) {
-  selectedContract.value = contract
-  isModalOpen.value = true
+  selectedContract.value = contract;
+  isModalOpen.value = true;
 }
 
 function closeModal() {
-  isModalOpen.value = false
+  isModalOpen.value = false;
 }
 
-const hasTradeProposal = (contract: Contract) => {
-  // Mock - replace with real logic
-  return false;
-};
+// const hasTradeProposal = (contract: Contract) => {
+//   // Mock - replace with real logic
+//   return false;
+// };
 
 const urgentArticles = computed(() => {
-  return allContracts.filter(
-    (contract) =>
-      contract.leagueId === leagueStore.currentLeague.id && contract.expiresIn <= 3
+  if (leagueStore.currentLeague == null) {
+    return [];
+  }
+  const league = leagueStore.currentLeague;
+  return props.urgentContract.filter(
+    (contract) => contract.leagueId === league.id && contract.expiresIn <= 3
   );
 });
 
@@ -312,112 +343,12 @@ ion-card-subtitle {
 }
 
 /* Modal Styles */
-.detail-section {
-  margin-bottom: 20px;
-}
-
-.highlight-section {
-  background: var(--ion-color-primary-tint);
-  border-radius: 8px;
-  padding: 16px;
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.text-right {
-  text-align: right;
-}
-
-.detail-label {
-  font-size: 0.875rem;
-  margin: 0 0 4px 0;
-}
-
-.detail-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0;
-  color: var(--ion-color-dark);
-}
-
-.detail-value.primary {
-  color: var(--ion-color-primary);
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 12px;
-  color: var(--ion-color-dark);
-}
 
 .section-title ion-icon {
   color: var(--ion-color-medium);
 }
 
-.info-box {
-  padding: 12px;
-  background: var(--ion-background-color-step-100);
-  border-radius: 8px;
-  border: 1px solid var(--ion-border-color);
-}
-
-.info-label {
-  font-size: 0.875rem;
-  margin: 0 0 4px 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .info-label ion-icon {
   font-size: 12px;
-}
-
-.info-value {
-  font-weight: 600;
-  margin: 0;
-  color: var(--ion-color-dark);
-}
-
-.text-danger {
-  color: var(--ion-color-danger);
-}
-
-.value-change {
-  margin-top: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-weight: 600;
-}
-
-.value-change.positive {
-  background: var(--ion-color-success-tint);
-  color: var(--ion-color-success);
-}
-
-.value-change.negative {
-  background: var(--ion-color-danger-tint);
-  color: var(--ion-color-danger);
-}
-
-/* Dark mode */
-.ion-palette-dark .article-name,
-.ion-palette-dark .points,
-.ion-palette-dark .detail-value,
-.ion-palette-dark .section-title,
-.ion-palette-dark .info-value {
-  color: var(--ion-color-light);
 }
 </style>

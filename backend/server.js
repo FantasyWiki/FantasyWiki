@@ -355,6 +355,7 @@ const notifications = [
     teamId: "team-1",
     message: "Nuovo trade disponibile!",
     type: "trade_offer",
+    extra: "ctr-3",
     read: false,
     createdAt: "2024-02-09T08:30:00Z",
   },

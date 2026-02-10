@@ -65,6 +65,7 @@ export interface Notification {
   teamId: string;
   message: string;
   type: "contract_expiring" | "trade_offer" | "league_update" | "general";
+  extra: string;
   read: boolean;
   createdAt: string;
 }

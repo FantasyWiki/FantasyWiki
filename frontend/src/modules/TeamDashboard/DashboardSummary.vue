@@ -1,5 +1,5 @@
 <template>
-  <ion-grid class="ion-no-padding">
+  <ion-grid class="ion-no-padding" v-if="props.summaryData">
     <ion-row>
       <!-- Yesterday's Points -->
       <ion-col size="12" size-md="6" size-lg="3">
@@ -10,10 +10,17 @@
                 <ion-text color="medium">
                   <p class="card-label">Yesterday's Points</p>
                 </ion-text>
-                <h2 class="card-value">{{ summaryData.yesterdayPoints }}</h2>
-                <ion-text :color="summaryData.pointsChange >= 0 ? 'success' : 'danger'">
+                <h2 class="card-value">
+                  {{ props.summaryData.yesterdayPoints }}
+                </h2>
+                <ion-text
+                  :color="
+                    props.summaryData.pointsChange >= 0 ? 'success' : 'danger'
+                  "
+                >
                   <p class="card-change">
-                    {{ summaryData.pointsChange >= 0 ? '+' : '' }}{{ summaryData.pointsChange }}%
+                    {{ props.summaryData.pointsChange >= 0 ? "+" : ""
+                    }}{{ props.summaryData.pointsChange }}%
                   </p>
                 </ion-text>
               </div>
@@ -34,9 +41,11 @@
                 <ion-text color="medium">
                   <p class="card-label">League Standing</p>
                 </ion-text>
-                <h2 class="card-value">#{{ summaryData.leagueStanding }}</h2>
+                <h2 class="card-value">#{{ props.summaryData.rank }}</h2>
                 <ion-text color="medium">
-                  <p class="card-subtext">of {{ summaryData.totalPlayers }} players</p>
+                  <p class="card-subtext">
+                    of {{ props.summaryData.totalPlayers }} players
+                  </p>
                 </ion-text>
               </div>
               <div class="icon-wrapper icon-gold">
@@ -56,9 +65,11 @@
                 <ion-text color="medium">
                   <p class="card-label">Available Credits</p>
                 </ion-text>
-                <h2 class="card-value">{{ summaryData.credits }}</h2>
+                <h2 class="card-value">{{ props.summaryData.credits }}</h2>
                 <ion-text color="medium">
-                  <p class="card-subtext">Portfolio: {{ summaryData.portfolioValue }} Cr</p>
+                  <p class="card-subtext">
+                    Portfolio: {{ props.summaryData.portfolioValue }} Cr
+                  </p>
                 </ion-text>
               </div>
               <div class="icon-wrapper icon-primary">
@@ -78,9 +89,14 @@
                 <ion-text color="medium">
                   <p class="card-label">Active Contracts</p>
                 </ion-text>
-                <h2 class="card-value">{{ summaryData.activeContracts }}/{{ summaryData.maxContracts }}</h2>
+                <h2 class="card-value">
+                  {{ props.summaryData.activeContracts }}/{{ maxContracts }}
+                </h2>
                 <ion-text color="medium">
-                  <p class="card-subtext">{{ summaryData.maxContracts - summaryData.activeContracts }} slots available</p>
+                  <p class="card-subtext">
+                    {{ maxContracts - props.summaryData.activeContracts }} slots
+                    available
+                  </p>
                 </ion-text>
               </div>
               <div class="icon-wrapper icon-accent">
@@ -95,34 +111,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
 import {
-  IonGrid,
-  IonRow,
-  IonCol,
   IonCard,
   IonCardContent,
+  IonCol,
+  IonGrid,
   IonIcon,
+  IonRow,
   IonText,
 } from "@ionic/vue";
 import {
-  trendingUpOutline,
-  trophyOutline,
   cashOutline,
   documentTextOutline,
+  trendingUpOutline,
+  trophyOutline,
 } from "ionicons/icons";
+import { DashboardSummary } from "@/types/models";
 
-// Mock data - replace with real data from store/props
-const summaryData = ref({
-  yesterdayPoints: 127,
-  pointsChange: 12.5,
-  leagueStanding: 4,
-  totalPlayers: 523,
-  credits: 550,
-  portfolioValue: 450,
-  activeContracts: 6,
-  maxContracts: 10,
-});
+interface Props {
+  summaryData: DashboardSummary | null;
+}
+
+const props = defineProps<Props>();
+
+const maxContracts = 18;
 </script>
 
 <style scoped>
@@ -130,7 +142,9 @@ const summaryData = ref({
   --background: var(--ion-background-color);
   border: 1px solid var(--ion-border-color);
   box-shadow: var(--ion-box-shadow-color) 0 2px 8px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .summary-card:hover {

@@ -35,15 +35,12 @@
             size="small"
             shape="round"
           >
-            <ion-label>{{ leagueStore.currentLeague.icon }}</ion-label>
+            <ion-label>{{ leagueStore.currentLeague?.icon || "" }}</ion-label>
             <ion-label class="ion-hide-md-down"
-              >{{ leagueStore.currentLeague.name }}
+              >{{ leagueStore.currentLeagueName }}
             </ion-label>
-            <ion-badge
-              color="danger"
-              v-if="isThereNotifications(leagueStore.currentLeague.id)"
-            >
-              {{ renderNotificationBadge(leagueStore.currentLeague.id) }}
+            <ion-badge color="danger" v-if="unreadCount > 0">
+              {{ renderNotificationBadge(leagueStore.currentLeagueId) }}
             </ion-badge>
           </ion-button>
           <ion-popover trigger="league-selector" trigger-action="click">
@@ -183,6 +180,7 @@ import {
 import AppLogo from "@/views/AppLogo.vue";
 import { useAppStore } from "@/stores/app";
 import { useLeagueStore } from "@/stores/league";
+import { computed, onMounted } from "vue";
 
 const router = useRouter();
 const route = useRoute();
@@ -190,6 +188,8 @@ const route = useRoute();
 // State
 const appStore = useAppStore();
 const leagueStore = useLeagueStore();
+computed(() => leagueStore.currentLeague);
+const unreadCount = computed(() => leagueStore.unreadCount);
 
 // Navigation links configuration
 const navLinks = [
@@ -242,10 +242,9 @@ const handleAuth = () => {
 };
 
 const isThereNotifications = (leagueId: string) => {
-  const count = leagueStore.notificationsList.filter(
+  return leagueStore.notificationsList.some(
     (notification) => !notification.read && notification.leagueId === leagueId
-  ).length;
-  return count > 0;
+  );
 };
 
 const renderNotificationBadge = (leagueId: string) => {
@@ -258,6 +257,13 @@ const renderNotificationBadge = (leagueId: string) => {
     return count.toString();
   }
 };
+
+onMounted(async () => {
+  if (!leagueStore.currentLeague) {
+    await leagueStore.initialize();
+  }
+  await leagueStore.fetchAllNotifications();
+});
 </script>
 
 <style scoped>

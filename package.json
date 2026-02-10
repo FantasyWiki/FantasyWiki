@@ -1,6 +1,24 @@
 {
+  "name": "fantasywiki",
+  "version": "1.0.0",
+  "description": "FantasyWiki - Wikipedia Fantasy League Game",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm start",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "build": "cd frontend && npm run build",
+    "preview": "cd frontend && npm run preview"
+  },
+  "keywords": [
+    "fantasy",
+    "wikipedia",
+    "game"
+  ],
+  "license": "MIT",
   "devDependencies": {
-    "semantic-release-preconfigured-conventional-commits": "1.1.157"
+    "semantic-release-preconfigured-conventional-commits": "1.1.157",
+    "concurrently": "^8.2.2"
   },
   "engines": {
     "node": "24.13"

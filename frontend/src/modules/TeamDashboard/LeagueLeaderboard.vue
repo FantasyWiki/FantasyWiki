@@ -8,17 +8,21 @@
         <div>
           <ion-card-title>League Standings</ion-card-title>
           <ion-card-subtitle>
-            <span>{{ currentLeague.icon }}</span>
-            <span>{{ currentLeague.name }}</span>
+            <span>{{ props.currentLeague.icon }}</span>
+            <span>{{ props.currentLeague.name }}</span>
           </ion-card-subtitle>
         </div>
       </div>
 
       <!-- League Info Badges -->
       <div class="badges-wrapper">
-        <ion-badge color="medium">{{ leagueInfo.language }}</ion-badge>
-        <ion-badge color="medium" mode="ios">{{ leagueInfo.totalPlayers }} players</ion-badge>
-        <ion-badge color="medium" mode="ios">Ends {{ leagueInfo.endDate }}</ion-badge>
+        <ion-badge color="medium">{{ currentLeague.language }}</ion-badge>
+        <ion-badge color="medium" mode="ios"
+          >{{ currentLeague.totalPlayers }} players</ion-badge
+        >
+        <ion-badge color="medium" mode="ios"
+          >Ends {{ currentLeague.endDate }}</ion-badge
+        >
       </div>
     </ion-card-header>
 
@@ -26,17 +30,14 @@
       <!-- Leaderboard List -->
       <ion-list lines="none" class="leaderboard-list">
         <ion-item
-          v-for="player in leaderboardData"
+          v-for="player in leaderBoardEntry"
           :key="player.rank"
           class="player-item"
           :class="{ 'current-user': player.isCurrentUser }"
         >
           <div class="player-content">
             <div class="player-info">
-              <div
-                class="rank-badge"
-                :class="{ 'top-rank': player.rank <= 3 }"
-              >
+              <div class="rank-badge" :class="{ 'top-rank': player.rank <= 3 }">
                 {{ player.rank }}
               </div>
               <div>
@@ -45,7 +46,7 @@
                     class="player-name"
                     :class="{ 'current-user-name': player.isCurrentUser }"
                   >
-                    {{ player.name }}
+                    {{ player.username }}
                   </span>
                   <ion-icon
                     v-if="player.rank === 1"
@@ -59,14 +60,25 @@
                   />
                 </div>
                 <ion-text color="medium">
-                  <span class="player-points">{{ player.points.toLocaleString() }} pts</span>
+                  <span class="player-points"
+                    >{{ player.points.toLocaleString() }} pts</span
+                  >
                 </ion-text>
               </div>
             </div>
 
-            <div class="player-change" :class="player.change >= 0 ? 'positive' : 'negative'">
-              <ion-icon :icon="player.change >= 0 ? trendingUpOutline : trendingDownOutline" />
-              <span>{{ player.change >= 0 ? '+' : '' }}{{ player.change }}%</span>
+            <div
+              class="player-change"
+              :class="player.change >= 0 ? 'positive' : 'negative'"
+            >
+              <ion-icon
+                :icon="
+                  player.change >= 0 ? trendingUpOutline : trendingDownOutline
+                "
+              />
+              <span
+                >{{ player.change >= 0 ? "+" : "" }}{{ player.change }}%</span
+              >
             </div>
           </div>
         </ion-item>
@@ -85,7 +97,12 @@
 
       <!-- Quick Action -->
       <div class="quick-action">
-        <ion-button expand="block" color="primary" size="small" @click="navigateToMarket">
+        <ion-button
+          expand="block"
+          color="primary"
+          size="small"
+          @click="navigateToMarket"
+        >
           Buy Articles
         </ion-button>
       </div>
@@ -94,77 +111,38 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
 import { useRouter } from "vue-router";
-import { useLeagueStore } from "@/stores/league";
 import {
-  IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardSubtitle,
-  IonCardContent,
-  IonIcon,
   IonBadge,
-  IonList,
-  IonItem,
-  IonText,
   IonButton,
+  IonCard,
+  IonCardContent,
+  IonCardHeader,
+  IonCardSubtitle,
+  IonCardTitle,
+  IonIcon,
+  IonItem,
+  IonList,
+  IonText,
 } from "@ionic/vue";
 import {
-  trophyOutline,
-  trendingUpOutline,
-  trendingDownOutline,
   chevronForwardOutline,
+  trendingDownOutline,
+  trendingUpOutline,
+  trophyOutline,
 } from "ionicons/icons";
+import { LeaderboardEntry, League, Team } from "@/types/models";
 
-interface LeaderboardPlayer {
-  rank: number;
-  name: string;
-  points: number;
-  change: number;
-  isCurrentUser: boolean;
+interface Props {
+  leaderBoardEntry: LeaderboardEntry[];
+  currentLeague: League;
+  currentTeam: Team;
+  onBuyArticles?: () => void;
 }
 
-interface LeagueInfo {
-  language: string;
-  totalPlayers: number;
-  endDate: string;
-}
+const props = defineProps<Props>();
 
 const router = useRouter();
-const leagueStore = useLeagueStore();
-const currentLeague = computed(() => leagueStore.currentLeague);
-
-// Mock data - replace with real data from store/API
-const leagueInfoMap: Record<string, LeagueInfo> = {
-  global: { language: "All Languages", totalPlayers: 10523, endDate: "Mar 31" },
-  italy: { language: "Italiano", totalPlayers: 523, endDate: "Feb 28" },
-};
-
-const leagueInfo = computed(() => {
-  return leagueInfoMap[currentLeague.value.id] || leagueInfoMap.global;
-});
-
-const mockLeaderboards: Record<string, LeaderboardPlayer[]> = {
-  global: [
-    { rank: 1, name: "WikiMaster", points: 15420, change: 15.2, isCurrentUser: false },
-    { rank: 2, name: "DataKing", points: 14890, change: 12.8, isCurrentUser: false },
-    { rank: 3, name: "InfoQueen", points: 14230, change: 8.5, isCurrentUser: false },
-    { rank: 4, name: "You", points: 12750, change: 12.5, isCurrentUser: true },
-    { rank: 5, name: "FactFinder", points: 12100, change: 7.2, isCurrentUser: false },
-  ],
-  italy: [
-    { rank: 1, name: "RomaRuler", points: 8950, change: 18.3, isCurrentUser: false },
-    { rank: 2, name: "MilanoMaster", points: 8420, change: 14.1, isCurrentUser: false },
-    { rank: 3, name: "VenezianoVIP", points: 7890, change: 11.5, isCurrentUser: false },
-    { rank: 4, name: "Tu", points: 7250, change: 9.8, isCurrentUser: true },
-    { rank: 5, name: "FiorentinoPro", points: 6800, change: 6.4, isCurrentUser: false },
-  ],
-};
-
-const leaderboardData = computed(() => {
-  return mockLeaderboards[currentLeague.value.id] || mockLeaderboards.global;
-});
 
 const crownIcon = "👑";
 const medalIcon = "🏅";

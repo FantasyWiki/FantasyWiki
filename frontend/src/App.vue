@@ -5,7 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, provide, onMounted } from "vue";
+import { onMounted, provide, ref } from "vue";
 import { IonApp, IonRouterOutlet } from "@ionic/vue";
 
 // Global state that can be accessed by all components

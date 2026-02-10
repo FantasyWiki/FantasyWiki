@@ -75,8 +75,8 @@ http://ionicframework.com/docs/theming/ */
   --ion-color-light-tint: #f8faf8;
 
   /* ===================================
-       APPLICATION COLORS
-       ================================== */
+         APPLICATION COLORS
+         ================================== */
 
   /* Borders and Overlays */
   --ion-border-color: #cdd8cd;
@@ -136,7 +136,25 @@ http://ionicframework.com/docs/theming/ */
     --background-activated: var(--ion-color-primary-tint);
   }
 
+  ion-button[fill="outline"] {
+    --color: var(--ion-color-dark);
+    --background: transparent;
+    --padding-start: 8px;
+    --padding-end: 8px;
+    --border-color: var(--ion-border-color);
+    text-transform: none;
+
+    --background-hover-opacity: 0.9;
+    --background-hover: var(--wiki-mint);
+    --border-radius: 4px;
+    --ripple-color: transparent;
+    --background-focused: var(--wiki-mint);
+    /* Smooth color transition */
+    transition: color 0.2s ease;
+  }
+
   /* Pop over */
+
   ion-popover {
     --box-shadow: 0 0px 0px 0 rgba(0, 0, 0, 0);
   }
@@ -144,7 +162,7 @@ http://ionicframework.com/docs/theming/ */
   /*
 
 
-	/* Tab Bar */
+      /* Tab Bar */
   --ion-tab-bar-background: #fbfbf7;
   --ion-tab-bar-background-focused: #f7f9f7;
   --ion-tab-bar-border-color: #cdd8cd;
@@ -152,22 +170,26 @@ http://ionicframework.com/docs/theming/ */
   --ion-tab-bar-color-selected: #1e7e50;
 
   /* Item */
+
   ion-item {
     --background-hover-opacity: 0.9;
     --background-hover: var(--wiki-mint);
     --border-radius: 4px;
   }
+
   --ion-item-background: #ffffff;
   --ion-item-border-color: #cdd8cd;
   --ion-item-color: #171f1b;
 
   /* List */
+
   ion-list {
     padding: 0.2rem;
     margin: 0;
   }
 
   /* Label */
+
   ion-label {
     margin: 0;
   }
@@ -222,8 +244,8 @@ http://ionicframework.com/docs/theming/ */
   --ion-background-color-step-950: #6e8479;
 
   /* ===================================
-       CUSTOM FANTASYWIKI VARIABLES
-       ================================== */
+         CUSTOM FANTASYWIKI VARIABLES
+         ================================== */
 
   --wiki-green: #1e7e50;
   --wiki-green-light: #358e62;

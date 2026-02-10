@@ -51,7 +51,7 @@
           <div class="article-content">
             <div class="article-info">
               <div class="article-header">
-                <span class="article-name">{{ contract.article }}</span>
+                <span class="article-name">{{ contract.article.name }}</span>
                 <ion-badge
                   :color="getTierColor(contract.tier)"
                   class="tier-badge"
@@ -74,7 +74,7 @@
                   class="status-badge"
                 >
                   <ion-icon :icon="swapHorizontalOutline" />
-                  Trade Offer
+                  Trade Offer Available
                 </ion-badge>
               </div>
             </div>
@@ -161,10 +161,10 @@ function closeModal() {
   isModalOpen.value = false;
 }
 
-// const hasTradeProposal = (contract: Contract) => {
-//   // Mock - replace with real logic
-//   return false;
-// };
+ const hasTradeProposal = (contract: Contract) => {
+   return leagueStore.notificationsList
+     .filter(n => n.type === "trade_offer" && n.extra === contract.id).length > 0
+ };
 
 const urgentArticles = computed(() => {
   if (leagueStore.currentLeague == null) {

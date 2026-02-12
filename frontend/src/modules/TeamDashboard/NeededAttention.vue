@@ -161,10 +161,13 @@ function closeModal() {
   isModalOpen.value = false;
 }
 
- const hasTradeProposal = (contract: Contract) => {
-   return leagueStore.notificationsList
-     .filter(n => n.type === "trade_offer" && n.extra === contract.id).length > 0
- };
+const hasTradeProposal = (contract: Contract) => {
+  return (
+    leagueStore.notificationsList.filter(
+      (n) => n.type === "trade_offer" && n.extra === contract.id
+    ).length > 0
+  );
+};
 
 const urgentArticles = computed(() => {
   if (leagueStore.currentLeague == null) {

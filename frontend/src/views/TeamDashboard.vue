@@ -3,9 +3,9 @@
     <!-- Page Header -->
     <div class="dashboard-header">
       <div class="header-text">
-        <ion-title v-if="currentTeam"
-          >{{ currentTeam.name }} Dashboard</ion-title
-        >
+        <ion-title v-if="currentTeam">
+          <h1>{{ currentTeam.name }} Dashboard</h1>
+        </ion-title>
         <ion-title v-else>Team Dashboard</ion-title>
         <ion-text color="medium">
           <p v-if="currentLeague">
@@ -56,7 +56,7 @@
             <h3>Error Loading Dashboard</h3>
             <p>{{ error }}</p>
             <ion-button
-              @click="refresh"
+              @click="refresh()"
               size="small"
               fill="outline"
               color="light"
@@ -83,7 +83,6 @@
               <needed-attention
                 :urgentContract="urgentContracts"
                 :on-buy-articles="() => router.push('/market')"
-                @refresh="refresh"
               />
             </div>
           </ion-col>
@@ -310,10 +309,5 @@ onMounted(async () => {
   .header-text ion-title {
     font-size: 1.5rem;
   }
-}
-
-/* Dark mode */
-.ion-palette-dark .empty-state h2 {
-  color: var(--ion-color-light);
 }
 </style>

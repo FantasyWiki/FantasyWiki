@@ -266,7 +266,6 @@ ion-chip {
 
 .header-content h3 {
   margin: 0;
-  font-size: 1rem;
 }
 
 .update-time {

@@ -260,17 +260,38 @@ http://ionicframework.com/docs/theming/ */
 }
 
 h1 {
-  font-size
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+}
+
+@media (min-width: 768px) {
+  h1 {
+    font-size: 3rem;
+    line-height: 1;
+  }
+}
+
+@media (min-width: 1024px) {
+  h1 {
+    font-size: 3.75rem;
+    line-height: 1;
+  }
+}
+
+ion-card-title {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+
+h1, h2, ion-card-title {
+  color: var(--ion-color-dark);
+  font-weight: bold;
+  font-family: var(--font-family-headings);
 }
 
 h2,
-h3,
-ion-card-title,
-ion-card-content h3 {
+h3 {
   font-size: clamp(1.875rem, 4vw, 2.25rem);
-  font-family: var(--font-family-headings);
-  color: var(--ion-color-dark);
-  font-weight: bold;
 }
 
 strong {

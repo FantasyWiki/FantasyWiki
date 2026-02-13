@@ -70,7 +70,6 @@ ion-card {
 }
 
 ion-card-title {
-  font-weight: bold;
   --ion-margin: 1rem;
 }
 
@@ -82,6 +81,11 @@ ion-item {
   --border-style: none;
   --background: var(--ion-background-color);
   --border-radius: 0.5rem;
+}
+
+h3 {
+  font-weight: 500;
+  line-height: 1.25rem;
 }
 
 ion-item ion-badge {

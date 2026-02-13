@@ -5,7 +5,7 @@
         <!-- Left Content -->
         <ion-col size="12" size-lg="6" class="ion-margin-bottom">
           <div class="ion-margin-bottom">
-            <ion-chip color="dark">
+            <ion-chip color="primary">
               <ion-icon
                 :icon="trophyOutline"
                 class="ion-padding-end ion-no-margin"

@@ -37,9 +37,9 @@
                 {{ reward.medal }}
               </div>
               <div>
-                <div class="reward-title ion-margin-bottom">
+                <ion-text color="dark" class="reward-title ion-margin-bottom">
                   {{ reward.rank }}
-                </div>
+                </ion-text>
                 <div class="reward-description">{{ reward.description }}</div>
               </div>
             </div>

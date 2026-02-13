@@ -178,14 +178,13 @@ http://ionicframework.com/docs/theming/ */
   /* ===================================
        CUSTOM FANTASYWIKI VARIABLES
        ================================== */
-  
+
   --ion-color-wiki-gold: #f5c842;
-	--ion-color-wiki-gold-rgb: 245,200,66;
-	--ion-color-wiki-gold-contrast: #000000;
-	--ion-color-wiki-gold-contrast-rgb: 0,0,0;
-	--ion-color-wiki-gold-shade: #d8b03a;
-	--ion-color-wiki-gold-tint: #f6ce55;
- 
+  --ion-color-wiki-gold-rgb: 245, 200, 66;
+  --ion-color-wiki-gold-contrast: #000000;
+  --ion-color-wiki-gold-contrast-rgb: 0, 0, 0;
+  --ion-color-wiki-gold-shade: #d8b03a;
+  --ion-color-wiki-gold-tint: #f6ce55;
 
   --wiki-green: #1e7e50;
   --wiki-green-light: #358e62;
@@ -201,12 +200,12 @@ http://ionicframework.com/docs/theming/ */
 }
 
 .ion-color-wiki-gold {
-	--ion-color-base: var(--ion-color-wiki-gold);
-	--ion-color-base-rgb: var(--ion-color-wiki-gold-rgb);
-	--ion-color-contrast: var(--ion-color-wiki-gold-contrast);
-	--ion-color-contrast-rgb: var(--ion-color-wiki-gold-contrast-rgb);
-	--ion-color-shade: var(--ion-color-wiki-gold-shade);
-	--ion-color-tint: var(--ion-color-wiki-gold-tint);
+  --ion-color-base: var(--ion-color-wiki-gold);
+  --ion-color-base-rgb: var(--ion-color-wiki-gold-rgb);
+  --ion-color-contrast: var(--ion-color-wiki-gold-contrast);
+  --ion-color-contrast-rgb: var(--ion-color-wiki-gold-contrast-rgb);
+  --ion-color-shade: var(--ion-color-wiki-gold-shade);
+  --ion-color-tint: var(--ion-color-wiki-gold-tint);
 }
 
 :root {
@@ -237,7 +236,10 @@ ion-card-title {
   line-height: 1.75rem;
 }
 
-h1, h2, ion-card-title, ion-card h3 {
+h1,
+h2,
+ion-card-title,
+ion-card h3 {
   color: var(--ion-color-dark);
   font-weight: bold;
   font-family: var(--font-family-headings);

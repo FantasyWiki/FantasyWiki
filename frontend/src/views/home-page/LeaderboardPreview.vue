@@ -63,7 +63,7 @@
               <div
                 class="header-content ion-display-flex ion-align-items-center ion-justify-content-between"
               >
-                <h3>🏆 Global Leaderboard</h3>
+                <ion-card-title>🏆 Global Leaderboard</ion-card-title>
                 <span class="update-time">Updated daily</span>
               </div>
             </ion-card-header>

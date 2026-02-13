@@ -1,6 +1,6 @@
 <template>
   <nav-bar>
-    <hero-section></hero-section>
+    <hero-section class="ion-margin-vertical"></hero-section>
     <how-it-works></how-it-works>
     <app-feature></app-feature>
     <leaderboard-preview></leaderboard-preview>
@@ -16,4 +16,8 @@ import AppFeature from "./AppFeature.vue";
 import LeaderboardPreview from "./LeaderboardPreview.vue";
 import CTASection from "./CTASection.vue";
 </script>
-<style scoped></style>
+<style scoped>
+ion-margin-vertical {
+  --ion-margin: 24px;
+}
+</style>

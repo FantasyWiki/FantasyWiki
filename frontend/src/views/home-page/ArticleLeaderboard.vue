@@ -11,7 +11,7 @@
     <ion-card-content class="ion-text-center ion-no-padding">
       <ion-list class="ion-no-padding">
         <ion-item
-          v-for="n in 4"
+          v-for="n in 5"
           :key="n"
           class="ion-margin-bottom ion-no-padding"
         >

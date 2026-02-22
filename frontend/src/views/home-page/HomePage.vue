@@ -4,7 +4,7 @@
     <how-it-works></how-it-works>
     <app-feature></app-feature>
     <leaderboard-preview></leaderboard-preview>
-    <CTA-section></CTA-section>
+    <cta-section></cta-section>
   </nav-bar>
 </template>
 

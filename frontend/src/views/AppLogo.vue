@@ -12,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon, IonText } from "@ionic/vue";
+import { IonIcon, IonText, IonImg } from "@ionic/vue";
 import { useRouter } from "vue-router";
 import { bookOutline } from "ionicons/icons";
 

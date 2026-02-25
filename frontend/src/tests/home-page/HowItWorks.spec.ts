@@ -4,16 +4,15 @@ import router from "@/router/index";
 import HowItWorks from "@/views/home-page/HowItWorks.vue";
 
 describe("HowItWorks.vue", () => {
-  it("should mount without any console errors or warnings", () => {
+  it("should mount without any console errors or warnings", async () => {
     router.push("/");
-    router.isReady().then(() => {
-      const wrapper = mount(HowItWorks, {
-        global: {
-          plugins: [router],
-        },
-      });
-
-      expect(wrapper.exists()).toBe(true);
+    await router.isReady();
+    const wrapper = mount(HowItWorks, {
+      global: {
+        plugins: [router],
+      },
     });
+
+    expect(wrapper.exists()).toBe(true);
   });
 });

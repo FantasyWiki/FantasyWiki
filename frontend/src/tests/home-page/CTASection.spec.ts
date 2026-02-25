@@ -4,16 +4,16 @@ import router from "@/router/index";
 import CTASection from "@/views/home-page/CTASection.vue";
 
 describe("home-page/CTASection.vue", () => {
-  it("should mount without any console errors or warnings", () => {
+  it("should mount without any console errors or warnings", async () => {
     router.push("/");
-    router.isReady().then(() => {
-      const wrapper = mount(CTASection, {
-        global: {
-          plugins: [router],
-        },
-      });
+    await router.isReady();
 
-      expect(wrapper.exists()).toBe(true);
+    const wrapper = mount(CTASection, {
+      global: {
+        plugins: [router],
+      },
     });
+
+    expect(wrapper.exists()).toBe(true);
   });
 });

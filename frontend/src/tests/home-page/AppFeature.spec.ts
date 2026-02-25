@@ -4,16 +4,15 @@ import router from "@/router/index";
 import AppFeature from "@/views/home-page/AppFeature.vue";
 
 describe("AppFeature.vue", () => {
-  it("should mount without any console errors or warnings", () => {
+  it("should mount without any console errors or warnings", async () => {
     router.push("/");
-    router.isReady().then(() => {
-      const wrapper = mount(AppFeature, {
-        global: {
-          plugins: [router],
-        },
-      });
-
-      expect(wrapper.exists()).toBe(true);
+    await router.isReady();
+    const wrapper = mount(AppFeature, {
+      global: {
+        plugins: [router],
+      },
     });
+
+    expect(wrapper.exists()).toBe(true);
   });
 });

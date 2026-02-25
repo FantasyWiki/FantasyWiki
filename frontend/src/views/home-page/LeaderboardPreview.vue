@@ -231,15 +231,15 @@ ion-chip {
 }
 
 .badge-gold {
-  background-color: var(--ion-color-tertiary);
+  background-color: var(--ion-color-wiki-gold);
 }
 
 .badge-silver {
-  background-color: var(--ion-color-tertiary);
+  background-color: var(--ion-color-silver);
 }
 
 .badge-bronze {
-  background-color: var(--ion-color-tertiary);
+  background-color: var(--ion-color-bronze);
 }
 
 .reward-title {

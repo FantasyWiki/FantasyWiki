@@ -1,3 +1,4 @@
+import com.github.gradle.node.npm.task.NpmTask
 import groovy.json.JsonSlurper
 
 plugins {
@@ -12,6 +13,10 @@ node {
     version = engines["node"] as String
     npmVersion = engines["npm"] as String
     npmInstallCommand = "ci"
+}
+
+tasks.named<NpmTask>("npm_audit") {
+    args.set(listOf("--omit=dev"))
 }
 
 tasks.register("check") {

@@ -158,6 +158,7 @@
 import { useRoute, useRouter } from "vue-router";
 import {
   IonButton,
+  IonBadge,
   IonContent,
   IonFooter,
   IonHeader,

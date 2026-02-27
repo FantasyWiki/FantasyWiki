@@ -296,3 +296,11 @@ ion-button {
   --ion-padding: 2rem;
   --border-radius: 0.5rem;
 }
+
+.login-modal {
+  --width: 440px;
+  --height: auto;
+  --max-height: 90vh;
+  --border-radius: 16px;
+  --box-shadow: 0 8px 32px rgba(0, 0, 0, 0.24);
+}

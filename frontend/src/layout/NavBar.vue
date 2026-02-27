@@ -116,7 +116,7 @@
             class="ion-hide-sm-down"
             @click="handleAuth"
           >
-            {{ appStore.isAuthenticated ? "Sign Out" : "Sign In" }}
+            {{ appStore.isAuthenticated ? "Sign Out" : "Sign In with Google" }}
           </ion-button>
         </div>
       </ion-toolbar>
@@ -124,6 +124,13 @@
 
     <ion-content :fullscreen="true" class="ion-padding">
       <slot></slot>
+      <ion-modal
+        :is-open="isLoginOpen"
+        css-class="login-modal"
+        @did-dismiss="isLoginOpen = false"
+      >
+        <login-page />
+      </ion-modal>
     </ion-content>
 
     <!-- Mobile Footer Navigation -->
@@ -157,6 +164,7 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from "vue-router";
 import {
+  IonModal,
   IonButton,
   IonBadge,
   IonContent,
@@ -182,11 +190,14 @@ import {
   trophyOutline,
 } from "ionicons/icons";
 import AppLogo from "@/views/AppLogo.vue";
+import LoginPage from "@/views/auth/LoginPage.vue";
 import { useAppStore } from "@/stores/app";
 import { useLeagueStore } from "@/stores/league";
+import { ref } from "vue";
 
 const router = useRouter();
 const route = useRoute();
+const isLoginOpen = ref(false);
 
 // State
 const appStore = useAppStore();
@@ -230,15 +241,12 @@ const toggleTheme = () => {
 };
 
 // Auth handler
-const handleAuth = () => {
+const handleAuth = async () => {
   if (appStore.isAuthenticated) {
-    // Handle sign out
     appStore.logout();
     router.push("/");
   } else {
-    // Handle sign in
-    appStore.login();
-    router.push("/signin");
+    isLoginOpen.value = true;
   }
 };
 
@@ -317,5 +325,9 @@ ion-footer {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+ion-modal {
+  --backdrop-opacity: 100%;
 }
 </style>

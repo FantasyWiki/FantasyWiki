@@ -29,6 +29,7 @@
     "@ionic/vue-router": "^8.0.0",
     "@tanstack/vue-query": "^5.92.12",
     "ionicons": "^8.0.0",
+    "jwt-decode": "^4.0.0",
     "pinia": "^3.0.4",
     "vue": "^3.3.0",
     "vue-router": "^5.0.0"

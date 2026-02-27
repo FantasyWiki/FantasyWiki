@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
+import { jwtDecode } from "jwt-decode";
 
 // Define language structure
 interface LanguageOption {
@@ -25,7 +26,48 @@ export const useAppStore = defineStore("app", () => {
 
   const isDarkMode = ref<boolean>(localStorage.getItem("darkMode") === "true");
 
-  const isAuthenticated = ref<boolean>(false);
+  interface AuthUser {
+    id: string;
+    name: string;
+    email: string;
+    picture_url: string;
+  }
+
+  interface JwtPayload {
+    sub: string;
+    name: string;
+    email: string;
+    picture: string;
+    exp: number;
+  }
+
+  const AUTH_TOKEN_COOKIE_KEY = "auth_token";
+
+  // UX-only check: reads the token payload to detect obvious expiry and
+  // populate local state. Does NOT verify the signature — real auth enforcement
+  // happens server-side via jwt.verify() in the requireAuth middleware.
+  function decodeJwtPayload(token: string): AuthUser | null {
+    try {
+      const payload = jwtDecode<JwtPayload>(token);
+      const now = Math.floor(Date.now() / 1000);
+      if (payload.exp && payload.exp < now) return null;
+      return {
+        id: payload.sub,
+        name: payload.name,
+        email: payload.email,
+        picture_url: payload.picture,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  const _storedToken = localStorage.getItem(AUTH_TOKEN_COOKIE_KEY);
+  const _initialUser = _storedToken ? decodeJwtPayload(_storedToken) : null;
+
+  const isAuthenticated = ref<boolean>(_initialUser !== null);
+  const currentUser = ref<AuthUser | null>(_initialUser);
+  const authToken = ref<string | null>(_initialUser ? _storedToken : null);
 
   // ========== GETTERS ==========
 
@@ -109,12 +151,20 @@ export const useAppStore = defineStore("app", () => {
     document.body.classList.toggle("dark", value);
   }
 
-  function login() {
+  function setUser(token: string) {
+    const user = decodeJwtPayload(token);
+    if (!user) return;
+    authToken.value = token;
+    currentUser.value = user;
     isAuthenticated.value = true;
+    localStorage.setItem(AUTH_TOKEN_COOKIE_KEY, token);
   }
 
   function logout() {
     isAuthenticated.value = false;
+    currentUser.value = null;
+    authToken.value = null;
+    localStorage.removeItem(AUTH_TOKEN_COOKIE_KEY);
   }
 
   // Initialize on store creation
@@ -129,17 +179,19 @@ export const useAppStore = defineStore("app", () => {
     languageCode,
     isDarkMode,
     isAuthenticated,
+    currentUser,
+    authToken,
     // Getters
-    currentLanguage, // { code: 'en', label: 'EN', fullName: 'English' }
-    languageDisplay, // "en, English"
-    availableLanguages, // Array of all language options
-    isLanguage, // Function to check current language
+    currentLanguage,
+    languageDisplay,
+    availableLanguages,
+    isLanguage,
     // Actions
     setLanguage,
     cycleLanguage,
     toggleDarkMode,
     setDarkMode,
-    login,
+    setUser,
     logout,
   };
 });

@@ -10,7 +10,17 @@ buildscript {
 }
 
 tasks.register("check") {
-    dependsOn(":frontend:check")
+    dependsOn(
+        ":frontend:check",
+        ":backend:check",
+    )
+}
+
+tasks.register("dev") {
+    dependsOn(
+        ":frontend:npm_run_dev",
+        ":backend:npm_run_dev",
+    )
 }
 
 group = "io.github.FantasyWiki"

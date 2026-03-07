@@ -109,14 +109,19 @@ router.get("/google/exchange", async (req, res) => {
     };
 
     if (!tokenRes.ok || !tokenData.access_token) {
-      res.status(401).json({ error: tokenData.error ?? "Token exchange failed" });
+      res
+        .status(401)
+        .json({ error: tokenData.error ?? "Token exchange failed" });
       return;
     }
 
     // Fetch user profile using the access token
-    const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` },
-    });
+    const userRes = await fetch(
+      "https://www.googleapis.com/oauth2/v2/userinfo",
+      {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      }
+    );
 
     const userInfo = (await userRes.json()) as {
       id?: string;

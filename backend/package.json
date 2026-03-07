@@ -11,6 +11,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "lint": "eslint . --cache",
     "format": "prettier --check .",
     "format:fix": "prettier --write ."
   },
@@ -28,8 +29,11 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/passport": "^1.0.16",
     "@types/passport-google-oauth20": "^2.0.16",
+    "eslint": "^9.39.4",
+    "globals": "^17.4.0",
     "prettier": "^3.8.1",
     "tsx": "^4.19.2",
-    "typescript": "~5.9.0"
+    "typescript": "~5.9.0",
+    "typescript-eslint": "^8.56.1"
   }
 }

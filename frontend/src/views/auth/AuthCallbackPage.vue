@@ -8,7 +8,7 @@
             <h2>Sign-in failed</h2>
             <p>{{ error }}</p>
           </ion-text>
-          <ion-button @click="router.push('/login')">Try again</ion-button>
+          <ion-button @click="router.push('/home')">Try again</ion-button>
         </template>
         <template v-else>
           <ion-spinner name="crescent" class="callback-spinner" />

@@ -17,7 +17,7 @@ app.use(
 app.use(express.json());
 app.use(passport.initialize());
 
-app.use("/auth", authRouter);
+app.use("/auth/google", authRouter);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });

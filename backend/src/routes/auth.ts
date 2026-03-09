@@ -43,7 +43,7 @@ passport.deserializeUser((user, done) => done(null, user as Express.User));
  * Redirects the browser to Google's OAuth consent screen.
  */
 router.get(
-  "/google",
+  "/",
   passport.authenticate("google", {
     scope: ["profile", "email"],
     session: false,
@@ -57,7 +57,7 @@ router.get(
  * the frontend with the token as a query parameter.
  */
 router.get(
-  "/google/callback",
+  "/callback",
   passport.authenticate("google", {
     session: false,
     failureRedirect: `${FRONTEND_URL}/login?error=auth_failed`,
@@ -81,7 +81,7 @@ router.get(
  * Used when the Google callback URL points to the frontend, which then
  * forwards the code here.
  */
-router.get("/google/exchange", async (req, res) => {
+router.get("/exchange", async (req, res) => {
   const code = req.query.code as string | undefined;
   if (!code) {
     res.status(400).json({ error: "Missing code parameter" });

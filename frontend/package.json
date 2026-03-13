@@ -32,7 +32,7 @@
     "vue-router": "^5.0.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-legacy": "^7.2.1",
+    "@vitejs/plugin-legacy": "^8.0.0",
     "@vitejs/plugin-vue": "^6.0.3",
     "@vue/eslint-config-typescript": "^14.0.0",
     "@vue/test-utils": "^2.3.0",

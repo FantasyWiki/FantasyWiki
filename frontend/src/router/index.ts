@@ -32,7 +32,7 @@ const routes: Array<RouteRecordRaw> = [
     component: HomePage,
   },
   {
-    path: "/auth/google/callback",
+    path: "/auth/callback",
     name: "AuthCallback",
     component: AuthCallbackPage,
   },

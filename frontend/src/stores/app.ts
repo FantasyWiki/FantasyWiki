@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
+import { jwtDecode } from "jwt-decode";
 
 // Define language structure
 interface LanguageOption {
@@ -32,6 +33,14 @@ export const useAppStore = defineStore("app", () => {
     picture_url: string;
   }
 
+  interface JwtPayload {
+    sub: string;
+    name: string;
+    email: string;
+    picture: string;
+    exp: number;
+  }
+
   const AUTH_TOKEN_COOKIE_KEY = "auth_token";
 
   // UX-only check: reads the token payload to detect obvious expiry and
@@ -39,7 +48,7 @@ export const useAppStore = defineStore("app", () => {
   // happens server-side via jwt.verify() in the requireAuth middleware.
   function decodeJwtPayload(token: string): AuthUser | null {
     try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
+      const payload = jwtDecode<JwtPayload>(token);
       const now = Math.floor(Date.now() / 1000);
       if (payload.exp && payload.exp < now) return null;
       return {

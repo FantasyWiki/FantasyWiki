@@ -91,3 +91,29 @@ Backend requires a `.env` file (see `backend/.env.example`):
 
 Frontend has its own `frontend/.env.example`.
 
+## Authentication Flow
+
+### High-Level Flow
+
+1.  **Frontend (Login)**:
+    - User clicks "Sign in with Google".
+    - Browser redirects to `backend/auth/google`.
+2.  **Google & Backend (Handshake)**:
+    - Passport.js redirects the user to Google's consent screen.
+    - Upon approval, Google redirects back to `backend/auth/google/callback`.
+    - The backend verifies the Google profile, generates a **JWT** (signed with `JWT_SECRET`, valid for 7 days), and redirects to the frontend with the token in the URL: `frontend/auth/callback?token=...`.
+3.  **Frontend (Storage)**:
+    - The `AuthCallbackPage` extracts the token.
+    - The token is stored in `localStorage` (key: `auth_token`) and Pinia state (`appStore`).
+    - The token payload is decoded to display user info (name, picture).
+4.  **Authenticated Requests**:
+    - **Backend**: Protected routes use the `requireAuth` middleware, which expects an `Authorization: Bearer <token>` header.
+    - **Frontend**: Currently, the frontend **does not automaticallly attach** this header to API requests. You will need to add an interceptor or manually include it for protected endpoints.
+
+### Key Components
+
+*   **Backend Strategy**: `passport-google-oauth20` in `backend/src/routes/auth.ts`.
+*   **Token Generation**: `jwt.sign(payload, process.env.JWT_SECRET)` in the callback.
+*   **Protection Middleware**: `requireAuth` in `backend/src/middleware/requireAuth.ts` verifies the signature.
+*   **Frontend Store**: `frontend/src/stores/app.ts` handles `setUser` and `logout`.
+

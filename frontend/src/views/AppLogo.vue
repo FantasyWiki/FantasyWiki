@@ -5,7 +5,7 @@
       <ion-img src="/logo.png" style="width: 40px; height: 40px" />
       <div class="logo-badge"></div>
     </div>
-    <ion-text class="logo-text ion-hide-sm-down">
+    <ion-text class="logo-text">
       Fantasy<span class="logo-accent">Wiki</span>
     </ion-text>
   </div>

@@ -5,106 +5,8 @@ import { createRouter, createMemoryHistory } from "vue-router";
 import TeamDashboard from "@/views/TeamDashboard.vue";
 import { useLeagueStore } from "@/stores/league";
 import { useDashboardStore } from "@/stores/dashboard";
-
-// Mock the API
-vi.mock("@/services/api", () => ({
-  default: {
-    dashboard: {
-      getData: vi.fn(() =>
-        Promise.resolve({
-          team: {
-            id: "team-1",
-            name: "I Cesarini",
-            playerId: "player-1",
-            leagueId: "italy",
-            credits: 550,
-            totalValue: 1000,
-            rank: 4,
-            points: 7250,
-            yesterdayPoints: 127,
-            pointsChange: 12.5,
-          },
-          league: {
-            id: "italy",
-            name: "Italia League",
-            icon: "🍕",
-            season: "2024",
-            language: "Italiano",
-            totalPlayers: 523,
-            endDate: "Feb 28, 2024",
-          },
-          contracts: [
-            {
-              id: "ctr-1",
-              teamId: "team-1",
-              leagueId: "italy",
-              purchasePrice: 150,
-              currentPrice: 165,
-              yesterdayPoints: 45,
-              expiresIn: 2,
-              tier: "MEDIUM",
-              article: { id: "art-1", name: "Bitcoin", domain: "itwiki" },
-            },
-          ],
-          leaderboard: [
-            {
-              rank: 1,
-              teamId: "team-4",
-              playerId: "player-2",
-              username: "WikiMaster",
-              teamName: "Wiki Masters",
-              points: 8950,
-              change: 18.3,
-            },
-          ],
-          notifications: [],
-          summary: {
-            yesterdayPoints: 127,
-            pointsChange: 12.5,
-            rank: 4,
-            totalPlayers: 523,
-            credits: 550,
-            portfolioValue: 1000,
-            activeContracts: 4,
-            maxContracts: 18,
-          },
-        })
-      ),
-    },
-    leagues: {
-      getAll: vi.fn(() =>
-        Promise.resolve([
-          {
-            id: "italy",
-            name: "Italia League",
-            icon: "🍕",
-            season: "2024",
-            language: "Italiano",
-            totalPlayers: 523,
-            endDate: "Feb 28, 2024",
-          },
-        ])
-      ),
-      getTeam: vi.fn(() =>
-        Promise.resolve({
-          id: "team-1",
-          name: "I Cesarini",
-          playerId: "player-1",
-          leagueId: "italy",
-          credits: 550,
-          totalValue: 1000,
-          rank: 4,
-          points: 7250,
-          yesterdayPoints: 127,
-          pointsChange: 12.5,
-        })
-      ),
-    },
-    notifications: {
-      getAll: vi.fn(() => Promise.resolve([])),
-    },
-  },
-}));
+import { server } from "@/mocks/server";
+import { http, HttpResponse } from "msw";
 
 const router = createRouter({
   history: createMemoryHistory(),
@@ -282,12 +184,6 @@ describe("TeamDashboard.vue", () => {
       },
     ];
 
-    // const wrapper = mount(TeamDashboard, {
-    //   global: {
-    //     plugins: [pinia, router],
-    //   },
-    // });
-
     await flushPromises();
 
     // Unread count should be tracked in store
@@ -295,22 +191,15 @@ describe("TeamDashboard.vue", () => {
   });
 
   it("should handle API errors gracefully", async () => {
-    const api = await import("@/services/api");
-    const dashboardStore = useDashboardStore();
-    vi.mocked(api.default.dashboard.getData).mockRejectedValueOnce(
-      new Error("API Error")
+    server.use(
+      http.get("*/api/dashboard/:leagueId", () =>
+        HttpResponse.json({ error: "API Error" }, { status: 500 })
+      )
     );
-    dashboardStore.fetchDashboardData();
 
-    // const wrapper = mount(TeamDashboard, {
-    //   global: {
-    //     plugins: [pinia, router],
-    //   },
-    // });
-
+    const dashboardStore = useDashboardStore();
+    await dashboardStore.fetchDashboardData();
     await flushPromises();
-
-    // Error should be captured in store
     expect(dashboardStore.error).toBe("API Error");
   });
 

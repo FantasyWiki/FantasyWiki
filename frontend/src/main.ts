@@ -42,6 +42,17 @@ const app = createApp(App).use(IonicVue).use(router);
 const pinia = createPinia();
 app.use(pinia);
 
-router.isReady().then(() => {
-  app.mount("#app");
+async function enableMocking() {
+  if (import.meta.env.DEV) {
+    const { worker } = await import("./mocks/browser");
+    return worker.start({
+      onUnhandledRequest: "bypass", // Leave free HMR, assets Ionic, ecc.
+    });
+  }
+}
+
+enableMocking().then(() => {
+  router.isReady().then(() => {
+    app.mount("#app");
+  });
 });

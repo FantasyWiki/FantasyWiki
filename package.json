@@ -3,10 +3,9 @@
   "version": "1.0.0",
   "description": "FantasyWiki - Wikipedia Fantasy League Game",
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:backend": "cd backend && npm start",
+    "dev": "npm run dev:frontend",
     "dev:frontend": "cd frontend && npm run dev",
-    "install": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "install": "npm install && cd frontend && npm install",
     "build": "cd frontend && npm run build",
     "preview": "cd frontend && npm run preview",
     "test:frontend": "cd frontend && npm run test-unit"

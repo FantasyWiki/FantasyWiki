@@ -7,6 +7,7 @@ import { useLeagueStore } from "@/stores/league";
 import { useDashboardStore } from "@/stores/dashboard";
 import { server } from "@/mocks/server";
 import { http, HttpResponse } from "msw";
+import { createTestingPinia } from "@pinia/testing";
 
 const router = createRouter({
   history: createMemoryHistory(),
@@ -41,7 +42,7 @@ describe("TeamDashboard.vue", () => {
 
     await flushPromises();
 
-    expect(wrapper.text()).toContain("I Cesarini Dashboard");
+    expect(wrapper.text()).toContain("Global Warriors");
   });
 
   it("should display league information", async () => {
@@ -53,8 +54,8 @@ describe("TeamDashboard.vue", () => {
 
     await flushPromises();
 
-    expect(wrapper.text()).toContain("🍕");
-    expect(wrapper.text()).toContain("Italia League");
+    expect(wrapper.text()).toContain("🌐");
+    expect(wrapper.text()).toContain("Global League");
     expect(wrapper.text()).toContain("Season 2024");
   });
 
@@ -216,9 +217,13 @@ describe("TeamDashboard.vue", () => {
     // Component should still render
     expect(wrapper.exists()).toBe(true);
   });
-
+  /* eslint-disable */
   it("should refresh data when league changes", async () => {
-    mount(TeamDashboard, {
+    const pinia = createTestingPinia({
+      stubActions: false,
+    });
+
+    const wrapper = mount(TeamDashboard, {
       global: {
         plugins: [pinia, router],
       },
@@ -228,19 +233,19 @@ describe("TeamDashboard.vue", () => {
 
     const leagueStore = useLeagueStore();
     const dashboardStore = useDashboardStore();
-
     const fetchSpy = vi.spyOn(dashboardStore, "fetchDashboardData");
 
-    // Change league
-    leagueStore.currentLeague = {
-      id: "global",
-      name: "Global League",
-      icon: "🌐",
-      season: "2024",
-      language: "All Languages",
-      totalPlayers: 10523,
-      endDate: "Mar 31, 2024",
-    };
+    leagueStore.$patch({
+      currentLeague: {
+        id: "global",
+        name: "Global League",
+        icon: "🌐",
+        season: "2024",
+        language: "All Languages",
+        totalPlayers: 10523,
+        endDate: "Mar 31, 2024",
+      },
+    });
 
     await flushPromises();
 

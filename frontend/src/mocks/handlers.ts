@@ -142,7 +142,7 @@ const teams: Team[] = [
 ];
 
 // Mutabile a runtime (DELETE/POST aggiornano questo array)
-let contracts: (Contract & { articleId: string })[] = [
+const contracts: (Contract & { articleId: string })[] = [
   {
     id: "ctr-1",
     teamId: "team-1",
@@ -326,7 +326,7 @@ const leaderboards: Record<string, LeaderboardEntry[]> = {
   ],
 };
 
-let notifications: Notification[] = [
+const notifications: Notification[] = [
   {
     id: "notif-1",
     leagueId: "italy",

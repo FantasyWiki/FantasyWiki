@@ -39,7 +39,7 @@ const route = useRoute();
 const router = useRouter();
 const appStore = useAppStore();
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:3000";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 const error = ref<string | null>(null);
 

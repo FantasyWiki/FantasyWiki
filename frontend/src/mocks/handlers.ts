@@ -1,16 +1,21 @@
 import { http, HttpResponse } from "msw";
 import type {
   Article,
+  Contract,
+  DashboardData,
+  LeaderboardEntry,
   League,
+  Notification,
   Player,
   Team,
-  Contract,
-  LeaderboardEntry,
-  Notification,
-  DashboardData,
+  TradeProposal,
 } from "@/types/models";
 
-// ============= MOCK DATA =============
+// =============================================================================
+// MOCK DATA
+// =============================================================================
+
+// ── Articles ──────────────────────────────────────────────────────────────────
 
 const articles: Article[] = [
   { id: "art-1", name: "Bitcoin", domain: "itwiki" },
@@ -23,13 +28,17 @@ const articles: Article[] = [
   { id: "art-8", name: "JavaScript", domain: "itwiki" },
   { id: "art-9", name: "React", domain: "itwiki" },
   { id: "art-10", name: "TypeScript", domain: "itwiki" },
+  { id: "art-11", name: "Albert Einstein", domain: "enwiki" },
+  { id: "art-12", name: "Artificial Intelligence", domain: "enwiki" },
 ];
+
+// ── Leagues ───────────────────────────────────────────────────────────────────
 
 const leagues: League[] = [
   {
     id: "global",
     name: "Global League",
-    icon: "🌐",
+    icon: "🌍",
     season: "2024",
     language: "All Languages",
     totalPlayers: 10523,
@@ -53,7 +62,18 @@ const leagues: League[] = [
     totalPlayers: 2456,
     endDate: "Mar 15, 2024",
   },
+  {
+    id: "americas",
+    name: "Americas League",
+    icon: "🌎",
+    season: "2024",
+    language: "English/Spanish",
+    totalPlayers: 1842,
+    endDate: "Mar 20, 2024",
+  },
 ];
+
+// ── Players ───────────────────────────────────────────────────────────────────
 
 const players: Player[] = [
   {
@@ -74,9 +94,29 @@ const players: Player[] = [
     email: "data@example.com",
     createdAt: "2024-01-10",
   },
+  {
+    id: "player-4",
+    username: "AlexChen",
+    email: "alex@example.com",
+    createdAt: "2024-01-12",
+  },
+  {
+    id: "player-5",
+    username: "SarahKim",
+    email: "sarah@example.com",
+    createdAt: "2024-01-15",
+  },
+  {
+    id: "player-6",
+    username: "JamieLee",
+    email: "jamie@example.com",
+    createdAt: "2024-01-18",
+  },
 ];
 
 const currentPlayerId = "player-1";
+
+// ── Teams ─────────────────────────────────────────────────────────────────────
 
 const teams: Team[] = [
   {
@@ -115,6 +155,7 @@ const teams: Team[] = [
     yesterdayPoints: 142,
     pointsChange: -2.1,
   },
+  // Other players' teams (for leaderboard entries)
   {
     id: "team-4",
     name: "Wiki Masters",
@@ -139,9 +180,47 @@ const teams: Team[] = [
     yesterdayPoints: 158,
     pointsChange: 14.1,
   },
+  {
+    id: "team-6",
+    name: "Wiki Warriors",
+    playerId: "player-4",
+    leagueId: "global",
+    credits: 600,
+    totalValue: 1300,
+    rank: 3,
+    points: 11200,
+    yesterdayPoints: 172,
+    pointsChange: 6.4,
+  },
+  {
+    id: "team-7",
+    name: "Data Dynamos",
+    playerId: "player-5",
+    leagueId: "europe",
+    credits: 380,
+    totalValue: 950,
+    rank: 5,
+    points: 7800,
+    yesterdayPoints: 130,
+    pointsChange: 4.2,
+  },
+  {
+    id: "team-8",
+    name: "Page Pioneers",
+    playerId: "player-6",
+    leagueId: "americas",
+    credits: 290,
+    totalValue: 870,
+    rank: 2,
+    points: 6500,
+    yesterdayPoints: 115,
+    pointsChange: 9.1,
+  },
 ];
 
-// Mutabile a runtime (DELETE/POST aggiornano questo array)
+// ── Contracts ─────────────────────────────────────────────────────────────────
+// Mutable at runtime — POST and DELETE handlers update this array.
+
 const contracts: (Contract & { articleId: string })[] = [
   {
     id: "ctr-1",
@@ -216,6 +295,8 @@ const contracts: (Contract & { articleId: string })[] = [
     article: articles[5],
   },
 ];
+
+// ── Leaderboards ──────────────────────────────────────────────────────────────
 
 const leaderboards: Record<string, LeaderboardEntry[]> = {
   italy: [
@@ -326,14 +407,18 @@ const leaderboards: Record<string, LeaderboardEntry[]> = {
   ],
 };
 
+// ── Notifications ─────────────────────────────────────────────────────────────
+
 const notifications: Notification[] = [
+  // ── italy (team-1) — 3 unread, 1 read ─────────────────────────────────────
+  // 1 trade offer per incoming proposal (1-to-1 relationship)
   {
     id: "notif-1",
     leagueId: "italy",
     teamId: "team-1",
     message: "Contratto in scadenza: Bitcoin",
     type: "contract_expiring",
-    extra: "",
+    extra: "ctr-1",
     read: false,
     createdAt: "2024-02-09T10:00:00Z",
   },
@@ -341,28 +426,179 @@ const notifications: Notification[] = [
     id: "notif-2",
     leagueId: "italy",
     teamId: "team-1",
-    message: "Nuovo trade disponibile!",
+    message: "Nuovo trade da WikiMaster",
     type: "trade_offer",
-    extra: "ctr-3",
+    extra: "trd-1",
     read: false,
     createdAt: "2024-02-09T08:30:00Z",
   },
   {
+    id: "notif-8",
+    leagueId: "italy",
+    teamId: "team-1",
+    message: "Nuovo trade da DataKing",
+    type: "trade_offer",
+    extra: "trd-2",
+    read: false,
+    createdAt: "2024-02-09T07:45:00Z",
+  },
+  {
     id: "notif-3",
+    leagueId: "italy",
+    teamId: "team-1",
+    message: "Benvenuto nella lega Italia!",
+    type: "general",
+    extra: "",
+    read: true,
+    createdAt: "2024-02-01T09:00:00Z",
+  },
+  // ── global (team-2) — 1 unread, 1 read ────────────────────────────────────
+  {
+    id: "notif-4",
     leagueId: "global",
     teamId: "team-2",
-    message: "Classifica aggiornata",
+    message: "New trade offer from AlexChen",
+    type: "trade_offer",
+    extra: "trd-4",
+    read: false,
+    createdAt: "2024-02-08T14:00:00Z",
+  },
+  {
+    id: "notif-5",
+    leagueId: "global",
+    teamId: "team-2",
+    message: "Leaderboard updated",
     type: "league_update",
     extra: "",
     read: true,
     createdAt: "2024-02-08T15:00:00Z",
   },
+  // ── europe (team-3) — 2 unread ────────────────────────────────────────────
+  {
+    id: "notif-6",
+    leagueId: "europe",
+    teamId: "team-3",
+    message: "Contract expiring soon: Cloud Computing",
+    type: "contract_expiring",
+    extra: "ctr-6",
+    read: false,
+    createdAt: "2024-02-09T07:00:00Z",
+  },
+  {
+    id: "notif-7",
+    leagueId: "europe",
+    teamId: "team-3",
+    message: "New trade offer from SarahKim",
+    type: "trade_offer",
+    extra: "trd-5",
+    read: false,
+    createdAt: "2024-02-09T06:00:00Z",
+  },
 ];
 
-// ============= HANDLERS =============
+// ── Trade Proposals ───────────────────────────────────────────────────────────
+// Each proposal belongs to a specific league. The current player (player-1)
+// is involved either as sender (outgoing) or receiver (incoming).
+// Mutable at runtime — PATCH handlers update status in place.
+
+const tradeProposals: TradeProposal[] = [
+  // ── italy ──
+  {
+    id: "trd-1",
+    leagueId: "italy",
+    type: "incoming",
+    status: "pending",
+    fromTeamId: "team-4",
+    fromUsername: "WikiMaster",
+    toTeamId: "team-1",
+    toUsername: "Mario_Rossi",
+    offeredArticle: { id: "art-11", name: "Albert Einstein", basePrice: 850 },
+    requestedArticle: { id: "art-7", name: "Python", basePrice: 950 },
+    contractTier: "2 Weeks",
+    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: "trd-2",
+    leagueId: "italy",
+    type: "incoming",
+    status: "pending",
+    fromTeamId: "team-5",
+    fromUsername: "DataKing",
+    toTeamId: "team-1",
+    toUsername: "Mario_Rossi",
+    offeredCredits: 1200,
+    requestedArticle: { id: "art-8", name: "JavaScript", basePrice: 1100 },
+    contractTier: "1 Month",
+    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: "trd-3",
+    leagueId: "italy",
+    type: "outgoing",
+    status: "pending",
+    fromTeamId: "team-1",
+    fromUsername: "Mario_Rossi",
+    toTeamId: "team-6",
+    toUsername: "AlexChen",
+    offeredCredits: 800,
+    requestedArticle: { id: "art-9", name: "React", basePrice: 900 },
+    contractTier: "1 Week",
+    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+  },
+  // ── global ──
+  {
+    id: "trd-4",
+    leagueId: "global",
+    type: "incoming",
+    status: "pending",
+    fromTeamId: "team-6",
+    fromUsername: "AlexChen",
+    toTeamId: "team-2",
+    toUsername: "Mario_Rossi",
+    offeredArticle: { id: "art-4", name: "Machine Learning", basePrice: 1050 },
+    requestedArticle: {
+      id: "art-12",
+      name: "Artificial Intelligence",
+      basePrice: 1200,
+    },
+    contractTier: "2 Weeks",
+    createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+  },
+  // ── europe ──
+  {
+    id: "trd-5",
+    leagueId: "europe",
+    type: "incoming",
+    status: "pending",
+    fromTeamId: "team-7",
+    fromUsername: "SarahKim",
+    toTeamId: "team-3",
+    toUsername: "Mario_Rossi",
+    offeredCredits: 950,
+    requestedArticle: { id: "art-5", name: "Cloud Computing", basePrice: 880 },
+    contractTier: "1 Week",
+    createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+// =============================================================================
+// HELPER
+// =============================================================================
+
+/** Find the current player's team for a given league, or 404. */
+function getMyTeam(leagueId: string): Team | undefined {
+  return teams.find(
+    (t) => t.playerId === currentPlayerId && t.leagueId === leagueId
+  );
+}
+
+// =============================================================================
+// HANDLERS
+// =============================================================================
 
 export const handlers = [
-  // GET /api/player
+  // ── Player ──────────────────────────────────────────────────────────────────
+
   http.get("*/api/player", () => {
     const player = players.find((p) => p.id === currentPlayerId);
     if (!player)
@@ -370,10 +606,10 @@ export const handlers = [
     return HttpResponse.json(player);
   }),
 
-  // GET /api/leagues
+  // ── Leagues ─────────────────────────────────────────────────────────────────
+
   http.get("*/api/leagues", () => HttpResponse.json(leagues)),
 
-  // GET /api/leagues/:leagueId
   http.get("*/api/leagues/:leagueId", ({ params }) => {
     const league = leagues.find((l) => l.id === params.leagueId);
     if (!league)
@@ -381,11 +617,8 @@ export const handlers = [
     return HttpResponse.json(league);
   }),
 
-  // GET /api/leagues/:leagueId/team
   http.get("*/api/leagues/:leagueId/team", ({ params }) => {
-    const team = teams.find(
-      (t) => t.playerId === currentPlayerId && t.leagueId === params.leagueId
-    );
+    const team = getMyTeam(params.leagueId as string);
     if (!team)
       return HttpResponse.json(
         { error: "No team found for this league" },
@@ -394,35 +627,87 @@ export const handlers = [
     return HttpResponse.json(team);
   }),
 
-  // GET /api/leagues/:leagueId/contracts
   http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {
-    const team = teams.find(
-      (t) => t.playerId === currentPlayerId && t.leagueId === params.leagueId
-    );
+    const team = getMyTeam(params.leagueId as string);
     if (!team) return HttpResponse.json([]);
     return HttpResponse.json(contracts.filter((c) => c.teamId === team.id));
   }),
 
-  // GET /api/leagues/:leagueId/leaderboard
   http.get("*/api/leagues/:leagueId/leaderboard", ({ params }) => {
     return HttpResponse.json(leaderboards[params.leagueId as string] ?? []);
   }),
 
-  // GET /api/leagues/:leagueId/notifications
   http.get("*/api/leagues/:leagueId/notifications", ({ params }) => {
     return HttpResponse.json(
       notifications.filter((n) => n.leagueId === params.leagueId)
     );
   }),
 
-  // GET /api/teams
+  // ── Trade Proposals ─────────────────────────────────────────────────────────
+
+  /**
+   * GET /api/leagues/:leagueId/trades
+   * Returns all trade proposals (incoming + outgoing) for the current player
+   * in the given league. The client filters to incoming/pending for the inbox.
+   */
+  http.get("*/api/leagues/:leagueId/trades", ({ params }) => {
+    const leagueId = params.leagueId as string;
+    const team = getMyTeam(leagueId);
+    if (!team) return HttpResponse.json([]);
+
+    const leagueTrades = tradeProposals.filter(
+      (p) =>
+        p.leagueId === leagueId &&
+        (p.fromTeamId === team.id || p.toTeamId === team.id)
+    );
+
+    return HttpResponse.json(leagueTrades);
+  }),
+
+  /**
+   * PATCH /api/trades/:tradeId/accept
+   * Marks the proposal as accepted and returns the updated proposal.
+   */
+  http.patch("*/api/trades/:tradeId/accept", ({ params }) => {
+    const proposal = tradeProposals.find((p) => p.id === params.tradeId);
+    if (!proposal)
+      return HttpResponse.json({ error: "Trade not found" }, { status: 404 });
+    if (proposal.status !== "pending")
+      return HttpResponse.json(
+        { error: "Trade is no longer pending" },
+        { status: 409 }
+      );
+
+    proposal.status = "accepted";
+    return HttpResponse.json(proposal);
+  }),
+
+  /**
+   * PATCH /api/trades/:tradeId/reject
+   * Marks the proposal as rejected and returns the updated proposal.
+   */
+  http.patch("*/api/trades/:tradeId/reject", ({ params }) => {
+    const proposal = tradeProposals.find((p) => p.id === params.tradeId);
+    if (!proposal)
+      return HttpResponse.json({ error: "Trade not found" }, { status: 404 });
+    if (proposal.status !== "pending")
+      return HttpResponse.json(
+        { error: "Trade is no longer pending" },
+        { status: 409 }
+      );
+
+    proposal.status = "rejected";
+    return HttpResponse.json(proposal);
+  }),
+
+  // ── Teams ────────────────────────────────────────────────────────────────────
+
   http.get("*/api/teams", () => {
     return HttpResponse.json(
       teams.filter((t) => t.playerId === currentPlayerId)
     );
   }),
 
-  // GET /api/teams/:teamId
   http.get("*/api/teams/:teamId", ({ params }) => {
     const team = teams.find((t) => t.id === params.teamId);
     if (!team)
@@ -432,14 +717,12 @@ export const handlers = [
     return HttpResponse.json(team);
   }),
 
-  // GET /api/teams/:teamId/contracts
   http.get("*/api/teams/:teamId/contracts", ({ params }) => {
     return HttpResponse.json(
       contracts.filter((c) => c.teamId === params.teamId)
     );
   }),
 
-  // POST /api/teams/:teamId/contracts
   http.post("*/api/teams/:teamId/contracts", async ({ params, request }) => {
     const { articleId, tier, purchasePrice } = (await request.json()) as {
       articleId: string;
@@ -456,7 +739,11 @@ export const handlers = [
         { error: "Insufficient credits" },
         { status: 400 }
       );
+
     const article = articles.find((a) => a.id === articleId);
+    if (!article)
+      return HttpResponse.json({ error: "Article not found" }, { status: 404 });
+
     const newContract = {
       id: `ctr-${Date.now()}`,
       teamId: params.teamId as string,
@@ -467,14 +754,15 @@ export const handlers = [
       yesterdayPoints: 0,
       expiresIn: tier === "SHORT" ? 7 : tier === "MEDIUM" ? 14 : 30,
       tier,
-      article: article!,
+      article,
     };
     contracts.push(newContract);
     team.credits -= purchasePrice;
     return HttpResponse.json(newContract, { status: 201 });
   }),
 
-  // GET /api/contracts/:contractId
+  // ── Contracts ────────────────────────────────────────────────────────────────
+
   http.get("*/api/contracts/:contractId", ({ params }) => {
     const contract = contracts.find((c) => c.id === params.contractId);
     if (!contract)
@@ -485,7 +773,6 @@ export const handlers = [
     return HttpResponse.json(contract);
   }),
 
-  // DELETE /api/contracts/:contractId
   http.delete("*/api/contracts/:contractId", ({ params }) => {
     const idx = contracts.findIndex((c) => c.id === params.contractId);
     if (idx === -1)
@@ -493,12 +780,14 @@ export const handlers = [
         { error: "Contract not found" },
         { status: 404 }
       );
+
     const contract = contracts[idx];
     const team = teams.find(
       (t) => t.id === contract.teamId && t.playerId === currentPlayerId
     );
     if (!team)
       return HttpResponse.json({ error: "Access denied" }, { status: 403 });
+
     team.credits += contract.currentPrice;
     contracts.splice(idx, 1);
     return HttpResponse.json({
@@ -507,7 +796,8 @@ export const handlers = [
     });
   }),
 
-  // GET /api/notifications
+  // ── Notifications ─────────────────────────────────────────────────────────────
+
   http.get("*/api/notifications", () => {
     const playerTeamIds = teams
       .filter((t) => t.playerId === currentPlayerId)
@@ -517,7 +807,6 @@ export const handlers = [
     );
   }),
 
-  // PATCH /api/notifications/:notificationId/read
   http.patch("*/api/notifications/:notificationId/read", ({ params }) => {
     const notif = notifications.find((n) => n.id === params.notificationId);
     if (!notif)
@@ -529,10 +818,10 @@ export const handlers = [
     return HttpResponse.json(notif);
   }),
 
-  // GET /api/articles
+  // ── Articles ──────────────────────────────────────────────────────────────────
+
   http.get("*/api/articles", () => HttpResponse.json(articles)),
 
-  // GET /api/articles/:articleId
   http.get("*/api/articles/:articleId", ({ params }) => {
     const article = articles.find((a) => a.id === params.articleId);
     if (!article)
@@ -540,23 +829,24 @@ export const handlers = [
     return HttpResponse.json(article);
   }),
 
-  // GET /api/dashboard/:leagueId
+  // ── Dashboard ─────────────────────────────────────────────────────────────────
+
   http.get("*/api/dashboard/:leagueId", ({ params }) => {
     const leagueId = params.leagueId as string;
-    const team = teams.find(
-      (t) => t.playerId === currentPlayerId && t.leagueId === leagueId
-    );
+    const team = getMyTeam(leagueId);
     if (!team)
       return HttpResponse.json(
         { error: "No team found for this league" },
         { status: 404 }
       );
+
     const league = leagues.find((l) => l.id === leagueId);
     const teamContracts = contracts.filter((c) => c.teamId === team.id);
     const portfolioValue = teamContracts.reduce(
       (sum, c) => sum + c.currentPrice,
       0
     );
+
     return HttpResponse.json<DashboardData>({
       team,
       league: league!,

@@ -1,5 +1,4 @@
 <template>
-  <!-- Top Header -->
   <ion-page>
     <ion-header
       :translucent="true"
@@ -30,53 +29,75 @@
         <div slot="end" class="actions-container">
           <!-- League Selector -->
           <ion-button
-            id="league-selector"
             fill="solid"
             size="small"
             shape="round"
+            @click="openLeaguePopover($event)"
           >
-            <ion-label>{{ leagueStore.currentLeague?.icon || "" }}</ion-label>
-            <ion-label class="ion-hide-md-down"
-              >{{ leagueStore.currentLeagueName }}
+            <ion-label>{{ leagueStore.currentLeague?.icon ?? "" }}</ion-label>
+            <ion-label class="ion-hide-md-down">
+              {{ leagueStore.currentLeagueName }}
             </ion-label>
+            <!--
+              Badge shows the GLOBAL unread count across all leagues so the
+              player can see there is activity even on inactive leagues.
+            -->
             <ion-badge color="danger" v-if="unreadCount > 0">
-              {{ renderNotificationBadge(leagueStore.currentLeagueId) }}
+              {{ unreadCount > 99 ? "99+" : unreadCount }}
             </ion-badge>
           </ion-button>
-          <ion-popover trigger="league-selector" trigger-action="click">
+
+          <ion-popover
+            :is-open="leaguePopoverOpen"
+            :event="leaguePopoverEvent"
+            side="bottom"
+            alignment="end"
+            @did-dismiss="leaguePopoverOpen = false"
+          >
             <ion-list lines="none" class="ion-no-margin">
               <ion-item
-                class="ion-no-margin"
+                class="ion-no-margin league-item"
                 :detail="false"
                 v-for="lg in leagueStore.availableLeagues"
                 :key="lg.id"
                 :button="true"
-                @click="
-                  leagueStore.setCurrentLeague(lg);
-                  $event.target.closest('ion-popover').dismiss();
-                "
+                @click="selectLeague(lg)"
               >
-                <ion-label>{{ lg.icon }} {{ lg.name }}</ion-label>
-                <ion-badge color="danger" v-if="isThereNotifications(lg.id)">
-                  {{ renderNotificationBadge(lg.id) }}
+                <ion-label class="league-label"
+                  >{{ lg.icon }} {{ lg.name }}</ion-label
+                >
+                <ion-badge
+                  v-if="unreadCountByLeague[lg.id]"
+                  slot="end"
+                  color="danger"
+                  class="league-unread-badge"
+                >
+                  {{ unreadCountByLeague[lg.id] }}
                 </ion-badge>
               </ion-item>
             </ion-list>
           </ion-popover>
+
           <!-- Language Selector -->
           <ion-button
-            id="lang-selector"
             fill="solid"
             size="small"
             shape="round"
+            @click="openLangPopover($event)"
           >
             <ion-icon :icon="globeOutline" />
-            <ion-text class="ion-hide-md-down"
-              >{{ appStore.currentLanguage.label }}
+            <ion-text class="ion-hide-md-down">
+              {{ appStore.currentLanguage.label }}
               {{ appStore.currentLanguage.code }}
             </ion-text>
           </ion-button>
-          <ion-popover trigger="lang-selector" trigger-action="click">
+          <ion-popover
+            :is-open="langPopoverOpen"
+            :event="langPopoverEvent"
+            side="bottom"
+            alignment="end"
+            @did-dismiss="langPopoverOpen = false"
+          >
             <ion-list lines="none" class="ion-no-margin">
               <ion-item
                 class="ion-no-margin"
@@ -84,10 +105,7 @@
                 v-for="lang in appStore.availableLanguages"
                 :key="lang.code"
                 :button="true"
-                @click="
-                  appStore.setLanguage(lang.code);
-                  $event.target.closest('ion-popover').dismiss();
-                "
+                @click="selectLanguage(lang.code)"
               >
                 <ion-label>{{ lang.label }} {{ lang.fullName }}</ion-label>
               </ion-item>
@@ -106,7 +124,7 @@
             />
           </ion-button>
 
-          <!-- Sign In Button (Desktop) -->
+          <!-- Sign In / Out -->
           <ion-button
             color="primary"
             fill="solid"
@@ -123,7 +141,7 @@
       <slot></slot>
     </ion-content>
 
-    <!-- Mobile Footer Navigation -->
+    <!-- Mobile Footer -->
     <ion-footer
       class="ion-hide-md-up transparent-top-layer"
       :translucent="true"
@@ -134,13 +152,11 @@
             fill="clear"
             v-for="link in navLinks"
             :key="link.name"
-            :value="link.tab"
             @click="router.push(link.href)"
           >
             <ion-icon :icon="link.icon" />
           </ion-button>
-
-          <ion-button fill="clear" value="auth" @click="handleAuth">
+          <ion-button fill="clear" @click="handleAuth">
             <ion-icon
               :icon="appStore.isAuthenticated ? logOutOutline : logInOutline"
             />
@@ -152,10 +168,11 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
-  IonButton,
   IonBadge,
+  IonButton,
   IonContent,
   IonFooter,
   IonHeader,
@@ -178,84 +195,74 @@ import {
   sunnyOutline,
   trophyOutline,
 } from "ionicons/icons";
+
 import AppLogo from "@/views/AppLogo.vue";
 import { useAppStore } from "@/stores/app";
 import { useLeagueStore } from "@/stores/league";
-import { computed, onMounted } from "vue";
+import { useNotifications } from "@/stores/useNotifications";
 
 const router = useRouter();
 const route = useRoute();
-
-// State
 const appStore = useAppStore();
 const leagueStore = useLeagueStore();
-computed(() => leagueStore.currentLeague);
-const unreadCount = computed(() => leagueStore.unreadCount);
 
-// Navigation links configuration
+// Global unread count — sums across ALL leagues, not just the current one.
+// TanStack Query fetches this once and keeps it fresh on window focus.
+const { unreadCount, unreadCountByLeague } = useNotifications();
+
+// ── Popover state ────────────────────────────────────────────────────────────
+// We use isOpen + :event instead of the declarative trigger prop.
+// The trigger prop loses its DOM reference after Ionic page navigation inside
+// a persistent layout and silently stops working until a full reload.
+// Passing the raw MouseEvent via :event lets Ionic read event.target to
+// anchor the popover correctly below the button that was clicked.
+
+const leaguePopoverOpen = ref(false);
+const leaguePopoverEvent = ref<MouseEvent | undefined>(undefined);
+const langPopoverOpen = ref(false);
+const langPopoverEvent = ref<MouseEvent | undefined>(undefined);
+
+function openLeaguePopover(e: MouseEvent) {
+  leaguePopoverEvent.value = e;
+  leaguePopoverOpen.value = true;
+}
+
+function openLangPopover(e: MouseEvent) {
+  langPopoverEvent.value = e;
+  langPopoverOpen.value = true;
+}
+
+function selectLeague(lg: (typeof leagueStore.availableLeagues)[0]) {
+  leagueStore.setCurrentLeague(lg);
+  leaguePopoverOpen.value = false;
+}
+
+function selectLanguage(code: string) {
+  appStore.setLanguage(code);
+  langPopoverOpen.value = false;
+}
+
 const navLinks = [
-  {
-    name: "Dashboard",
-    href: "/dashboard",
-    icon: gridOutline,
-    requiresAuth: true,
-    tab: "dashboard",
-  },
-  {
-    name: "Leagues",
-    href: "/leagues",
-    icon: trophyOutline,
-    requiresAuth: true,
-    tab: "leagues",
-  },
-  {
-    name: "Market",
-    href: "/market",
-    icon: storefrontOutline,
-    requiresAuth: true,
-    tab: "market",
-  },
+  { name: "Dashboard", href: "/dashboard", icon: gridOutline },
+  { name: "Leagues", href: "/leagues", icon: trophyOutline },
+  { name: "Market", href: "/market", icon: storefrontOutline },
 ];
 
-// Check if route is active
-const isActive = (href: string) => {
-  return route.path === href;
-};
+const isActive = (href: string) => route.path === href;
 
-// Theme toggle
 const toggleTheme = () => {
   appStore.toggleDarkMode();
   document.body.classList.toggle("ion-palette-dark", appStore.isDarkMode);
   localStorage.setItem("theme", appStore.isDarkMode ? "dark" : "light");
 };
 
-// Auth handler
 const handleAuth = () => {
   if (appStore.isAuthenticated) {
-    // Handle sign out
     appStore.logout();
     router.push("/");
   } else {
-    // Handle sign in
     appStore.login();
     router.push("/signin");
-  }
-};
-
-const isThereNotifications = (leagueId: string) => {
-  return leagueStore.notificationsList.some(
-    (notification) => !notification.read && notification.leagueId === leagueId
-  );
-};
-
-const renderNotificationBadge = (leagueId: string) => {
-  const count = leagueStore.notificationsList.filter(
-    (notification) => !notification.read && notification.leagueId === leagueId
-  ).length;
-  if (count > 99) {
-    return "...";
-  } else {
-    return count.toString();
   }
 };
 
@@ -263,7 +270,6 @@ onMounted(async () => {
   if (!leagueStore.currentLeague) {
     await leagueStore.initialize();
   }
-  await leagueStore.fetchAllNotifications();
 });
 </script>
 
@@ -272,13 +278,33 @@ ion-popover {
   --backdrop-opacity: 0;
   --border-radius: 6px;
   --border-color: var(--ion-border-color);
-  --width: 10rem;
+  --width: 14rem;
 }
 
 ion-item {
   font-size: 0.875rem;
-  height: 2rem;
-  --min-height: 30px;
+  --min-height: 36px;
+}
+
+.league-item {
+  --min-height: 40px;
+}
+
+.league-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.league-unread-badge {
+  font-size: 0.65rem;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 ion-header {

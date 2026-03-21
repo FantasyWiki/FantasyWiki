@@ -158,15 +158,6 @@ http://ionicframework.com/docs/theming/ */
     --box-shadow: 0 0px 0px 0 rgba(0, 0, 0, 0);
   }
 
-  /*
-
-
-      /* Tab Bar */
-  --ion-tab-bar-background: #fbfbf7;
-  --ion-tab-bar-background-focused: #f7f9f7;
-  --ion-tab-bar-border-color: #cdd8cd;
-  --ion-tab-bar-color: #737f73;
-  --ion-tab-bar-color-selected: #1e7e50;
   /* Tab Bar */
   ion-tab-bar {
     --ion-tab-bar-background: #fbfbf7;

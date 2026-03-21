@@ -1,4 +1,4 @@
-import { beforeAll, afterEach, afterAll, vi } from "vitest";
+import { beforeAll, afterEach, afterAll } from "vitest";
 import { config } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";

@@ -222,9 +222,9 @@ function onRenew(contract: Contract) {
   console.log("Renew contract", contract.id);
 }
 
-function onDismiss(_contract: Contract) {
+/*function onDismiss(_contract: Contract) {
   // TODO: call archive/dismiss API via useMutation when the endpoint is ready
-}
+}*/
 </script>
 
 <style scoped>

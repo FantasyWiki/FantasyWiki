@@ -8,7 +8,7 @@
  *   template-only emoji literals.
  * - The component receives pre-sliced `leaderBoardEntry` from the parent.
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createRouter, createMemoryHistory } from "vue-router";
 import LeagueLeaderboard from "@/modules/TeamDashboard/LeagueLeaderboard.vue";

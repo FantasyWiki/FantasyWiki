@@ -89,3 +89,31 @@ export interface DashboardData {
   notifications: Notification[];
   summary: DashboardSummary;
 }
+
+// ── Trade Proposals ──────────────────────────────────────────────────────────
+
+export interface TradeArticleRef {
+  id: string;
+  name: string;
+  basePrice: number;
+}
+
+export interface TradeProposal {
+  id: string;
+  leagueId: string;
+  /** "incoming" = someone wants something from us; "outgoing" = we initiated */
+  type: "incoming" | "outgoing";
+  status: "pending" | "accepted" | "rejected";
+  fromTeamId: string;
+  fromUsername: string;
+  toTeamId: string;
+  toUsername: string;
+  /** Article they are offering in exchange (optional — could be credits only) */
+  offeredArticle?: TradeArticleRef;
+  /** Credits they are offering in exchange (optional) */
+  offeredCredits?: number;
+  /** Article they want from us */
+  requestedArticle: TradeArticleRef;
+  contractTier: string;
+  createdAt: string;
+}

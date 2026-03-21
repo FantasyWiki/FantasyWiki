@@ -8,12 +8,12 @@ import type {
   Notification,
   Player,
   Team,
+  TradeProposal,
 } from "@/types/models";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
-// Helper function for API requests
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -38,41 +38,36 @@ async function apiRequest<T>(
   return response.json();
 }
 
-// ============= PLAYER API =============
+// ── Player ────────────────────────────────────────────────────────────────────
 
 export const playerApi = {
   getCurrent: () => apiRequest<Player>("/player"),
 };
 
-// ============= LEAGUES API =============
+// ── Leagues ───────────────────────────────────────────────────────────────────
 
 export const leaguesApi = {
   getAll: () => apiRequest<League[]>("/leagues"),
-
-  getById: (leagueId: string) => apiRequest<League>(`/leagues/${leagueId}`),
-
-  getLeaderboard: (leagueId: string) =>
-    apiRequest<LeaderboardEntry[]>(`/leagues/${leagueId}/leaderboard`),
-
-  getNotifications: (leagueId: string) =>
-    apiRequest<Notification[]>(`/leagues/${leagueId}/notifications`),
-
-  getTeam: (leagueId: string) => apiRequest<Team>(`/leagues/${leagueId}/team`),
-
-  getContracts: (leagueId: string) =>
-    apiRequest<Contract[]>(`/leagues/${leagueId}/contracts`),
+  getById: (id: string) => apiRequest<League>(`/leagues/${id}`),
+  getLeaderboard: (id: string) =>
+    apiRequest<LeaderboardEntry[]>(`/leagues/${id}/leaderboard`),
+  getNotifications: (id: string) =>
+    apiRequest<Notification[]>(`/leagues/${id}/notifications`),
+  getTeam: (id: string) => apiRequest<Team>(`/leagues/${id}/team`),
+  getContracts: (id: string) =>
+    apiRequest<Contract[]>(`/leagues/${id}/contracts`),
+  /** All proposals (incoming + outgoing) for the current player in this league */
+  getTrades: (id: string) =>
+    apiRequest<TradeProposal[]>(`/leagues/${id}/trades`),
 };
 
-// ============= TEAMS API =============
+// ── Teams ─────────────────────────────────────────────────────────────────────
 
 export const teamsApi = {
   getAll: () => apiRequest<Team[]>("/teams"),
-
-  getById: (teamId: string) => apiRequest<Team>(`/teams/${teamId}`),
-
-  getContracts: (teamId: string) =>
-    apiRequest<Contract[]>(`/teams/${teamId}/contracts`),
-
+  getById: (id: string) => apiRequest<Team>(`/teams/${id}`),
+  getContracts: (id: string) =>
+    apiRequest<Contract[]>(`/teams/${id}/contracts`),
   createContract: (
     teamId: string,
     data: {
@@ -87,53 +82,59 @@ export const teamsApi = {
     }),
 };
 
-// ============= CONTRACTS API =============
+// ── Contracts ─────────────────────────────────────────────────────────────────
 
 export const contractsApi = {
-  getById: (contractId: string) =>
-    apiRequest<Contract>(`/contracts/${contractId}`),
-
-  delete: (contractId: string) =>
+  getById: (id: string) => apiRequest<Contract>(`/contracts/${id}`),
+  delete: (id: string) =>
     apiRequest<{ message: string; refundedCredits: number }>(
-      `/contracts/${contractId}`,
-      {
-        method: "DELETE",
-      }
+      `/contracts/${id}`,
+      { method: "DELETE" }
     ),
 };
 
-// ============= NOTIFICATIONS API =============
+// ── Trade Proposals ───────────────────────────────────────────────────────────
+
+export const tradesApi = {
+  /** Accept a pending trade proposal */
+  accept: (tradeId: string) =>
+    apiRequest<TradeProposal>(`/trades/${tradeId}/accept`, { method: "PATCH" }),
+
+  /** Reject a pending trade proposal */
+  reject: (tradeId: string) =>
+    apiRequest<TradeProposal>(`/trades/${tradeId}/reject`, { method: "PATCH" }),
+};
+
+// ── Notifications ─────────────────────────────────────────────────────────────
 
 export const notificationsApi = {
   getAll: () => apiRequest<Notification[]>("/notifications"),
-
-  markAsRead: (notificationId: string) =>
-    apiRequest<Notification>(`/notifications/${notificationId}/read`, {
-      method: "PATCH",
-    }),
+  markAsRead: (id: string) =>
+    apiRequest<Notification>(`/notifications/${id}/read`, { method: "PATCH" }),
 };
 
-// ============= ARTICLES API =============
+// ── Articles ──────────────────────────────────────────────────────────────────
 
 export const articlesApi = {
   getAll: () => apiRequest<Article[]>("/articles"),
-
-  getById: (articleId: string) => apiRequest<Article>(`/articles/${articleId}`),
+  getById: (id: string) => apiRequest<Article>(`/articles/${id}`),
 };
 
-// ============= DASHBOARD API =============
+// ── Dashboard ─────────────────────────────────────────────────────────────────
 
 export const dashboardApi = {
   getData: (leagueId: string) =>
     apiRequest<DashboardData>(`/dashboard/${leagueId}`),
 };
 
-// Export all APIs
+// ── Unified export ────────────────────────────────────────────────────────────
+
 export const api = {
   player: playerApi,
   leagues: leaguesApi,
   teams: teamsApi,
   contracts: contractsApi,
+  trades: tradesApi,
   notifications: notificationsApi,
   articles: articlesApi,
   dashboard: dashboardApi,

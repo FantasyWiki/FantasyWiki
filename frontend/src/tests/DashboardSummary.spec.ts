@@ -1,109 +1,183 @@
-import { describe, it, expect, beforeEach } from "vitest";
+/**
+ * DashboardSummary.vue — unit tests
+ *
+ * Key facts about the component:
+ * - `maxContracts` is hardcoded as 18 inside the component (not a prop).
+ * - When `summaryData` is null the component renders IonSkeletonText placeholders;
+ *   the four IonCard elements are always present.
+ * - IonChip is a web-component stub in jsdom — `.attributes("color")` returns
+ *   undefined.  The template binds `:color="..."` as a prop, visible via
+ *   `wrapper.findComponent({ name: 'IonChip' }).props('color')`.
+ */
+import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import DashboardSummary from "@/modules/TeamDashboard/DashboardSummary.vue";
-import { DashboardSummary as DashboardSummaryType } from "@/types/models";
+import type { DashboardSummary as DashboardSummaryType } from "@/types/models";
+
+// ── Fixture ────────────────────────────────────────────────────────────────────
+
+const fullSummary: DashboardSummaryType = {
+  yesterdayPoints: 127,
+  pointsChange: 12.5,
+  rank: 4,
+  totalPlayers: 523,
+  credits: 550,
+  portfolioValue: 1000,
+  activeContracts: 4,
+  maxContracts: 18,
+};
+
+// ── Tests ──────────────────────────────────────────────────────────────────────
 
 describe("DashboardSummary.vue", () => {
-  let mockSummaryData: DashboardSummaryType;
+  // ── Rendering ──────────────────────────────────────────────────────────────
 
-  beforeEach(() => {
-    // Setup fresh mock data before each test
-    mockSummaryData = {
-      yesterdayPoints: 127,
-      pointsChange: 12.5,
-      rank: 4,
-      totalPlayers: 523,
-      credits: 550,
-      portfolioValue: 1000,
-      activeContracts: 4,
-      maxContracts: 18,
-    };
+  it("mounts without errors with full data", () => {
+    expect(
+      mount(DashboardSummary, { props: { summaryData: fullSummary } }).exists()
+    ).toBe(true);
   });
 
-  it("should render all summary cards", () => {
-    const wrapper = mount(DashboardSummary, {
-      props: { summaryData: mockSummaryData },
-    });
-
-    // Check that all 4 cards are rendered
-    const cards = wrapper.findAllComponents({ name: "IonCard" });
-    expect(cards.length).toBe(4);
+  it("mounts without errors when summaryData is null (skeleton mode)", () => {
+    expect(
+      mount(DashboardSummary, { props: { summaryData: null } }).exists()
+    ).toBe(true);
   });
 
-  it("should display yesterday's points correctly", () => {
-    const wrapper = mount(DashboardSummary, {
-      props: { summaryData: mockSummaryData },
+  it("always renders four IonCard elements regardless of data", () => {
+    const withData = mount(DashboardSummary, {
+      props: { summaryData: fullSummary },
     });
+    const withNull = mount(DashboardSummary, { props: { summaryData: null } });
+    expect(withData.findAllComponents({ name: "IonCard" }).length).toBe(4);
+    expect(withNull.findAllComponents({ name: "IonCard" }).length).toBe(4);
+  });
 
+  // ── Skeleton state (null data) ─────────────────────────────────────────────
+
+  it("renders IonSkeletonText elements when summaryData is null", () => {
+    const wrapper = mount(DashboardSummary, { props: { summaryData: null } });
+    expect(
+      wrapper.findAllComponents({ name: "IonSkeletonText" }).length
+    ).toBeGreaterThan(0);
+  });
+
+  it("does NOT render IonSkeletonText when summaryData is provided", () => {
+    const wrapper = mount(DashboardSummary, {
+      props: { summaryData: fullSummary },
+    });
+    expect(wrapper.findAllComponents({ name: "IonSkeletonText" }).length).toBe(
+      0
+    );
+  });
+
+  // ── Yesterday's Points ─────────────────────────────────────────────────────
+
+  it("displays yesterdayPoints value", () => {
+    const wrapper = mount(DashboardSummary, {
+      props: { summaryData: fullSummary },
+    });
     expect(wrapper.text()).toContain("127");
+  });
+
+  it("displays pointsChange with '+' prefix for positive values", () => {
+    const wrapper = mount(DashboardSummary, {
+      props: { summaryData: fullSummary },
+    });
     expect(wrapper.text()).toContain("+12.5%");
   });
 
-  it("should display league standing correctly", () => {
+  it("displays pointsChange without '+' prefix for negative values", () => {
     const wrapper = mount(DashboardSummary, {
-      props: { summaryData: mockSummaryData },
+      props: { summaryData: { ...fullSummary, pointsChange: -5.2 } },
     });
+    expect(wrapper.text()).toContain("-5.2%");
+    expect(wrapper.text()).not.toContain("+-5.2%");
+  });
 
+  it("uses a 'success' colour prop on IonChip for positive pointsChange", () => {
+    const wrapper = mount(DashboardSummary, {
+      props: { summaryData: fullSummary },
+    });
+    // IonChip is a stub — read the bound prop, not the HTML attribute
+    const chip = wrapper.findComponent({ name: "IonChip" });
+    expect(chip.props("color")).toBe("success");
+  });
+
+  it("uses a 'danger' colour prop on IonChip for negative pointsChange", () => {
+    const wrapper = mount(DashboardSummary, {
+      props: { summaryData: { ...fullSummary, pointsChange: -3 } },
+    });
+    const chip = wrapper.findComponent({ name: "IonChip" });
+    expect(chip.props("color")).toBe("danger");
+  });
+
+  // ── League Standing ────────────────────────────────────────────────────────
+
+  it("displays the rank prefixed with #", () => {
+    const wrapper = mount(DashboardSummary, {
+      props: { summaryData: fullSummary },
+    });
     expect(wrapper.text()).toContain("#4");
+  });
+
+  it("displays the total player count", () => {
+    const wrapper = mount(DashboardSummary, {
+      props: { summaryData: fullSummary },
+    });
     expect(wrapper.text()).toContain("of 523 players");
   });
 
-  it("should display credits and portfolio value", () => {
-    const wrapper = mount(DashboardSummary, {
-      props: { summaryData: mockSummaryData },
-    });
+  // ── Credits ────────────────────────────────────────────────────────────────
 
+  it("displays the credits value", () => {
+    const wrapper = mount(DashboardSummary, {
+      props: { summaryData: fullSummary },
+    });
     expect(wrapper.text()).toContain("550");
+  });
+
+  it("displays the portfolio value with 'Cr' suffix", () => {
+    const wrapper = mount(DashboardSummary, {
+      props: { summaryData: fullSummary },
+    });
     expect(wrapper.text()).toContain("Portfolio: 1000 Cr");
   });
 
-  it("should display active contracts information", () => {
-    const wrapper = mount(DashboardSummary, {
-      props: { summaryData: mockSummaryData },
-    });
+  // ── Active Contracts ───────────────────────────────────────────────────────
 
+  it("displays activeContracts / hardcoded max 18", () => {
+    const wrapper = mount(DashboardSummary, {
+      props: { summaryData: fullSummary },
+    });
     expect(wrapper.text()).toContain("4/18");
+  });
+
+  it("calculates remaining slots correctly (18 - activeContracts)", () => {
+    const wrapper = mount(DashboardSummary, {
+      props: { summaryData: fullSummary },
+    });
     expect(wrapper.text()).toContain("14 slots available");
   });
 
-  it("should show positive change indicator", () => {
+  it("shows 0 slots available when activeContracts equals 18", () => {
     const wrapper = mount(DashboardSummary, {
-      props: { summaryData: mockSummaryData },
+      props: { summaryData: { ...fullSummary, activeContracts: 18 } },
     });
-
-    // Check that the change value is displayed with + sign
-    expect(wrapper.text()).toContain("+12.5%");
+    expect(wrapper.text()).toContain("18/18");
+    expect(wrapper.text()).toContain("0 slots available");
   });
 
-  it("should show negative change indicator", () => {
-    mockSummaryData.pointsChange = -5.2;
+  // ── Section labels ─────────────────────────────────────────────────────────
 
+  it("renders all four section labels", () => {
     const wrapper = mount(DashboardSummary, {
-      props: { summaryData: mockSummaryData },
+      props: { summaryData: fullSummary },
     });
-
-    // Check that change is displayed (negative values don't have + sign)
     const text = wrapper.text();
-    expect(text.includes("-5.2") || text.includes("5.2")).toBe(true);
-  });
-
-  it("should handle null summaryData gracefully", () => {
-    const wrapper = mount(DashboardSummary, {
-      props: { summaryData: null },
-    });
-
-    // Should not render cards when data is null
-    const grid = wrapper.find("ion-grid");
-    expect(grid.exists()).toBe(false);
-  });
-
-  it("should calculate available slots correctly", () => {
-    mockSummaryData.activeContracts = 10;
-
-    const wrapper = mount(DashboardSummary, {
-      props: { summaryData: mockSummaryData },
-    });
-
-    expect(wrapper.text()).toContain("8 slots available");
+    expect(text).toContain("Yesterday's Points");
+    expect(text).toContain("League Standing");
+    expect(text).toContain("Available Credits");
+    expect(text).toContain("Active Contracts");
   });
 });

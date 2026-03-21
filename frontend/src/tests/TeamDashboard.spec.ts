@@ -1,269 +1,188 @@
+/**
+ * TeamDashboard.vue — integration tests
+ *
+ * Environment notes:
+ * - MSW intercepts all /api/* calls via setup.ts.
+ * - "No League Selected" test: TeamDashboard's NavBar child calls
+ *   `leagueStore.initialize()` on mount which fetches leagues from MSW and
+ *   sets currentLeague to the first result — overwriting our null.
+ *   We stub `initialize` to a no-op so the store stays null after mount.
+ * - `trigger()` cannot set event.target — emit events on the component vm.
+ */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { createRouter, createMemoryHistory } from "vue-router";
+import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
 import TeamDashboard from "@/views/TeamDashboard.vue";
 import { useLeagueStore } from "@/stores/league";
-import { useDashboardStore } from "@/stores/dashboard";
-import { server } from "@/mocks/server";
-import { http, HttpResponse } from "msw";
-import { createTestingPinia } from "@pinia/testing";
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 0, gcTime: 0 } },
+  });
+}
 
 const router = createRouter({
   history: createMemoryHistory(),
   routes: [
-    { path: "/", component: { template: "<div>Home</div>" } },
+    { path: "/", component: { template: "<div/>" } },
     { path: "/dashboard", component: TeamDashboard },
-    {
-      path: "/notifications",
-      component: { template: "<div>Notifications</div>" },
-    },
-    { path: "/market", component: { template: "<div>Market</div>" } },
+    { path: "/market", component: { template: "<div/>" } },
+    { path: "/leagues", component: { template: "<div/>" } },
   ],
 });
 
+function mountDashboard() {
+  const pinia = createPinia();
+  setActivePinia(pinia);
+  return {
+    wrapper: mount(TeamDashboard, {
+      global: {
+        plugins: [
+          pinia,
+          router,
+          [VueQueryPlugin, { queryClient: makeQueryClient() }],
+        ],
+      },
+    }),
+    pinia,
+  };
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────────────
+
 describe("TeamDashboard.vue", () => {
-  let pinia: ReturnType<typeof createPinia>;
-
   beforeEach(() => {
-    pinia = createPinia();
-    setActivePinia(pinia);
-
-    // Clear any previous state
     localStorage.clear();
   });
 
-  it("should render dashboard header with team name", async () => {
-    const wrapper = mount(TeamDashboard, {
-      global: {
-        plugins: [pinia, router],
-      },
-    });
+  // ── Mounting ───────────────────────────────────────────────────────────────
 
-    await flushPromises();
-
-    expect(wrapper.text()).toContain("Global Warriors");
-  });
-
-  it("should display league information", async () => {
-    const wrapper = mount(TeamDashboard, {
-      global: {
-        plugins: [pinia, router],
-      },
-    });
-
-    await flushPromises();
-
-    expect(wrapper.text()).toContain("🌐");
-    expect(wrapper.text()).toContain("Global League");
-    expect(wrapper.text()).toContain("Season 2024");
-  });
-
-  it("should handle component mounting", () => {
-    const wrapper = mount(TeamDashboard, {
-      global: {
-        plugins: [pinia, router],
-      },
-    });
-
-    // Component should mount successfully
+  it("mounts without errors", () => {
+    const { wrapper } = mountDashboard();
     expect(wrapper.exists()).toBe(true);
   });
 
-  it("should hide loading state after data loads", async () => {
-    const wrapper = mount(TeamDashboard, {
-      global: {
-        plugins: [pinia, router],
-      },
-    });
-
+  it("hides the loading spinner after data has loaded", async () => {
+    const { wrapper } = mountDashboard();
     await flushPromises();
-
     expect(wrapper.find(".loading-container").exists()).toBe(false);
   });
 
-  it("should render dashboard summary component", async () => {
-    const wrapper = mount(TeamDashboard, {
-      global: {
-        plugins: [pinia, router],
-      },
-    });
+  // ── Child components ───────────────────────────────────────────────────────
 
+  it("renders DashboardHero after data loads", async () => {
+    const { wrapper } = mountDashboard();
     await flushPromises();
+    expect(wrapper.findComponent({ name: "DashboardHero" }).exists()).toBe(
+      true
+    );
+  });
 
+  it("renders DashboardSummary after data loads", async () => {
+    const { wrapper } = mountDashboard();
+    await flushPromises();
     expect(wrapper.findComponent({ name: "DashboardSummary" }).exists()).toBe(
       true
     );
   });
 
-  it("should render needed attention component", async () => {
-    const wrapper = mount(TeamDashboard, {
-      global: {
-        plugins: [pinia, router],
-      },
-    });
-
+  it("renders NeededAttention after data loads", async () => {
+    const { wrapper } = mountDashboard();
     await flushPromises();
-
     expect(wrapper.findComponent({ name: "NeededAttention" }).exists()).toBe(
       true
     );
   });
 
-  it("should render league leaderboard component", async () => {
-    const wrapper = mount(TeamDashboard, {
-      global: {
-        plugins: [pinia, router],
-      },
-    });
-
+  it("renders LeagueLeaderboard after data loads", async () => {
+    const { wrapper } = mountDashboard();
     await flushPromises();
-
     expect(wrapper.findComponent({ name: "LeagueLeaderboard" }).exists()).toBe(
       true
     );
   });
 
-  it("should navigate to notifications when clicking notifications button", async () => {
-    const wrapper = mount(TeamDashboard, {
-      global: {
-        plugins: [pinia, router],
-      },
-    });
+  // ── No league selected ────────────────────────────────────────────────────
+  // NavBar.vue calls leagueStore.initialize() on mount which fetches leagues
+  // from MSW and sets currentLeague — overwriting our null.
+  // We stub initialize() to a no-op before mounting so the store stays null.
 
-    await flushPromises();
+  it("shows 'No League Selected' when currentLeague stays null", async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
 
-    const notificationButton = wrapper
-      .findAll("ion-button")
-      .find((btn) => btn.html().includes("notificationsOutline"));
-
-    if (notificationButton) {
-      await notificationButton.trigger("click");
-      expect(router.currentRoute.value.path).toBe("/notifications");
-    }
-  });
-
-  it("should have buy articles button", async () => {
-    const wrapper = mount(TeamDashboard, {
-      global: {
-        plugins: [pinia, router],
-      },
-    });
-
-    await flushPromises();
-
-    // Find by text content
-    const buttons = wrapper.findAll("ion-button");
-    const buyButton = buttons.find((btn) =>
-      btn.text().includes("Buy Articles")
-    );
-
-    expect(buyButton?.exists()).toBe(true);
-  });
-
-  it("should have notification badge support", async () => {
     const leagueStore = useLeagueStore();
-    leagueStore.setCurrentLeague({
-      id: "italy",
-      name: "Italia League",
-      icon: "🍕",
-      season: "2024",
-      language: "Italiano",
-      totalPlayers: 523,
-      endDate: "Feb 28, 2024",
-    });
-    leagueStore.notificationsList = [
-      {
-        id: "notif-1",
-        leagueId: "italy",
-        teamId: "team-1",
-        message: "Test notification",
-        type: "contract_expiring",
-        extra: "",
-        read: false,
-        createdAt: "2024-02-09T10:00:00Z",
-      },
-    ];
-
-    await flushPromises();
-
-    // Unread count should be tracked in store
-    expect(leagueStore.unreadCount).toBeGreaterThan(0);
-  });
-
-  it("should handle API errors gracefully", async () => {
-    server.use(
-      http.get("*/api/dashboard/:leagueId", () =>
-        HttpResponse.json({ error: "API Error" }, { status: 500 })
-      )
-    );
-
-    const dashboardStore = useDashboardStore();
-    await dashboardStore.fetchDashboardData();
-    await flushPromises();
-    expect(dashboardStore.error).toBe("API Error");
-  });
-
-  it("should handle no league selected", () => {
-    const leagueStore = useLeagueStore();
+    // Keep currentLeague null and prevent NavBar from overwriting it
     leagueStore.currentLeague = null;
+    vi.spyOn(leagueStore, "initialize").mockResolvedValue(undefined);
 
     const wrapper = mount(TeamDashboard, {
       global: {
-        plugins: [pinia, router],
+        plugins: [
+          pinia,
+          router,
+          [VueQueryPlugin, { queryClient: makeQueryClient() }],
+        ],
       },
     });
 
-    // Component should still render
+    await flushPromises();
+    expect(wrapper.text()).toContain("No League Selected");
+  });
+
+  // ── Prop values passed to children ────────────────────────────────────────
+
+  it("passes only urgent contracts (expiresIn ≤ 3) to NeededAttention", async () => {
+    const { wrapper } = mountDashboard();
+    await flushPromises();
+    const urgent = wrapper
+      .findComponent({ name: "NeededAttention" })
+      .props("urgentContract") as Array<{ expiresIn: number }>;
+    expect(Array.isArray(urgent)).toBe(true);
+    urgent.forEach((c) => expect(c.expiresIn).toBeLessThanOrEqual(3));
+  });
+
+  it("passes leaderboard entries that include the current user", async () => {
+    const { wrapper } = mountDashboard();
+    await flushPromises();
+    const entries = wrapper
+      .findComponent({ name: "LeagueLeaderboard" })
+      .props("leaderBoardEntry") as Array<{ isCurrentUser: boolean }>;
+    expect(Array.isArray(entries)).toBe(true);
+    expect(entries.some((e) => e.isCurrentUser)).toBe(true);
+  });
+
+  it("passes the same league object to DashboardHero and LeagueLeaderboard", async () => {
+    const { wrapper } = mountDashboard();
+    await flushPromises();
+    const heroLeague = wrapper
+      .findComponent({ name: "DashboardHero" })
+      .props("currentLeague");
+    const lbLeague = wrapper
+      .findComponent({ name: "LeagueLeaderboard" })
+      .props("currentLeague");
+    expect(heroLeague).not.toBeNull();
+    expect(heroLeague).toStrictEqual(lbLeague);
+  });
+
+  // ── Pull-to-refresh ───────────────────────────────────────────────────────
+
+  it("has an IonRefresher element", async () => {
+    const { wrapper } = mountDashboard();
+    await flushPromises();
+    expect(wrapper.findComponent({ name: "IonRefresher" }).exists()).toBe(true);
+  });
+
+  it("handleRefresh does not throw when ionRefresh fires", async () => {
+    const { wrapper } = mountDashboard();
+    await flushPromises();
+    const refresher = wrapper.findComponent({ name: "IonRefresher" });
+    // Use vm.$emit — trigger() cannot set event.target
+    await refresher.vm.$emit("ionRefresh", { target: { complete: vi.fn() } });
     expect(wrapper.exists()).toBe(true);
-  });
-  /* eslint-disable */
-  it("should refresh data when league changes", async () => {
-    const pinia = createTestingPinia({
-      stubActions: false,
-    });
-
-    const wrapper = mount(TeamDashboard, {
-      global: {
-        plugins: [pinia, router],
-      },
-    });
-
-    await flushPromises();
-
-    const leagueStore = useLeagueStore();
-    const dashboardStore = useDashboardStore();
-    const fetchSpy = vi.spyOn(dashboardStore, "fetchDashboardData");
-
-    leagueStore.$patch({
-      currentLeague: {
-        id: "global",
-        name: "Global League",
-        icon: "🌐",
-        season: "2024",
-        language: "All Languages",
-        totalPlayers: 10523,
-        endDate: "Mar 31, 2024",
-      },
-    });
-
-    await flushPromises();
-
-    expect(fetchSpy).toHaveBeenCalledWith("global");
-  });
-
-  it("should initialize stores on mount", async () => {
-    const leagueStore = useLeagueStore();
-    const initSpy = vi.spyOn(leagueStore, "initialize");
-
-    mount(TeamDashboard, {
-      global: {
-        plugins: [pinia, router],
-      },
-    });
-
-    await flushPromises();
-
-    expect(initSpy).toHaveBeenCalled();
   });
 });

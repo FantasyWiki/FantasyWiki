@@ -160,6 +160,24 @@ export const useAppStore = defineStore("app", () => {
     localStorage.setItem(AUTH_TOKEN_COOKIE_KEY, token);
   }
 
+  function setUserFromData(userData: {
+    sub: string;
+    name: string;
+    email: string;
+    picture: string;
+  }) {
+    // For cookie-based auth, we don't have the token in JS
+    // Just store the user data
+    currentUser.value = {
+      id: userData.sub,
+      name: userData.name,
+      email: userData.email,
+      picture_url: userData.picture,
+    };
+    isAuthenticated.value = true;
+    authToken.value = null; // Token is in HTTP-only cookie, not accessible
+  }
+
   function logout() {
     isAuthenticated.value = false;
     currentUser.value = null;
@@ -192,6 +210,7 @@ export const useAppStore = defineStore("app", () => {
     toggleDarkMode,
     setDarkMode,
     setUser,
+    setUserFromData,
     logout,
   };
 });

@@ -30,31 +30,32 @@ import {
   IonButton,
   IonIcon,
 } from "@ionic/vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 import { alertCircleOutline } from "ionicons/icons";
 import { ref, onMounted } from "vue";
 import { useAppStore } from "@/stores/app";
 
-const route = useRoute();
 const router = useRouter();
 const appStore = useAppStore();
 
 const error = ref<string | null>(null);
 
 onMounted(async () => {
-  const token = route.query.token as string | undefined;
+  const BACKEND_URL =
+    import.meta.env.VITE_BACKEND_URL || "http://localhost:8787";
+  const response = await fetch(`${BACKEND_URL}/api/me`, {
+    credentials: "include", // Important: send cookies
+  });
 
-  if (!token) {
-    error.value = "No authentication token received.";
+  if (!response.ok) {
+    error.value = "Authentication failed. Please try again.";
     return;
   }
 
-  appStore.setUser(token);
-
-  if (!appStore.isAuthenticated) {
-    error.value = "Token is invalid or has expired. Please sign in again.";
-    return;
-  }
+  const userData = await response.json();
+  console.log("User data from /api/me:", userData);
+  // Store user data in the store (without the token, since it's in cookie)
+  appStore.setUserFromData(userData);
 
   router.replace("/home");
 });

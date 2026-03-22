@@ -4,6 +4,7 @@ import { sign } from "hono/jwt";
 import { cors } from "hono/cors";
 import { jwt } from "hono/jwt";
 import { JWTPayload } from "hono/utils/jwt/types";
+import { setCookie } from "hono/cookie";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -53,15 +54,21 @@ app.get("/auth/google", async (c) => {
   };
 
   const jwt = await sign(jwtPayload, c.env.JWT_SECRET, "HS256");
+  setCookie(c, "session_token", jwt, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Lax", // 'Lax' is better for OAuth redirects
+    path: "/",
+  });
   const frontendUrl = c.env.FRONTEND_URL || "http://localhost:5173";
-
-  return c.redirect(`${frontendUrl}/auth/callback?token=${jwt}`);
+  return c.redirect(`${frontendUrl}/auth/callback`);
 });
 
 app.use("/api/*", async (c, next) => {
   const handler = jwt({
     secret: c.env.JWT_SECRET,
     alg: "HS256",
+    cookie: "session_token",
   });
   return handler(c, next);
 });

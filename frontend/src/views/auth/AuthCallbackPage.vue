@@ -39,31 +39,10 @@ const route = useRoute();
 const router = useRouter();
 const appStore = useAppStore();
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-
 const error = ref<string | null>(null);
 
 onMounted(async () => {
-  let token = route.query.token as string | undefined;
-
-  // If Google redirected here with a code, exchange it for a JWT
-  const code = route.query.code as string | undefined;
-  if (!token && code) {
-    try {
-      const res = await fetch(
-        `${BACKEND_URL}/auth/google/exchange?code=${encodeURIComponent(code)}`
-      );
-      const data = await res.json();
-      if (!res.ok || !data.token) {
-        error.value = data.error ?? "Authentication failed. Please try again.";
-        return;
-      }
-      token = data.token as string;
-    } catch {
-      error.value = "Network error. Please try again.";
-      return;
-    }
-  }
+  const token = route.query.token as string | undefined;
 
   if (!token) {
     error.value = "No authentication token received.";

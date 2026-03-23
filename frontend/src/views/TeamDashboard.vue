@@ -55,8 +55,6 @@
         :summary="summary"
       />
 
-      <dashboard-summary :summary-data="summary" />
-
       <ion-grid class="content-grid ion-no-padding">
         <ion-row>
           <ion-col size="12" size-lg="8">
@@ -102,7 +100,6 @@ import {
 
 import NavBar from "@/layout/NavBar.vue";
 import DashboardHero from "@/modules/TeamDashboard/DashboardHero.vue";
-import DashboardSummary from "@/modules/TeamDashboard/DashboardSummary.vue";
 import NeededAttention from "@/modules/TeamDashboard/NeededAttention.vue";
 import LeagueLeaderboard from "@/modules/TeamDashboard/LeagueLeaderboard.vue";
 

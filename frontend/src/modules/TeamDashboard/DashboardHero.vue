@@ -42,7 +42,7 @@
               <span class="rank-label">of {{ summary.totalPlayers }}</span>
             </div>
 
-            <!-- Actions: Buy Articles + inbox bell only (no leaderboard button) -->
+            <!-- Actions: Buy Articles + inbox bell -->
             <div class="hero-actions">
               <ion-button
                 color="primary"
@@ -58,17 +58,21 @@
                   fill="outline"
                   color="primary"
                   class="bell-icon-btn"
-                  :aria-label="`Inbox – ${totalBadgeCount} pending`"
+                  :aria-label="
+                    pendingCount > 0
+                      ? `Trade inbox – ${pendingCount} pending trade proposal${pendingCount === 1 ? '' : 's'}`
+                      : 'Trade inbox – no pending proposals'
+                  "
                   @click="inboxOpen = true"
                 >
                   <ion-icon :icon="notificationsOutline" slot="icon-only" />
                 </ion-button>
                 <ion-badge
-                  v-if="totalBadgeCount > 0"
+                  v-if="pendingCount > 0"
                   color="danger"
                   class="bell-badge"
                 >
-                  {{ totalBadgeCount > 9 ? "9+" : totalBadgeCount }}
+                  {{ pendingCount > 9 ? "9+" : pendingCount }}
                 </ion-badge>
               </div>
             </div>
@@ -339,7 +343,6 @@ import {
   trophyOutline,
 } from "ionicons/icons";
 import { useTrades } from "@/stores/useTrades";
-import { useNotifications } from "@/stores/useNotifications";
 import type { DashboardSummary, League, Team } from "@/types/models";
 
 // ── Props ─────────────────────────────────────────
@@ -352,7 +355,12 @@ interface Props {
 const props = defineProps<Props>();
 const router = useRouter();
 
-// ── Trades + notifications ────────────────────────
+// ── Trades ────────────────────────────────────────
+// `pendingCount` is the single source of truth for the badge and aria-label:
+// it counts incoming pending trade proposals, which is exactly what the
+// popover displays. The previous code used `currentLeagueUnreadCount` from
+// useNotifications (general unread notifications) which is a superset and
+// produces a number that doesn't match the proposals shown in the popover.
 const {
   incomingPending,
   pendingCount,
@@ -361,12 +369,6 @@ const {
   accept,
   reject,
 } = useTrades();
-
-const { currentLeagueUnreadCount } = useNotifications();
-
-// Badge shows unread notifications for the current league only.
-// This matches what the inbox popover shows — league-scoped activity.
-const totalBadgeCount = computed(() => currentLeagueUnreadCount.value);
 
 // ── Inbox ─────────────────────────────────────────
 const inboxOpen = ref(false);
@@ -382,14 +384,11 @@ async function handleReject(id: string) {
 }
 
 // ── Stat definitions ──────────────────────────────
-// All 4 stats as a flat array. The carousel picks one as "featured";
-// the remaining 3 are rendered in the small row below.
-
 interface StatDef {
   label: string;
   value: string | number;
   sub?: string | null;
-  trend?: number; // only present on the points card
+  trend?: number;
   icon: string;
   iconBg: string;
   iconColor: string;
@@ -435,17 +434,15 @@ const allStats = computed<StatDef[]>(() => {
   ];
 });
 
-// ── Carousel state ────────────────────────────────
+// ── Carousel ──────────────────────────────────────
 const INTERVAL_MS = 3500;
 const activeIndex = ref(0);
 let timer: ReturnType<typeof setInterval> | null = null;
 
-/** The currently featured stat. */
 const activeStatDef = computed(
   () => allStats.value[activeIndex.value] ?? allStats.value[0]
 );
 
-/** The 3 stats that are not currently featured, shown small below. */
 const secondaryStats = computed(() =>
   allStats.value.filter((_, i) => i !== activeIndex.value)
 );
@@ -623,7 +620,6 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  /* space from left col on mobile */
   margin-top: 1.25rem;
 }
 
@@ -658,12 +654,17 @@ onUnmounted(() => {
 
 .featured-content {
   padding: 1rem 1rem 0.75rem !important;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.875rem;
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 0.875rem;
+  row-gap: 0.5rem;
+  align-items: start;
 }
 
 .featured-icon-wrap {
+  grid-row: 1;
+  grid-column: 1;
   width: 3rem;
   height: 3rem;
   min-width: 3rem;
@@ -679,6 +680,8 @@ onUnmounted(() => {
 }
 
 .featured-body {
+  grid-row: 1;
+  grid-column: 2;
   flex: 1;
   min-width: 0;
 }
@@ -720,38 +723,14 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-/* Dot indicators — sit inside the card at the bottom */
 .carousel-dots {
+  grid-row: 2;
+  grid-column: 1 / -1;
   display: flex;
   justify-content: flex-end;
   gap: 0.375rem;
   padding-top: 0.5rem;
-  /* span full width so they sit at the right edge */
-  grid-column: 1 / -1;
   width: 100%;
-}
-
-/* rearrange featured-content to a grid so dots span the bottom */
-.featured-content {
-  display: grid;
-  grid-template-columns: 3rem 1fr;
-  grid-template-rows: auto auto;
-  column-gap: 0.875rem;
-  row-gap: 0.5rem;
-  align-items: start;
-}
-
-.featured-icon-wrap {
-  grid-row: 1;
-  grid-column: 1;
-}
-.featured-body {
-  grid-row: 1;
-  grid-column: 2;
-}
-.carousel-dots {
-  grid-row: 2;
-  grid-column: 1 / -1;
 }
 
 .dot {
@@ -847,7 +826,6 @@ onUnmounted(() => {
   text-overflow: ellipsis;
 }
 
-/* On very small screens (< 380px) reduce padding further */
 @media (max-width: 380px) {
   .small-stats {
     gap: 0.375rem;
@@ -872,7 +850,6 @@ onUnmounted(() => {
   }
 }
 
-/* Skeletons for small stats */
 .small-stat__skeleton-icon {
   width: 2rem;
   height: 2rem;

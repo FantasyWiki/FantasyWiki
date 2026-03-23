@@ -82,14 +82,6 @@ describe("TeamDashboard.vue", () => {
     );
   });
 
-  it("renders DashboardSummary after data loads", async () => {
-    const { wrapper } = mountDashboard();
-    await flushPromises();
-    expect(wrapper.findComponent({ name: "DashboardSummary" }).exists()).toBe(
-      true
-    );
-  });
-
   it("renders NeededAttention after data loads", async () => {
     const { wrapper } = mountDashboard();
     await flushPromises();

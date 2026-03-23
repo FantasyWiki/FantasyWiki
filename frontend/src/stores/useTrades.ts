@@ -1,4 +1,3 @@
-// frontend/src/composables/useTrades.ts
 import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { useLeagueStore } from "@/stores/league";

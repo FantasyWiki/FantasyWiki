@@ -1,4 +1,3 @@
-// frontend/src/composables/useNotifications.ts
 import { computed } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { useLeagueStore } from "@/stores/league";

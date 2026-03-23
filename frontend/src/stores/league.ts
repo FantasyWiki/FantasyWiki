@@ -1,4 +1,3 @@
-// frontend/src/stores/league.ts
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import api from "@/services/api";
@@ -32,30 +31,46 @@ export const useLeagueStore = defineStore("league", () => {
     () => currentLeague.value?.name ?? "No League Selected"
   );
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  /**
+   * Validate `currentLeague` against the fetched `availableLeagues` list.
+   * If the stored league id is not found (e.g. stale localStorage entry),
+   * fall back to the first available league and persist the correction.
+   * Returns the resolved league so callers can act on it immediately.
+   */
+  function _resolveCurrentLeague(): League | null {
+    if (!availableLeagues.value.length) return null;
+
+    const candidate = currentLeague.value;
+    const found = candidate
+      ? (availableLeagues.value.find((l) => l.id === candidate.id) ?? null)
+      : null;
+
+    const resolved = found ?? availableLeagues.value[0];
+
+    if (resolved.id !== candidate?.id) {
+      // The stored league was absent or stale — correct and persist.
+      currentLeague.value = resolved;
+      localStorage.setItem("currentLeague", JSON.stringify(resolved));
+    }
+
+    return resolved;
+  }
+
   // ── Actions ────────────────────────────────────────────────────────────────
 
   /**
    * Fetch the list of available leagues from the API.
-   * Restores the last selected league from localStorage if still valid.
-   * Called once during app initialisation from NavBar.
+   * Always validates the current selection against the fresh list and falls
+   * back to the first league when the stored id is not found.
    */
   async function fetchLeagues() {
     isLoading.value = true;
     error.value = null;
     try {
       availableLeagues.value = await api.leagues.getAll();
-
-      // Restore persisted selection, or fall back to the first league.
-      if (!currentLeague.value && availableLeagues.value.length > 0) {
-        const saved = localStorage.getItem("currentLeague");
-        if (saved) {
-          const parsed = JSON.parse(saved) as League;
-          const found = availableLeagues.value.find((l) => l.id === parsed.id);
-          currentLeague.value = found ?? availableLeagues.value[0];
-        } else {
-          currentLeague.value = availableLeagues.value[0];
-        }
-      }
+      _resolveCurrentLeague();
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to fetch leagues";
@@ -77,16 +92,25 @@ export const useLeagueStore = defineStore("league", () => {
   }
 
   /**
-   * Bootstrap: restore persisted league then fetch the full list.
+   * Bootstrap: restore persisted league then fetch and validate the full list.
    * Called once from NavBar on mount.
+   *
+   * Order of operations:
+   *  1. Optimistically restore from localStorage so the UI has something to
+   *     show immediately (avoids a blank league selector on first paint).
+   *  2. Fetch the authoritative list from the API.
+   *  3. `fetchLeagues` calls `_resolveCurrentLeague`, which validates the
+   *     optimistic value against the real list and corrects it if stale.
    */
   async function initialize() {
     const saved = localStorage.getItem("currentLeague");
     if (saved) {
       try {
+        // Optimistic restore — may be stale; will be validated after fetch.
         currentLeague.value = JSON.parse(saved) as League;
       } catch {
-        // Corrupt localStorage entry — ignore and let fetchLeagues set it.
+        // Corrupt localStorage entry — ignore; fetchLeagues will set a default.
+        localStorage.removeItem("currentLeague");
       }
     }
     await fetchLeagues();

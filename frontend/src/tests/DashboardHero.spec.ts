@@ -302,7 +302,7 @@ describe("DashboardHero.vue", () => {
       await flushPromises();
       const label =
         wrapper.find(".bell-icon-btn").attributes("aria-label") ?? "";
-      expect(label).toMatch(/Inbox – \d+ pending/);
+      expect(label).toMatch(/Trade inbox – \d+ pending trade proposal/);
     });
   });
 

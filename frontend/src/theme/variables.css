@@ -75,8 +75,8 @@ http://ionicframework.com/docs/theming/ */
   --ion-color-light-tint: #f8faf8;
 
   /* ===================================
-       APPLICATION COLORS
-       ================================== */
+         APPLICATION COLORS
+         ================================== */
 
   /* Borders and Overlays */
   --ion-border-color: #cdd8cd;
@@ -136,6 +136,23 @@ http://ionicframework.com/docs/theming/ */
     --background-activated: var(--ion-color-primary-tint);
   }
 
+  ion-button[fill="outline"] {
+    --color: var(--ion-color-dark);
+    --background: transparent;
+    --padding-start: 8px;
+    --padding-end: 8px;
+    --border-color: var(--ion-border-color);
+    text-transform: none;
+
+    --background-hover-opacity: 0.9;
+    --background-hover: var(--wiki-mint);
+    --border-radius: 4px;
+    --ripple-color: transparent;
+    --background-focused: var(--wiki-mint);
+    /* Smooth color transition */
+    transition: color 0.2s ease;
+  }
+
   /* Pop over */
   ion-popover {
     --box-shadow: 0 0px 0px 0 rgba(0, 0, 0, 0);
@@ -175,9 +192,55 @@ http://ionicframework.com/docs/theming/ */
   /* Placeholder */
   --ion-placeholder-color: #737f73;
 
+  --ion-background-color: #f0f5f0;
+  --ion-background-color-rgb: 240, 245, 240;
+
+  --ion-text-color: #171f1b;
+  --ion-text-color-rgb: 23, 31, 27;
+
+  --ion-text-color-step-50: #6e8479;
+  --ion-text-color-step-100: #758a80;
+  --ion-text-color-step-150: #7c9086;
+  --ion-text-color-step-200: #82968c;
+  --ion-text-color-step-250: #899c92;
+  --ion-text-color-step-300: #90a299;
+  --ion-text-color-step-350: #97a89f;
+  --ion-text-color-step-400: #9eaea5;
+  --ion-text-color-step-450: #a5b4ab;
+  --ion-text-color-step-500: #acbab2;
+  --ion-text-color-step-550: #b2bfb8;
+  --ion-text-color-step-600: #b9c5be;
+  --ion-text-color-step-650: #c0cbc4;
+  --ion-text-color-step-700: #c7d1cb;
+  --ion-text-color-step-750: #ced7d1;
+  --ion-text-color-step-800: #d5ddd7;
+  --ion-text-color-step-850: #dbe3dd;
+  --ion-text-color-step-900: #e2e9e4;
+  --ion-text-color-step-950: #e9efea;
+
+  --ion-background-color-step-50: #e9efea;
+  --ion-background-color-step-100: #e2e9e4;
+  --ion-background-color-step-150: #dbe3dd;
+  --ion-background-color-step-200: #d5ddd7;
+  --ion-background-color-step-250: #ced7d1;
+  --ion-background-color-step-300: #c7d1cb;
+  --ion-background-color-step-350: #c0cbc4;
+  --ion-background-color-step-400: #b9c5be;
+  --ion-background-color-step-450: #b2bfb8;
+  --ion-background-color-step-500: #acbab2;
+  --ion-background-color-step-550: #a5b4ab;
+  --ion-background-color-step-600: #9eaea5;
+  --ion-background-color-step-650: #97a89f;
+  --ion-background-color-step-700: #90a299;
+  --ion-background-color-step-750: #899c92;
+  --ion-background-color-step-800: #82968c;
+  --ion-background-color-step-850: #7c9086;
+  --ion-background-color-step-900: #758a80;
+  --ion-background-color-step-950: #6e8479;
+
   /* ===================================
-       CUSTOM FANTASYWIKI VARIABLES
-       ================================== */
+         CUSTOM FANTASYWIKI VARIABLES
+         ================================== */
 
   --ion-color-wiki-gold: #f5c842;
   --ion-color-wiki-gold-rgb: 245, 200, 66;
@@ -189,6 +252,7 @@ http://ionicframework.com/docs/theming/ */
   --wiki-green: #1e7e50;
   --wiki-green-light: #358e62;
   --wiki-green-dark: #1a6f46;
+  --wiki-gold: #f5c842;
   --wiki-cream: #fbfbf7;
   --wiki-paper: #f4f1ea;
   --wiki-sage: #a8bfa8;

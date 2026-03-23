@@ -1,4 +1,21 @@
 {
+  "name": "fantasywiki",
+  "version": "1.0.0",
+  "description": "FantasyWiki - Wikipedia Fantasy League Game",
+  "scripts": {
+    "dev": "npm run dev:frontend",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:all": "npm install && cd frontend && npm install",
+    "build": "cd frontend && npm run build",
+    "preview": "cd frontend && npm run preview",
+    "test:frontend": "cd frontend && npm run test-unit"
+  },
+  "keywords": [
+    "fantasy",
+    "wikipedia",
+    "game"
+  ],
+  "license": "MIT",
   "devDependencies": {
     "semantic-release-preconfigured-conventional-commits": "1.1.157"
   },

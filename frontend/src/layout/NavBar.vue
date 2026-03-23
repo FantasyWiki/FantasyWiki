@@ -273,7 +273,6 @@ const handleAuth = async () => {
     appStore.logout();
     router.push("/");
   } else {
-    appStore.login();
     router.push("/signin");
     isLoginOpen.value = true;
   }

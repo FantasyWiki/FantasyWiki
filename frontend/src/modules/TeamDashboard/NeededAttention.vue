@@ -123,7 +123,7 @@
           </ion-item>
 
           <ion-item-options side="end">
-            <ion-item-option color="danger" @click="onDismiss(contract)">
+            <ion-item-option color="danger" @click="onDismiss(/*contract*/)">
               <ion-icon slot="top" :icon="closeOutline" />
               Dismiss
             </ion-item-option>
@@ -222,9 +222,9 @@ function onRenew(contract: Contract) {
   console.log("Renew contract", contract.id);
 }
 
-/*function onDismiss(_contract: Contract) {
+function onDismiss(/*contract: Contract*/) {
   // TODO: call archive/dismiss API via useMutation when the endpoint is ready
-}*/
+}
 </script>
 
 <style scoped>

@@ -1,6 +1,5 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { jwtDecode } from "jwt-decode";
 
 // Define language structure
 interface LanguageOption {
@@ -33,41 +32,9 @@ export const useAppStore = defineStore("app", () => {
     picture_url: string;
   }
 
-  interface JwtPayload {
-    sub: string;
-    name: string;
-    email: string;
-    picture: string;
-    exp: number;
-  }
-
-  const AUTH_TOKEN_COOKIE_KEY = "auth_token";
-
-  // UX-only check: reads the token payload to detect obvious expiry and
-  // populate local state. Does NOT verify the signature — real auth enforcement
-  // happens server-side via jwt.verify() in the requireAuth middleware.
-  function decodeJwtPayload(token: string): AuthUser | null {
-    try {
-      const payload = jwtDecode<JwtPayload>(token);
-      const now = Math.floor(Date.now() / 1000);
-      if (payload.exp && payload.exp < now) return null;
-      return {
-        id: payload.sub,
-        name: payload.name,
-        email: payload.email,
-        picture_url: payload.picture,
-      };
-    } catch {
-      return null;
-    }
-  }
-
-  const _storedToken = localStorage.getItem(AUTH_TOKEN_COOKIE_KEY);
-  const _initialUser = _storedToken ? decodeJwtPayload(_storedToken) : null;
-
-  const isAuthenticated = ref<boolean>(_initialUser !== null);
-  const currentUser = ref<AuthUser | null>(_initialUser);
-  const authToken = ref<string | null>(_initialUser ? _storedToken : null);
+  // State - no initial user data since we need to check with server
+  const isAuthenticated = ref<boolean>(false);
+  const currentUser = ref<AuthUser | null>(null);
 
   // ========== GETTERS ==========
 
@@ -151,23 +118,14 @@ export const useAppStore = defineStore("app", () => {
     document.body.classList.toggle("dark", value);
   }
 
-  function setUser(token: string) {
-    const user = decodeJwtPayload(token);
-    if (!user) return;
-    authToken.value = token;
-    currentUser.value = user;
-    isAuthenticated.value = true;
-    localStorage.setItem(AUTH_TOKEN_COOKIE_KEY, token);
-  }
-
   function setUserFromData(userData: {
     sub: string;
     name: string;
     email: string;
     picture: string;
   }) {
-    // For cookie-based auth, we don't have the token in JS
-    // Just store the user data
+    // Token is in HTTP-only cookie, managed by browser
+    // We just store the user data in memory
     currentUser.value = {
       id: userData.sub,
       name: userData.name,
@@ -175,14 +133,21 @@ export const useAppStore = defineStore("app", () => {
       picture_url: userData.picture,
     };
     isAuthenticated.value = true;
-    authToken.value = null; // Token is in HTTP-only cookie, not accessible
   }
 
   function logout() {
     isAuthenticated.value = false;
     currentUser.value = null;
-    authToken.value = null;
-    localStorage.removeItem(AUTH_TOKEN_COOKIE_KEY);
+
+    // Clear HTTP-only cookie by calling backend
+    const BACKEND_URL =
+      import.meta.env.VITE_BACKEND_URL || "http://localhost:8787";
+    fetch(`${BACKEND_URL}/api/session`, {
+      method: "DELETE",
+      credentials: "include",
+    }).catch(() => {
+      // Ignore errors - user is logged out locally anyway
+    });
   }
 
   // Initialize on store creation
@@ -198,7 +163,6 @@ export const useAppStore = defineStore("app", () => {
     isDarkMode,
     isAuthenticated,
     currentUser,
-    authToken,
     // Getters
     currentLanguage,
     languageDisplay,
@@ -209,7 +173,6 @@ export const useAppStore = defineStore("app", () => {
     cycleLanguage,
     toggleDarkMode,
     setDarkMode,
-    setUser,
     setUserFromData,
     logout,
   };

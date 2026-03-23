@@ -43,7 +43,7 @@ const error = ref<string | null>(null);
 onMounted(async () => {
   const BACKEND_URL =
     import.meta.env.VITE_BACKEND_URL || "http://localhost:8787";
-  const response = await fetch(`${BACKEND_URL}/api/me`, {
+  const response = await fetch(`${BACKEND_URL}/api/session`, {
     credentials: "include", // Important: send cookies
   });
 
@@ -53,7 +53,7 @@ onMounted(async () => {
   }
 
   const userData = await response.json();
-  console.log("User data from /api/me:", userData);
+  console.log("User data from /api/session:", userData);
   // Store user data in the store (without the token, since it's in cookie)
   appStore.setUserFromData(userData);
 

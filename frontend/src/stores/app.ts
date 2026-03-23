@@ -25,7 +25,16 @@ export const useAppStore = defineStore("app", () => {
 
   const isDarkMode = ref<boolean>(localStorage.getItem("darkMode") === "true");
 
+  interface AuthUser {
+    id: string;
+    name: string;
+    email: string;
+    picture_url: string;
+  }
+
+  // State - no initial user data since we need to check with server
   const isAuthenticated = ref<boolean>(false);
+  const currentUser = ref<AuthUser | null>(null);
 
   // ========== GETTERS ==========
 
@@ -109,12 +118,36 @@ export const useAppStore = defineStore("app", () => {
     document.body.classList.toggle("dark", value);
   }
 
-  function login() {
+  function setUserFromData(userData: {
+    sub: string;
+    name: string;
+    email: string;
+    picture: string;
+  }) {
+    // Token is in HTTP-only cookie, managed by browser
+    // We just store the user data in memory
+    currentUser.value = {
+      id: userData.sub,
+      name: userData.name,
+      email: userData.email,
+      picture_url: userData.picture,
+    };
     isAuthenticated.value = true;
   }
 
   function logout() {
     isAuthenticated.value = false;
+    currentUser.value = null;
+
+    // Clear HTTP-only cookie by calling backend
+    const BACKEND_URL =
+      import.meta.env.VITE_BACKEND_URL || "http://localhost:8787";
+    fetch(`${BACKEND_URL}/api/session`, {
+      method: "DELETE",
+      credentials: "include",
+    }).catch(() => {
+      // Ignore errors - user is logged out locally anyway
+    });
   }
 
   // Initialize on store creation
@@ -129,17 +162,18 @@ export const useAppStore = defineStore("app", () => {
     languageCode,
     isDarkMode,
     isAuthenticated,
+    currentUser,
     // Getters
-    currentLanguage, // { code: 'en', label: 'EN', fullName: 'English' }
-    languageDisplay, // "en, English"
-    availableLanguages, // Array of all language options
-    isLanguage, // Function to check current language
+    currentLanguage,
+    languageDisplay,
+    availableLanguages,
+    isLanguage,
     // Actions
     setLanguage,
     cycleLanguage,
     toggleDarkMode,
     setDarkMode,
-    login,
+    setUserFromData,
     logout,
   };
 });

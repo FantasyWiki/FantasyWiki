@@ -129,7 +129,7 @@
                   <!-- Dot indicators -->
                   <div class="carousel-dots">
                     <button
-                      v-for="i in allStats.length"
+                      v-for="(_,i) in allStats"
                       :key="i"
                       class="dot"
                       :class="{ 'dot--active': activeIndex === i }"

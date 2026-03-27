@@ -73,8 +73,8 @@ export function useNotifications() {
     () => currentLeagueNotifications.value.filter((n) => !n.read).length
   );
 
-  const currentLeagueUnread = computed(
-    () => currentLeagueNotifications.value.filter((n) => !n.read)
+  const currentLeagueUnread = computed(() =>
+    currentLeagueNotifications.value.filter((n) => !n.read)
   );
 
   /**

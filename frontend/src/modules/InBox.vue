@@ -15,11 +15,7 @@
         >
           <ion-icon :icon="notificationsOutline" slot="icon-only" />
         </ion-button>
-        <ion-badge
-          v-if="badgeCount > 0"
-          color="danger"
-          class="bell-badge"
-        >
+        <ion-badge v-if="badgeCount > 0" color="danger" class="bell-badge">
           {{ badgeCount > 9 ? "9+" : badgeCount }}
         </ion-badge>
       </div>
@@ -36,13 +32,16 @@
       @did-dismiss="closeInbox"
     >
       <ion-content class="ion-no-padding">
-
         <!-- Header -->
         <ion-toolbar color="light" class="inbox-toolbar">
           <ion-title slot="start" class="inbox-title">Trade Inbox</ion-title>
 
           <div slot="end" class="ion-padding-end inbox-header-end">
-            <ion-badge v-if="badgeCount > 0" color="danger" class="ion-margin-end">
+            <ion-badge
+              v-if="badgeCount > 0"
+              color="danger"
+              class="ion-margin-end"
+            >
               {{ badgeCount }}
             </ion-badge>
 
@@ -76,7 +75,11 @@
 
         <!-- Error state -->
         <div v-else-if="error" class="ion-padding ion-text-center">
-          <ion-icon :icon="alertCircleOutline" color="danger" class="state-icon" />
+          <ion-icon
+            :icon="alertCircleOutline"
+            color="danger"
+            class="state-icon"
+          />
           <ion-text color="danger">
             <p class="ion-no-margin">{{ error }}</p>
           </ion-text>
@@ -111,7 +114,6 @@
             :detail="false"
           >
             <div class="ion-padding-vertical notification-row">
-
               <!-- Avatar / league icon -->
               <div class="notification-avatar">
                 <span>{{ leagueIcon ?? "🌐" }}</span>
@@ -179,7 +181,6 @@
                   <ion-icon :icon="closeOutline" slot="icon-only" />
                 </ion-button>
               </div>
-
             </div>
           </ion-item>
         </ion-list>
@@ -191,11 +192,13 @@
         >
           <ion-text color="medium">
             <p class="ion-no-margin ion-text-center outgoing-hint">
-              {{ outgoingCount }} outgoing notification{{ outgoingCount !== 1 ? "s" : "" }} pending
+              {{ outgoingCount }} outgoing notification{{
+                outgoingCount !== 1 ? "s" : ""
+              }}
+              pending
             </p>
           </ion-text>
         </div>
-
       </ion-content>
     </ion-popover>
   </div>
@@ -303,7 +306,8 @@ function handleReject(id: string) {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getTierColor(tier: string): string {
   if (tier.toLowerCase().includes("month")) return "success";
-  if (tier.toLowerCase().includes("week") && tier.includes("2")) return "primary";
+  if (tier.toLowerCase().includes("week") && tier.includes("2"))
+    return "primary";
   return "warning";
 }
 </script>

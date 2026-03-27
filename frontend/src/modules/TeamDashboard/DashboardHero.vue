@@ -53,29 +53,16 @@
                 Buy Articles
               </ion-button>
 
-              <div class="bell-wrapper">
-                <ion-button
-                  fill="outline"
-                  color="primary"
-                  class="bell-icon-btn"
-                  :aria-label="
-                    pendingCount > 0
-                      ? `Trade inbox – ${pendingCount} pending trade proposal${pendingCount === 1 ? '' : 's'}`
-                      : 'Trade inbox – no pending proposals'
-                  "
-                  @click="inboxOpen = true"
-                >
-                  <ion-icon :icon="notificationsOutline" slot="icon-only" />
-                </ion-button>
-                <ion-badge
-                  v-if="pendingCount > 0"
-                  color="danger"
-                  class="bell-badge"
-                >
-                  {{ pendingCount > 9 ? "9+" : pendingCount }}
-                </ion-badge>
-              </div>
-            </div>
+              <inbox
+                ref="inboxRef"
+                :pending-trades="incomingPending"
+                :outgoing-count="outgoingCount"
+                :is-loading="isTradesLoading"
+                :is-actioning="isActioning"
+                @accept="handleAccept"
+                @reject="handleReject"
+               />
+          </div>
           </div>
         </ion-col>
 
@@ -139,7 +126,7 @@
                   <!-- Dot indicators -->
                   <div class="carousel-dots">
                     <button
-                      v-for="(_, i) in allStats"
+                      v-for="(i) in allStats.length"
                       :key="i"
                       class="dot"
                       :class="{ 'dot--active': activeIndex === i }"
@@ -211,101 +198,6 @@
     </ion-grid>
   </div>
 
-  <!-- ── Inbox popover ──────────────────────────── -->
-  <ion-popover
-    :is-open="inboxOpen"
-    @did-dismiss="inboxOpen = false"
-    class="inbox-popover"
-    side="bottom"
-    alignment="start"
-    :show-backdrop="true"
-  >
-    <ion-content class="ion-no-padding">
-      <div class="inbox-header">
-        <span class="inbox-title">Trade Inbox</span>
-        <ion-badge v-if="pendingCount > 0" color="danger">{{
-          pendingCount
-        }}</ion-badge>
-        <ion-chip
-          v-if="currentLeague"
-          color="primary"
-          outline
-          class="inbox-league-chip"
-        >
-          <ion-label
-            >{{ currentLeague.icon }} {{ currentLeague.name }}</ion-label
-          >
-        </ion-chip>
-        <ion-button fill="clear" size="small" @click="inboxOpen = false">
-          <ion-icon :icon="closeOutline" slot="icon-only" />
-        </ion-button>
-      </div>
-
-      <div v-if="isTradesLoading" class="inbox-loading">
-        <ion-spinner name="crescent" color="primary" />
-      </div>
-
-      <div v-else-if="incomingPending.length === 0" class="inbox-empty">
-        <ion-icon :icon="mailOpenOutline" color="medium" />
-        <ion-text color="medium">
-          <p class="ion-no-margin">No pending proposals</p>
-        </ion-text>
-      </div>
-
-      <ion-list v-else lines="full" class="inbox-list">
-        <ion-item
-          v-for="proposal in incomingPending"
-          :key="proposal.id"
-          class="inbox-item"
-          :detail="false"
-        >
-          <div class="proposal-row">
-            <div class="proposal-avatar">{{ currentLeague?.icon ?? "🌐" }}</div>
-            <div class="proposal-info">
-              <p class="ion-no-margin proposal-from">
-                <strong>{{ proposal.fromUsername }}</strong>
-              </p>
-              <p class="ion-no-margin proposal-detail">
-                Wants:
-                <span class="highlight">{{
-                  proposal.requestedArticle.name
-                }}</span>
-              </p>
-              <p class="ion-no-margin proposal-offer">
-                Offers:
-                <span v-if="proposal.offeredArticle" class="highlight">
-                  {{ proposal.offeredArticle.name }}
-                </span>
-                <span v-if="proposal.offeredCredits" class="highlight">
-                  {{ proposal.offeredCredits }} credits
-                </span>
-              </p>
-            </div>
-            <div class="proposal-actions">
-              <ion-button
-                fill="solid"
-                color="primary"
-                size="small"
-                :disabled="isActioning"
-                @click="handleAccept(proposal.id)"
-              >
-                <ion-icon :icon="checkmarkOutline" slot="icon-only" />
-              </ion-button>
-              <ion-button
-                fill="outline"
-                color="danger"
-                size="small"
-                :disabled="isActioning"
-                @click="handleReject(proposal.id)"
-              >
-                <ion-icon :icon="closeOutline" slot="icon-only" />
-              </ion-button>
-            </div>
-          </div>
-        </ion-item>
-      </ion-list>
-    </ion-content>
-  </ion-popover>
 </template>
 
 <script setup lang="ts">
@@ -318,34 +210,27 @@ import {
   IonCardContent,
   IonChip,
   IonCol,
-  IonContent,
   IonGrid,
   IonIcon,
-  IonItem,
   IonLabel,
-  IonList,
-  IonPopover,
   IonRow,
   IonSkeletonText,
-  IonSpinner,
   IonText,
 } from "@ionic/vue";
 import {
   cartOutline,
   cashOutline,
-  checkmarkOutline,
-  closeOutline,
   documentTextOutline,
-  mailOpenOutline,
-  notificationsOutline,
   trendingDownOutline,
   trendingUpOutline,
   trophyOutline,
 } from "ionicons/icons";
+import Inbox from "@/modules/Inbox.vue";
 import { useTrades } from "@/stores/useTrades";
+import { useNotifications } from "@/stores/useNotifications";
 import type { DashboardSummary, League, Team } from "@/types/models";
 
-// ── Props ─────────────────────────────────────────
+// ── Props ─────────────────────────────────────────────────────────────────────
 interface Props {
   currentLeague: League | null;
   currentTeam: Team | null;
@@ -355,32 +240,32 @@ interface Props {
 const props = defineProps<Props>();
 const router = useRouter();
 
-// ── Trades ────────────────────────────────────────
-// `pendingCount` is the single source of truth for the badge and aria-label:
-// it counts incoming pending trade proposals, which is exactly what the
-// popover displays. The previous code used `currentLeagueUnreadCount` from
-// useNotifications (general unread notifications) which is a superset and
-// produces a number that doesn't match the proposals shown in the popover.
+// ── Trades + notifications ────────────────────────────────────────────────────
 const {
   incomingPending,
-  pendingCount,
+  proposals,
   isLoading: isTradesLoading,
   isActioning,
   accept,
   reject,
 } = useTrades();
 
-// ── Inbox ─────────────────────────────────────────
-const inboxOpen = ref(false);
+const outgoingCount = computed(
+  () => (proposals.value ?? []).filter((p) => p.type === "outgoing" && p.status === "pending").length
+);
+
+const { currentLeagueUnreadCount } = useNotifications();
+const totalBadgeCount = computed(() => currentLeagueUnreadCount.value);
+
+// ── Inbox ref ─────────────────────────────────────────────────────────────────
+const inboxRef = ref<InstanceType<typeof Inbox> | null>(null);
 
 async function handleAccept(id: string) {
   await accept(id);
-  if (pendingCount.value === 0) inboxOpen.value = false;
 }
 
 async function handleReject(id: string) {
   await reject(id);
-  if (pendingCount.value === 0) inboxOpen.value = false;
 }
 
 // ── Stat definitions ──────────────────────────────
@@ -541,7 +426,7 @@ onUnmounted(() => {
 }
 
 .team-name {
-  font-family: var(--font-family-headings);
+  font-family: var(--font-family-headings),serif;
   font-size: clamp(1.5rem, 5vw, 2.25rem);
   font-weight: 700;
   color: var(--ion-text-color);
@@ -585,34 +470,6 @@ onUnmounted(() => {
 
 .hero-actions ion-button {
   --border-radius: 0.5rem;
-}
-
-/* Bell */
-.bell-wrapper {
-  position: relative;
-  display: inline-flex;
-}
-
-.bell-icon-btn {
-  --border-radius: 0.5rem;
-  --padding-start: 0.75rem;
-  --padding-end: 0.75rem;
-}
-
-.bell-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  font-size: 0.6rem;
-  min-width: 1.1rem;
-  height: 1.1rem;
-  border-radius: 999px;
-  padding: 0 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  z-index: 10;
 }
 
 /* ── Right column ────────────────────────────── */
@@ -702,7 +559,7 @@ onUnmounted(() => {
 }
 
 .featured-value {
-  font-family: var(--font-family-headings);
+  font-family: var(--font-family-headings),serif;
   font-size: 2.25rem;
   font-weight: 700;
   color: var(--ion-text-color);
@@ -816,7 +673,7 @@ onUnmounted(() => {
 }
 
 .small-stat__value {
-  font-family: var(--font-family-headings);
+  font-family: var(--font-family-headings),serif;
   font-size: 0.9rem;
   font-weight: 700;
   color: var(--ion-text-color);
@@ -869,115 +726,6 @@ onUnmounted(() => {
   border-radius: 4px;
 }
 
-/* ── Inbox popover ───────────────────────────── */
-.inbox-popover {
-  --width: min(400px, 95vw);
-  --border-radius: 0.875rem;
-  --box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
-}
-
-.inbox-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.875rem 1rem 0.75rem;
-  border-bottom: 1px solid var(--ion-border-color);
-  flex-wrap: wrap;
-}
-
-.inbox-title {
-  font-weight: 700;
-  font-size: 1rem;
-  color: var(--ion-text-color);
-  flex: 1;
-}
-
-.inbox-league-chip {
-  height: 1.4rem;
-  font-size: 0.7rem;
-  margin: 0;
-}
-
-.inbox-loading {
-  display: flex;
-  justify-content: center;
-  padding: 2rem;
-}
-
-.inbox-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 2rem 1rem;
-  text-align: center;
-}
-
-.inbox-empty ion-icon {
-  font-size: 2.5rem;
-}
-
-.inbox-list {
-  padding: 0;
-  margin: 0;
-  max-height: 360px;
-  overflow-y: auto;
-}
-
-.inbox-item {
-  --padding-start: 1rem;
-  --padding-end: 1rem;
-  --inner-padding-end: 0;
-  --min-height: 0;
-}
-
-.proposal-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.75rem 0;
-}
-
-.proposal-avatar {
-  width: 2.25rem;
-  height: 2.25rem;
-  min-width: 2.25rem;
-  border-radius: 50%;
-  background: rgba(var(--ion-color-primary-rgb), 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-}
-
-.proposal-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.proposal-from {
-  font-size: 0.85rem;
-}
-.proposal-detail,
-.proposal-offer {
-  font-size: 0.78rem;
-  color: var(--ion-color-medium);
-}
-.highlight {
-  color: var(--ion-color-primary);
-  font-weight: 600;
-}
-
-.proposal-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  flex-shrink: 0;
-}
 .proposal-actions ion-button {
   --border-radius: 0.375rem;
   width: 2rem;
@@ -985,20 +733,4 @@ onUnmounted(() => {
   margin: 0;
 }
 
-/* ── Dark mode ───────────────────────────────── */
-.ion-palette-dark .hero-wrapper {
-  background: linear-gradient(
-    135deg,
-    rgba(var(--ion-color-primary-rgb), 0.1) 0%,
-    rgba(var(--ion-color-tertiary-rgb), 0.05) 100%
-  );
-}
-
-.ion-palette-dark .team-name,
-.ion-palette-dark .rank-value,
-.ion-palette-dark .featured-value,
-.ion-palette-dark .small-stat__value,
-.ion-palette-dark .inbox-title {
-  color: var(--ion-color-light);
-}
 </style>

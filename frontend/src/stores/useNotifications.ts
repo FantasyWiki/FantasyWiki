@@ -73,6 +73,10 @@ export function useNotifications() {
     () => currentLeagueNotifications.value.filter((n) => !n.read).length
   );
 
+  const currentLeagueUnread = computed(
+    () => currentLeagueNotifications.value.filter((n) => !n.read)
+  );
+
   /**
    * Map of leagueId → unread count, derived from the single global fetch.
    * Used by NavBar to show a per-league badge on each dropdown item.
@@ -94,6 +98,7 @@ export function useNotifications() {
     refetch,
     // Global total — NavBar selector button badge
     unreadCount,
+    currentLeagueUnread,
     // Current league only — DashboardHero bell badge
     currentLeagueUnreadCount,
     // Per-league map — NavBar dropdown item badges

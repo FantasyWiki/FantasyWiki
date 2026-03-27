@@ -55,13 +55,16 @@
 
               <inbox
                 ref="inboxRef"
-                :pending-trades="incomingPending"
+                :notifications="currentLeagueUnread"
+                :badge-count="totalBadgeCount"
                 :outgoing-count="outgoingCount"
-                :is-loading="isTradesLoading"
-                :is-actioning="isActioning"
+                :league-icon="currentLeague?.icon"
+                :league-name="currentLeague?.name"
+                :actioning="isActioning"
+                :loading="isTradesLoading"
                 @accept="handleAccept"
                 @reject="handleReject"
-               />
+              />
           </div>
           </div>
         </ion-col>
@@ -242,7 +245,6 @@ const router = useRouter();
 
 // ── Trades + notifications ────────────────────────────────────────────────────
 const {
-  incomingPending,
   proposals,
   isLoading: isTradesLoading,
   isActioning,
@@ -254,8 +256,8 @@ const outgoingCount = computed(
   () => (proposals.value ?? []).filter((p) => p.type === "outgoing" && p.status === "pending").length
 );
 
-const { currentLeagueUnreadCount } = useNotifications();
-const totalBadgeCount = computed(() => currentLeagueUnreadCount.value);
+const { currentLeagueUnread } = useNotifications();
+const totalBadgeCount = computed(() => currentLeagueUnread.value.length);
 
 // ── Inbox ref ─────────────────────────────────────────────────────────────────
 const inboxRef = ref<InstanceType<typeof Inbox> | null>(null);

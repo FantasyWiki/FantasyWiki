@@ -59,17 +59,6 @@ export interface LeaderboardEntry {
   isCurrentUser: boolean;
 }
 
-export interface Notification {
-  id: string;
-  leagueId: string;
-  teamId: string;
-  message: string;
-  type: "contract_expiring" | "trade_offer" | "league_update" | "general";
-  extra: string;
-  read: boolean;
-  createdAt: string;
-}
-
 export interface DashboardSummary {
   yesterdayPoints: number;
   pointsChange: number;

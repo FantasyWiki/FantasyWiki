@@ -89,7 +89,9 @@ function mountHero(
 
   const leagueStore = useLeagueStore();
   leagueStore.currentLeague =
-    overrides.currentLeague !== undefined ? overrides.currentLeague : mockLeague;
+    overrides.currentLeague !== undefined
+      ? overrides.currentLeague
+      : mockLeague;
 
   return {
     wrapper: mount(DashboardHero, {
@@ -99,7 +101,9 @@ function mountHero(
             ? overrides.currentLeague
             : mockLeague,
         currentTeam:
-          overrides.currentTeam !== undefined ? overrides.currentTeam : mockTeam,
+          overrides.currentTeam !== undefined
+            ? overrides.currentTeam
+            : mockTeam,
         summary:
           overrides.summary !== undefined ? overrides.summary : mockSummary,
       },
@@ -177,23 +181,31 @@ describe("DashboardHero.vue", () => {
 
   describe("featured-card carousel", () => {
     it("renders the featured-card-wrapper when summary is provided", () => {
-      expect(mountHero().wrapper.find(".featured-card-wrapper").exists()).toBe(true);
+      expect(mountHero().wrapper.find(".featured-card-wrapper").exists()).toBe(
+        true
+      );
     });
 
     it("does NOT render featured-card-wrapper when summary is null", () => {
       expect(
-        mountHero({ summary: null }).wrapper.find(".featured-card-wrapper").exists()
+        mountHero({ summary: null })
+          .wrapper.find(".featured-card-wrapper")
+          .exists()
       ).toBe(false);
     });
 
     it("renders the skeleton card when summary is null", () => {
       expect(
-        mountHero({ summary: null }).wrapper.find(".featured-card--skeleton").exists()
+        mountHero({ summary: null })
+          .wrapper.find(".featured-card--skeleton")
+          .exists()
       ).toBe(true);
     });
 
     it("does not render the skeleton card when summary is provided", () => {
-      expect(mountHero().wrapper.find(".featured-card--skeleton").exists()).toBe(false);
+      expect(
+        mountHero().wrapper.find(".featured-card--skeleton").exists()
+      ).toBe(false);
     });
 
     it("renders four dot indicators", () => {
@@ -240,7 +252,9 @@ describe("DashboardHero.vue", () => {
 
     it("shows 'Yesterday's Points' label in the first featured card", () => {
       const { wrapper } = mountHero();
-      expect(wrapper.find(".featured-label").text()).toContain("Yesterday's Points");
+      expect(wrapper.find(".featured-label").text()).toContain(
+        "Yesterday's Points"
+      );
     });
 
     it("shows the summary value in the featured-value element", () => {
@@ -265,7 +279,9 @@ describe("DashboardHero.vue", () => {
     it("renders the Buy Articles button", () => {
       const { wrapper } = mountHero();
       expect(
-        wrapper.findAll("ion-button").some((b) => b.text().includes("Buy Articles"))
+        wrapper
+          .findAll("ion-button")
+          .some((b) => b.text().includes("Buy Articles"))
       ).toBe(true);
     });
   });

@@ -24,7 +24,13 @@ import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
 import DashboardHero from "@/modules/TeamDashboard/DashboardHero.vue";
 import InBox from "@/modules/InBox.vue";
 import { useLeagueStore } from "@/stores/league";
-import type { DashboardSummary, League, Team, Notification, TradeProposal } from "@/types/models";
+import type {
+  DashboardSummary,
+  League,
+  Team,
+  Notification,
+  TradeProposal,
+} from "@/types/models";
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -154,9 +160,9 @@ describe("InBox.vue", () => {
     });
 
     it("bell-wrapper contains the button", () => {
-      expect(
-        mountHero().find(".bell-wrapper .bell-icon-btn").exists()
-      ).toBe(true);
+      expect(mountHero().find(".bell-wrapper .bell-icon-btn").exists()).toBe(
+        true
+      );
     });
 
     it("renders the default bell trigger button when mounted standalone", () => {
@@ -165,19 +171,27 @@ describe("InBox.vue", () => {
     });
 
     it("does not show a bell-badge when badgeCount is 0", () => {
-      expect(mountInBox({ badgeCount: 0 }).find(".bell-badge").exists()).toBe(false);
+      expect(mountInBox({ badgeCount: 0 }).find(".bell-badge").exists()).toBe(
+        false
+      );
     });
 
     it("shows a bell-badge when badgeCount > 0", () => {
-      expect(mountInBox({ badgeCount: 2 }).find(".bell-badge").exists()).toBe(true);
+      expect(mountInBox({ badgeCount: 2 }).find(".bell-badge").exists()).toBe(
+        true
+      );
     });
 
     it("caps the badge display at '9+' when badgeCount > 9", () => {
-      expect(mountInBox({ badgeCount: 15 }).find(".bell-badge").text()).toBe("9+");
+      expect(mountInBox({ badgeCount: 15 }).find(".bell-badge").text()).toBe(
+        "9+"
+      );
     });
 
     it("shows the exact count when badgeCount is between 1 and 9", () => {
-      expect(mountInBox({ badgeCount: 5 }).find(".bell-badge").text()).toBe("5");
+      expect(mountInBox({ badgeCount: 5 }).find(".bell-badge").text()).toBe(
+        "5"
+      );
     });
   });
 
@@ -228,7 +242,9 @@ describe("InBox.vue", () => {
     it("IonPopover isOpen returns to false after did-dismiss event", async () => {
       const wrapper = mountInBox({ badgeCount: 1 });
       await wrapper.find(".bell-btn").trigger("click");
-      await wrapper.findComponent({ name: "IonPopover" }).trigger("did-dismiss");
+      await wrapper
+        .findComponent({ name: "IonPopover" })
+        .trigger("did-dismiss");
       expect(
         wrapper.findComponent({ name: "IonPopover" }).props("isOpen")
       ).toBe(false);
@@ -236,7 +252,10 @@ describe("InBox.vue", () => {
 
     it("exposes openInbox() which sets isOpen to true", async () => {
       const wrapper = mountInBox();
-      const vm = wrapper.vm as unknown as { openInbox: () => void; isOpen: boolean };
+      const vm = wrapper.vm as unknown as {
+        openInbox: () => void;
+        isOpen: boolean;
+      };
       vm.openInbox();
       await wrapper.vm.$nextTick();
       expect(
@@ -277,7 +296,9 @@ describe("InBox.vue", () => {
     it("IonPopover isOpen returns to false after did-dismiss in DashboardHero", async () => {
       const wrapper = mountHero();
       await wrapper.find(".bell-icon-btn").trigger("click");
-      await wrapper.findComponent({ name: "IonPopover" }).trigger("did-dismiss");
+      await wrapper
+        .findComponent({ name: "IonPopover" })
+        .trigger("did-dismiss");
       expect(
         wrapper.findComponent({ name: "IonPopover" }).props("isOpen")
       ).toBe(false);
@@ -345,7 +366,9 @@ describe("InBox.vue", () => {
         incomingPending: Array<{ fromUsername: string }>;
       };
       const names = vm.incomingPending.map((p) => p.fromUsername);
-      expect(names.some((n) => ["WikiMaster", "DataKing"].includes(n))).toBe(true);
+      expect(names.some((n) => ["WikiMaster", "DataKing"].includes(n))).toBe(
+        true
+      );
     });
 
     it("pendingCount equals incomingPending.length", async () => {
@@ -408,7 +431,11 @@ describe("InBox.vue", () => {
         createdAt: new Date().toISOString(),
         fromUsername: "WikiMaster",
         requestedArticle: { id: "art-7", name: "Python", basePrice: 950 },
-        offeredArticle: { id: "art-11", name: "Albert Einstein", basePrice: 850 },
+        offeredArticle: {
+          id: "art-11",
+          name: "Albert Einstein",
+          basePrice: 850,
+        },
         contractTier: "2 Weeks",
       } as Notification & TradeProposal;
 

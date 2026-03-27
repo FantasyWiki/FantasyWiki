@@ -34,7 +34,7 @@
       <ion-content class="ion-no-padding">
         <!-- Header -->
         <ion-toolbar color="light" class="inbox-toolbar">
-          <ion-title slot="start" class="inbox-title">Trade Inbox</ion-title>
+          <ion-title slot="start" class="inbox-title">Notification Inbox</ion-title>
 
           <div slot="end" class="ion-padding-end inbox-header-end">
             <ion-badge
@@ -114,10 +114,6 @@
             :detail="false"
           >
             <div class="ion-padding-vertical notification-row">
-              <!-- Avatar / league icon -->
-              <div class="notification-avatar">
-                <span>{{ leagueIcon ?? "🌐" }}</span>
-              </div>
 
               <!-- Info -->
               <div class="notification-info">
@@ -152,11 +148,11 @@
 
                 <!-- Contract tier chip -->
                 <ion-chip
-                  :color="getTierColor(notification.contractTier)"
+                  :color="getTierColor(notification.)"
                   outline
                   class="tier-chip"
                 >
-                  <ion-label>{{ notification.contractTier }}</ion-label>
+                  <ion-label>{{ notification.contract.contractTier }}</ion-label>
                 </ion-chip>
               </div>
 
@@ -170,15 +166,6 @@
                   @click="handleAccept(notification.id)"
                 >
                   <ion-icon :icon="checkmarkOutline" slot="icon-only" />
-                </ion-button>
-                <ion-button
-                  fill="outline"
-                  color="danger"
-                  size="small"
-                  :disabled="actioning"
-                  @click="handleReject(notification.id)"
-                >
-                  <ion-icon :icon="closeOutline" slot="icon-only" />
                 </ion-button>
               </div>
             </div>
@@ -239,7 +226,7 @@ interface Props {
   /** Incoming pending notifications to display. */
   notifications: Notification[];
   /** Total badge count shown on the trigger button. */
-  badgeCount?: number;
+  badgeCount: number;
   /** Number of outgoing pending notifications (shown as a footer hint). */
   outgoingCount?: number;
   /** League icon emoji shown on notification avatars and the league chip. */
@@ -357,7 +344,7 @@ function getTierColor(tier: string): string {
 }
 
 .inbox-title {
-  font-family: var(--font-family-headings);
+  font-family: var(--font-family-headings), serif;
   font-size: 1rem;
   font-weight: 700;
   padding-inline-start: 1rem;

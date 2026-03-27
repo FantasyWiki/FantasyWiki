@@ -53,7 +53,7 @@
                 Buy Articles
               </ion-button>
 
-              <inbox
+              <in-box
                 ref="inboxRef"
                 :notifications="currentLeagueUnread"
                 :badge-count="totalBadgeCount"
@@ -65,7 +65,7 @@
                 @accept="handleAccept"
                 @reject="handleReject"
               />
-          </div>
+            </div>
           </div>
         </ion-col>
 
@@ -129,7 +129,7 @@
                   <!-- Dot indicators -->
                   <div class="carousel-dots">
                     <button
-                      v-for="(i) in allStats.length"
+                      v-for="i in allStats.length"
                       :key="i"
                       class="dot"
                       :class="{ 'dot--active': activeIndex === i }"
@@ -200,7 +200,6 @@
       </ion-row>
     </ion-grid>
   </div>
-
 </template>
 
 <script setup lang="ts">
@@ -228,7 +227,7 @@ import {
   trendingUpOutline,
   trophyOutline,
 } from "ionicons/icons";
-import Inbox from "@/modules/Inbox.vue";
+import InBox from "@/modules/InBox.vue";
 import { useTrades } from "@/stores/useTrades";
 import { useNotifications } from "@/stores/useNotifications";
 import type { DashboardSummary, League, Team } from "@/types/models";
@@ -253,14 +252,17 @@ const {
 } = useTrades();
 
 const outgoingCount = computed(
-  () => (proposals.value ?? []).filter((p) => p.type === "outgoing" && p.status === "pending").length
+  () =>
+    (proposals.value ?? []).filter(
+      (p) => p.type === "outgoing" && p.status === "pending"
+    ).length
 );
 
 const { currentLeagueUnread } = useNotifications();
 const totalBadgeCount = computed(() => currentLeagueUnread.value.length);
 
 // ── Inbox ref ─────────────────────────────────────────────────────────────────
-const inboxRef = ref<InstanceType<typeof Inbox> | null>(null);
+const inboxRef = ref<InstanceType<typeof InBox> | null>(null);
 
 async function handleAccept(id: string) {
   await accept(id);
@@ -428,7 +430,7 @@ onUnmounted(() => {
 }
 
 .team-name {
-  font-family: var(--font-family-headings),serif;
+  font-family: var(--font-family-headings), serif;
   font-size: clamp(1.5rem, 5vw, 2.25rem);
   font-weight: 700;
   color: var(--ion-text-color);
@@ -561,7 +563,7 @@ onUnmounted(() => {
 }
 
 .featured-value {
-  font-family: var(--font-family-headings),serif;
+  font-family: var(--font-family-headings), serif;
   font-size: 2.25rem;
   font-weight: 700;
   color: var(--ion-text-color);
@@ -675,7 +677,7 @@ onUnmounted(() => {
 }
 
 .small-stat__value {
-  font-family: var(--font-family-headings),serif;
+  font-family: var(--font-family-headings), serif;
   font-size: 0.9rem;
   font-weight: 700;
   color: var(--ion-text-color);
@@ -734,5 +736,4 @@ onUnmounted(() => {
   height: 2rem;
   margin: 0;
 }
-
 </style>

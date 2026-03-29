@@ -50,7 +50,7 @@
     "plop": "^4.0.4",
     "prettier": "^3.8.1",
     "terser": "^5.4.0",
-    "typescript": "~5.9.0",
+    "typescript": "~6.0.0",
     "typescript-eslint": "^8.57.2",
     "vite": "^7.3.0",
     "vitest": "^4.0.16",

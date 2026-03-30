@@ -32,3 +32,10 @@ tasks.register("check") {
         "npm_run_test-unit",
     )
 }
+
+tasks.register("fix") {
+    dependsOn(
+        "npm_run_formatfix",
+        "npm_run_lintfix",
+    )
+}

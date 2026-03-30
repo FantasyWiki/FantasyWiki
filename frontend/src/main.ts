@@ -47,7 +47,7 @@ const queryClient = new QueryClient({
 //   3. mount() is the last thing called.
 async function bootstrap() {
   // Step 1 — start MSW in dev so it intercepts every fetch from the start.
-  if (import.meta.env.VITE_MOCK === 'true') {
+  if (import.meta.env.VITE_MOCK === "true") {
     const { worker } = await import("./mocks/browser");
     // worker.start() resolves when the service worker is both registered
     // and activated — safe to mount immediately after.

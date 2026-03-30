@@ -5,7 +5,7 @@ import { League } from "../../../model";
 const leagues = new Hono();
 
 leagues.get("/", async (c) => {
-  const allLeagues: League[] = getLeagues('DUMMY_ID');
+  const allLeagues: League[] = getLeagues("DUMMY_ID");
   return c.json(allLeagues);
 });
 

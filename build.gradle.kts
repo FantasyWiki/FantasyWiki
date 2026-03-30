@@ -23,4 +23,11 @@ tasks.register("dev") {
     )
 }
 
+tasks.register("fix") {
+    dependsOn(
+        ":frontend:fix",
+        ":backend:fix",
+    )
+}
+
 group = "io.github.FantasyWiki"

@@ -10,9 +10,9 @@
     "deploy": "wrangler deploy --minify",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "format": "prettier --check .",
-    "format:fix": "prettier --write .",
+    "formatfix": "prettier --write .",
     "lint": "eslint .",
-    "lint:fix": "eslint --fix ."
+    "lintfix": "eslint --fix ."
   },
   "dependencies": {
     "@hono/oauth-providers": "^0.8.5",

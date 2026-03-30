@@ -14,8 +14,9 @@
     "test-unit": "vitest run",
     "hot-test": "vitest",
     "lint": "eslint . --cache",
+    "lintfix": "eslint --fix",
     "format": "prettier --check .",
-    "format:fix": "prettier --write .",
+    "formatfix": "prettier --write .",
     "g:component": "plop component"
   },
   "dependencies": {

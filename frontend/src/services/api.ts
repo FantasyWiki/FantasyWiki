@@ -12,7 +12,7 @@ import type {
 } from "@/types/models";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+  import.meta.env.VITE_BACKEND_URL + '/api' || "http://localhost:4000/api";
 
 async function apiRequest<T>(
   endpoint: string,
@@ -20,6 +20,7 @@ async function apiRequest<T>(
 ): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...options.headers,

@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { jwt } from "hono/jwt";
 import auth from "./routes/auth";
 import session from "./routes/session";
+import leagues from "./routes/leagues";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -40,5 +41,8 @@ app.use("/api/*", async (c, next) => {
 
 // Mount session routes
 app.route("/api/session", session);
+
+// Mount leagues routes
+app.route("/api/leagues", leagues);
 
 export default app;

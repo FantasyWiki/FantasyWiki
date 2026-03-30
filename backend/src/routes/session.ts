@@ -9,7 +9,7 @@ type Bindings = {
 const session = new Hono<{ Bindings: Bindings }>();
 
 session.get("/", async (c) => {
-  const payload: JWTPayload = c.get("jwtPayload");
+  const payload: JWTPayload = c.get("jwtPayload") as JWTPayload;
   return c.json({
     sub: payload.sub,
     email: payload.email,

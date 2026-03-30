@@ -33,6 +33,7 @@
             size="small"
             shape="round"
             @click="openLeaguePopover($event)"
+            v-if="appStore.isAuthenticated"
           >
             <ion-label>{{ leagueStore.currentLeague?.icon ?? "" }}</ion-label>
             <ion-label class="ion-hide-md-down">
@@ -209,6 +210,7 @@ import LoginPage from "@/views/auth/LoginPage.vue";
 import { useAppStore } from "@/stores/app";
 import { useLeagueStore } from "@/stores/league";
 import { useNotifications } from "@/stores/useNotifications";
+import { League } from "@/types/models";
 
 const router = useRouter();
 const route = useRoute();
@@ -244,7 +246,7 @@ function openLangPopover(e: MouseEvent) {
   langPopoverOpen.value = true;
 }
 
-function selectLeague(lg: (typeof leagueStore.availableLeagues)[0]) {
+function selectLeague(lg: League) {
   leagueStore.setCurrentLeague(lg);
   leaguePopoverOpen.value = false;
 }
@@ -279,7 +281,7 @@ const handleAuth = async () => {
 };
 
 onMounted(async () => {
-  if (!leagueStore.currentLeague) {
+  if (appStore.isAuthenticated && !leagueStore.currentLeague) {
     await leagueStore.initialize();
   }
 });

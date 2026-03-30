@@ -5,4 +5,5 @@ export interface TeamDTO {
   name: string;
   credits: number;
   player: PlayerDTO;
+  points: number;
 }

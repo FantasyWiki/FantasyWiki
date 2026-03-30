@@ -1,8 +1,9 @@
 import { Temporal } from "@js-temporal/polyfill";
+import { ContractDTO } from "./contractDTO";
 
 export interface NotificationDTO {
   id: string;
-  contractId: string;
+  contract: ContractDTO;
   message: string;
   date: Temporal.PlainDate;
   isRead: boolean;

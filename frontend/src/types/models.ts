@@ -1,27 +1,4 @@
-// frontend/src/types/models.ts
 
-export interface Article {
-  id: string;
-  name: string;
-  domain: string;
-}
-
-export interface League {
-  id: string;
-  name: string;
-  icon: string;
-  season: string;
-  language: string;
-  totalPlayers: number;
-  endDate: string;
-}
-
-export interface Player {
-  id: string;
-  username: string;
-  email: string;
-  createdAt: string;
-}
 
 export interface Team {
   id: string;

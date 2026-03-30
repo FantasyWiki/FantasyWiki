@@ -11,8 +11,7 @@ import type {
   TradeProposal,
 } from "@/types/models";
 
-const API_BASE_URL =
-  import.meta.env.VITE_BACKEND_URL + "/api" || "http://localhost:4000/api";
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL + "/api";
 
 async function apiRequest<T>(
   endpoint: string,

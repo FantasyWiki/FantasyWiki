@@ -140,8 +140,7 @@ export const useAppStore = defineStore("app", () => {
     currentUser.value = null;
 
     // Clear HTTP-only cookie by calling backend
-    const BACKEND_URL =
-      import.meta.env.VITE_BACKEND_URL || "http://localhost:8787";
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     fetch(`${BACKEND_URL}/api/session`, {
       method: "DELETE",
       credentials: "include",

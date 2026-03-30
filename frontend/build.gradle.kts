@@ -19,6 +19,11 @@ tasks.named<NpmTask>("npm_audit") {
     args.set(listOf("--omit=dev"))
 }
 
+tasks.register<NpmTask>("devNoMock") {
+    npmCommand.set(listOf("run", "dev"))
+    environment.set(mapOf("VITE_MOCK" to "false"))
+}
+
 tasks.register("check") {
     dependsOn(
         "npm_audit",

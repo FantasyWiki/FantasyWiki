@@ -1,7 +1,6 @@
 import { http, HttpResponse } from "msw";
 import type {
   Article,
-  Contract,
   DashboardData,
   LeaderboardEntry,
   League,
@@ -11,6 +10,7 @@ import type {
   TradeProposal,
 } from "@/types/models";
 
+import type {Contract} from "@/types/team"
 // =============================================================================
 // MOCK DATA
 // =============================================================================
@@ -221,79 +221,21 @@ const teams: Team[] = [
 // ── Contracts ─────────────────────────────────────────────────────────────────
 // Mutable at runtime — POST and DELETE handlers update this array.
 
-const contracts: (Contract & { articleId: string })[] = [
-  {
-    id: "ctr-1",
-    teamId: "team-1",
-    leagueId: "italy",
-    articleId: "art-1",
-    purchasePrice: 150,
-    currentPrice: 165,
-    yesterdayPoints: 45,
-    expiresIn: 2,
-    tier: "MEDIUM",
-    article: articles[0],
-  },
-  {
-    id: "ctr-2",
-    teamId: "team-1",
-    leagueId: "italy",
-    articleId: "art-2",
-    purchasePrice: 120,
-    currentPrice: 115,
-    yesterdayPoints: 38,
-    expiresIn: 5,
-    tier: "MEDIUM",
-    article: articles[1],
-  },
-  {
-    id: "ctr-3",
-    teamId: "team-1",
-    leagueId: "italy",
-    articleId: "art-3",
-    purchasePrice: 200,
-    currentPrice: 220,
-    yesterdayPoints: 42,
-    expiresIn: 1,
-    tier: "LONG",
-    article: articles[2],
-  },
-  {
-    id: "ctr-4",
-    teamId: "team-1",
-    leagueId: "italy",
-    articleId: "art-4",
-    purchasePrice: 80,
-    currentPrice: 85,
-    yesterdayPoints: 2,
-    expiresIn: 7,
-    tier: "SHORT",
-    article: articles[3],
-  },
-  {
-    id: "ctr-5",
-    teamId: "team-2",
-    leagueId: "global",
-    articleId: "art-5",
-    purchasePrice: 180,
-    currentPrice: 195,
-    yesterdayPoints: 52,
-    expiresIn: 10,
-    tier: "LONG",
-    article: articles[4],
-  },
-  {
-    id: "ctr-6",
-    teamId: "team-2",
-    leagueId: "global",
-    articleId: "art-6",
-    purchasePrice: 140,
-    currentPrice: 155,
-    yesterdayPoints: 48,
-    expiresIn: 4,
-    tier: "MEDIUM",
-    article: articles[5],
-  },
+const contracts: (Contract & { articleId: number })[] = [
+  { id: 1, word: "Bitcoin", points: 45, weeklyDelta: +3 },
+  { id: 2, word: "AI", points: 62, weeklyDelta: +8 },
+  { id: 3, word: "Climate Change", points: 38, weeklyDelta: -2 },
+  { id: 4, word: "Machine Learning", points: 51, weeklyDelta: +12 },
+  { id: 5, word: "Python", points: 29 },
+  { id: 6, word: "TypeScript", points: 33, weeklyDelta: +1 },
+  { id: 7, word: "JavaScript", points: 41, weeklyDelta: +5 },
+  { id: 8, word: "React", points: 36 },
+  { id: 9, word: "Wikipedia", points: 55, weeklyDelta: +20 },
+  { id: 10, word: "Blockchain", points: 28, weeklyDelta: -4 },
+  { id: 11, word: "SpaceX", points: 47, weeklyDelta: +6 },
+  { id: 12, word: "Ethereum", points: 31 },
+  { id: 13, word: "Solar Energy", points: 22, weeklyDelta: +2 },
+  { id: 14, word: "Electric Vehicles", points: 19 },
 ];
 
 // ── Leaderboards ──────────────────────────────────────────────────────────────
@@ -865,4 +807,52 @@ export const handlers = [
       },
     });
   }),
+
+  http.get("*/api/leagues/:leagueId/teams/:userId", () =>
+    HttpResponse.json({
+      formation: "4-3-3",
+      slots: {
+        LW: 1,
+        ST: 2,
+        RW: 3,
+        CLM: 4,
+        CM: 5,
+        CRM: 6,
+        LB: 7,
+        CLB: 8,
+        CRB: 9,
+        RB: 10,
+        GK: 11,
+      },
+      bench: [12, 13, 14],
+    })
+  ),
+
+  http.get("*/api/contracts", ({ request }) => {
+    const ids =
+      new URL(request.url).searchParams.get("ids")?.split(",").map(Number) ??
+      [];
+    const all: Contract[] = [
+      { id: 1, word: "Bitcoin", points: 45, weeklyDelta: +3 },
+      { id: 2, word: "AI", points: 62, weeklyDelta: +8 },
+      { id: 3, word: "Climate Change", points: 38, weeklyDelta: -2 },
+      { id: 4, word: "Machine Learning", points: 51, weeklyDelta: +12 },
+      { id: 5, word: "Python", points: 29 },
+      { id: 6, word: "TypeScript", points: 33, weeklyDelta: +1 },
+      { id: 7, word: "JavaScript", points: 41, weeklyDelta: +5 },
+      { id: 8, word: "React", points: 36 },
+      { id: 9, word: "Wikipedia", points: 55, weeklyDelta: +20 },
+      { id: 10, word: "Blockchain", points: 28, weeklyDelta: -4 },
+      { id: 11, word: "SpaceX", points: 47, weeklyDelta: +6 },
+      { id: 12, word: "Ethereum", points: 31 },
+      { id: 13, word: "Solar Energy", points: 22, weeklyDelta: +2 },
+      { id: 14, word: "Electric Vehicles", points: 19 },
+    ];
+    return HttpResponse.json(all.filter((c) => ids.includes(c.id)));
+  }),
+
+  http.put(
+    "*/api/leagues/:leagueId/teams/:userId",
+    () => new HttpResponse(null, { status: 204 })
+  ),
 ];

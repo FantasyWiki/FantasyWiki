@@ -1,10 +1,10 @@
 import { createRouter, createWebHistory } from "@ionic/vue-router";
 import { RouteRecordRaw } from "vue-router";
-import HomeMock from "@/views/MockHome.vue";
 import TeamDashboard from "@/views/TeamDashboard.vue";
 import HomePage from "@/views/home-page/HomePage.vue";
 import AuthCallbackPage from "@/views/auth/AuthCallbackPage.vue";
-
+import TeamPage from "@/views/TeamPage.vue";
+import MockHome from "@/views/MockHome.vue";
 const routes: Array<RouteRecordRaw> = [
   {
     path: "/",
@@ -16,13 +16,18 @@ const routes: Array<RouteRecordRaw> = [
     component: TeamDashboard,
   },
   {
+    path: "/team",
+    name: "Team",
+    component: TeamPage,
+  },
+  {
     path: "/how-it-works",
     redirect: "/home",
   },
   {
     path: "/leagues",
     name: "Leagues",
-    component: HomeMock,
+    component: MockHome,
   },
   {
     path: "/community",

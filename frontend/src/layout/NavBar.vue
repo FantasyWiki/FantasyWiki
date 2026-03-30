@@ -27,8 +27,8 @@
 
         <!-- Right Actions -->
         <div slot="end" class="actions-container">
-          <!-- League Selector -->
           <ion-button
+            id="league-selector"
             fill="solid"
             size="small"
             shape="round"

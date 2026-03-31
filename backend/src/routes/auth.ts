@@ -14,6 +14,12 @@ type Bindings = {
 const auth = new Hono<{ Bindings: Bindings }>();
 
 auth.use("/google", async (c, next) => {
+  if (!c.env.GOOGLE_CLIENT_ID) {
+    return c.json({ error: 'Missing OAuth GOOGLE_CLIENT_ID' }, 500);
+  }
+  if (!c.env.GOOGLE_CLIENT_SECRET) {
+    return c.json({ error: 'Missing OAuth GOOGLE_CLIENT_SECRET' }, 500);
+  }
   const handler = googleAuth({
     client_id: c.env.GOOGLE_CLIENT_ID,
     client_secret: c.env.GOOGLE_CLIENT_SECRET,

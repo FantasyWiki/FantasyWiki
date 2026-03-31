@@ -9,7 +9,15 @@ type Bindings = {
   GOOGLE_CLIENT_SECRET: string;
   JWT_SECRET: string;
   FRONTEND_URL: string;
+  WORKERS_CI_BRANCH: string;
 };
+
+export function resolveFrontendUrl(env: Bindings): string {
+  if (env.WORKERS_CI_BRANCH) {
+    return env.WORKERS_CI_BRANCH + '.' + env.FRONTEND_URL;
+  }
+  return env.FRONTEND_URL;
+}
 
 const auth = new Hono<{ Bindings: Bindings }>();
 
@@ -32,8 +40,8 @@ auth.get("/google", async (c) => {
   const token = c.get("token");
   const user = c.get("user-google");
 
+  const frontendUrl = resolveFrontendUrl(c.env);
   if (!token || !user) {
-    const frontendUrl = c.env.FRONTEND_URL || "http://localhost:5173";
     return c.redirect(`${frontendUrl}/home?error=auth_failed`);
   }
 
@@ -52,7 +60,6 @@ auth.get("/google", async (c) => {
     sameSite: "Lax", // 'Lax' is better for OAuth redirects
     path: "/",
   });
-  const frontendUrl = c.env.FRONTEND_URL || "http://localhost:5173";
   return c.redirect(`${frontendUrl}/auth/callback`);
 });
 

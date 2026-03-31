@@ -1,3 +1,4 @@
+import { resolveBackendUrl } from "@/services/api";
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 
@@ -140,7 +141,7 @@ export const useAppStore = defineStore("app", () => {
     currentUser.value = null;
 
     // Clear HTTP-only cookie by calling backend
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+    const BACKEND_URL = resolveBackendUrl();
     fetch(`${BACKEND_URL}/api/session`, {
       method: "DELETE",
       credentials: "include",

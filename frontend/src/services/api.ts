@@ -11,7 +11,17 @@ import type {
   TradeProposal,
 } from "@/types/models";
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL + "/api";
+export function resolveBackendUrl(): string {
+  const branch = import.meta.env.WORKERS_CI_BRANCH;
+  const backend = import.meta.env.VITE_BACKEND_URL;
+  console.log("Resolved backend URL:", backend, "Branch:", branch);
+  if (branch) {
+    return branch + '-' + backend;
+  }
+  return backend;
+}
+
+const API_BASE_URL = resolveBackendUrl() + "/api";
 
 async function apiRequest<T>(
   endpoint: string,

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { jwt } from "hono/jwt";
-import auth from "./routes/auth";
+import auth, { resolveFrontendUrl } from "./routes/auth";
 import session from "./routes/session";
 import leagues from "./routes/leagues";
 
@@ -12,6 +12,7 @@ type Bindings = {
   GOOGLE_CLIENT_SECRET: string;
   JWT_SECRET: string;
   FRONTEND_URL: string;
+  WORKERS_CI_BRANCH: string;
 };
 
 app.use(
@@ -23,7 +24,7 @@ app.use(
 );
 
 app.get("/", (c) => {
-  return c.text("Hello Hono!");
+  return c.text(resolveFrontendUrl(c.env));
 });
 
 // Mount auth routes

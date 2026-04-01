@@ -2,51 +2,8 @@ import type { ContractDTO } from "../../../dto/contractDTO";
 import type { LeagueDTO } from "../../../dto/leagueDTO";
 import type { TeamDTO } from "../../../dto/teamDTO";
 import type { NotificationDTO } from "../../../dto/notificationDTO";
-import { notifications } from "ionicons/icons";
 
 const MAX_CONTRACTS = 22
-
-export interface Team {
-  id: string;
-  name: string;
-  playerId: string;
-  leagueId: string;
-  credits: number;
-  totalValue: number;
-  rank: number;
-  points: number;
-  yesterdayPoints: number;
-  pointsChange: number;
-}
-
-export interface Contract {
-  id: string;
-  teamId: string;
-  leagueId: string;
-  purchasePrice: number;
-  currentPrice: number;
-  yesterdayPoints: number;
-  expiresIn: number;
-  tier: "SHORT" | "MEDIUM" | "LONG";
-  article: Article;
-}
-
-export interface LeaderboardEntry {
-  rank: number;
-  teamId: string;
-  playerId: string;
-  username: string;
-  teamName: string;
-  points: number;
-  change: number;
-  isCurrentUser: boolean;
-}
-
-export function DashboardSummary {
-  yesterdayPoints: number;
-  pointsChange: number;
-}
-
 
 export class DashboardData {
   team: TeamDTO;
@@ -83,7 +40,9 @@ export class DashboardData {
       .findIndex(t => t.id === this.team.id) + 1;
   }
 
-
+  //this data should be computed after fetching the points data
+  //yesterdayPoints: number;
+  //pointsChange: number;
 
 }
 

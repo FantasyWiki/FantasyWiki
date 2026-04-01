@@ -215,7 +215,7 @@ import {
   mailOpenOutline,
   notificationsOutline,
 } from "ionicons/icons";
-import type { Notification } from "@/types/models";
+import type { NotificationDTO } from "@/types/";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 // All data is passed in from the parent — this component is purely presentational

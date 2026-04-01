@@ -52,7 +52,7 @@
       <dashboard-hero
         :current-league="currentLeague"
         :current-team="team"
-        :summary="summary"
+        :data="summary"
       />
 
       <ion-grid class="content-grid ion-no-padding">

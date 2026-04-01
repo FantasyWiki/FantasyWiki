@@ -11,7 +11,7 @@ export abstract class formationSchema {
   abstract readonly schema: schema;
 
 }
-
+/*
 export class Formation433 extends formationSchema {
   schema: "4-3-3";
   gk: ArticleDTO;
@@ -26,4 +26,4 @@ export class Formation433 extends formationSchema {
   st: ArticleDTO;
   rw: ArticleDTO;
 
-}
+}*/

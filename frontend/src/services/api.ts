@@ -1,11 +1,12 @@
 // frontend/src/services/api.ts
-import { DashboardData } from "@/types/models";
+import { DashboardData, TeamPointsData } from "@/types/models";
 import { PlayerDTO } from "../../../dto/playerDTO";
 import { LeagueDTO } from "../../../dto/leagueDTO";
 import { NotificationDTO } from "../../../dto/notificationDTO";
 import { TeamDTO } from "../../../dto/teamDTO";
 import { ContractDTO } from "../../../dto/contractDTO";
 import { ArticleDTO } from "../../../dto/articleDTO";
+import { PerformanceDTO } from "../../../dto/performanceDTO";
 import { Temporal } from "@js-temporal/polyfill";
 
 const API_BASE_URL =
@@ -58,6 +59,21 @@ export const leaguesApi = {
   /** All notifications for the current player in this league */
   getMyNotifications: (id: string) =>
     apiRequest<NotificationDTO[]>(`/leagues/${id}/notifications`),
+
+  // ── Performance ────────────────────────────────────────────────────────────
+
+  getPerformances: (id: string, limit = 2) =>
+    apiRequest<PerformanceDTO[]>(`/leagues/${id}/performances?limit=${limit}`),
+
+  async getRecentPoints(id: string): Promise<TeamPointsData> {
+    const [yesterday, twoDaysAgo] = await apiRequest<PerformanceDTO[]>(
+      `/leagues/${id}/performances?limit=2`
+    );
+    return {
+      yesterdayPoints: yesterday?.points ?? 0,
+      pointsChange: (yesterday?.points ?? 0) - (twoDaysAgo?.points ?? 0),
+    };
+  }
 };
 
 
@@ -81,6 +97,7 @@ export const teamsApi = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+
 };
 
 // ── Contracts ─────────────────────────────────────────────────────────────────
@@ -114,14 +131,15 @@ export const articlesApi = {
 export const dashboardApi = {
   async getDashboardData( league: LeagueDTO): Promise<DashboardData> {
 
-    const [team, contracts, notifications] = await Promise.all([
+    const [team, contracts, notifications,recentPoints] = await Promise.all([
       leaguesApi.getMyTeam(league.id),
       leaguesApi.getMyContracts(league.id),
       leaguesApi.getMyNotifications(league.id),
+      leaguesApi.getRecentPoints(league.id),
     ]);
 
     // Shape the resolved values into DashboardData
-    return new DashboardData( team,league, contracts, notifications );  }
+    return new DashboardData( team,league, contracts, notifications, recentPoints );  }
 };
 
 // ── Session ───────────────────────────────────────────────────────────────────

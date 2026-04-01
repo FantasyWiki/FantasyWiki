@@ -92,7 +92,7 @@ export function useNotifications() {
     isLoading,
     refetch,
     unreadCount,
-    currentLeagueUnread,
+    notificationStore: currentLeagueUnread,
     currentLeagueUnreadCount,
     unreadCountByLeague,
     markAsRead,

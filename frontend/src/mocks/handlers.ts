@@ -1,15 +1,14 @@
 import { http, HttpResponse } from "msw";
+import { Temporal } from "@js-temporal/polyfill";
 import type {
-  Article,
-  Contract,
   DashboardData,
-  LeaderboardEntry,
-  League,
-  Notification,
-  Player,
-  Team,
-  TradeProposal,
 } from "@/types/models";
+import type { ArticleDTO } from "../../../dto/articleDTO";
+import type { LeagueDTO } from "../../../dto/leagueDTO";
+import type { TeamDTO } from "../../../dto/teamDTO";
+import type { PlayerDTO } from "../../../dto/playerDTO";
+import type { ContractDTO } from "../../../dto/contractDTO";
+import type { NotificationDTO } from "../../../dto/notificationDTO";
 
 // =============================================================================
 // MOCK DATA
@@ -17,32 +16,30 @@ import type {
 
 // ── Articles ──────────────────────────────────────────────────────────────────
 
-const articles: Article[] = [
-  { id: "art-1", name: "Bitcoin", domain: "itwiki" },
-  { id: "art-2", name: "Ethereum", domain: "itwiki" },
-  { id: "art-3", name: "Intelligenza Artificiale", domain: "itwiki" },
-  { id: "art-4", name: "Machine Learning", domain: "itwiki" },
-  { id: "art-5", name: "Cloud Computing", domain: "itwiki" },
-  { id: "art-6", name: "Blockchain", domain: "itwiki" },
-  { id: "art-7", name: "Python", domain: "itwiki" },
-  { id: "art-8", name: "JavaScript", domain: "itwiki" },
-  { id: "art-9", name: "React", domain: "itwiki" },
-  { id: "art-10", name: "TypeScript", domain: "itwiki" },
-  { id: "art-11", name: "Albert Einstein", domain: "enwiki" },
-  { id: "art-12", name: "Artificial Intelligence", domain: "enwiki" },
+const articles: ArticleDTO[] = [
+  { id: "art-1", title: "Bitcoin", domain: "itwiki" },
+  { id: "art-2", title: "Ethereum", domain: "itwiki" },
+  { id: "art-3", title: "Intelligenza Artificiale", domain: "itwiki" },
+  { id: "art-4", title: "Machine Learning", domain: "itwiki" },
+  { id: "art-5", title: "Cloud Computing", domain: "itwiki" },
+  { id: "art-6", title: "Blockchain", domain: "itwiki" },
+  { id: "art-7", title: "Python", domain: "itwiki" },
+  { id: "art-8", title: "JavaScript", domain: "itwiki" },
+  { id: "art-9", title: "React", domain: "itwiki" },
+  { id: "art-10", title: "TypeScript", domain: "itwiki" },
+  { id: "art-11", title: "Albert Einstein", domain: "enwiki" },
+  { id: "art-12", title: "Artificial Intelligence", domain: "enwiki" },
 ];
 
 // ── Leagues ───────────────────────────────────────────────────────────────────
 
-const leagues: League[] = [
+const leagues: LeagueDTO[] = [
   {
     id: "global",
-    name: "Global League",
+    title: "Global League",
     icon: "🌍",
-    season: "2024",
-    language: "All Languages",
-    totalPlayers: 10523,
-    endDate: "Mar 31, 2024",
+
+
   },
   {
     id: "italy",
@@ -115,6 +112,101 @@ const players: Player[] = [
 ];
 
 const currentPlayerId = "player-1";
+
+// -----------------------------------------------------------------------------
+// Helpers to convert internal mock data into DTOs expected by frontend DTO types
+// -----------------------------------------------------------------------------
+
+function findPlayer(id: string) {
+  return players.find((p) => p.id === id);
+}
+
+function toPlayerDTO(p: Player): PlayerDTO {
+  return {
+    id: p.id,
+    name: p.username,
+  };
+}
+
+function toTeamDTO(t: Team): TeamDTO {
+  const player = findPlayer(t.playerId)!;
+  return {
+    id: t.id,
+    name: t.name,
+    credits: t.credits,
+    player: toPlayerDTO(player),
+    points: t.points,
+  };
+}
+
+function findArticle(articleId: string): ArticleDTO | undefined {
+  return articles.find((a) => a.id === articleId);
+}
+
+function toContractDTO(c: Contract & { articleId: string }): ContractDTO {
+  const team = teams.find((t) => t.id === c.teamId)!;
+  const article = findArticle(c.articleId)!;
+  const start = Temporal.Instant.from(new Date().toISOString());
+  const duration = Temporal.Duration.from({ days: c.expiresIn ?? 0 });
+  return {
+    id: c.id,
+    team: toTeamDTO(team),
+    article,
+    startDate: start,
+    duration,
+    purchasePrice: c.purchasePrice,
+  };
+}
+
+function toNotificationDTO(n: Notification): NotificationDTO {
+  const contract = contracts.find((c) => c.id === n.extra) as
+    | (Contract & { articleId: string })
+    | undefined;
+  const contractDTO = contract ? toContractDTO(contract) : (null as any);
+  const plainDate = n.createdAt
+    ? Temporal.PlainDate.from(n.createdAt.split("T")[0])
+    : Temporal.PlainDate.from(Temporal.Now.plainDateISO());
+  return {
+    id: n.id,
+    contract: contractDTO,
+    message: n.message,
+    date: plainDate,
+    isRead: !!n.read,
+    read: !!n.read,
+  };
+}
+
+function toLeagueDTO(l: any): LeagueDTO {
+  const startDate = l.startDate
+    ? Temporal.Instant.from(new Date(l.startDate).toISOString())
+    : Temporal.Instant.from(new Date().toISOString());
+  const endDate = l.endDate
+    ? Temporal.Instant.from(new Date(l.endDate).toISOString())
+    : Temporal.Instant.from(new Date().toISOString());
+  const domainMap: Record<string, "it" | "en"> = {
+    Italia: "it",
+    Italian: "it",
+    Italiano: "it",
+    itwiki: "it",
+    enwiki: "en",
+    English: "en",
+    Multiple: "en",
+  };
+  const domain = (domainMap[l.language] || domainMap[l.domain] || "en") as
+    | "it"
+    | "en";
+  const dtoTeams = teams.filter((t) => t.leagueId === l.id).map(toTeamDTO);
+  return {
+    id: l.id,
+    title: l.title ?? l.name,
+    description: l.description ?? "",
+    domain,
+    icon: l.icon ?? "",
+    startDate,
+    endDate,
+    teams: dtoTeams,
+  };
+}
 
 // ── Teams ─────────────────────────────────────────────────────────────────────
 
@@ -295,117 +387,6 @@ const contracts: (Contract & { articleId: string })[] = [
     article: articles[5],
   },
 ];
-
-// ── Leaderboards ──────────────────────────────────────────────────────────────
-
-const leaderboards: Record<string, LeaderboardEntry[]> = {
-  italy: [
-    {
-      rank: 1,
-      teamId: "team-4",
-      playerId: "player-2",
-      username: "WikiMaster",
-      teamName: "Wiki Masters",
-      points: 8950,
-      change: 18.3,
-      isCurrentUser: false,
-    },
-    {
-      rank: 2,
-      teamId: "team-5",
-      playerId: "player-3",
-      username: "DataKing",
-      teamName: "Data Lords",
-      points: 8420,
-      change: 14.1,
-      isCurrentUser: false,
-    },
-    {
-      rank: 3,
-      teamId: "team-6",
-      playerId: "player-4",
-      username: "ArticlePro",
-      teamName: "Article Pros",
-      points: 7890,
-      change: 11.5,
-      isCurrentUser: false,
-    },
-    {
-      rank: 4,
-      teamId: "team-1",
-      playerId: "player-1",
-      username: "Mario_Rossi",
-      teamName: "I Cesarini",
-      points: 7250,
-      change: 12.5,
-      isCurrentUser: true,
-    },
-    {
-      rank: 5,
-      teamId: "team-7",
-      playerId: "player-5",
-      username: "InfoMaster",
-      teamName: "Info Masters",
-      points: 6800,
-      change: 6.4,
-      isCurrentUser: false,
-    },
-  ],
-  global: [
-    {
-      rank: 1,
-      teamId: "team-10",
-      playerId: "player-6",
-      username: "GlobalKing",
-      teamName: "Global Kings",
-      points: 15420,
-      change: 15.2,
-      isCurrentUser: false,
-    },
-    {
-      rank: 2,
-      teamId: "team-11",
-      playerId: "player-7",
-      username: "WorldWide",
-      teamName: "World Wide",
-      points: 14890,
-      change: 12.8,
-      isCurrentUser: false,
-    },
-    {
-      rank: 15,
-      teamId: "team-2",
-      playerId: "player-1",
-      username: "Mario_Rossi",
-      teamName: "Global Warriors",
-      points: 12750,
-      change: 8.3,
-      isCurrentUser: true,
-    },
-  ],
-  europe: [
-    {
-      rank: 1,
-      teamId: "team-15",
-      playerId: "player-8",
-      username: "EuroChamp",
-      teamName: "Euro Champs",
-      points: 10200,
-      change: 16.5,
-      isCurrentUser: false,
-    },
-    {
-      rank: 8,
-      teamId: "team-3",
-      playerId: "player-1",
-      username: "Mario_Rossi",
-      teamName: "Euro Champions",
-      points: 8950,
-      change: -2.1,
-      isCurrentUser: true,
-    },
-  ],
-};
 
 // ── Notifications ─────────────────────────────────────────────────────────────
 

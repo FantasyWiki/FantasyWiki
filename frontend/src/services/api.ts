@@ -1,31 +1,15 @@
 // frontend/src/services/api.ts
-import type {
-  Article,
-  Contract,
-  DashboardData,
-  LeaderboardEntry,
-  League,
-  Notification,
-  Player,
-  Session,
-  Team,
-  TradeProposal,
-} from "@/types/models";
+import { DashboardData } from "@/types/models";
+import { PlayerDTO } from "../../../dto/playerDTO";
+import { LeagueDTO } from "../../../dto/leagueDTO";
+import { NotificationDTO } from "../../../dto/notificationDTO";
+import { TeamDTO } from "../../../dto/teamDTO";
+import { ContractDTO } from "../../../dto/contractDTO";
+import { ArticleDTO } from "../../../dto/articleDTO";
+import { Temporal } from "@js-temporal/polyfill";
 
-export function resolveBackendUrl(): string {
-  const branch = import.meta.env.VITE_WORKERS_CI_BRANCH;
-  const backend = import.meta.env.VITE_BACKEND_URL;
-  let url = backend;
-  if (branch) {
-    url = branch + "." + backend;
-  }
-  if (!url.startsWith("http://") && !url.startsWith("https://")) {
-    url = "https://" + url;
-  }
-  return url;
-}
-
-const API_BASE_URL = resolveBackendUrl() + "/api";
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
 async function apiRequest<T>(
   endpoint: string,
@@ -55,42 +39,45 @@ async function apiRequest<T>(
 // ── Player ────────────────────────────────────────────────────────────────────
 
 export const playerApi = {
-  getCurrent: () => apiRequest<Player>("/player"),
+  getCurrent: () => apiRequest<PlayerDTO>("/player"),
+  getTeams: () => apiRequest<TeamDTO[]>("/player/teams"),
+  getNotifications: () => apiRequest<NotificationDTO[]>("/player/notifications"),
 };
 
 // ── Leagues ───────────────────────────────────────────────────────────────────
 
 export const leaguesApi = {
-  getAll: () => apiRequest<League[]>("/leagues"),
-  getById: (id: string) => apiRequest<League>(`/leagues/${id}`),
-  getLeaderboard: (id: string) =>
-    apiRequest<LeaderboardEntry[]>(`/leagues/${id}/leaderboard`),
-  getNotifications: (id: string) =>
-    apiRequest<Notification[]>(`/leagues/${id}/notifications`),
-  getTeam: (id: string) => apiRequest<Team>(`/leagues/${id}/team`),
-  getContracts: (id: string) =>
-    apiRequest<Contract[]>(`/leagues/${id}/contracts`),
-  /** All proposals (incoming + outgoing) for the current player in this league */
-  getTrades: (id: string) =>
-    apiRequest<TradeProposal[]>(`/leagues/${id}/trades`),
+  /** The current player's leagues available for selection (resolved from JWT on backend) */
+  getAll: () => apiRequest<LeagueDTO[]>("/leagues"),
+  getById: (id: string) => apiRequest<LeagueDTO>(`/leagues/${id}`),
+  /** The current player's team inside this league (resolved from JWT on backend) */
+  getMyTeam: (id: string) => apiRequest<TeamDTO>(`/leagues/${id}/team`),
+  /** All contracts of the current player's team in this league */
+  getMyContracts: (id: string) =>
+    apiRequest<ContractDTO[]>(`/leagues/${id}/contracts`),
+  /** All notifications for the current player in this league */
+  getMyNotifications: (id: string) =>
+    apiRequest<NotificationDTO[]>(`/leagues/${id}/notifications`),
 };
+
 
 // ── Teams ─────────────────────────────────────────────────────────────────────
 
 export const teamsApi = {
-  getAll: () => apiRequest<Team[]>("/teams"),
-  getById: (id: string) => apiRequest<Team>(`/teams/${id}`),
-  getContracts: (id: string) =>
-    apiRequest<Contract[]>(`/teams/${id}/contracts`),
+  getById: (id: string) => apiRequest<TeamDTO>(`/teams/${id}`),
+  getContracts: (id: string) => apiRequest<ContractDTO[]>(`/teams/${id}/contracts`),
+  getNotifications: (id: string) => apiRequest<NotificationDTO[]>(`/teams/${id}/notifications`),
   createContract: (
     teamId: string,
     data: {
-      articleId: string;
-      tier: "SHORT" | "MEDIUM" | "LONG";
+      teamID: string;
+      articleID: string;
+      startDate: Temporal.Instant;
+      duration: Temporal.Duration;
       purchasePrice: number;
     }
   ) =>
-    apiRequest<Contract>(`/teams/${teamId}/contracts`, {
+    apiRequest<ContractDTO>(`/teams/${teamId}/contracts`, {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -99,7 +86,7 @@ export const teamsApi = {
 // ── Contracts ─────────────────────────────────────────────────────────────────
 
 export const contractsApi = {
-  getById: (id: string) => apiRequest<Contract>(`/contracts/${id}`),
+  getById: (id: string) => apiRequest<ContractDTO>(`/contracts/${id}`),
   delete: (id: string) =>
     apiRequest<{ message: string; refundedCredits: number }>(
       `/contracts/${id}`,
@@ -107,38 +94,34 @@ export const contractsApi = {
     ),
 };
 
-// ── Trade Proposals ───────────────────────────────────────────────────────────
-
-export const tradesApi = {
-  /** Accept a pending trade proposal */
-  accept: (tradeId: string) =>
-    apiRequest<TradeProposal>(`/trades/${tradeId}/accept`, { method: "PATCH" }),
-
-  /** Reject a pending trade proposal */
-  reject: (tradeId: string) =>
-    apiRequest<TradeProposal>(`/trades/${tradeId}/reject`, { method: "PATCH" }),
-};
-
 // ── Notifications ─────────────────────────────────────────────────────────────
 
 export const notificationsApi = {
-  getAll: () => apiRequest<Notification[]>("/notifications"),
+  getAll: () => apiRequest<NotificationDTO[]>("/notifications"),
   markAsRead: (id: string) =>
-    apiRequest<Notification>(`/notifications/${id}/read`, { method: "PATCH" }),
+    apiRequest<NotificationDTO>(`/notifications/${id}/read`, { method: "PATCH" }),
 };
 
 // ── Articles ──────────────────────────────────────────────────────────────────
 
 export const articlesApi = {
-  getAll: () => apiRequest<Article[]>("/articles"),
-  getById: (id: string) => apiRequest<Article>(`/articles/${id}`),
+  getAll: () => apiRequest<ArticleDTO[]>("/articles"),
+  getById: (id: string) => apiRequest<ArticleDTO>(`/articles/${id}`),
 };
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
 export const dashboardApi = {
-  getData: (leagueId: string) =>
-    apiRequest<DashboardData>(`/dashboard/${leagueId}`),
+  async getDashboardData( league: LeagueDTO): Promise<DashboardData> {
+
+    const [team, contracts, notifications] = await Promise.all([
+      leaguesApi.getMyTeam(league.id),
+      leaguesApi.getMyContracts(league.id),
+      leaguesApi.getMyNotifications(league.id),
+    ]);
+
+    // Shape the resolved values into DashboardData
+    return new DashboardData( team,league, contracts, notifications );  }
 };
 
 // ── Session ───────────────────────────────────────────────────────────────────
@@ -156,7 +139,6 @@ export const api = {
   leagues: leaguesApi,
   teams: teamsApi,
   contracts: contractsApi,
-  trades: tradesApi,
   notifications: notificationsApi,
   articles: articlesApi,
   dashboard: dashboardApi,

@@ -91,16 +91,6 @@
                     <ion-icon :icon="timeOutline" />
                     <ion-label>{{ contract.expiresIn }}d left</ion-label>
                   </ion-chip>
-
-                  <ion-chip
-                    v-if="hasTradeOffer(contract.id)"
-                    color="primary"
-                    class="trade-chip"
-                    outline
-                  >
-                    <ion-icon :icon="swapHorizontalOutline" />
-                    <ion-label>Trade Offer</ion-label>
-                  </ion-chip>
                 </div>
               </div>
 
@@ -173,13 +163,13 @@ import {
 } from "ionicons/icons";
 import ArticleDetail from "@/modules/ArticleDetail.vue";
 import { useNotifications } from "@/stores/useNotifications";
-import type { Contract } from "@/types/models";
+import { ContractDTO } from "../../../../dto/contractDTO";
 
 // ── Props ──────────────────────────────────────────────────────────────────
 // urgentContract is pre-filtered by the parent. This component does not
 // filter — it renders what it receives. Single responsibility.
 interface Props {
-  urgentContract: Contract[];
+  urgentContract: ContractDTO[];
   onBuyArticles?: () => void;
 }
 
@@ -191,10 +181,10 @@ const props = defineProps<Props>();
 const { hasTradeOffer } = useNotifications();
 
 // ── Local modal state ──────────────────────────────────────────────────────
-const selectedContract = ref<Contract | null>(null);
+const selectedContract = ref<ContractDTO | null>(null);
 const isModalOpen = ref(false);
 
-function openDetail(contract: Contract) {
+function openDetail(contract: ContractDTO) {
   selectedContract.value = contract;
   isModalOpen.value = true;
 }
@@ -217,7 +207,7 @@ function getTierColor(tier: string): string {
   }
 }
 
-function onRenew(contract: Contract) {
+function onRenew(contract: ContractDTO) {
   // TODO: call renewal API via useMutation when the endpoint is ready
   console.log("Renew contract", contract.id);
 }

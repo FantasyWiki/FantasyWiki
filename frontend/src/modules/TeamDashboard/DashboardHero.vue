@@ -15,13 +15,13 @@
               outline
             >
               <span class="league-icon">{{ currentLeague.icon }}</span>
-              <ion-label>{{ currentLeague.name }}</ion-label>
+              <ion-label>{{ currentLeague.title }}</ion-label>
               <ion-badge
-                v-if="currentLeague.season"
+                v-if="currentLeague.endDate.toLocaleString()"
                 color="primary"
                 class="season-badge"
               >
-                {{ currentLeague.season }}
+                {{ currentLeague.endDate.toLocaleString("default", { month: "short" }) }}
               </ion-badge>
             </ion-chip>
 
@@ -31,15 +31,15 @@
                 <p class="greeting-text ion-no-margin">Welcome back</p>
               </ion-text>
               <h1 class="team-name ion-no-margin">
-                {{ currentTeam?.name ?? "Your Team" }}
+                {{ data?.team?.name ?? "Your Team" }}
               </h1>
             </div>
 
             <!-- Rank pill — rank only -->
-            <div class="rank-pill" v-if="summary">
+            <div class="rank-pill" v-if="data">
               <ion-icon :icon="trophyOutline" color="warning" />
-              <span class="rank-value">#{{ summary.rank }}</span>
-              <span class="rank-label">of {{ summary.totalPlayers }}</span>
+              <span class="rank-value">#{{ data.rank }}</span>
+              <span class="rank-label">of {{ data.totalPLayers }}</span>
             </div>
 
             <!-- Actions: Buy Articles + inbox bell -->
@@ -53,18 +53,7 @@
                 Buy Articles
               </ion-button>
 
-              <in-box
-                ref="inboxRef"
-                :notifications="currentLeagueUnread"
-                :badge-count="totalBadgeCount"
-                :outgoing-count="outgoingCount"
-                :league-icon="currentLeague?.icon"
-                :league-name="currentLeague?.name"
-                :actioning="isActioning"
-                :loading="isTradesLoading"
-                @accept="handleAccept"
-                @reject="handleReject"
-              />
+              <in-box />
             </div>
           </div>
         </ion-col>
@@ -73,7 +62,7 @@
         <ion-col size="12" size-md="6">
           <div class="right-column">
             <!-- Featured card — the active stat is shown large -->
-            <div class="featured-card-wrapper" v-if="summary">
+            <div class="featured-card-wrapper" v-if="data">
               <ion-card class="featured-card" @click="advance">
                 <ion-card-content class="featured-content">
                   <!-- Icon -->
@@ -152,7 +141,7 @@
             </ion-card>
 
             <!-- Small stats row: always shows the 3 non-active stats -->
-            <div class="small-stats" v-if="summary">
+            <div class="small-stats" v-if="data">
               <div
                 v-for="stat in secondaryStats"
                 :key="stat.label"
@@ -228,49 +217,20 @@ import {
   trophyOutline,
 } from "ionicons/icons";
 import InBox from "@/modules/InBox.vue";
-import { useTrades } from "@/stores/useTrades";
-import { useNotifications } from "@/stores/useNotifications";
-import type { DashboardSummary, League, Team } from "@/types/models";
+import type { DashboardData } from "@/types/models";
+import { useLeagueStore } from "@/stores/league";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 interface Props {
-  currentLeague: League | null;
-  currentTeam: Team | null;
-  summary: DashboardSummary | null;
+  data: DashboardData | null;
 }
 
 const props = defineProps<Props>();
 const router = useRouter();
 
-// ── Trades + notifications ────────────────────────────────────────────────────
-const {
-  proposals,
-  isLoading: isTradesLoading,
-  isActioning,
-  accept,
-  reject,
-} = useTrades();
+const leagueStore = useLeagueStore();
+const currentLeague = computed(() => leagueStore.currentLeague);
 
-const outgoingCount = computed(
-  () =>
-    (proposals.value ?? []).filter(
-      (p) => p.type === "outgoing" && p.status === "pending"
-    ).length
-);
-
-const { currentLeagueUnread } = useNotifications();
-const totalBadgeCount = computed(() => currentLeagueUnread.value.length);
-
-// ── Inbox ref ─────────────────────────────────────────────────────────────────
-const inboxRef = ref<InstanceType<typeof InBox> | null>(null);
-
-async function handleAccept(id: string) {
-  await accept(id);
-}
-
-async function handleReject(id: string) {
-  await reject(id);
-}
 
 // ── Stat definitions ──────────────────────────────
 interface StatDef {
@@ -284,21 +244,21 @@ interface StatDef {
 }
 
 const allStats = computed<StatDef[]>(() => {
-  const s = props.summary;
+  const s = props.data;
   if (!s) return [];
   return [
     {
       label: "Yesterday's Points",
-      value: s.yesterdayPoints,
+      value: s.recentPoints.yesterdayPoints,
       sub: null,
-      trend: s.pointsChange,
+      trend: s.recentPoints.pointsChange,
       icon: trendingUpOutline,
       iconBg: "rgba(var(--ion-color-primary-rgb), 0.12)",
       iconColor: "var(--ion-color-primary)",
     },
     {
       label: "Credits",
-      value: s.credits,
+      value: s.team.credits,
       sub: `Portfolio: ${s.portfolioValue} Cr`,
       icon: cashOutline,
       iconBg: "rgba(var(--ion-color-primary-rgb), 0.12)",
@@ -315,7 +275,7 @@ const allStats = computed<StatDef[]>(() => {
     {
       label: "Standing",
       value: `#${s.rank}`,
-      sub: `of ${s.totalPlayers} players`,
+      sub: `of ${s.totalPLayers} players`,
       icon: trophyOutline,
       iconBg: "rgba(var(--ion-color-warning-rgb), 0.15)",
       iconColor: "var(--ion-color-warning)",

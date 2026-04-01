@@ -34,7 +34,9 @@
       <ion-content class="ion-no-padding">
         <!-- Header -->
         <ion-toolbar color="light" class="inbox-toolbar">
-          <ion-title slot="start" class="inbox-title">Notification Inbox</ion-title>
+          <ion-title slot="start" class="inbox-title"
+            >Notification Inbox</ion-title
+          >
 
           <div slot="end" class="ion-padding-end inbox-header-end">
             <ion-badge
@@ -66,22 +68,22 @@
         </ion-toolbar>
 
         <!-- Loading state -->
-        <div v-if="loading" class="ion-padding ion-text-center">
+        <div v-if="isLoading" class="ion-padding ion-text-center">
           <ion-spinner name="crescent" color="primary" />
           <ion-text color="medium">
             <p class="ion-no-margin ion-padding-top">Loading notifications…</p>
           </ion-text>
         </div>
 
-        <!-- Error state -->
-        <div v-else-if="error" class="ion-padding ion-text-center">
+        <!-- Error state TODO -->
+        <div v-else-if="false" class="ion-padding ion-text-center">
           <ion-icon
             :icon="alertCircleOutline"
             color="danger"
             class="state-icon"
           />
           <ion-text color="danger">
-            <p class="ion-no-margin">{{ error }}</p>
+            <p class="ion-no-margin">{{}}</p>
           </ion-text>
           <ion-button
             fill="clear"
@@ -96,7 +98,10 @@
 
         <!-- Empty state -->
         <div
-          v-else-if="!notifications || notifications.length === 0"
+          v-else-if="
+            !currentLeagueNotifications ||
+            currentLeagueNotifications.length === 0
+          "
           class="ion-padding ion-text-center empty-state"
         >
           <ion-icon :icon="mailOpenOutline" color="medium" class="state-icon" />
@@ -108,51 +113,37 @@
         <!-- notifications list -->
         <ion-list v-else lines="full" class="inbox-list ion-no-padding">
           <ion-item
-            v-for="notification in notifications"
+            v-for="notification in currentLeagueNotifications"
             :key="notification.id"
             class="notification-item"
             :detail="false"
           >
             <div class="ion-padding-vertical notification-row">
-
               <!-- Info -->
               <div class="notification-info">
                 <ion-text>
                   <p class="ion-no-margin notification-from">
-                    <strong>{{ notification.fromUsername }}</strong>
+                    <strong>{{ notification.contract.article.title }}</strong>
                   </p>
                 </ion-text>
 
                 <ion-text color="medium">
                   <p class="ion-no-margin notification-detail">
-                    Wants:
-                    <ion-text color="primary">
-                      <strong>{{ notification.requestedArticle.name }}</strong>
-                    </ion-text>
-                  </p>
-                </ion-text>
-
-                <ion-text color="medium">
-                  <p class="ion-no-margin notification-detail">
-                    Offers:
-                    <ion-text color="primary">
-                      <strong v-if="notification.offeredArticle">
-                        {{ notification.offeredArticle.name }}
-                      </strong>
-                      <strong v-if="notification.offeredCredits">
-                        {{ notification.offeredCredits }} credits
-                      </strong>
-                    </ion-text>
+                    {{ notification.message || "No additional details provided." }}
                   </p>
                 </ion-text>
 
                 <!-- Contract tier chip -->
                 <ion-chip
-                  :color="getTierColor(notification.)"
+                  :color="
+                    getTierColor(getTier(notification.contract.duration.days))
+                  "
                   outline
                   class="tier-chip"
                 >
-                  <ion-label>{{ notification.contract.contractTier }}</ion-label>
+                  <ion-label>{{
+                    getTier(notification.contract.duration.days)
+                  }}</ion-label>
                 </ion-chip>
               </div>
 
@@ -172,27 +163,13 @@
           </ion-item>
         </ion-list>
 
-        <!-- Footer: outgoing count hint -->
-        <div
-          v-if="outgoingCount > 0"
-          class="ion-padding-horizontal ion-padding-bottom inbox-footer"
-        >
-          <ion-text color="medium">
-            <p class="ion-no-margin ion-text-center outgoing-hint">
-              {{ outgoingCount }} outgoing notification{{
-                outgoingCount !== 1 ? "s" : ""
-              }}
-              pending
-            </p>
-          </ion-text>
-        </div>
       </ion-content>
     </ion-popover>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import {
   IonBadge,
   IonButton,
@@ -215,52 +192,40 @@ import {
   mailOpenOutline,
   notificationsOutline,
 } from "ionicons/icons";
-import type { NotificationDTO } from "@/types/";
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-// All data is passed in from the parent — this component is purely presentational
-// regarding data fetching. The parent owns the query (useTrades) and passes
-// slices down, keeping the component reusable regardless of context.
-
-interface Props {
-  /** Incoming pending notifications to display. */
-  notifications: Notification[];
-  /** Total badge count shown on the trigger button. */
-  badgeCount: number;
-  /** Number of outgoing pending notifications (shown as a footer hint). */
-  outgoingCount?: number;
-  /** League icon emoji shown on notification avatars and the league chip. */
-  leagueIcon?: string;
-  /** League name shown in the header chip. */
-  leagueName?: string;
-  /** Pass true while an accept/reject mutation is in flight. */
-  actioning?: boolean;
-  /** Pass true while the initial notifications fetch is loading. */
-  loading?: boolean;
-  /** Pass an error message string to show the error state. */
-  error?: string | null;
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  badgeCount: 0,
-  outgoingCount: 0,
-  actioning: false,
-  loading: false,
-  error: null,
-});
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
 const emit = defineEmits<{
-  /** User accepted a notification — parent calls the mutation. */
-  accept: [tradeId: string];
-  /** User rejected a notification — parent calls the mutation. */
-  reject: [tradeId: string];
   /** User pressed Retry in the error state. */
   retry: [];
   /** Popover closed. */
   close: [];
 }>();
 
+// Inside InBox.vue <script setup> — no props needed for these
+import { useLeagueStore } from "@/stores/league";
+import { useNotifications } from "@/stores/useNotifications";
+import { useMutation, useQueryClient } from "@tanstack/vue-query";
+import api from "@/services/api";
+
+const queryClient = useQueryClient();
+const leagueStore = useLeagueStore();
+const {
+  currentLeagueNotifications,
+  currentLeagueUnreadCount,
+  isLoading,
+} = useNotifications();
+
+// Computed internally
+const leagueIcon = computed(() => leagueStore.currentLeague?.icon);
+const leagueName = computed(() => leagueStore.currentLeague?.title);
+const badgeCount = computed(() => currentLeagueUnreadCount.value);
+
+// InBox.vue — owns the mutation
+const { mutate: markRead, isPending: actioning } = useMutation({
+  mutationFn: (id: string) => api.notifications.markAsRead(id),
+  onSuccess: () =>
+    queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+});
 // ── Local state ───────────────────────────────────────────────────────────────
 const isOpen = ref(false);
 const popoverEvent = ref<MouseEvent | undefined>(undefined);
@@ -273,29 +238,33 @@ function openInbox(event?: MouseEvent) {
 
 function closeInbox() {
   isOpen.value = false;
-  emit("close");
 }
-
-defineExpose({ openInbox, closeInbox });
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 function handleAccept(id: string) {
-  emit("accept", id);
-  // Auto-close when the last notification is acted on
-  if (props.notifications.length <= 1) closeInbox();
+  // ← was: emit("accept", id)
+  markRead(id);
+  if (currentLeagueNotifications.value.length <= 1) closeInbox();
 }
 
-function handleReject(id: string) {
-  emit("reject", id);
-  if (props.notifications.length <= 1) closeInbox();
-}
-
+// ← delete handleReject entirely — notifications don't have a reject action
 // ── Helpers ───────────────────────────────────────────────────────────────────
+function getTier(duration: number) {
+  if (duration <= 7) return "SHORT";
+  if (duration <= 30) return "MEDIUM";
+  return "LONG";
+}
 function getTierColor(tier: string): string {
-  if (tier.toLowerCase().includes("month")) return "success";
-  if (tier.toLowerCase().includes("week") && tier.includes("2"))
-    return "primary";
-  return "warning";
+  switch (tier) {
+    case "SHORT":
+      return "warning";
+    case "MEDIUM":
+      return "primary";
+    case "LONG":
+      return "success";
+    default:
+      return "medium";
+  }
 }
 </script>
 

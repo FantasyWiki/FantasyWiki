@@ -7,31 +7,30 @@ import type { DashboardData } from "@/types/models";
 /**
  * Provides raw dashboard data for the currently active league.
  *
- * This composable is intentionally thin — it fetches and caches the API
- * response and exposes the data as-is. Any derived filtering (e.g. urgent
- * contracts, leaderboard slicing) is the responsibility of the component
- * that needs it, keeping this composable reusable and easy to reason about.
- *
- * The query key contains the leagueId so:
- *   - Each league has its own cache entry.
- *   - Switching leagues triggers a fresh fetch automatically.
- *   - Going back to a previously visited league reuses cached data until stale.
+ * DashboardData is a class with computed getters (rank, portfolioValue, etc.)
+ * — expose those directly instead of re-deriving them here.
  */
 export function useDashboard() {
   const leagueStore = useLeagueStore();
 
   const { data, isLoading, isError, error, refetch } = useQuery<DashboardData>({
     queryKey: computed(() => ["dashboard", leagueStore.currentLeagueId]),
-    queryFn: () => api.dashboard.getData(leagueStore.currentLeagueId!),
+    queryFn: () => api.dashboard.getDashboardData(leagueStore.currentLeague!),
     enabled: computed(() => !!leagueStore.currentLeagueId),
   });
 
-  // Expose individual slices with safe defaults so components don't need
-  // to null-check data.value everywhere.
-  const summary = computed(() => data.value?.summary ?? null);
-  const contracts = computed(() => data.value?.contracts ?? []);
-  const leaderboard = computed(() => data.value?.leaderboard ?? []);
+  // Raw slices — safe defaults so components skip null-checks
   const team = computed(() => data.value?.team ?? null);
+  const league = computed(() => data.value?.league ?? null);
+  const contracts = computed(() => data.value?.contracts ?? []);
+  const notifications = computed(() => data.value?.notifications ?? []);
+
+  // Derived from DashboardData class getters
+  const rank = computed(() => data.value?.rank ?? null);
+  const portfolioValue = computed(() => data.value?.portfolioValue ?? 0);
+  const activeContracts = computed(() => data.value?.activeContracts ?? 0);
+  const maxContracts = computed(() => data.value?.maxContracts ?? 0);
+  const totalPlayers = computed(() => data.value?.totalPLayers ?? 0);
 
   return {
     // Query state
@@ -39,10 +38,16 @@ export function useDashboard() {
     isError,
     error,
     refetch,
-    // Raw data slices — filter in the component that needs it
-    summary,
-    contracts,
-    leaderboard,
+    // Raw slices
     team,
+    league,
+    contracts,
+    notifications,
+    // Computed from DashboardData getters
+    rank,
+    portfolioValue,
+    activeContracts,
+    maxContracts,
+    totalPlayers,
   };
 }

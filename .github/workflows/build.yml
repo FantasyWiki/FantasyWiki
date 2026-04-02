@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -21,10 +21,61 @@ jobs:
           RUBY
       - name: Check
         run: ./gradlew check
+
+  deploy-backend:
+    runs-on: ubuntu-latest
+    needs:
+      - check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create URL-friendly branch name
+        run: echo "CLEAN_BRANCH=${GITHUB_REF_NAME//\//-}" >> $GITHUB_ENV
+
+      - name: Deploy Worker to Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: "backend"
+          vars: |
+            DEPLOYED_BRANCH
+        env:
+          DEPLOYED_BRANCH: ${{ env.CLEAN_BRANCH }}
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs:
+      - check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: 'frontend/package.json'
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: "frontend"
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy frontend/dist --project-name=fantasywiki
+
   success:
     runs-on: ubuntu-24.04
     needs:
-      - build
+      - check
+      - deploy-backend
+      - deploy-frontend
     if: >-
       always() && (
         contains(join(needs.*.result, ','), 'failure')

@@ -39,7 +39,7 @@ const router = createRouter({
 function mountDashboard() {
   const pinia = createPinia();
   setActivePinia(pinia);
-  
+
   // Set up mock authentication so NavBar will initialize the league store
   const appStore = useAppStore();
   appStore.isAuthenticated = true;
@@ -49,7 +49,7 @@ function mountDashboard() {
     email: "test@example.com",
     picture_url: "https://example.com/avatar.png",
   };
-  
+
   return {
     wrapper: mount(TeamDashboard, {
       global: {

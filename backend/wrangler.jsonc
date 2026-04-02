@@ -5,7 +5,7 @@
   "compatibility_date": "2026-03-17",
   "vars": {
     "GOOGLE_CLIENT_ID": "457796621894-vtt9urvj7knpdkgeqorus0k4hjfj1rkd.apps.googleusercontent.com",
-    "FRONTEND_URL": "fantasywiki.pages.dev"
+    "FRONTEND_URL": "fantasywiki.pages.dev",
   },
   // "compatibility_flags": [
   //   "nodejs_compat"

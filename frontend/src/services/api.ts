@@ -16,7 +16,7 @@ export function resolveBackendUrl(): string {
   const backend = import.meta.env.VITE_BACKEND_URL;
   console.log("Resolved backend URL:", backend, "Branch:", branch);
   if (branch) {
-    return branch + '-' + backend;
+    return branch + "-" + backend;
   }
   return backend;
 }

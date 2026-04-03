@@ -34,6 +34,7 @@ import { useRouter } from "vue-router";
 import { alertCircleOutline } from "ionicons/icons";
 import { ref, onMounted } from "vue";
 import { useAppStore } from "@/stores/app";
+import { resolveBackendUrl } from "@/services/api";
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -41,8 +42,7 @@ const appStore = useAppStore();
 const error = ref<string | null>(null);
 
 onMounted(async () => {
-  const BACKEND_URL =
-    import.meta.env.VITE_BACKEND_URL || "http://localhost:8787";
+  const BACKEND_URL = resolveBackendUrl();
   const response = await fetch(`${BACKEND_URL}/api/session`, {
     credentials: "include", // Important: send cookies
   });

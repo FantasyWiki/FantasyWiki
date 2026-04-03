@@ -70,7 +70,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: "frontend"
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy frontend/dist --project-name=fantasywiki
+          command: pages deploy dist --project-name=frontend
 
   success:
     runs-on: ubuntu-24.04

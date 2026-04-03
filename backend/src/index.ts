@@ -24,7 +24,11 @@ app.use(
 );
 
 app.get("/", (c) => {
-  return c.text(resolveFrontendUrl(c.env));
+  return c.json({
+    resolved_url: resolveFrontendUrl(c.env),
+    WORKERS_CI_BRANCH: c.env.WORKERS_CI_BRANCH,
+    FRONTEND_URL: c.env.FRONTEND_URL,
+  });
 });
 
 // Mount auth routes

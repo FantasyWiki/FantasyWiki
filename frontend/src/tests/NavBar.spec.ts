@@ -67,10 +67,10 @@ describe("NavBar.vue", () => {
     const appStore = useAppStore();
     appStore.isAuthenticated = true;
     appStore.currentUser = {
-      id: "test-user",
+      sub: "test-user",
       name: "Test User",
       email: "test@example.com",
-      picture_url: "https://example.com/avatar.png",
+      picture: "https://example.com/avatar.png",
     };
 
     const wrapper = mount(NavBar, {

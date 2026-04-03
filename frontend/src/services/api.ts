@@ -7,6 +7,7 @@ import type {
   League,
   Notification,
   Player,
+  Session,
   Team,
   TradeProposal,
 } from "@/types/models";
@@ -137,6 +138,14 @@ export const dashboardApi = {
     apiRequest<DashboardData>(`/dashboard/${leagueId}`),
 };
 
+// ── Session ───────────────────────────────────────────────────────────────────
+
+export const sessionApi = {
+  get: () => apiRequest<Session>("/session"),
+  delete: () =>
+    apiRequest<{ success: boolean }>("/session", { method: "DELETE" }),
+};
+
 // ── Unified export ────────────────────────────────────────────────────────────
 
 export const api = {
@@ -148,6 +157,7 @@ export const api = {
   notifications: notificationsApi,
   articles: articlesApi,
   dashboard: dashboardApi,
+  session: sessionApi,
 };
 
 export default api;

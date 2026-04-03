@@ -34,7 +34,7 @@ import { useRouter } from "vue-router";
 import { alertCircleOutline } from "ionicons/icons";
 import { ref, onMounted } from "vue";
 import { useAppStore } from "@/stores/app";
-import { resolveBackendUrl } from "@/services/api";
+import { sessionApi } from "@/services/api";
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -42,20 +42,10 @@ const appStore = useAppStore();
 const error = ref<string | null>(null);
 
 onMounted(async () => {
-  const BACKEND_URL = resolveBackendUrl();
-  const response = await fetch(`${BACKEND_URL}/api/session`, {
-    credentials: "include", // Important: send cookies
-  });
-
-  if (!response.ok) {
-    error.value = "Authentication failed. Please try again.";
-    return;
-  }
-
-  const userData = await response.json();
-  console.log("User data from /api/session:", userData);
+  const response = await sessionApi.get();
+  console.log("User data from /api/session:", response);
   // Store user data in the store (without the token, since it's in cookie)
-  appStore.setUserFromData(userData);
+  appStore.setUserFromData(response);
 
   router.replace("/home");
 });

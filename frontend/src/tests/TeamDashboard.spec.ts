@@ -44,10 +44,10 @@ function mountDashboard() {
   const appStore = useAppStore();
   appStore.isAuthenticated = true;
   appStore.currentUser = {
-    id: "test-user-id",
+    sub: "test-user-id",
     name: "Test User",
     email: "test@example.com",
-    picture_url: "https://example.com/avatar.png",
+    picture: "https://example.com/avatar.png",
   };
 
   return {

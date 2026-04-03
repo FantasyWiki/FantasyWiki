@@ -865,4 +865,19 @@ export const handlers = [
       },
     });
   }),
+
+  // ── Session ─────────────────────────────────────────────────────────────────
+
+  http.get("*/api/session", () => {
+    return HttpResponse.json({
+      sub: "mock-user-id",
+      email: "test@example.com",
+      name: "Test User",
+      picture: "https://example.com/avatar.png",
+    });
+  }),
+
+  http.delete("*/api/session", () => {
+    return HttpResponse.json({ success: true });
+  }),
 ];

@@ -1,4 +1,4 @@
-import { resolveBackendUrl, sessionApi } from "@/services/api";
+import { sessionApi } from "@/services/api";
 import type { Session } from "@/types/models";
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";

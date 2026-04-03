@@ -67,6 +67,7 @@ jobs:
         working-directory: frontend
         env:
           VITE_WORKERS_CI_BRANCH: ${{ env.WORKERS_CI_BRANCH }}
+          VITE_BACKEND_URL: "backend.luca0patrignani.workers.dev"
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3

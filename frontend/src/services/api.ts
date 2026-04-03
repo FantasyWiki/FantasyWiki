@@ -12,7 +12,7 @@ import type {
 } from "@/types/models";
 
 export function resolveBackendUrl(): string {
-  const branch = import.meta.env.WORKERS_CI_BRANCH;
+  const branch = import.meta.env.VITE_WORKERS_CI_BRANCH;
   const backend = import.meta.env.VITE_BACKEND_URL;
   console.log("Resolved backend URL:", backend, "Branch:", branch);
   if (branch) {

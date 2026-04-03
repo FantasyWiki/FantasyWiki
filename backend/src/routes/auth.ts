@@ -13,10 +13,14 @@ type Bindings = {
 };
 
 export function resolveFrontendUrl(env: Bindings): string {
+  let url = env.FRONTEND_URL;
   if (env.WORKERS_CI_BRANCH) {
-    return env.WORKERS_CI_BRANCH + "." + env.FRONTEND_URL;
+    url = env.WORKERS_CI_BRANCH + "." + env.FRONTEND_URL;
   }
-  return env.FRONTEND_URL;
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    url = "https://" + url;
+  }
+  return url;
 }
 
 const auth = new Hono<{ Bindings: Bindings }>();

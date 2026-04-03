@@ -50,6 +50,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create URL-friendly branch name
+        run: echo "WORKERS_CI_BRANCH=${GITHUB_REF_NAME//\//-}" >> $GITHUB_ENV
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
@@ -63,7 +66,7 @@ jobs:
         run: npm run build
         working-directory: frontend
         env:
-          VITE_WORKERS_CI_BRANCH: ${{ github.ref_name }}
+          VITE_WORKERS_CI_BRANCH: ${{ env.WORKERS_CI_BRANCH }}
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3

@@ -4,6 +4,7 @@ import HomeMock from "@/views/MockHome.vue";
 import TeamDashboard from "@/views/TeamDashboard.vue";
 import HomePage from "@/views/home-page/HomePage.vue";
 import AuthCallbackPage from "@/views/auth/AuthCallbackPage.vue";
+import EnvInfoPage from "@/views/EnvInfoPage.vue";
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -37,6 +38,11 @@ const routes: Array<RouteRecordRaw> = [
     path: "/auth/callback",
     name: "AuthCallback",
     component: AuthCallbackPage,
+  },
+  {
+    path: "/env-info",
+    name: "EnvInfo",
+    component: EnvInfoPage,
   },
 ];
 

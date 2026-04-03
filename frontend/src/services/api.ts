@@ -15,11 +15,14 @@ import type {
 export function resolveBackendUrl(): string {
   const branch = import.meta.env.VITE_WORKERS_CI_BRANCH;
   const backend = import.meta.env.VITE_BACKEND_URL;
-  console.log("Resolved backend URL:", backend, "Branch:", branch);
+  let url = backend;
   if (branch) {
-    return branch + "-" + backend;
+    url = branch + "-" + backend;
   }
-  return backend;
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    url = "https://" + url;
+  }
+  return url;
 }
 
 const API_BASE_URL = resolveBackendUrl() + "/api";

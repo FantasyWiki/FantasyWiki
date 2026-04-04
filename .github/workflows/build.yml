@@ -38,7 +38,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: "4.80.0"
           workingDirectory: "backend"
-          command: worker deploy --name=${{ env.WORKERS_CI_BRANCH }}
+          command: deploy --name=${{ env.WORKERS_CI_BRANCH }}
           vars: |
             WORKERS_CI_BRANCH
         env:

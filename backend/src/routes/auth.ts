@@ -61,7 +61,7 @@ auth.get("/google", async (c) => {
   setCookie(c, "session_token", jwt, {
     httpOnly: true,
     secure: true,
-    sameSite: "Lax", // 'Lax' is better for OAuth redirects
+    sameSite: "None",
     path: "/",
   });
   return c.redirect(`${frontendUrl}/auth/callback`);

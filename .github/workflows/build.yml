@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -21,10 +21,70 @@ jobs:
           RUBY
       - name: Check
         run: ./gradlew check
+
+  deploy-backend:
+    runs-on: ubuntu-latest
+    needs:
+      - check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create URL-friendly branch name
+        run: echo "WORKERS_CI_BRANCH=${GITHUB_REF_NAME//\//-}" >> $GITHUB_ENV
+
+      - name: Deploy Worker to Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          wranglerVersion: "4.80.0"
+          workingDirectory: "backend"
+          command: deploy --name=${{ env.WORKERS_CI_BRANCH }}
+          vars: |
+            WORKERS_CI_BRANCH
+        env:
+          DEPLOYED_BRANCH: ${{ env.WORKERS_CI_BRANCH }}
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs:
+      - check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create URL-friendly branch name
+        run: echo "WORKERS_CI_BRANCH=${GITHUB_REF_NAME//\//-}" >> $GITHUB_ENV
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: 'frontend/package.json'
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+        env:
+          VITE_WORKERS_CI_BRANCH: ${{ env.WORKERS_CI_BRANCH }}
+          VITE_BACKEND_URL: "luca0patrignani.workers.dev"
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          wranglerVersion: "4.80.0"
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: "frontend"
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=frontend
+
   success:
     runs-on: ubuntu-24.04
     needs:
-      - build
+      - check
+      - deploy-backend
+      - deploy-frontend
     if: >-
       always() && (
         contains(join(needs.*.result, ','), 'failure')

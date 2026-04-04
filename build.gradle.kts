@@ -18,8 +18,15 @@ tasks.register("check") {
 
 tasks.register("dev") {
     dependsOn(
-        ":frontend:npm_run_dev",
+        ":frontend:devNoMock",
         ":backend:npm_run_dev",
+    )
+}
+
+tasks.register("fix") {
+    dependsOn(
+        ":frontend:fix",
+        ":backend:fix",
     )
 }
 

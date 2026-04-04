@@ -117,3 +117,12 @@ export interface TradeProposal {
   contractTier: string;
   createdAt: string;
 }
+
+// ── Session ──────────────────────────────────────────────────────────────────
+
+export interface Session {
+  sub: string;
+  email: string;
+  name: string;
+  picture: string;
+}

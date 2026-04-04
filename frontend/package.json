@@ -14,8 +14,9 @@
     "test-unit": "vitest run",
     "hot-test": "vitest",
     "lint": "eslint . --cache",
+    "lintfix": "eslint --fix",
     "format": "prettier --check .",
-    "format:fix": "prettier --write .",
+    "formatfix": "prettier --write .",
     "g:component": "plop component"
   },
   "dependencies": {
@@ -31,7 +32,7 @@
     "ionicons": "^8.0.0",
     "pinia": "^3.0.4",
     "vue": "^3.3.0",
-    "vue-router": "^5.0.0"
+    "vue-router": "^4.6.4"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.3",

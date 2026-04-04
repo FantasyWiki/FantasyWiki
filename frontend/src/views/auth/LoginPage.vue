@@ -35,10 +35,9 @@ import { useRoute } from "vue-router";
 import { alertCircleOutline, closeOutline, logoGoogle } from "ionicons/icons";
 import { computed } from "vue";
 import AppLogo from "@/views/AppLogo.vue";
+import { resolveBackendUrl } from "@/services/api";
 
 const route = useRoute();
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 const errorMessage = computed(() =>
   route.query.error === "auth_failed"
@@ -51,7 +50,7 @@ function dismiss() {
 }
 
 function signInWithGoogle() {
-  window.location.href = `${BACKEND_URL}/auth/google`;
+  window.location.href = `${resolveBackendUrl()}/auth/google`;
 }
 </script>
 

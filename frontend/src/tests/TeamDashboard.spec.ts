@@ -16,6 +16,7 @@ import { createRouter, createMemoryHistory } from "vue-router";
 import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
 import TeamDashboard from "@/views/TeamDashboard.vue";
 import { useLeagueStore } from "@/stores/league";
+import { useAppStore } from "@/stores/app";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,17 @@ const router = createRouter({
 function mountDashboard() {
   const pinia = createPinia();
   setActivePinia(pinia);
+
+  // Set up mock authentication so NavBar will initialize the league store
+  const appStore = useAppStore();
+  appStore.isAuthenticated = true;
+  appStore.currentUser = {
+    sub: "test-user-id",
+    name: "Test User",
+    email: "test@example.com",
+    picture: "https://example.com/avatar.png",
+  };
+
   return {
     wrapper: mount(TeamDashboard, {
       global: {

@@ -7,12 +7,25 @@ import type {
   League,
   Notification,
   Player,
+  Session,
   Team,
   TradeProposal,
 } from "@/types/models";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+export function resolveBackendUrl(): string {
+  const branch = import.meta.env.VITE_WORKERS_CI_BRANCH;
+  const backend = import.meta.env.VITE_BACKEND_URL;
+  let url = backend;
+  if (branch) {
+    url = branch + "." + backend;
+  }
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    url = "https://" + url;
+  }
+  return url;
+}
+
+const API_BASE_URL = resolveBackendUrl() + "/api";
 
 async function apiRequest<T>(
   endpoint: string,
@@ -20,6 +33,7 @@ async function apiRequest<T>(
 ): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
@@ -127,6 +141,14 @@ export const dashboardApi = {
     apiRequest<DashboardData>(`/dashboard/${leagueId}`),
 };
 
+// ── Session ───────────────────────────────────────────────────────────────────
+
+export const sessionApi = {
+  get: () => apiRequest<Session>("/session"),
+  delete: () =>
+    apiRequest<{ success: boolean }>("/session", { method: "DELETE" }),
+};
+
 // ── Unified export ────────────────────────────────────────────────────────────
 
 export const api = {
@@ -138,6 +160,7 @@ export const api = {
   notifications: notificationsApi,
   articles: articlesApi,
   dashboard: dashboardApi,
+  session: sessionApi,
 };
 
 export default api;

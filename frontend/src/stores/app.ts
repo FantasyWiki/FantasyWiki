@@ -1,3 +1,5 @@
+import { sessionApi } from "@/services/api";
+import type { Session } from "@/types/models";
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 
@@ -25,16 +27,9 @@ export const useAppStore = defineStore("app", () => {
 
   const isDarkMode = ref<boolean>(localStorage.getItem("darkMode") === "true");
 
-  interface AuthUser {
-    id: string;
-    name: string;
-    email: string;
-    picture_url: string;
-  }
-
   // State - no initial user data since we need to check with server
   const isAuthenticated = ref<boolean>(false);
-  const currentUser = ref<AuthUser | null>(null);
+  const currentUser = ref<Session | null>(null);
 
   // ========== GETTERS ==========
 
@@ -118,36 +113,17 @@ export const useAppStore = defineStore("app", () => {
     document.body.classList.toggle("dark", value);
   }
 
-  function setUserFromData(userData: {
-    sub: string;
-    name: string;
-    email: string;
-    picture: string;
-  }) {
+  function setUserFromData(userData: Session) {
     // Token is in HTTP-only cookie, managed by browser
     // We just store the user data in memory
-    currentUser.value = {
-      id: userData.sub,
-      name: userData.name,
-      email: userData.email,
-      picture_url: userData.picture,
-    };
+    currentUser.value = userData;
     isAuthenticated.value = true;
   }
 
   function logout() {
     isAuthenticated.value = false;
     currentUser.value = null;
-
-    // Clear HTTP-only cookie by calling backend
-    const BACKEND_URL =
-      import.meta.env.VITE_BACKEND_URL || "http://localhost:8787";
-    fetch(`${BACKEND_URL}/api/session`, {
-      method: "DELETE",
-      credentials: "include",
-    }).catch(() => {
-      // Ignore errors - user is logged out locally anyway
-    });
+    sessionApi.delete();
   }
 
   // Initialize on store creation

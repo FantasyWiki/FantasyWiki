@@ -17,7 +17,7 @@ export function resolveBackendUrl(): string {
   const backend = import.meta.env.VITE_BACKEND_URL;
   let url = backend;
   if (branch) {
-    url = branch + "-" + backend;
+    url = branch + "." + backend;
   }
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
     url = "https://" + url;

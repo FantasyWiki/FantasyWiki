@@ -38,6 +38,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: "4.80.0"
           workingDirectory: "backend"
+          command: worker deploy --name=${{ env.WORKERS_CI_BRANCH }}
           vars: |
             WORKERS_CI_BRANCH
         env:
@@ -67,7 +68,7 @@ jobs:
         working-directory: frontend
         env:
           VITE_WORKERS_CI_BRANCH: ${{ env.WORKERS_CI_BRANCH }}
-          VITE_BACKEND_URL: "backend.luca0patrignani.workers.dev"
+          VITE_BACKEND_URL: "luca0patrignani.workers.dev"
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3

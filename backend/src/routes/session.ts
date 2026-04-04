@@ -30,4 +30,8 @@ session.delete("/", async (c) => {
   return c.json({ success: true });
 });
 
+session.options("/", async (c) => {
+  return c.text("", 204);
+});
+
 export default session;

@@ -267,6 +267,19 @@ export const handlers = [
     return HttpResponse.json(player);
   }),
 
+  http.get("*/api/player/teams", () => {
+    return HttpResponse.json(teams.filter((t) => t.player.id === currentPlayerId));
+  }),
+
+  http.get("*/api/player/notifications", () => {
+    const playerTeamIds = teams
+      .filter((t) => t.player.id === currentPlayerId)
+      .map((t) => t.id);
+    return HttpResponse.json(
+      notifications.filter((n) => playerTeamIds.includes(n.contract.team.id))
+    );
+  }),
+
   // ── Leagues ─────────────────────────────────────────────────────────────────
 
   http.get("*/api/leagues", () => HttpResponse.json(leagues)),
@@ -294,11 +307,6 @@ export const handlers = [
     return HttpResponse.json(contracts.filter((c) => c.team.id === team.id));
   }),
 
-  http.get("*/api/leagues/:leagueId/leaderboard", ({ params }) => {
-    const league = leagues.find((l) => l.id === params.leagueId);
-    return HttpResponse.json(league?.teams ?? []);
-  }),
-
   http.get("*/api/leagues/:leagueId/notifications", ({ params }) => {
     const league = leagues.find((l) => l.id === params.leagueId);
     if (!league) return HttpResponse.json([]);
@@ -309,12 +317,6 @@ export const handlers = [
   }),
 
   // ── Teams ────────────────────────────────────────────────────────────────────
-
-  http.get("*/api/teams", () => {
-    return HttpResponse.json(
-      teams.filter((t) => t.player.id === currentPlayerId)
-    );
-  }),
 
   http.get("*/api/teams/:teamId", ({ params }) => {
     const team = teams.find((t) => t.id === params.teamId);
@@ -331,10 +333,18 @@ export const handlers = [
     );
   }),
 
+  http.get("*/api/teams/:teamId/notifications", ({ params }) => {
+    return HttpResponse.json(
+      notifications.filter((n) => n.contract.team.id === params.teamId)
+    );
+  }),
+
   http.post("*/api/teams/:teamId/contracts", async ({ params, request }) => {
-    const { articleId, tier, purchasePrice } = (await request.json()) as {
-      articleId: string;
-      tier: "SHORT" | "MEDIUM" | "LONG";
+    const data = (await request.json()) as {
+      teamID: string;
+      articleID: string;
+      startDate: Temporal.Instant;
+      duration: Temporal.Duration;
       purchasePrice: number;
     };
     const team = teams.find(
@@ -342,13 +352,13 @@ export const handlers = [
     );
     if (!team)
       return HttpResponse.json({ error: "Team not found" }, { status: 404 });
-    if (team.credits < purchasePrice)
+    if (team.credits < data.purchasePrice)
       return HttpResponse.json(
         { error: "Insufficient credits" },
         { status: 400 }
       );
 
-    const article = articles.find((a) => a.id === articleId);
+    const article = articles.find((a) => a.id === data.articleID);
     if (!article)
       return HttpResponse.json({ error: "Article not found" }, { status: 404 });
 
@@ -356,12 +366,12 @@ export const handlers = [
       id: `ctr-${Date.now()}`,
       team,
       article,
-      purchasePrice,
-      startDate: Instant.from(Temporal.Now.instant().toString()),
-      duration: Temporal.Duration.from({ days: tier === "SHORT" ? 7 : tier === "MEDIUM" ? 14 : 30 }),
+      purchasePrice: data.purchasePrice,
+      startDate: data.startDate || Instant.from(Temporal.Now.instant().toString()),
+      duration: data.duration || Temporal.Duration.from({ days: 14 }),
     };
     contracts.push(newContract);
-    team.credits -= purchasePrice;
+    team.credits -= data.purchasePrice;
     return HttpResponse.json(newContract, { status: 201 });
   }),
 
@@ -433,31 +443,23 @@ export const handlers = [
     return HttpResponse.json(article);
   }),
 
-  // ── Dashboard ─────────────────────────────────────────────────────────────────
+  // ── Performances ──────────────────────────────────────────────────────────────
 
-  http.get("*/api/dashboard/:leagueId", ({ params }) => {
-    const leagueId = params.leagueId as string;
-    const team = getMyTeam(leagueId);
-    if (!team)
-      return HttpResponse.json(
-        { error: "No team found for this league" },
-        { status: 404 }
-      );
+  http.get("*/api/leagues/:leagueId/performances", () => {
+    const performances = [
+      {
+        id: "perf-1",
+        date: Temporal.PlainDate.from("2024-02-01"),
+        points: 12,
+      },
+      {
+        id: "perf-2",
+        date: Temporal.PlainDate.from("2024-02-02"),
+        points: 15,
+      },
+    ];
 
-    const league = leagues.find((l) => l.id === leagueId);
-    const teamContracts = contracts.filter((c) => c.team.id === team.id);
-
-    // Muted type parameter to bypass MSW generic limits or strict TS
-    return HttpResponse.json({
-      team,
-      league: league!,
-      contracts: teamContracts,
-      notifications: notifications.filter((n) => n.contract.team.id === team.id),
-      recentPoints: {
-        yesterdayPoints: 0,
-        pointsChange: 0,
-      }
-    } as any);
+    return HttpResponse.json(performances);
   }),
 
   // ── Session ─────────────────────────────────────────────────────────────────

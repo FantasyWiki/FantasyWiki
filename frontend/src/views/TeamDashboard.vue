@@ -8,7 +8,7 @@
     </ion-refresher>
 
     <!-- Loading -->
-    <div v-if="isLoading && !summary" class="loading-container">
+    <div v-if="isLoading && !dashboardData" class="loading-container">
       <ion-spinner name="crescent" color="primary" />
       <ion-text color="medium"><p>Loading dashboard…</p></ion-text>
     </div>
@@ -52,7 +52,7 @@
       <dashboard-hero
         :current-league="currentLeague"
         :current-team="team"
-        :data="summary"
+        :data="dashboardData!"
       />
 
       <ion-grid class="content-grid ion-no-padding">
@@ -89,8 +89,6 @@ import {
   IonRefresher,
   IonRefresherContent,
   IonRow,
-  IonSpinner,
-  IonText,
 } from "@ionic/vue";
 import {
   alertCircleOutline,
@@ -105,30 +103,41 @@ import LeagueLeaderboard from "@/modules/TeamDashboard/LeagueLeaderboard.vue";
 
 import { useLeagueStore } from "@/stores/league";
 import { useDashboard } from "@/stores/useDashboard";
+import { Temporal } from "@js-temporal/polyfill";
+import Duration = Temporal.Duration;
 
 const router = useRouter();
 const leagueStore = useLeagueStore();
 
 const currentLeague = computed(() => leagueStore.currentLeague);
-
+//const loading = ref(true);
 const {
+  dashboardData,
   isLoading,
   isError,
   error,
   refetch,
-  summary,
   team,
   contracts,
-  leaderboard,
+  leaderBoard,
+  rank,
 } = useDashboard();
 
 const urgentContracts = computed(() =>
-  contracts.value.filter((c) => c.expiresIn <= 3)
-);
+{
+  if(contracts.value.length < 0) {
+    return [];
+  }
+    return contracts.value.filter(
+      (c) =>
+        c.startDate.add(c.duration) <=
+        Temporal.Now.instant().add(new Duration(0, 0, 0, 3))
+    )
+});
 
 const playersAroundUser = computed(() => {
-  const entries = leaderboard.value;
-  const idx = entries.findIndex((e) => e.isCurrentUser);
+  const entries = leaderBoard.value;
+  const idx = rank.value ? rank.value - 1 : -1;
   if (idx === -1) return entries.slice(0, 5);
   const start = Math.max(0, idx - 2);
   const end = Math.min(entries.length, idx + 3);

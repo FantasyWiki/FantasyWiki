@@ -2,6 +2,8 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import api from "@/services/api";
 import { LeagueDTO } from "../../../dto/leagueDTO";
+import { Temporal } from "@js-temporal/polyfill";
+import Now = Temporal.Now;
 
 /**
  * Manages the player's league context.
@@ -17,8 +19,17 @@ import { LeagueDTO } from "../../../dto/leagueDTO";
  */
 export const useLeagueStore = defineStore("league", () => {
   // ── State ──────────────────────────────────────────────────────────────────
-
-  const currentLeague = ref<LeagueDTO | null>(null);
+  const emptyLeague = (): LeagueDTO => ({
+    id: "",
+    title: "No League Selected",
+    description: "",
+    domain: "en",
+    icon: "",
+    startDate: Now.instant(),
+    endDate: Now.instant(),
+    teams: [],
+  });
+  const currentLeague = ref<LeagueDTO>();
   const availableLeagues = ref<LeagueDTO[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
@@ -33,14 +44,15 @@ export const useLeagueStore = defineStore("league", () => {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
+
   /**
    * Validate `currentLeague` against the fetched `availableLeagues` list.
    * If the stored league id is not found (e.g. stale localStorage entry),
    * fall back to the first available league and persist the correction.
    * Returns the resolved league so callers can act on it immediately.
    */
-  function _resolveCurrentLeague(): LeagueDTO | null {
-    if (!availableLeagues.value.length) return null;
+  function _resolveCurrentLeague(): LeagueDTO {
+    if (!availableLeagues.value.length) return emptyLeague();
 
     const candidate = currentLeague.value;
     const found = candidate

@@ -65,7 +65,7 @@
                 @click="selectLeague(lg)"
               >
                 <ion-label class="league-label"
-                  >{{ lg.icon }} {{ lg.name }}</ion-label
+                  >{{ lg.icon }} {{ lg.title }}</ion-label
                 >
                 <ion-badge
                   v-if="unreadCountByLeague[lg.id]"

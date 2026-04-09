@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - check
+    if: "!startsWith(github.ref_name, 'renovate/')"
     steps:
       - uses: actions/checkout@v4
 
@@ -48,6 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - check
+    if: "!startsWith(github.ref_name, 'renovate/')"
     steps:
       - uses: actions/checkout@v4
 

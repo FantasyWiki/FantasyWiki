@@ -33,13 +33,21 @@ jobs:
       - name: Create URL-friendly branch name
         run: echo "WORKERS_CI_BRANCH=${GITHUB_REF_NAME//\//-}" >> $GITHUB_ENV
 
+      - name: Determine deployment name
+        run: |
+          if [ "${{ env.WORKERS_CI_BRANCH }}" = "master" ]; then
+            echo "DEPLOY_NAME=backend" >> $GITHUB_ENV
+          else
+            echo "DEPLOY_NAME=${{ env.WORKERS_CI_BRANCH }}" >> $GITHUB_ENV
+          fi
+
       - name: Deploy Worker to Cloudflare
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: "4.80.0"
           workingDirectory: "backend"
-          command: deploy --name=${{ env.WORKERS_CI_BRANCH }}
+          command: deploy --name=${{ env.DEPLOY_NAME }}
           vars: |
             WORKERS_CI_BRANCH
         env:
@@ -72,7 +80,8 @@ jobs:
           VITE_WORKERS_CI_BRANCH: ${{ env.WORKERS_CI_BRANCH }}
           VITE_BACKEND_URL: "luca0patrignani.workers.dev"
 
-      - name: Deploy to Cloudflare Pages
+      - name: Deploy to Cloudflare Pages (Production)
+        if: env.WORKERS_CI_BRANCH == 'master'
         uses: cloudflare/wrangler-action@v3
         with:
           wranglerVersion: "4.80.0"
@@ -80,6 +89,16 @@ jobs:
           workingDirectory: "frontend"
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name=frontend
+
+      - name: Deploy to Cloudflare Pages (Preview)
+        if: env.WORKERS_CI_BRANCH != 'master'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          wranglerVersion: "4.80.0"
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: "frontend"
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=frontend --branch=${{ env.WORKERS_CI_BRANCH }}
 
   success:
     runs-on: ubuntu-24.04

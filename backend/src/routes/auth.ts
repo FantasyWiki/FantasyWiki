@@ -14,7 +14,8 @@ type Bindings = {
 
 export function resolveFrontendUrl(env: Bindings): string {
   let url = env.FRONTEND_URL;
-  if (env.WORKERS_CI_BRANCH) {
+  // Only add branch prefix if not master
+  if (env.WORKERS_CI_BRANCH && env.WORKERS_CI_BRANCH !== "master") {
     url = env.WORKERS_CI_BRANCH + "." + env.FRONTEND_URL;
   }
   if (!url.startsWith("http://") && !url.startsWith("https://")) {

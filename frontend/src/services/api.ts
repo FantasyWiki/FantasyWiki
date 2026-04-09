@@ -16,8 +16,7 @@ export function resolveBackendUrl(): string {
   const branch = import.meta.env.VITE_WORKERS_CI_BRANCH;
   const backend = import.meta.env.VITE_BACKEND_URL;
   let url = backend;
-  // Only add branch prefix if not master
-  if (branch && branch !== "master") {
+  if (branch) {
     url = branch + "." + backend;
   }
   if (!url.startsWith("http://") && !url.startsWith("https://")) {

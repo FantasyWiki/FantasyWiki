@@ -1,4 +1,4 @@
-import { http, HttpResponse } from "msw";
+import { http, HttpResponse, passthrough } from "msw";
 import { Temporal } from "@js-temporal/polyfill";
 import type { ArticleDTO } from "../../../dto/articleDTO";
 import type { LeagueDTO } from "../../../dto/leagueDTO";
@@ -13,8 +13,6 @@ const currentPlayerId = "player-1";
 // =============================================================================
 // MOCK DATA
 // =============================================================================
-
-// ── Articles ──────────────────────────────────────────────────────────────────
 
 const articles: ArticleDTO[] = [
   { id: "art-1", title: "Bitcoin", domain: "itwiki" },
@@ -31,36 +29,14 @@ const articles: ArticleDTO[] = [
   { id: "art-12", title: "Artificial Intelligence", domain: "enwiki" },
 ];
 
-// ── Players ───────────────────────────────────────────────────────────────────
-
 const players: PlayerDTO[] = [
-  {
-    id: "player-1",
-    name: "Mario_Rossi",
-  },
-  {
-    id: "player-2",
-    name: "WikiMaster",
-  },
-  {
-    id: "player-3",
-    name: "DataKing",
-  },
-  {
-    id: "player-4",
-    name: "AlexChen",
-  },
-  {
-    id: "player-5",
-    name: "SarahKim",
-  },
-  {
-    id: "player-6",
-    name: "JamieLee",
-  },
+  { id: "player-1", name: "Mario_Rossi" },
+  { id: "player-2", name: "WikiMaster" },
+  { id: "player-3", name: "DataKing" },
+  { id: "player-4", name: "AlexChen" },
+  { id: "player-5", name: "SarahKim" },
+  { id: "player-6", name: "JamieLee" },
 ];
-
-// ── Teams ─────────────────────────────────────────────────────────────────────
 
 const teams: TeamDTO[] = [
   {
@@ -121,8 +97,6 @@ const teams: TeamDTO[] = [
   },
 ];
 
-// ── Leagues ───────────────────────────────────────────────────────────────────
-
 const leagues: LeagueDTO[] = [
   {
     id: "global",
@@ -166,9 +140,6 @@ const leagues: LeagueDTO[] = [
     teams: [teams[7]],
   },
 ];
-
-// ── Contracts ─────────────────────────────────────────────────────────────────
-// Mutable at runtime — POST and DELETE handlers update this array.
 
 const contracts: ContractDTO[] = [
   {
@@ -221,8 +192,6 @@ const contracts: ContractDTO[] = [
   },
 ];
 
-// ── Notifications ─────────────────────────────────────────────────────────────
-
 const notifications: NotificationDTO[] = [
   {
     id: "notif-1",
@@ -246,7 +215,6 @@ const notifications: NotificationDTO[] = [
 // HELPER
 // =============================================================================
 
-/** Find the current player's team for a given league, or undefined. */
 function getMyTeam(leagueId: string): TeamDTO | undefined {
   const league = leagues.find((l) => l.id === leagueId);
   return league?.teams.find((t) => t.player.id === currentPlayerId);
@@ -257,8 +225,15 @@ function getMyTeam(leagueId: string): TeamDTO | undefined {
 // =============================================================================
 
 export const handlers = [
-  // ── Player ──────────────────────────────────────────────────────────────────
+  // ── Session & Auth → passthrough al backend reale ──────────────────────────
+  // Il login Google è un redirect del browser (non fetch), MSW non lo vede.
+  // /api/session è invece una fetch normale: la lasciamo passare al backend
+  // reale così il JWT viene letto davvero dopo il login Google.
+  http.get("*/auth/*", () => passthrough()),
+  http.get("*/api/session", () => passthrough()),
+  http.delete("*/api/session", () => passthrough()),
 
+  // ── Player ──────────────────────────────────────────────────────────────────
   http.get("*/api/player", () => {
     const player = players.find((p) => p.id === currentPlayerId);
     if (!player)
@@ -282,7 +257,6 @@ export const handlers = [
   }),
 
   // ── Leagues ─────────────────────────────────────────────────────────────────
-
   http.get("*/api/leagues", () => HttpResponse.json(leagues)),
 
   http.get("*/api/leagues/:leagueId", ({ params }) => {
@@ -318,7 +292,6 @@ export const handlers = [
   }),
 
   // ── Teams ────────────────────────────────────────────────────────────────────
-
   http.get("*/api/teams/:teamId", ({ params }) => {
     const team = teams.find((t) => t.id === params.teamId);
     if (!team)
@@ -378,7 +351,6 @@ export const handlers = [
   }),
 
   // ── Contracts ────────────────────────────────────────────────────────────────
-
   http.get("*/api/contracts/:contractId", ({ params }) => {
     const contract = contracts.find((c) => c.id === params.contractId);
     if (!contract)
@@ -413,7 +385,6 @@ export const handlers = [
   }),
 
   // ── Notifications ─────────────────────────────────────────────────────────────
-
   http.get("*/api/notifications", () => {
     const playerTeamIds = teams
       .filter((t) => t.player.id === currentPlayerId)
@@ -435,7 +406,6 @@ export const handlers = [
   }),
 
   // ── Articles ──────────────────────────────────────────────────────────────────
-
   http.get("*/api/articles", () => HttpResponse.json(articles)),
 
   http.get("*/api/articles/:articleId", ({ params }) => {
@@ -446,36 +416,11 @@ export const handlers = [
   }),
 
   // ── Performances ──────────────────────────────────────────────────────────────
-
   http.get("*/api/leagues/:leagueId/performances", () => {
     const performances = [
-      {
-        id: "perf-1",
-        date: Temporal.PlainDate.from("2024-02-01"),
-        points: 12,
-      },
-      {
-        id: "perf-2",
-        date: Temporal.PlainDate.from("2024-02-02"),
-        points: 15,
-      },
+      { id: "perf-1", date: Temporal.PlainDate.from("2024-02-01"), points: 12 },
+      { id: "perf-2", date: Temporal.PlainDate.from("2024-02-02"), points: 15 },
     ];
-
     return HttpResponse.json(performances);
-  }),
-
-  // ── Session ─────────────────────────────────────────────────────────────────
-
-  http.get("*/api/session", () => {
-    return HttpResponse.json({
-      sub: "mock-user-id",
-      email: "test@example.com",
-      name: "Test User",
-      picture: "https://example.com/avatar.png",
-    });
-  }),
-
-  http.delete("*/api/session", () => {
-    return HttpResponse.json({ success: true });
   }),
 ];

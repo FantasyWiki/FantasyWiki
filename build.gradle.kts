@@ -25,7 +25,7 @@ tasks.register("dev") {
 
 tasks.register("devMock") {
     dependsOn(
-        ":frontend:npm_run_dev",
+        ":frontend:devMock",
         ":backend:npm_run_dev",
     )
 }

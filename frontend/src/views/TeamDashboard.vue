@@ -2,7 +2,7 @@
   <nav-bar>
     <ion-refresher slot="fixed" @ionRefresh="handleRefresh($event)">
       <ion-refresher-content
-        pulling-icon="chevron-down-circle-outline"
+        :pulling-icon="chevronDownCircleOutline"
         refreshing-spinner="crescent"
       />
     </ion-refresher>
@@ -58,17 +58,17 @@
       <ion-grid class="content-grid ion-no-padding">
         <ion-row>
           <ion-col size="12" size-lg="8">
-            <needed-attention
+            <!--            <needed-attention
               :urgent-contract="urgentContracts"
               :on-buy-articles="() => router.push('/market')"
-            />
+            />-->
           </ion-col>
           <ion-col size="12" size-lg="4">
-            <league-leaderboard
-              :leader-board-entry="playersAroundUser"
-              :current-league="currentLeague"
-              :current-team="team"
-            />
+            <!--  <league-leaderboard
+                :leader-board-entry="playersAroundUser"
+                :current-league="currentLeague"
+                :current-team="team"
+              />-->
           </ion-col>
         </ion-row>
       </ion-grid>
@@ -89,11 +89,14 @@ import {
   IonRefresher,
   IonRefresherContent,
   IonRow,
+  IonSpinner,
+  IonText,
 } from "@ionic/vue";
 import {
   alertCircleOutline,
   refreshOutline,
   trophyOutline,
+  chevronDownCircleOutline,
 } from "ionicons/icons";
 
 import NavBar from "@/layout/NavBar.vue";
@@ -123,16 +126,15 @@ const {
   rank,
 } = useDashboard();
 
-const urgentContracts = computed(() =>
-{
-  if(contracts.value.length < 0) {
+const urgentContracts = computed(() => {
+  if (contracts.value.length < 0) {
     return [];
   }
-    return contracts.value.filter(
-      (c) =>
-        c.startDate.add(c.duration) <=
-        Temporal.Now.instant().add(new Duration(0, 0, 0, 3))
-    )
+  return contracts.value.filter(
+    (c) =>
+      c.startDate.add(c.duration) <=
+      Temporal.Now.instant().add(new Duration(0, 0, 0, 3))
+  );
 });
 
 const playersAroundUser = computed(() => {

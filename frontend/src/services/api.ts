@@ -42,7 +42,8 @@ async function apiRequest<T>(
 export const playerApi = {
   getCurrent: () => apiRequest<PlayerDTO>("/player"),
   getTeams: () => apiRequest<TeamDTO[]>("/player/teams"),
-  getNotifications: () => apiRequest<NotificationDTO[]>("/player/notifications"),
+  getNotifications: () =>
+    apiRequest<NotificationDTO[]>("/player/notifications"),
 };
 
 // ── Leagues ───────────────────────────────────────────────────────────────────
@@ -73,16 +74,17 @@ export const leaguesApi = {
       yesterdayPoints: yesterday?.points ?? 0,
       pointsChange: (yesterday?.points ?? 0) - (twoDaysAgo?.points ?? 0),
     };
-  }
+  },
 };
-
 
 // ── Teams ─────────────────────────────────────────────────────────────────────
 
 export const teamsApi = {
   getById: (id: string) => apiRequest<TeamDTO>(`/teams/${id}`),
-  getContracts: (id: string) => apiRequest<ContractDTO[]>(`/teams/${id}/contracts`),
-  getNotifications: (id: string) => apiRequest<NotificationDTO[]>(`/teams/${id}/notifications`),
+  getContracts: (id: string) =>
+    apiRequest<ContractDTO[]>(`/teams/${id}/contracts`),
+  getNotifications: (id: string) =>
+    apiRequest<NotificationDTO[]>(`/teams/${id}/notifications`),
   createContract: (
     teamId: string,
     data: {
@@ -97,7 +99,6 @@ export const teamsApi = {
       method: "POST",
       body: JSON.stringify(data),
     }),
-
 };
 
 // ── Contracts ─────────────────────────────────────────────────────────────────
@@ -116,7 +117,9 @@ export const contractsApi = {
 export const notificationsApi = {
   getAll: () => apiRequest<NotificationDTO[]>("/notifications"),
   markAsRead: (id: string) =>
-    apiRequest<NotificationDTO>(`/notifications/${id}/read`, { method: "PATCH" }),
+    apiRequest<NotificationDTO>(`/notifications/${id}/read`, {
+      method: "PATCH",
+    }),
 };
 
 // ── Articles ──────────────────────────────────────────────────────────────────
@@ -129,9 +132,8 @@ export const articlesApi = {
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
 export const dashboardApi = {
-  async getDashboardData( league: LeagueDTO): Promise<DashboardData> {
-
-    const [team, contracts, notifications,recentPoints] = await Promise.all([
+  async getDashboardData(league: LeagueDTO): Promise<DashboardData> {
+    const [team, contracts, notifications, recentPoints] = await Promise.all([
       leaguesApi.getMyTeam(league.id),
       leaguesApi.getMyContracts(league.id),
       leaguesApi.getMyNotifications(league.id),
@@ -139,7 +141,14 @@ export const dashboardApi = {
     ]);
 
     // Shape the resolved values into DashboardData
-    return new DashboardData( team,league, contracts, notifications, recentPoints );  }
+    return new DashboardData(
+      team,
+      league,
+      contracts,
+      notifications,
+      recentPoints
+    );
+  },
 };
 
 // ── Session ───────────────────────────────────────────────────────────────────

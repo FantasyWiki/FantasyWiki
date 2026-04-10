@@ -13,7 +13,13 @@ import type { DashboardData } from "@/types/models";
 export function useDashboard() {
   const leagueStore = useLeagueStore();
 
-  const { data: dashboardData, isLoading, isError, error, refetch } = useQuery<DashboardData>({
+  const {
+    data: dashboardData,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<DashboardData>({
     queryKey: computed(() => ["dashboard", leagueStore.currentLeagueId]),
     queryFn: () => api.dashboard.getDashboardData(leagueStore.currentLeague!),
     enabled: computed(() => !!leagueStore.currentLeagueId),
@@ -23,15 +29,23 @@ export function useDashboard() {
   const team = computed(() => dashboardData.value?.team ?? null);
   const league = computed(() => dashboardData.value?.league ?? null);
   const contracts = computed(() => dashboardData.value?.contracts ?? []);
-  const notifications = computed(() => dashboardData.value?.notifications ?? []);
+  const notifications = computed(
+    () => dashboardData.value?.notifications ?? []
+  );
 
   // Derived from DashboardData class getters
   const rank = computed(() => dashboardData.value?.rank ?? null);
-  const portfolioValue = computed(() => dashboardData.value?.portfolioValue ?? 0);
-  const activeContracts = computed(() => dashboardData.value?.activeContracts ?? 0);
+  const portfolioValue = computed(
+    () => dashboardData.value?.portfolioValue ?? 0
+  );
+  const activeContracts = computed(
+    () => dashboardData.value?.activeContracts ?? 0
+  );
   const maxContracts = computed(() => dashboardData.value?.maxContracts ?? 0);
   const totalPlayers = computed(() => dashboardData.value?.totalPLayers ?? 0);
-  const leaderBoard = computed(() => league.value?.teams.sort((a, b) => b.points - a.points) ?? []);
+  const leaderBoard = computed(
+    () => league.value?.teams.sort((a, b) => b.points - a.points) ?? []
+  );
 
   return {
     dashboardData,
@@ -51,6 +65,6 @@ export function useDashboard() {
     activeContracts,
     maxContracts,
     totalPlayers,
-    leaderBoard
+    leaderBoard,
   };
 }

@@ -129,7 +129,9 @@
 
                 <ion-text color="medium">
                   <p class="ion-no-margin notification-detail">
-                    {{ notification.message || "No additional details provided." }}
+                    {{
+                      notification.message || "No additional details provided."
+                    }}
                   </p>
                 </ion-text>
 
@@ -162,7 +164,6 @@
             </div>
           </ion-item>
         </ion-list>
-
       </ion-content>
     </ion-popover>
   </div>
@@ -209,11 +210,8 @@ import api from "@/services/api";
 
 const queryClient = useQueryClient();
 const leagueStore = useLeagueStore();
-const {
-  currentLeagueNotifications,
-  currentLeagueUnreadCount,
-  isLoading,
-} = useNotifications();
+const { currentLeagueNotifications, currentLeagueUnreadCount, isLoading } =
+  useNotifications();
 
 // Computed internally
 const leagueIcon = computed(() => leagueStore.currentLeague?.icon);

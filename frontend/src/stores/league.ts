@@ -44,7 +44,6 @@ export const useLeagueStore = defineStore("league", () => {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-
   /**
    * Validate `currentLeague` against the fetched `availableLeagues` list.
    * If the stored league id is not found (e.g. stale localStorage entry),

@@ -4,7 +4,6 @@ import { useLeagueStore } from "@/stores/league";
 import api from "@/services/api";
 import { NotificationDTO } from "../../../dto/notificationDTO";
 
-
 /**
  * Provides notifications for the current player.
  *

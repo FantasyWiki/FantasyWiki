@@ -21,7 +21,11 @@
                 color="primary"
                 class="season-badge"
               >
-                {{ currentLeague.endDate.toLocaleString("default", { month: "short" }) }}
+                {{
+                  currentLeague.endDate.toLocaleString("default", {
+                    month: "short",
+                  })
+                }}
               </ion-badge>
             </ion-chip>
 
@@ -230,7 +234,6 @@ const router = useRouter();
 
 const leagueStore = useLeagueStore();
 const currentLeague = computed(() => leagueStore.currentLeague);
-
 
 // ── Stat definitions ──────────────────────────────
 interface StatDef {

@@ -242,14 +242,13 @@ const notifications: NotificationDTO[] = [
   },
 ];
 
-
 // =============================================================================
 // HELPER
 // =============================================================================
 
 /** Find the current player's team for a given league, or undefined. */
 function getMyTeam(leagueId: string): TeamDTO | undefined {
-  const league = leagues.find(l => l.id === leagueId);
+  const league = leagues.find((l) => l.id === leagueId);
   return league?.teams.find((t) => t.player.id === currentPlayerId);
 }
 
@@ -268,7 +267,9 @@ export const handlers = [
   }),
 
   http.get("*/api/player/teams", () => {
-    return HttpResponse.json(teams.filter((t) => t.player.id === currentPlayerId));
+    return HttpResponse.json(
+      teams.filter((t) => t.player.id === currentPlayerId)
+    );
   }),
 
   http.get("*/api/player/notifications", () => {
@@ -367,7 +368,8 @@ export const handlers = [
       team,
       article,
       purchasePrice: data.purchasePrice,
-      startDate: data.startDate || Instant.from(Temporal.Now.instant().toString()),
+      startDate:
+        data.startDate || Instant.from(Temporal.Now.instant().toString()),
       duration: data.duration || Temporal.Duration.from({ days: 14 }),
     };
     contracts.push(newContract);

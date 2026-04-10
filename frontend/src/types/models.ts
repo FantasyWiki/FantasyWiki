@@ -3,13 +3,12 @@ import type { LeagueDTO } from "../../../dto/leagueDTO";
 import type { TeamDTO } from "../../../dto/teamDTO";
 import type { NotificationDTO } from "../../../dto/notificationDTO";
 
-const MAX_CONTRACTS = 22
+const MAX_CONTRACTS = 22;
 
 export interface TeamPointsData {
   yesterdayPoints: number;
   pointsChange: number;
 }
-
 
 export class DashboardData {
   team: TeamDTO;
@@ -18,11 +17,13 @@ export class DashboardData {
   notifications: NotificationDTO[];
   recentPoints: TeamPointsData;
 
-  constructor(team: TeamDTO,
-              league: LeagueDTO,
-              contracts: ContractDTO[],
-              notifications: NotificationDTO[],
-              recentPoints: TeamPointsData) {
+  constructor(
+    team: TeamDTO,
+    league: LeagueDTO,
+    contracts: ContractDTO[],
+    notifications: NotificationDTO[],
+    recentPoints: TeamPointsData
+  ) {
     this.team = team;
     this.league = league;
     this.contracts = contracts;
@@ -47,12 +48,11 @@ export class DashboardData {
   }
 
   get rank(): number {
-    return this.league.teams
-      .sort((a, b) => b.points - a.points)
-      .findIndex(t => t.id === this.team.id) + 1;
+    const rank = [...this.league.teams];
+    return (
+      rank
+        .sort((a, b) => b.points - a.points)
+        .findIndex((t) => t.id === this.team.id) + 1
+    );
   }
-
-
 }
-
-

@@ -23,7 +23,7 @@
     "@capacitor/app": "8.1.0",
     "@capacitor/core": "8.3.0",
     "@capacitor/haptics": "8.0.2",
-    "@capacitor/keyboard": "8.0.2",
+    "@capacitor/keyboard": "8.0.3",
     "@capacitor/status-bar": "8.0.2",
     "@fontsource/libre-baskerville": "^5.2.10",
     "@ionic/vue": "^8.0.0",

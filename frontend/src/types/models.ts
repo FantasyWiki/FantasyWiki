@@ -56,3 +56,12 @@ export class DashboardData {
     );
   }
 }
+
+// ── Session ──────────────────────────────────────────────────────────────────
+
+export interface Session {
+  sub: string;
+  email: string;
+  name: string;
+  picture: string;
+}

@@ -50,6 +50,10 @@ auth.get("/google", async (c) => {
     return c.redirect(`${frontendUrl}/home?error=auth_failed`);
   }
 
+  if (!c.env.JWT_SECRET) {
+    return c.json({ error: "Missing JWT_SECRET env variable" }, 500);
+  }
+
   const jwtPayload: JWTPayload = {
     sub: user.id!,
     email: user.email!,

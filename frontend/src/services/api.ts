@@ -1,5 +1,5 @@
 // frontend/src/services/api.ts
-import { DashboardData, TeamPointsData } from "@/types/models";
+import { DashboardData, Session, TeamPointsData } from "@/types/models";
 import { PlayerDTO } from "../../../dto/playerDTO";
 import { LeagueDTO } from "../../../dto/leagueDTO";
 import { NotificationDTO } from "../../../dto/notificationDTO";
@@ -9,8 +9,20 @@ import { ArticleDTO } from "../../../dto/articleDTO";
 import { PerformanceDTO } from "../../../dto/performanceDTO";
 import { Temporal } from "@js-temporal/polyfill";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+export function resolveBackendUrl(): string {
+  const branch = import.meta.env.VITE_WORKERS_CI_BRANCH;
+  const backend = import.meta.env.VITE_BACKEND_URL;
+  let url = backend;
+  if (branch) {
+    url = branch + "." + backend;
+  }
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    url = "https://" + url;
+  }
+  return url;
+}
+
+const API_BASE_URL = resolveBackendUrl() + "/api";
 
 async function apiRequest<T>(
   endpoint: string,

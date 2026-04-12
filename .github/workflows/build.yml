@@ -33,21 +33,13 @@ jobs:
       - name: Create URL-friendly branch name
         run: echo "WORKERS_CI_BRANCH=${GITHUB_REF_NAME//\//-}" >> $GITHUB_ENV
 
-      - name: Determine deployment name
-        run: |
-          if [ "${{ env.WORKERS_CI_BRANCH }}" = "master" ]; then
-            echo "DEPLOY_NAME=backend" >> $GITHUB_ENV
-          else
-            echo "DEPLOY_NAME=${{ env.WORKERS_CI_BRANCH }}" >> $GITHUB_ENV
-          fi
-
       - name: Deploy Worker to Cloudflare
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: "4.80.0"
           workingDirectory: "backend"
-          command: deploy --name=${{ env.DEPLOY_NAME }}
+          command: deploy --name=${{ env.WORKERS_CI_BRANCH }}
           vars: |
             WORKERS_CI_BRANCH
         env:

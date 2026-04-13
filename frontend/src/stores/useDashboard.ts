@@ -44,7 +44,8 @@ export function useDashboard() {
   const maxContracts = computed(() => dashboardData.value?.maxContracts ?? 0);
   const totalPlayers = computed(() => dashboardData.value?.totalPLayers ?? 0);
   const leaderBoard = computed(
-    () => league.value?.teams.sort((a, b) => b.points - a.points) ?? []
+    () =>
+      [...(league.value?.teams ?? [])].sort((a, b) => b.points - a.points) ?? []
   );
 
   return {

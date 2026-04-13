@@ -64,11 +64,13 @@
             />
           </ion-col>
           <ion-col size="12" size-lg="4">
-            <!--  <league-leaderboard
-                :leader-board-entry="playersAroundUser"
-                :current-league="currentLeague"
-                :current-team="team"
-              />-->
+            <league-leaderboard
+              :leaderboard="leaderBoard"
+              :current-league="currentLeague"
+              :current-team="team"
+              :past-leaderboard="pastLeaderboard"
+              :slice="LEADERBOARD_SLICE"
+            />
           </ion-col>
         </ion-row>
       </ion-grid>
@@ -94,9 +96,9 @@ import {
 } from "@ionic/vue";
 import {
   alertCircleOutline,
+  chevronDownCircleOutline,
   refreshOutline,
   trophyOutline,
-  chevronDownCircleOutline,
 } from "ionicons/icons";
 
 import NavBar from "@/layout/NavBar.vue";
@@ -106,7 +108,10 @@ import LeagueLeaderboard from "@/modules/TeamDashboard/LeagueLeaderboard.vue";
 
 import { useLeagueStore } from "@/stores/league";
 import { useDashboard } from "@/stores/useDashboard";
-
+import { useLeaguePerformances } from "@/stores/useLeaguePerformances";
+import { PerformanceDTO } from "../../../dto/performanceDTO";
+import { TeamPointsData } from "@/types/models";
+import { Temporal } from "@js-temporal/polyfill";
 
 const router = useRouter();
 const leagueStore = useLeagueStore();
@@ -127,17 +132,14 @@ const {
 
 const urgentContracts = computed(() => {
   if (!contracts.value?.length) return [];
-  else return contracts.value.filter((c) => c.expiresIn.total({ unit: "days" }) < 3);
+  else
+    return contracts.value.filter(
+      (c) => c.expiresIn.total({ unit: "days" }) < 3
+    );
 });
 
-// const playersAroundUser = computed(() => {
-//   const entries = leaderBoard.value;
-//   const idx = rank.value ? rank.value - 1 : -1;
-//   if (idx === -1) return entries.slice(0, 5);
-//   const start = Math.max(0, idx - 2);
-//   const end = Math.min(entries.length, idx + 3);
-//   return entries.slice(start, end);
-// });
+const LEADERBOARD_SLICE = 5;
+const { pastLeaderboard } = useLeaguePerformances();
 
 async function handleRefresh(event: CustomEvent) {
   await refetch();

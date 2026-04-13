@@ -10,11 +10,10 @@ import Instant = Temporal.Instant;
 
 const currentPlayerId = "player-1";
 
-
 function instantDaysFromNow(days: number) {
   return Temporal.Now.instant()
     .toZonedDateTimeISO("UTC")
-    .add({days})
+    .add({ days })
     .toInstant();
 }
 

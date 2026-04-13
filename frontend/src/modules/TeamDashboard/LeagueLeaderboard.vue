@@ -9,7 +9,7 @@
         <div class="header-text">
           <ion-card-title>League Standings</ion-card-title>
           <ion-card-subtitle v-if="props.currentLeague">
-            {{ props.currentLeague.icon }} {{ props.currentLeague.name }}
+            {{ props.currentLeague?.icon }} {{ props.currentLeague?.title }}
           </ion-card-subtitle>
         </div>
       </div>
@@ -17,13 +17,13 @@
       <!-- League meta chips -->
       <div class="meta-chips" v-if="props.currentLeague">
         <ion-chip class="meta-chip" color="medium" outline>
-          <ion-label>{{ props.currentLeague.language }}</ion-label>
+          <ion-label>{{ props.currentLeague?.domain }}</ion-label>
         </ion-chip>
         <ion-chip class="meta-chip" color="medium" outline>
-          <ion-label>{{ props.currentLeague.totalPlayers }} players</ion-label>
+          <ion-label>{{ props.currentLeague?.teams.length }} players</ion-label>
         </ion-chip>
         <ion-chip class="meta-chip" color="medium" outline>
-          <ion-label>Ends {{ props.currentLeague.endDate }}</ion-label>
+          <ion-label>Ends {{ props.currentLeague?.endDate }}</ion-label>
         </ion-chip>
       </div>
     </ion-card-header>
@@ -31,7 +31,7 @@
     <!-- ── List ─────────────────────────────────── -->
     <ion-card-content class="ion-no-padding">
       <!-- Skeleton when loading -->
-      <div v-if="props.leaderBoardEntry.length === 0" class="skeleton-list">
+      <div v-if="props.leaderboard.length === 0" class="skeleton-list">
         <div v-for="i in 5" :key="i" class="skeleton-item">
           <ion-skeleton-text :animated="true" class="skeleton-rank" />
           <div class="skeleton-info">
@@ -44,22 +44,25 @@
 
       <ion-list v-else lines="none" class="player-list">
         <ion-item
-          v-for="player in props.leaderBoardEntry"
-          :key="player.rank"
+          v-for="(player, rank) in props.leaderboard"
+          :key="rank"
           class="player-item"
-          :class="{ 'player-item--me': player.isCurrentUser }"
+          :class="{ 'player-item--me': isCurrentUser(player) }"
           :detail="false"
         >
-          <div class="player-row">
+          <div
+            class="player-row"
+            v-if="rank >= sliceAroundUser[0] && rank < sliceAroundUser[1]"
+          >
             <!-- Rank badge -->
             <div
               class="rank-badge"
-              :class="{ 'rank-badge--top': player.rank <= 3 }"
+              :class="{ 'rank-badge--top': rank + 1 <= 3 }"
             >
-              <span v-if="player.rank === 1">👑</span>
-              <span v-else-if="player.rank === 2">🥈</span>
-              <span v-else-if="player.rank === 3">🥉</span>
-              <span v-else>{{ player.rank }}</span>
+              <span v-if="rank + 1 === 1">👑</span>
+              <span v-else-if="rank + 1 === 2">🥈</span>
+              <span v-else-if="rank + 1 === 3">🥉</span>
+              <span v-else>{{ rank + 1 }}</span>
             </div>
 
             <!-- Player info -->
@@ -67,12 +70,12 @@
               <div class="player-name-row">
                 <span
                   class="player-name"
-                  :class="{ 'player-name--me': player.isCurrentUser }"
+                  :class="{ 'player-name--me': isCurrentUser(player) }"
                 >
-                  {{ player.username }}
+                  {{ player.name }}
                 </span>
                 <ion-badge
-                  v-if="player.isCurrentUser"
+                  v-if="isCurrentUser(player)"
                   color="primary"
                   class="you-badge"
                 >
@@ -89,18 +92,10 @@
             <!-- Change indicator -->
             <div
               class="player-change"
-              :class="
-                player.change >= 0 ? 'player-change--up' : 'player-change--down'
-              "
+              :class="getRankChange(player.id).cssClass"
             >
-              <ion-icon
-                :icon="
-                  player.change >= 0 ? trendingUpOutline : trendingDownOutline
-                "
-              />
-              <span
-                >{{ player.change >= 0 ? "+" : "" }}{{ player.change }}%</span
-              >
+              <ion-icon :icon="getRankChange(player.id).icon" />
+              <span>{{ getRankChange(player.id).label }}</span>
             </div>
           </div>
         </ion-item>
@@ -153,20 +148,107 @@ import {
 } from "@ionic/vue";
 import {
   chevronForwardOutline,
+  removeOutline,
   trendingDownOutline,
   trendingUpOutline,
   trophyOutline,
 } from "ionicons/icons";
-import type { LeaderboardEntry, League, Team } from "@/types/models";
+import { TeamDTO } from "../../../../dto/teamDTO";
+import { LeagueDTO } from "../../../../dto/leagueDTO";
+import { computed } from "vue";
+import { PerformanceDTO } from "../../../../dto/performanceDTO";
 
 interface Props {
-  leaderBoardEntry: LeaderboardEntry[];
-  currentLeague: League | null;
-  currentTeam: Team | null;
+  leaderboard: TeamDTO[];
+  currentLeague: LeagueDTO | null;
+  currentTeam: TeamDTO | null;
+  pastLeaderboard: PerformanceDTO[] | null;
+  slice: number;
 }
 
 const props = defineProps<Props>();
 const router = useRouter();
+
+function isCurrentUser(t: TeamDTO): boolean {
+  return t.id === props.currentTeam?.id;
+}
+
+const sliceAroundUser = computed<[number, number]>(() => {
+  const entries = props.leaderboard || [];
+  const idx = entries.findIndex((e) => e.id === props.currentTeam?.id);
+  if (idx === -1) return [0, props.slice]; // user not found, default to top slice
+  const start = Math.max(0, idx - props.slice / 2);
+  const end = Math.min(entries.length, idx + props.slice / 2 + 1);
+  return [start, end];
+});
+
+const previousRanks = computed(() => {
+  const raw = props.pastLeaderboard ?? [];
+
+  const grouped = raw.reduce((map, p) => {
+    const group = map.get(p.teamId) ?? [];
+    group.push(p);
+    map.set(p.teamId, group);
+    return map;
+  }, new Map<string, PerformanceDTO[]>());
+
+  const twoDaysAgoPoints = [...grouped.entries()]
+    .map(([teamId, perfs]) => ({
+      teamId,
+      points: perfs[1]?.points ?? 0,
+    }))
+    .sort((a, b) => b.points - a.points);
+
+  const previousRanks = new Map(
+    twoDaysAgoPoints.map((entry, idx) => [entry.teamId, idx + 1])
+  );
+
+  return [...grouped.entries()]
+    .map(([teamId, perfs]) => ({
+      teamId,
+      points: perfs[0]?.points ?? 0,
+      previousRank: previousRanks.get(teamId) ?? null,
+    }))
+    .sort((a, b) => b.points - a.points)
+    .map((entry, idx) => ({
+      ...entry,
+      rankChange:
+        entry.previousRank !== null ? entry.previousRank - (idx + 1) : null,
+    }));
+});
+
+function rankChangeById(id: string) {
+  return (
+    previousRanks.value.find((entry) => entry.teamId === id)?.rankChange ?? 0
+  );
+}
+
+function getRankChange(teamId: string): {
+  icon: string;
+  cssClass: string;
+  label: string;
+} {
+  const change = rankChangeById(teamId);
+  if (change === null)
+    return { icon: removeOutline, cssClass: "player-change--new", label: "—" };
+  if (change === 0)
+    return {
+      icon: removeOutline,
+      cssClass: "player-change--stable",
+      label: "",
+    };
+  if (change > 0)
+    return {
+      icon: trendingUpOutline,
+      cssClass: "player-change--up",
+      label: `+${change}`,
+    };
+  return {
+    icon: trendingDownOutline,
+    cssClass: "player-change--down",
+    label: `${change}`,
+  };
+}
 </script>
 
 <style scoped>
@@ -381,9 +463,14 @@ const router = useRouter();
 .player-change--up {
   color: var(--ion-color-success);
 }
-
 .player-change--down {
   color: var(--ion-color-danger);
+}
+.player-change--stable {
+  color: var(--ion-color-medium);
+}
+.player-change--new {
+  color: var(--ion-color-medium);
 }
 
 /* ── Footer ────────────────────────────────────── */

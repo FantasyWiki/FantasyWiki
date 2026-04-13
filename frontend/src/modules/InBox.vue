@@ -75,7 +75,7 @@
           </ion-text>
         </div>
 
-        <!-- Error state TODO -->
+        <!-- Error state -->
         <div v-else-if="false" class="ion-padding ion-text-center">
           <ion-icon
             :icon="alertCircleOutline"
@@ -134,23 +134,10 @@
                     }}
                   </p>
                 </ion-text>
-
-                <!-- Contract tier chip -->
-                <ion-chip
-                  :color="
-                    getTierColor(getTier(notification.contract.duration.days))
-                  "
-                  outline
-                  class="tier-chip"
-                >
-                  <ion-label>{{
-                    getTier(notification.contract.duration.days)
-                  }}</ion-label>
-                </ion-chip>
               </div>
 
               <!-- Actions -->
-              <div class="notification-actions">
+              <div class="notification-actions" v-if="!notification.isRead">
                 <ion-button
                   fill="solid"
                   color="primary"
@@ -245,25 +232,6 @@ function handleAccept(id: string) {
   if (currentLeagueNotifications.value.length <= 1) closeInbox();
 }
 
-// ← delete handleReject entirely — notifications don't have a reject action
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function getTier(duration: number) {
-  if (duration <= 7) return "SHORT";
-  if (duration <= 30) return "MEDIUM";
-  return "LONG";
-}
-function getTierColor(tier: string): string {
-  switch (tier) {
-    case "SHORT":
-      return "warning";
-    case "MEDIUM":
-      return "primary";
-    case "LONG":
-      return "success";
-    default:
-      return "medium";
-  }
-}
 </script>
 
 <style scoped>

@@ -29,7 +29,7 @@ export function useNotifications() {
   // ── Global (all leagues) ─────────────────────────────────────────────────
 
   const unreadCount = computed(
-    () => allNotifications.value.filter((n) => !n.read).length
+    () => allNotifications.value.filter((n) => !n.isRead).length
   );
 
   // ── Current league ───────────────────────────────────────────────────────
@@ -37,16 +37,16 @@ export function useNotifications() {
   const currentLeagueNotifications = computed(() => {
     if (!leagueStore.currentLeagueId) return [];
     return allNotifications.value.filter(
-      (n) => n.id === leagueStore.currentLeagueId
+      (n) => n.leagueId === leagueStore.currentLeagueId
     );
   });
 
   const currentLeagueUnreadCount = computed(
-    () => currentLeagueNotifications.value.filter((n) => !n.read).length
+    () => currentLeagueNotifications.value.filter((n) => !n.isRead).length
   );
 
   const currentLeagueUnread = computed(() =>
-    currentLeagueNotifications.value.filter((n) => !n.read)
+    currentLeagueNotifications.value.filter((n) => !n.isRead)
   );
 
   // function hasTradeOffer(contractId: string): boolean {
@@ -60,8 +60,8 @@ export function useNotifications() {
   const unreadCountByLeague = computed(() => {
     const map: Record<string, number> = {};
     allNotifications.value.forEach((n) => {
-      if (!n.read) {
-        map[n.id] = (map[n.id] ?? 0) + 1;
+      if (!n.isRead) {
+        map[n.leagueId] = (map[n.leagueId] ?? 0) + 1;
       }
     });
     return map;

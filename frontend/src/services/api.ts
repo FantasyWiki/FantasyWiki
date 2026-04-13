@@ -49,6 +49,17 @@ async function apiRequest<T>(
   return response.json();
 }
 
+function deserializeContract(c: ContractDTO): ContractDTO {
+  return new ContractDTO(
+    c.id,
+    c.team,
+    c.article,
+    Temporal.Instant.from(c.startDate as unknown as string),
+    Temporal.Duration.from(c.duration as unknown as string),
+    c.purchasePrice
+  );
+}
+
 // ── Player ────────────────────────────────────────────────────────────────────
 
 export const playerApi = {
@@ -68,7 +79,9 @@ export const leaguesApi = {
   getMyTeam: (id: string) => apiRequest<TeamDTO>(`/leagues/${id}/team`),
   /** All contracts of the current player's team in this league */
   getMyContracts: (id: string) =>
-    apiRequest<ContractDTO[]>(`/leagues/${id}/contracts`),
+    apiRequest<ContractDTO[]>(`/leagues/${id}/contracts`).then((cs) =>
+      cs.map(deserializeContract)
+    ),
   /** All notifications for the current player in this league */
   getMyNotifications: (id: string) =>
     apiRequest<NotificationDTO[]>(`/leagues/${id}/notifications`),
@@ -94,7 +107,9 @@ export const leaguesApi = {
 export const teamsApi = {
   getById: (id: string) => apiRequest<TeamDTO>(`/teams/${id}`),
   getContracts: (id: string) =>
-    apiRequest<ContractDTO[]>(`/teams/${id}/contracts`),
+    apiRequest<ContractDTO[]>(`/teams/${id}/contracts`).then((cs) =>
+      cs.map(deserializeContract)
+    ),
   getNotifications: (id: string) =>
     apiRequest<NotificationDTO[]>(`/teams/${id}/notifications`),
   createContract: (
@@ -116,7 +131,8 @@ export const teamsApi = {
 // ── Contracts ─────────────────────────────────────────────────────────────────
 
 export const contractsApi = {
-  getById: (id: string) => apiRequest<ContractDTO>(`/contracts/${id}`),
+  getById: (id: string) =>
+    apiRequest<ContractDTO>(`/contracts/${id}`).then(deserializeContract),
   delete: (id: string) =>
     apiRequest<{ message: string; refundedCredits: number }>(
       `/contracts/${id}`,

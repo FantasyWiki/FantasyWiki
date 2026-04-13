@@ -4,11 +4,19 @@ import type { ArticleDTO } from "../../../dto/articleDTO";
 import type { LeagueDTO } from "../../../dto/leagueDTO";
 import type { TeamDTO } from "../../../dto/teamDTO";
 import type { PlayerDTO } from "../../../dto/playerDTO";
-import type { ContractDTO } from "../../../dto/contractDTO";
+import { ContractDTO } from "../../../dto/contractDTO";
 import type { NotificationDTO } from "../../../dto/notificationDTO";
 import Instant = Temporal.Instant;
 
 const currentPlayerId = "player-1";
+
+
+function instantDaysFromNow(days: number) {
+  return Temporal.Now.instant()
+    .toZonedDateTimeISO("UTC")
+    .add({days})
+    .toInstant();
+}
 
 // =============================================================================
 // MOCK DATA
@@ -142,54 +150,54 @@ const leagues: LeagueDTO[] = [
 ];
 
 const contracts: ContractDTO[] = [
-  {
-    id: "ctr-1",
-    team: teams[0],
-    article: articles[0],
-    startDate: Instant.from("2024-02-01T00:00:00Z"),
-    duration: Temporal.Duration.from({ days: 10 }),
-    purchasePrice: 150,
-  },
-  {
-    id: "ctr-2",
-    team: teams[0],
-    article: articles[1],
-    startDate: Instant.from("2024-02-05T00:00:00Z"),
-    duration: Temporal.Duration.from({ days: 15 }),
-    purchasePrice: 120,
-  },
-  {
-    id: "ctr-3",
-    team: teams[0],
-    article: articles[2],
-    startDate: Instant.from("2024-02-10T00:00:00Z"),
-    duration: Temporal.Duration.from({ days: 30 }),
-    purchasePrice: 200,
-  },
-  {
-    id: "ctr-4",
-    team: teams[0],
-    article: articles[3],
-    startDate: Instant.from("2024-02-15T00:00:00Z"),
-    duration: Temporal.Duration.from({ days: 7 }),
-    purchasePrice: 80,
-  },
-  {
-    id: "ctr-5",
-    team: teams[1],
-    article: articles[4],
-    startDate: Instant.from("2024-01-20T00:00:00Z"),
-    duration: Temporal.Duration.from({ days: 30 }),
-    purchasePrice: 180,
-  },
-  {
-    id: "ctr-6",
-    team: teams[1],
-    article: articles[5],
-    startDate: Instant.from("2024-02-02T00:00:00Z"),
-    duration: Temporal.Duration.from({ days: 14 }),
-    purchasePrice: 140,
-  },
+  new ContractDTO(
+    "ctr-1",
+    teams[0],
+    articles[0],
+    instantDaysFromNow(-8),
+    Temporal.Duration.from({ days: 10 }),
+    150
+  ),
+  new ContractDTO(
+    "ctr-2",
+    teams[0],
+    articles[1],
+    instantDaysFromNow(-20),
+    Temporal.Duration.from({ days: 15 }),
+    120
+  ),
+  new ContractDTO(
+    "ctr-3",
+    teams[0],
+    articles[2],
+    instantDaysFromNow(-15),
+    Temporal.Duration.from({ days: 30 }),
+    200
+  ),
+  new ContractDTO(
+    "ctr-4",
+    teams[0],
+    articles[3],
+    instantDaysFromNow(-5),
+    Temporal.Duration.from({ days: 7 }),
+    80
+  ),
+  new ContractDTO(
+    "ctr-5",
+    teams[1],
+    articles[4],
+    instantDaysFromNow(-20),
+    Temporal.Duration.from({ days: 30 }),
+    180
+  ),
+  new ContractDTO(
+    "ctr-6",
+    teams[1],
+    articles[5],
+    instantDaysFromNow(-13),
+    Temporal.Duration.from({ days: 14 }),
+    140
+  ),
 ];
 
 const notifications: NotificationDTO[] = [
@@ -336,15 +344,14 @@ export const handlers = [
     if (!article)
       return HttpResponse.json({ error: "Article not found" }, { status: 404 });
 
-    const newContract: ContractDTO = {
-      id: `ctr-${Date.now()}`,
+    const newContract = new ContractDTO(
+      `ctr-${Date.now()}`,
       team,
       article,
-      purchasePrice: data.purchasePrice,
-      startDate:
-        data.startDate || Instant.from(Temporal.Now.instant().toString()),
-      duration: data.duration || Temporal.Duration.from({ days: 14 }),
-    };
+      data.startDate || Instant.from(Temporal.Now.instant().toString()),
+      data.duration || Temporal.Duration.from({ days: 14 }),
+      data.purchasePrice
+    );
     contracts.push(newContract);
     team.credits -= data.purchasePrice;
     return HttpResponse.json(newContract, { status: 201 });

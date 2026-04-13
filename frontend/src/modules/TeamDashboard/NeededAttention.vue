@@ -65,7 +65,9 @@
 
           <ion-item
             class="attention-item"
-            :class="{ 'attention-item--critical': contract.expiresIn <= 1 }"
+            :class="{
+              'attention-item--critical': contract.expiresIn.days <= 1,
+            }"
             button
             :detail="false"
             @click="openDetail(contract)"
@@ -73,7 +75,7 @@
             <div class="item-row">
               <div class="item-info">
                 <div class="item-name-row">
-                  <span class="item-name">{{ contract.article.name }}</span>
+                  <span class="item-name">{{ contract.article.title }}</span>
                   <ion-badge
                     :color="getTierColor(contract.tier)"
                     class="tier-badge"
@@ -83,21 +85,23 @@
                 </div>
                 <div class="item-badges">
                   <ion-chip
-                    v-if="contract.expiresIn <= 3"
-                    :color="contract.expiresIn <= 1 ? 'danger' : 'warning'"
+                    v-if="contract.expiresIn.days <= 3"
+                    :color="contract.expiresIn.days <= 1 ? 'danger' : 'warning'"
                     class="expiry-chip"
                     outline
                   >
                     <ion-icon :icon="timeOutline" />
-                    <ion-label>{{ contract.expiresIn }}d left</ion-label>
+                    <ion-label
+                      >{{ formatDuration(contract.expiresIn) }} left</ion-label
+                    >
                   </ion-chip>
                 </div>
               </div>
 
               <div class="item-stats">
-                <span class="item-points"
-                  >{{ contract.yesterdayPoints }} pts</span
-                >
+                <!--                <span class="item-points"-->
+                <!--                  >{{ contract.yesterdayPoints }} pts</span-->
+                <!--                >-->
                 <div class="item-trend item-trend--up">
                   <ion-icon :icon="trendingUpOutline" />
                   <span>+5%</span>
@@ -157,13 +161,12 @@ import {
   checkmarkCircleOutline,
   closeOutline,
   refreshOutline,
-  swapHorizontalOutline,
   timeOutline,
   trendingUpOutline,
 } from "ionicons/icons";
 import ArticleDetail from "@/modules/ArticleDetail.vue";
-import { useNotifications } from "@/stores/useNotifications";
 import { ContractDTO } from "../../../../dto/contractDTO";
+import { formatDuration } from "@/types/models";
 
 // ── Props ──────────────────────────────────────────────────────────────────
 // urgentContract is pre-filtered by the parent. This component does not
@@ -174,11 +177,6 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-
-// ── Trade offer detection ──────────────────────────────────────────────────
-// hasTradeOffer checks the current-league notification list from the
-// global notifications query. No store dependency needed.
-const { hasTradeOffer } = useNotifications();
 
 // ── Local modal state ──────────────────────────────────────────────────────
 const selectedContract = ref<ContractDTO | null>(null);

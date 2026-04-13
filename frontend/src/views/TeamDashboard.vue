@@ -58,10 +58,10 @@
       <ion-grid class="content-grid ion-no-padding">
         <ion-row>
           <ion-col size="12" size-lg="8">
-            <!--            <needed-attention
+            <needed-attention
               :urgent-contract="urgentContracts"
               :on-buy-articles="() => router.push('/market')"
-            />-->
+            />
           </ion-col>
           <ion-col size="12" size-lg="4">
             <!--  <league-leaderboard
@@ -106,8 +106,7 @@ import LeagueLeaderboard from "@/modules/TeamDashboard/LeagueLeaderboard.vue";
 
 import { useLeagueStore } from "@/stores/league";
 import { useDashboard } from "@/stores/useDashboard";
-import { Temporal } from "@js-temporal/polyfill";
-import Duration = Temporal.Duration;
+
 
 const router = useRouter();
 const leagueStore = useLeagueStore();
@@ -127,24 +126,18 @@ const {
 } = useDashboard();
 
 const urgentContracts = computed(() => {
-  if (contracts.value.length < 0) {
-    return [];
-  }
-  return contracts.value.filter(
-    (c) =>
-      c.startDate.add(c.duration) <=
-      Temporal.Now.instant().add(new Duration(0, 0, 0, 3))
-  );
+  if (!contracts.value?.length) return [];
+  else return contracts.value.filter((c) => c.expiresIn.total({ unit: "days" }) < 3);
 });
 
-const playersAroundUser = computed(() => {
-  const entries = leaderBoard.value;
-  const idx = rank.value ? rank.value - 1 : -1;
-  if (idx === -1) return entries.slice(0, 5);
-  const start = Math.max(0, idx - 2);
-  const end = Math.min(entries.length, idx + 3);
-  return entries.slice(start, end);
-});
+// const playersAroundUser = computed(() => {
+//   const entries = leaderBoard.value;
+//   const idx = rank.value ? rank.value - 1 : -1;
+//   if (idx === -1) return entries.slice(0, 5);
+//   const start = Math.max(0, idx - 2);
+//   const end = Math.min(entries.length, idx + 3);
+//   return entries.slice(start, end);
+// });
 
 async function handleRefresh(event: CustomEvent) {
   await refetch();

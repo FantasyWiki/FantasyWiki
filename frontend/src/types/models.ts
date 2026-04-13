@@ -2,8 +2,27 @@ import type { ContractDTO } from "../../../dto/contractDTO";
 import type { LeagueDTO } from "../../../dto/leagueDTO";
 import type { TeamDTO } from "../../../dto/teamDTO";
 import type { NotificationDTO } from "../../../dto/notificationDTO";
+import { Temporal } from "@js-temporal/polyfill";
 
 const MAX_CONTRACTS = 22;
+
+export function formatDuration(duration: Temporal.Duration): string {
+  const totalSeconds = Math.floor(duration.total({ unit: "seconds" }));
+
+  if (totalSeconds <= 0) return "0d, 00:00";
+
+  const days = Math.floor(totalSeconds / 86400);
+
+  if (days > 0) return `${days} d`;
+
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+  const hh = String(hours).padStart(2, "0");
+  const mm = String(minutes).padStart(2, "0");
+
+  return `${hh}:${mm}`;
+}
 
 export interface TeamPointsData {
   yesterdayPoints: number;

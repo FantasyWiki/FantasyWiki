@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import router from "@/router/index";
-import AppStats from "@/views/home-page/AppStats.vue";
+import AppStats from "@/components/homePage/AppStats.vue";
 
 describe("AppStats.vue", () => {
   it("should mount without any console errors or warnings", async () => {

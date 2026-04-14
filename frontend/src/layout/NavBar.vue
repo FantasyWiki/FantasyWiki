@@ -205,12 +205,12 @@ import {
   trophyOutline,
 } from "ionicons/icons";
 
-import AppLogo from "@/views/AppLogo.vue";
+import AppLogo from "@/components/AppLogo.vue";
 import LoginPage from "@/views/auth/LoginPage.vue";
 import { useAppStore } from "@/stores/app";
 import { useLeagueStore } from "@/stores/league";
 import { useNotifications } from "@/stores/useNotifications";
-import { League } from "@/types/models";
+import { LeagueDTO } from "../../../dto/leagueDTO";
 
 const router = useRouter();
 const route = useRoute();
@@ -246,7 +246,7 @@ function openLangPopover(e: MouseEvent) {
   langPopoverOpen.value = true;
 }
 
-function selectLeague(lg: League) {
+function selectLeague(lg: LeagueDTO) {
   leagueStore.setCurrentLeague(lg);
   leaguePopoverOpen.value = false;
 }

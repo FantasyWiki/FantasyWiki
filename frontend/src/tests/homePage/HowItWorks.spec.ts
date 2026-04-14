@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import router from "@/router/index";
-import LeaderboardPreview from "@/views/home-page/LeaderboardPreview.vue";
+import HowItWorks from "@/components/homePage/HowItWorks.vue";
 
-describe("home-page/LeaderboardPreview.vue", () => {
+describe("HowItWorks.vue", () => {
   it("should mount without any console errors or warnings", async () => {
     router.push("/");
     await router.isReady();
-    const wrapper = mount(LeaderboardPreview, {
+    const wrapper = mount(HowItWorks, {
       global: {
         plugins: [router],
       },

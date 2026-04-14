@@ -130,7 +130,6 @@
           View League Details
           <ion-icon slot="end" :icon="chevronForwardOutline" />
         </ion-button>
-
       </div>
     </ion-card-content>
   </ion-card>

@@ -57,13 +57,13 @@
 
       <ion-grid class="content-grid ion-no-padding">
         <ion-row>
-          <ion-col size="12" size-lg="8">
+          <ion-col size="12" size-lg="6">
             <needed-attention
               :urgent-contract="urgentContracts"
               :on-buy-articles="() => router.push('/market')"
             />
           </ion-col>
-          <ion-col size="12" size-lg="4">
+          <ion-col size="12" size-lg="6">
             <league-leaderboard
               :leaderboard="leaderBoard"
               :current-league="currentLeague"
@@ -102,16 +102,13 @@ import {
 } from "ionicons/icons";
 
 import NavBar from "@/layout/NavBar.vue";
-import DashboardHero from "@/modules/TeamDashboard/DashboardHero.vue";
-import NeededAttention from "@/modules/TeamDashboard/NeededAttention.vue";
-import LeagueLeaderboard from "@/modules/TeamDashboard/LeagueLeaderboard.vue";
+import DashboardHero from "@/components/teamDashboard/DashboardHero.vue";
+import NeededAttention from "@/components/teamDashboard/NeededAttention.vue";
+import LeagueLeaderboard from "@/components/teamDashboard/LeagueLeaderboard.vue";
 
 import { useLeagueStore } from "@/stores/league";
 import { useDashboard } from "@/stores/useDashboard";
 import { useLeaguePerformances } from "@/stores/useLeaguePerformances";
-import { PerformanceDTO } from "../../../dto/performanceDTO";
-import { TeamPointsData } from "@/types/models";
-import { Temporal } from "@js-temporal/polyfill";
 
 const router = useRouter();
 const leagueStore = useLeagueStore();
@@ -127,7 +124,6 @@ const {
   team,
   contracts,
   leaderBoard,
-  rank,
 } = useDashboard();
 
 const urgentContracts = computed(() => {

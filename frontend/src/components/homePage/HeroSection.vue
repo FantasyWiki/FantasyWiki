@@ -57,7 +57,7 @@ import AppStats from "./AppStats.vue";
 import ArticleLeaderboard from "./ArticleLeaderboard.vue";
 </script>
 
-<style scoped src="./home-page.css"></style>
+<style scoped src="home-page.css"></style>
 <style scoped>
 ion-chip.top-right {
   position: absolute;

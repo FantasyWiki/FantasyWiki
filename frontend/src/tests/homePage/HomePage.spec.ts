@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import router from "@/router/index";
 import { createPinia, Pinia } from "pinia";
-import HomePage from "@/views/home-page/HomePage.vue";
+import HomePage from "@/views/HomePage.vue";
 
 describe("HomePage.vue", () => {
   let pinia: Pinia;

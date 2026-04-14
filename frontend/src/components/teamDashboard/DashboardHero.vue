@@ -222,7 +222,7 @@ import {
   trendingUpOutline,
   trophyOutline,
 } from "ionicons/icons";
-import InBox from "@/modules/InBox.vue";
+import InBox from "@/components/InBox.vue";
 import type { DashboardData } from "@/types/models";
 import { useLeagueStore } from "@/stores/league";
 

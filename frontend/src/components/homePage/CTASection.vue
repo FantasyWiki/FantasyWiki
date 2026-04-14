@@ -45,7 +45,7 @@ import { IonButton, IonChip, IonIcon, IonLabel, IonText } from "@ionic/vue";
 import { sparklesOutline, arrowForward } from "ionicons/icons";
 </script>
 
-<style scoped src="./home-page.css"></style>
+<style scoped src="home-page.css"></style>
 <style scoped>
 .cta-card {
   position: relative;

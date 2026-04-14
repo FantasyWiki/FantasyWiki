@@ -9,12 +9,12 @@
 </template>
 
 <script setup lang="ts">
-import HeroSection from "./HeroSection.vue";
+import HeroSection from "@/components/homePage/HeroSection.vue";
 import NavBar from "@/layout/NavBar.vue";
-import HowItWorks from "./HowItWorks.vue";
-import AppFeature from "./AppFeature.vue";
-import LeaderboardPreview from "./LeaderboardPreview.vue";
-import CTASection from "./CTASection.vue";
+import HowItWorks from "@/components/homePage/HowItWorks.vue";
+import AppFeature from "@/components/homePage/AppFeature.vue";
+import LeaderboardPreview from "@/components/homePage/LeaderboardPreview.vue";
+import CTASection from "@/components/homePage/CTASection.vue";
 </script>
 <style scoped>
 ion-margin-vertical {

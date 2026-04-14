@@ -34,7 +34,7 @@ import { IonButton, IonText, IonIcon, modalController } from "@ionic/vue";
 import { useRoute } from "vue-router";
 import { alertCircleOutline, closeOutline, logoGoogle } from "ionicons/icons";
 import { computed } from "vue";
-import AppLogo from "@/views/AppLogo.vue";
+import AppLogo from "@/components/AppLogo.vue";
 import { resolveBackendUrl } from "@/services/api";
 
 const route = useRoute();

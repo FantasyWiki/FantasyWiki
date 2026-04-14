@@ -90,7 +90,7 @@ const steps = [
 ];
 </script>
 
-<style scoped src="./home-page.css"></style>
+<style scoped src="home-page.css"></style>
 <style scoped>
 #how-it-works {
   background: var(--ion-color-light);

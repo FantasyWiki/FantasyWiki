@@ -73,10 +73,7 @@
             @click="openDetail(contract)"
           >
             <div class="attention-row">
-              <ion-icon
-                :icon="alertCircleOutline"
-                class="item-icon"
-              />
+              <ion-icon :icon="alertCircleOutline" class="item-icon" />
 
               <ion-chip
                 class="expiry-chip"
@@ -87,7 +84,7 @@
                 :disabled="true"
                 style="opacity: 1"
               >
-                <ion-icon :icon="timeOutline" color="ligth"/>
+                <ion-icon :icon="timeOutline" color="ligth" />
                 <ion-label>
                   {{ formatDuration(contract.expiresIn) }} left
                 </ion-label>
@@ -153,7 +150,7 @@ import {
   refreshOutline,
   timeOutline,
 } from "ionicons/icons";
-import ArticleDetail from "@/modules/ArticleDetail.vue";
+import ArticleDetail from "@/components/ArticleDetail.vue";
 import { ContractDTO } from "../../../../dto/contractDTO";
 import { formatDuration } from "@/types/models";
 

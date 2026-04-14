@@ -203,7 +203,7 @@ const getRankClass = (rank: number) => {
 };
 </script>
 
-<style scoped src="home-page.css"></style>
+<style scoped src="src/components/homePage/home-page.css"></style>
 <style scoped>
 ion-chip {
   font-weight: 500;

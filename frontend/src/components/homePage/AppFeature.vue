@@ -104,7 +104,7 @@ const features = [
 ];
 </script>
 
-<style scoped src="home-page.css"></style>
+<style scoped src="src/components/homePage/home-page.css"></style>
 <style scoped>
 .feature-card {
   border: 1px solid var(--ion-color-light-shade);

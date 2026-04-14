@@ -177,7 +177,7 @@ const contracts: ContractDTO[] = [
     "ctr-4",
     teams[0],
     articles[3],
-    instantDaysFromNow(-5),
+    instantDaysFromNow(-4),
     Temporal.Duration.from({ days: 7 }),
     80
   ),

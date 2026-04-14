@@ -66,53 +66,43 @@
           <ion-item
             class="attention-item"
             :class="{
-              'attention-item--critical': contract.expiresIn.days <= 1,
+              'attention-item--critical': contract.expiresIn.total('days') <= 1,
             }"
             button
             :detail="false"
             @click="openDetail(contract)"
           >
-            <div class="item-row">
-              <div class="item-info">
-                <div class="item-name-row">
-                  <span class="item-name">{{ contract.article.title }}</span>
-                  <ion-badge
-                    :color="getTierColor(contract.tier)"
-                    class="tier-badge"
-                  >
-                    {{ contract.tier }}
-                  </ion-badge>
-                </div>
-                <div class="item-badges">
-                  <ion-chip
-                    v-if="contract.expiresIn.days <= 3"
-                    :color="contract.expiresIn.days <= 1 ? 'danger' : 'warning'"
-                    class="expiry-chip"
-                    outline
-                  >
-                    <ion-icon :icon="timeOutline" />
-                    <ion-label
-                      >{{ formatDuration(contract.expiresIn) }} left</ion-label
-                    >
-                  </ion-chip>
-                </div>
-              </div>
-
-              <div class="item-stats">
-                <!--                <span class="item-points"-->
-                <!--                  >{{ contract.yesterdayPoints }} pts</span-->
-                <!--                >-->
-                <div class="item-trend item-trend--up">
-                  <ion-icon :icon="trendingUpOutline" />
-                  <span>+5%</span>
-                </div>
-              </div>
-
+            <div class="attention-row">
               <ion-icon
                 :icon="alertCircleOutline"
-                class="item-chevron"
-                color="medium"
+                class="item-icon"
               />
+
+              <ion-chip
+                class="expiry-chip"
+                :class="{
+                  'expiry-chip--critical':
+                    contract.expiresIn.total('days') <= 1,
+                }"
+                :disabled="true"
+                style="opacity: 1"
+              >
+                <ion-icon :icon="timeOutline" color="ligth"/>
+                <ion-label>
+                  {{ formatDuration(contract.expiresIn) }} left
+                </ion-label>
+              </ion-chip>
+
+              <h4 class="item-name">
+                {{ contract.article.title }}
+              </h4>
+
+              <ion-badge
+                :color="getTierColor(contract.tier)"
+                class="tier-badge"
+              >
+                {{ contract.tier }}
+              </ion-badge>
             </div>
           </ion-item>
 
@@ -162,7 +152,6 @@ import {
   closeOutline,
   refreshOutline,
   timeOutline,
-  trendingUpOutline,
 } from "ionicons/icons";
 import ArticleDetail from "@/modules/ArticleDetail.vue";
 import { ContractDTO } from "../../../../dto/contractDTO";
@@ -276,70 +265,122 @@ ion-card-title {
 }
 
 .attention-item {
-  --background: var(--ion-background-color);
+  --background: rgba(var(--ion-color-warning-rgb), 0.04);
+  --background-hover: rgba(var(--ion-color-warning-rgb), 0.12);
   --border-radius: 0.5rem;
   --padding-start: 1rem;
   --padding-end: 0.75rem;
+  --inner-padding-start: 0;
   --inner-padding-end: 0;
   --min-height: 4rem;
+  --inner-border-width: 0;
+
   margin: 0.25rem 0.5rem;
   border: 1px solid var(--ion-border-color);
   border-radius: 0.5rem;
-  transition: background 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .attention-item--critical {
   border-color: rgba(var(--ion-color-danger-rgb), 0.4);
   --background: rgba(var(--ion-color-danger-rgb), 0.04);
+  --background-hover: rgba(var(--ion-color-danger-rgb), 0.12);
 }
 
-.item-row {
-  display: flex;
+.attention-row {
+  display: grid;
+  grid-template-columns: 24px 120px minmax(0, 1fr) auto;
+  grid-template-areas: "icon expiry title tier";
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
   width: 100%;
-  padding: 0.5rem 0;
-}
-
-.item-info {
-  flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
-.item-name-row {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  flex-wrap: wrap;
+.item-icon {
+  grid-area: icon;
+  font-size: 1.2rem;
+  justify-self: center;
+}
+
+.expiry-chip {
+  grid-area: expiry;
+  width: 120px;
+  justify-content: center;
+  margin: 0;
+  white-space: nowrap;
+  background: var(--ion-color-warning);
+  color: var(--ion-color-light);
+  height: 1.45rem;
+  font-size: 0.72rem;
+}
+
+.expiry-chip--critical {
+  background: var(--ion-color-danger);
+  color: var(--ion-color-light);
+}
+
+.expiry-chip ion-icon {
+  font-size: 0.78rem;
+  margin-right: 3px;
 }
 
 .item-name {
+  grid-area: title;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1rem;
   font-weight: 600;
-  font-size: 0.9rem;
   color: var(--ion-text-color);
+  line-height: 1.25;
 }
 
 .tier-badge {
+  grid-area: tier;
+  justify-self: end;
+  white-space: nowrap;
   font-size: 0.65rem;
+  min-width: fit-content;
   height: 1.15rem;
   padding: 0 6px;
 }
 
-.item-badges {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  flex-wrap: wrap;
-}
+/* Mobile: remove icon column, keep same horizontal layout */
+@media (max-width: 576px) {
+  .attention-item {
+    --padding-start: 0.75rem;
+    --padding-end: 0.75rem;
+  }
 
-.expiry-chip,
-.trade-chip {
-  height: 1.4rem;
-  font-size: 0.7rem;
-  margin: 0;
+  .attention-row {
+    grid-template-columns: 96px minmax(0, 1fr) auto;
+    grid-template-areas: "expiry title tier";
+    gap: 0.45rem;
+  }
+
+  .item-icon {
+    display: none;
+  }
+
+  .expiry-chip {
+    width: 96px;
+    font-size: 0.68rem;
+    height: 1.35rem;
+  }
+
+  .item-name {
+    font-size: 0.95rem;
+  }
+
+  .tier-badge {
+    font-size: 0.6rem;
+    height: 1.05rem;
+  }
 }
 .expiry-chip ion-icon,
 .trade-chip ion-icon {
@@ -347,34 +388,8 @@ ion-card-title {
   margin-right: 3px;
 }
 
-.item-stats {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-
-.item-points {
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--ion-text-color);
-}
-
-.item-trend {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
 .item-trend ion-icon {
   font-size: 0.8rem;
-}
-.item-trend--up {
-  color: var(--ion-color-success);
-}
-.item-trend--down {
-  color: var(--ion-color-danger);
 }
 
 .item-chevron {

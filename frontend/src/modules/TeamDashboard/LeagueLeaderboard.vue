@@ -16,13 +16,31 @@
 
       <!-- League meta chips -->
       <div class="meta-chips" v-if="props.currentLeague">
-        <ion-chip class="meta-chip" color="medium" outline>
+        <ion-chip
+          class="meta-chip"
+          color="medium"
+          outline
+          :disabled="true"
+          style="opacity: 1"
+        >
           <ion-label>{{ props.currentLeague?.domain }}</ion-label>
         </ion-chip>
-        <ion-chip class="meta-chip" color="medium" outline>
+        <ion-chip
+          class="meta-chip"
+          color="medium"
+          outline
+          :disabled="true"
+          style="opacity: 1"
+        >
           <ion-label>{{ props.currentLeague?.teams.length }} players</ion-label>
         </ion-chip>
-        <ion-chip class="meta-chip" color="medium" outline>
+        <ion-chip
+          class="meta-chip"
+          color="medium"
+          outline
+          :disabled="true"
+          style="opacity: 1"
+        >
           <ion-label>Ends {{ props.currentLeague?.endDate }}</ion-label>
         </ion-chip>
       </div>
@@ -113,16 +131,6 @@
           <ion-icon slot="end" :icon="chevronForwardOutline" />
         </ion-button>
 
-        <div class="footer-divider" />
-
-        <ion-button
-          expand="block"
-          color="primary"
-          size="small"
-          @click="router.push('/market')"
-        >
-          Buy Articles
-        </ion-button>
       </div>
     </ion-card-content>
   </ion-card>

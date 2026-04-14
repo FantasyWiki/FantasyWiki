@@ -78,7 +78,10 @@
                 </ion-text>
                 <p
                   class="info-value ion-no-margin"
-                  :class="{ 'text-danger': selectedContract.expiresIn.total('days') <= 3 }"
+                  :class="{
+                    'text-danger':
+                      selectedContract.expiresIn.total('days') <= 3,
+                  }"
                 >
                   {{ formatDuration(selectedContract.expiresIn) }}
                 </p>
@@ -100,7 +103,7 @@
             {{
               selectedContract.expiresIn.total("days") <= 1
                 ? "tomorrow"
-                : `in ${selectedContract.expiresIn.total("days")} days`
+                : `in ${formatDuration(selectedContract.expiresIn)}ays`
             }}
             — consider renewing
           </ion-label>
@@ -235,7 +238,6 @@ import {
 import { ContractDTO } from "../../../dto/contractDTO";
 import { formatDuration } from "@/types/models";
 
-
 // ── Props ─────────────────────────────────────────
 interface Props {
   /** The contract to display. Pass null to unmount content. */
@@ -302,7 +304,7 @@ ion-toolbar {
 }
 
 .modal-title {
-  font-family: var(--font-family-headings),serif;
+  font-family: var(--font-family-headings), serif;
   font-size: 1.1rem;
   font-weight: 700;
   padding-inline-start: 1rem;
@@ -365,7 +367,7 @@ ion-toolbar {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: var(--font-family-headings),serif;
+  font-family: var(--font-family-headings), serif;
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--ion-color-dark);

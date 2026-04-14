@@ -51,9 +51,14 @@
               v-if="leagueIcon || leagueName"
               color="primary"
               outline
+              :disabled="true"
+              style="opacity: 1"
               class="league-chip"
             >
-              <ion-label>{{ leagueIcon }} {{ leagueName }}</ion-label>
+              <ion-label>{{ leagueIcon }}</ion-label>
+              <ion-label class="ion-hide-md-down">
+                {{ leagueName }}
+              </ion-label>
             </ion-chip>
 
             <ion-button
@@ -231,7 +236,6 @@ function handleAccept(id: string) {
   markRead(id);
   if (currentLeagueNotifications.value.length <= 1) closeInbox();
 }
-
 </script>
 
 <style scoped>

@@ -13,6 +13,8 @@
               class="league-chip"
               color="primary"
               outline
+              :disabled="true"
+              style="opacity: 1"
             >
               <span class="league-icon">{{ currentLeague.icon }}</span>
               <ion-label>{{ currentLeague.title }}</ion-label>

@@ -49,6 +49,14 @@ async function apiRequest<T>(
   return response.json();
 }
 
+function deserializeLeague(l: LeagueDTO): LeagueDTO {
+  return {
+    ...l,
+    startDate: Temporal.Instant.from(l.startDate as unknown as string),
+    endDate: Temporal.Instant.from(l.endDate as unknown as string),
+  };
+}
+
 function deserializeContract(c: ContractDTO): ContractDTO {
   return new ContractDTO(
     c.id,
@@ -73,8 +81,10 @@ export const playerApi = {
 
 export const leaguesApi = {
   /** The current player's leagues available for selection (resolved from JWT on backend) */
-  getAll: () => apiRequest<LeagueDTO[]>("/leagues"),
-  getById: (id: string) => apiRequest<LeagueDTO>(`/leagues/${id}`),
+  getAll: () =>
+    apiRequest<LeagueDTO[]>("/leagues").then((ls) => ls.map(deserializeLeague)),
+  getById: (id: string) =>
+    apiRequest<LeagueDTO>(`/leagues/${id}`).then(deserializeLeague),
   /** The current player's team inside this league (resolved from JWT on backend) */
   getMyTeam: (id: string) => apiRequest<TeamDTO>(`/leagues/${id}/team`),
   /** All contracts of the current player's team in this league */

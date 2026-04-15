@@ -118,7 +118,12 @@ export const useLeagueStore = defineStore("league", () => {
     if (saved) {
       try {
         // Optimistic restore — may be stale; will be validated after fetch.
-        currentLeague.value = JSON.parse(saved) as LeagueDTO;
+        const parsed = JSON.parse(saved);
+        currentLeague.value = {
+          ...parsed,
+          startDate: Temporal.Instant.from(parsed.startDate),
+          endDate: Temporal.Instant.from(parsed.endDate),
+        } as LeagueDTO;
       } catch {
         // Corrupt localStorage entry — ignore; fetchLeagues will set a default.
         localStorage.removeItem("currentLeague");

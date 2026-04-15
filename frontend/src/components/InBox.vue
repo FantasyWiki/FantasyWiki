@@ -158,20 +158,11 @@ import {
   IonToolbar,
 } from "@ionic/vue";
 import {
-  alertCircleOutline,
   checkmarkOutline,
   closeOutline,
   mailOpenOutline,
   notificationsOutline,
 } from "ionicons/icons";
-
-// ── Emits ─────────────────────────────────────────────────────────────────────
-const emit = defineEmits<{
-  /** User pressed Retry in the error state. */
-  retry: [];
-  /** Popover closed. */
-  close: [];
-}>();
 
 // Inside InBox.vue <script setup> — no props needed for these
 import { useLeagueStore } from "@/stores/league";

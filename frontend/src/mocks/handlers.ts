@@ -207,7 +207,6 @@ const notifications: NotificationDTO[] = [
     message: "Contratto in scadenza: Bitcoin",
     date: Temporal.PlainDate.from("2024-02-09"),
     isRead: false,
-    read: false,
   },
   {
     id: "notif-2",
@@ -216,7 +215,6 @@ const notifications: NotificationDTO[] = [
     message: "Contract expiring soon: Cloud Computing",
     date: Temporal.PlainDate.from("2024-02-09"),
     isRead: false,
-    read: false,
   },
   {
     id: "notif-3",
@@ -225,7 +223,6 @@ const notifications: NotificationDTO[] = [
     message: "Attenzione: il contratto per Ethereum scade a breve",
     date: Temporal.PlainDate.from("2024-02-12"),
     isRead: false,
-    read: false,
   },
   {
     id: "notif-4",
@@ -234,7 +231,6 @@ const notifications: NotificationDTO[] = [
     message: "Contratto terminato per Machine Learning",
     date: Temporal.PlainDate.from("2024-02-15"),
     isRead: true,
-    read: true,
   },
   {
     id: "notif-5",
@@ -243,7 +239,6 @@ const notifications: NotificationDTO[] = [
     message: "Contract update: Artificial Intelligence usage increased",
     date: Temporal.PlainDate.from("2024-02-18"),
     isRead: false,
-    read: false,
   },
 ];
 
@@ -436,7 +431,7 @@ export const handlers = [
         { error: "Notification not found" },
         { status: 404 }
       );
-    notif.read = true;
+    notif.isRead = true;
     return HttpResponse.json(notif);
   }),
 

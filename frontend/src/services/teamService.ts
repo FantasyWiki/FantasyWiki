@@ -28,10 +28,9 @@ export async function fetchTeam(
  */
 export async function fetchContracts(ids: number[]): Promise<Contract[]> {
   if (ids.length === 0) return [];
-  const res = await fetch(
-    `${BASE}/api/contracts?ids=${ids.join(",")}`,
-    { credentials: "include" }
-  );
+  const res = await fetch(`${BASE}/api/contracts?ids=${ids.join(",")}`, {
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Failed to fetch contracts");
   return res.json();
 }
@@ -49,14 +48,11 @@ export async function saveTeamApi(
     bench: number[];
   }
 ): Promise<void> {
-  const res = await fetch(
-    `${BASE}/api/leagues/${leagueId}/teams/${userId}`,
-    {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(payload),
-    }
-  );
+  const res = await fetch(`${BASE}/api/leagues/${leagueId}/teams/${userId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
   if (!res.ok) throw new Error(`Failed to save team: ${res.status}`);
 }

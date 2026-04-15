@@ -6,6 +6,8 @@
  * SlotMap       — positionKey → Contract | null (what TeamFormation consumes)
  */
 
+import { ContractDTO } from "../../../dto/contractDTO";
+
 /** Raw shape returned by GET /leagues/:id/teams/:userId */
 export interface TeamResponse {
   /** e.g. "4-3-3" */
@@ -16,16 +18,5 @@ export interface TeamResponse {
   bench: number[];
 }
 
-/** A resolved word/article contract */
-export interface Contract {
-  id: number;
-  /** The Wikipedia article / word title */
-  word: string;
-  /** Accumulated points this period */
-  points: number;
-  /** Signed delta from last week (+/- pts) */
-  weeklyDelta?: number;
-}
-
 /** The shape TeamFormation.vue consumes: posKey → resolved Contract or null */
-export type SlotMap = Record<string, Contract | null>;
+export type SlotMap = Record<string, ContractDTO | null>;

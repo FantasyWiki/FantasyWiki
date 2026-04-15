@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
-import api from "@/services/api";
+import api, { deserializeLeague } from "@/services/api";
 import { LeagueDTO } from "../../../dto/leagueDTO";
 import { Temporal } from "@js-temporal/polyfill";
 import Now = Temporal.Now;
@@ -119,11 +119,7 @@ export const useLeagueStore = defineStore("league", () => {
       try {
         // Optimistic restore — may be stale; will be validated after fetch.
         const parsed = JSON.parse(saved);
-        currentLeague.value = {
-          ...parsed,
-          startDate: Temporal.Instant.from(parsed.startDate),
-          endDate: Temporal.Instant.from(parsed.endDate),
-        } as LeagueDTO;
+        currentLeague.value = deserializeLeague(parsed);
       } catch {
         // Corrupt localStorage entry — ignore; fetchLeagues will set a default.
         localStorage.removeItem("currentLeague");

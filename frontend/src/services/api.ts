@@ -49,7 +49,7 @@ async function apiRequest<T>(
   return response.json();
 }
 
-function deserializeLeague(l: LeagueDTO): LeagueDTO {
+export function deserializeLeague(l: LeagueDTO): LeagueDTO {
   return {
     ...l,
     startDate: Temporal.Instant.from(l.startDate as unknown as string),

@@ -47,9 +47,7 @@ export const useTeamStore = defineStore("team", () => {
 
   // ── Computed ──────────────────────────────────────────────────────────────
 
-  const activePositions = computed(
-    () => FORMATIONS[formation.value] ?? []
-  );
+  const activePositions = computed(() => FORMATIONS[formation.value] ?? []);
 
   /** SlotMap fed to <TeamFormation> — resolves contractIds to full objects. */
   const slotMap = computed<SlotMap>(() =>
@@ -62,10 +60,11 @@ export const useTeamStore = defineStore("team", () => {
   );
 
   /** Bench articles fed to <BenchSection>. */
-  const benchContracts = computed<Contract[]>(() =>
-    benchIds.value
-      .map((id) => contractsById.value.get(id))
-      .filter(Boolean) as Contract[]
+  const benchContracts = computed<Contract[]>(
+    () =>
+      benchIds.value
+        .map((id) => contractsById.value.get(id))
+        .filter(Boolean) as Contract[]
   );
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -148,7 +147,10 @@ export const useTeamStore = defineStore("team", () => {
         return;
       }
       if (!fromOnBench) {
-        benchIds.value = [...benchIds.value.filter((id) => id !== toId), fromId];
+        benchIds.value = [
+          ...benchIds.value.filter((id) => id !== toId),
+          fromId,
+        ];
         if (toId !== null && fromPos) {
           rawSlots.value = { ...rawSlots.value, [fromPos]: toId };
         }
@@ -179,9 +181,13 @@ export const useTeamStore = defineStore("team", () => {
     }, 12_000);
   }
 
-  watch([formation, rawSlots], () => {
-    if (isDirty.value) scheduleAutoSave();
-  }, { deep: true });
+  watch(
+    [formation, rawSlots],
+    () => {
+      if (isDirty.value) scheduleAutoSave();
+    },
+    { deep: true }
+  );
 
   // ── Expose ────────────────────────────────────────────────────────────────
   return {

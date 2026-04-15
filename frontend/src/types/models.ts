@@ -1,121 +1,79 @@
-// frontend/src/types/models.ts
+import type { ContractDTO } from "../../../dto/contractDTO";
+import type { LeagueDTO } from "../../../dto/leagueDTO";
+import type { TeamDTO } from "../../../dto/teamDTO";
+import type { NotificationDTO } from "../../../dto/notificationDTO";
+import { Temporal } from "@js-temporal/polyfill";
 
-export interface Article {
-  id: string;
-  name: string;
-  domain: string;
+const MAX_CONTRACTS = 22;
+
+export function formatDuration(duration: Temporal.Duration): string {
+  const totalSeconds = Math.floor(duration.total({ unit: "seconds" }));
+
+  if (totalSeconds <= 0) return "0d, 00:00";
+
+  const days = Math.floor(totalSeconds / 86400);
+
+  if (days > 0) return `${days} d`;
+
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+  const hh = String(hours).padStart(2, "0");
+  const mm = String(minutes).padStart(2, "0");
+
+  return `${hh}:${mm}`;
 }
 
-export interface League {
-  id: string;
-  name: string;
-  icon: string;
-  season: string;
-  language: string;
-  totalPlayers: number;
-  endDate: string;
-}
-
-export interface Player {
-  id: string;
-  username: string;
-  email: string;
-  createdAt: string;
-}
-
-export interface Team {
-  id: string;
-  name: string;
-  playerId: string;
-  leagueId: string;
-  credits: number;
-  totalValue: number;
-  rank: number;
-  points: number;
+export interface TeamPointsData {
   yesterdayPoints: number;
   pointsChange: number;
 }
 
-export interface Contract {
-  id: string;
-  teamId: string;
-  leagueId: string;
-  purchasePrice: number;
-  currentPrice: number;
-  yesterdayPoints: number;
-  expiresIn: number;
-  tier: "SHORT" | "MEDIUM" | "LONG";
-  article: Article;
-}
+export class DashboardData {
+  team: TeamDTO;
+  league: LeagueDTO;
+  contracts: ContractDTO[];
+  notifications: NotificationDTO[];
+  recentPoints: TeamPointsData;
 
-export interface LeaderboardEntry {
-  rank: number;
-  teamId: string;
-  playerId: string;
-  username: string;
-  teamName: string;
-  points: number;
-  change: number;
-  isCurrentUser: boolean;
-}
+  constructor(
+    team: TeamDTO,
+    league: LeagueDTO,
+    contracts: ContractDTO[],
+    notifications: NotificationDTO[],
+    recentPoints: TeamPointsData
+  ) {
+    this.team = team;
+    this.league = league;
+    this.contracts = contracts;
+    this.notifications = notifications;
+    this.recentPoints = recentPoints;
+  }
 
-export interface Notification {
-  id: string;
-  leagueId: string;
-  teamId: string;
-  message: string;
-  type: "contract_expiring" | "trade_offer" | "league_update" | "general";
-  extra: string;
-  read: boolean;
-  createdAt: string;
-}
+  //TODO: to change with the current price that i still don't know how to get it
+  get portfolioValue(): number {
+    return this.contracts.reduce((total, c) => total + c.purchasePrice, 0);
+  }
+  get maxContracts(): number {
+    return MAX_CONTRACTS;
+  }
 
-export interface DashboardSummary {
-  yesterdayPoints: number;
-  pointsChange: number;
-  rank: number;
-  totalPlayers: number;
-  credits: number;
-  portfolioValue: number;
-  activeContracts: number;
-  maxContracts: number;
-}
+  get totalPlayers(): number {
+    return this.league.teams.length;
+  }
 
-export interface DashboardData {
-  team: Team;
-  league: League;
-  contracts: Contract[];
-  leaderboard: LeaderboardEntry[];
-  notifications: Notification[];
-  summary: DashboardSummary;
-}
+  get activeContracts(): number {
+    return this.contracts.length;
+  }
 
-// ── Trade Proposals ──────────────────────────────────────────────────────────
-
-export interface TradeArticleRef {
-  id: string;
-  name: string;
-  basePrice: number;
-}
-
-export interface TradeProposal {
-  id: string;
-  leagueId: string;
-  /** "incoming" = someone wants something from us; "outgoing" = we initiated */
-  type: "incoming" | "outgoing";
-  status: "pending" | "accepted" | "rejected";
-  fromTeamId: string;
-  fromUsername: string;
-  toTeamId: string;
-  toUsername: string;
-  /** Article they are offering in exchange (optional — could be credits only) */
-  offeredArticle?: TradeArticleRef;
-  /** Credits they are offering in exchange (optional) */
-  offeredCredits?: number;
-  /** Article they want from us */
-  requestedArticle: TradeArticleRef;
-  contractTier: string;
-  createdAt: string;
+  get rank(): number {
+    const rank = [...this.league.teams];
+    return (
+      rank
+        .sort((a, b) => b.points - a.points)
+        .findIndex((t) => t.id === this.team.id) + 1
+    );
+  }
 }
 
 // ── Session ──────────────────────────────────────────────────────────────────

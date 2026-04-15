@@ -2,13 +2,13 @@
   <nav-bar>
     <ion-refresher slot="fixed" @ionRefresh="handleRefresh($event)">
       <ion-refresher-content
-        pulling-icon="chevron-down-circle-outline"
+        :pulling-icon="chevronDownCircleOutline"
         refreshing-spinner="crescent"
       />
     </ion-refresher>
 
     <!-- Loading -->
-    <div v-if="isLoading && !summary" class="loading-container">
+    <div v-if="isLoading && !dashboardData" class="loading-container">
       <ion-spinner name="crescent" color="primary" />
       <ion-text color="medium"><p>Loading dashboard…</p></ion-text>
     </div>
@@ -52,22 +52,24 @@
       <dashboard-hero
         :current-league="currentLeague"
         :current-team="team"
-        :summary="summary"
+        :data="dashboardData!"
       />
 
       <ion-grid class="content-grid ion-no-padding">
         <ion-row>
-          <ion-col size="12" size-lg="8">
+          <ion-col size="12" size-lg="6">
             <needed-attention
               :urgent-contract="urgentContracts"
               :on-buy-articles="() => router.push('/market')"
             />
           </ion-col>
-          <ion-col size="12" size-lg="4">
+          <ion-col size="12" size-lg="6">
             <league-leaderboard
-              :leader-board-entry="playersAroundUser"
+              :leaderboard="leaderBoard"
               :current-league="currentLeague"
               :current-team="team"
+              :past-leaderboard="pastLeaderboard"
+              :slice="LEADERBOARD_SLICE"
             />
           </ion-col>
         </ion-row>
@@ -94,46 +96,46 @@ import {
 } from "@ionic/vue";
 import {
   alertCircleOutline,
+  chevronDownCircleOutline,
   refreshOutline,
   trophyOutline,
 } from "ionicons/icons";
 
 import NavBar from "@/layout/NavBar.vue";
-import DashboardHero from "@/modules/TeamDashboard/DashboardHero.vue";
-import NeededAttention from "@/modules/TeamDashboard/NeededAttention.vue";
-import LeagueLeaderboard from "@/modules/TeamDashboard/LeagueLeaderboard.vue";
+import DashboardHero from "@/components/teamDashboard/DashboardHero.vue";
+import NeededAttention from "@/components/teamDashboard/NeededAttention.vue";
+import LeagueLeaderboard from "@/components/teamDashboard/LeagueLeaderboard.vue";
 
 import { useLeagueStore } from "@/stores/league";
 import { useDashboard } from "@/stores/useDashboard";
+import { useLeaguePerformances } from "@/stores/useLeaguePerformances";
 
 const router = useRouter();
 const leagueStore = useLeagueStore();
 
 const currentLeague = computed(() => leagueStore.currentLeague);
-
+//const loading = ref(true);
 const {
+  dashboardData,
   isLoading,
   isError,
   error,
   refetch,
-  summary,
   team,
   contracts,
-  leaderboard,
+  leaderBoard,
 } = useDashboard();
 
-const urgentContracts = computed(() =>
-  contracts.value.filter((c) => c.expiresIn <= 3)
-);
-
-const playersAroundUser = computed(() => {
-  const entries = leaderboard.value;
-  const idx = entries.findIndex((e) => e.isCurrentUser);
-  if (idx === -1) return entries.slice(0, 5);
-  const start = Math.max(0, idx - 2);
-  const end = Math.min(entries.length, idx + 3);
-  return entries.slice(start, end);
+const urgentContracts = computed(() => {
+  if (!contracts.value?.length) return [];
+  else
+    return contracts.value.filter(
+      (c) => c.expiresIn.total({ unit: "days" }) < 3
+    );
 });
+
+const LEADERBOARD_SLICE = 5;
+const { pastLeaderboard } = useLeaguePerformances();
 
 async function handleRefresh(event: CustomEvent) {
   await refetch();

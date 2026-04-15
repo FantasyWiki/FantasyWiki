@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import router from "@/router/index";
-import AppLogo from "@/views/AppLogo.vue";
+import AppLogo from "@/components/AppLogo.vue";
 
 describe("AppLogo.vue", () => {
   it("should mount without any console errors or warnings", () => {

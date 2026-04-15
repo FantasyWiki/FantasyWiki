@@ -10,6 +10,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@js-temporal/polyfill": new URL(
+        "../frontend/node_modules/@js-temporal/polyfill",
+        import.meta.url
+      ).pathname,
     },
   },
   test: {

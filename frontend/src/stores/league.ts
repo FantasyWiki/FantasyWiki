@@ -1,7 +1,9 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
-import api from "@/services/api";
-import type { League } from "@/types/models";
+import api, { deserializeLeague } from "@/services/api";
+import { LeagueDTO } from "../../../dto/leagueDTO";
+import { Temporal } from "@js-temporal/polyfill";
+import Now = Temporal.Now;
 
 /**
  * Manages the player's league context.
@@ -17,9 +19,18 @@ import type { League } from "@/types/models";
  */
 export const useLeagueStore = defineStore("league", () => {
   // ── State ──────────────────────────────────────────────────────────────────
-
-  const currentLeague = ref<League | null>(null);
-  const availableLeagues = ref<League[]>([]);
+  const emptyLeague = (): LeagueDTO => ({
+    id: "",
+    title: "No League Selected",
+    description: "",
+    domain: "en",
+    icon: "",
+    startDate: Now.instant(),
+    endDate: Now.instant(),
+    teams: [],
+  });
+  const currentLeague = ref<LeagueDTO>();
+  const availableLeagues = ref<LeagueDTO[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
@@ -28,7 +39,7 @@ export const useLeagueStore = defineStore("league", () => {
   const currentLeagueId = computed(() => currentLeague.value?.id ?? null);
 
   const currentLeagueName = computed(
-    () => currentLeague.value?.name ?? "No League Selected"
+    () => currentLeague.value?.title ?? "No League Selected"
   );
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -39,8 +50,8 @@ export const useLeagueStore = defineStore("league", () => {
    * fall back to the first available league and persist the correction.
    * Returns the resolved league so callers can act on it immediately.
    */
-  function _resolveCurrentLeague(): League | null {
-    if (!availableLeagues.value.length) return null;
+  function _resolveCurrentLeague(): LeagueDTO {
+    if (!availableLeagues.value.length) return emptyLeague();
 
     const candidate = currentLeague.value;
     const found = candidate
@@ -86,7 +97,7 @@ export const useLeagueStore = defineStore("league", () => {
    * Components that depend on league-scoped data (via useQuery with the
    * leagueId in the query key) will automatically refetch when this changes.
    */
-  function setCurrentLeague(league: League) {
+  function setCurrentLeague(league: LeagueDTO) {
     currentLeague.value = league;
     localStorage.setItem("currentLeague", JSON.stringify(league));
   }
@@ -107,7 +118,8 @@ export const useLeagueStore = defineStore("league", () => {
     if (saved) {
       try {
         // Optimistic restore — may be stale; will be validated after fetch.
-        currentLeague.value = JSON.parse(saved) as League;
+        const parsed = JSON.parse(saved);
+        currentLeague.value = deserializeLeague(parsed);
       } catch {
         // Corrupt localStorage entry — ignore; fetchLeagues will set a default.
         localStorage.removeItem("currentLeague");

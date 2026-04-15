@@ -13,13 +13,15 @@ type Bindings = {
 };
 
 export function resolveFrontendUrl(env: Bindings): string {
-  let url = env.FRONTEND_URL;
+  let url = env.FRONTEND_URL ?? "localhost:5173";
   // Only add branch prefix if not master
   if (env.WORKERS_CI_BRANCH && env.WORKERS_CI_BRANCH !== "master") {
-    url = env.WORKERS_CI_BRANCH + "." + env.FRONTEND_URL;
+    url = env.WORKERS_CI_BRANCH + "." + url;
   }
+
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
-    url = "https://" + url;
+    const isLocal = url.startsWith("localhost") || url.startsWith("127.");
+    url = (isLocal ? "http://" : "https://") + url;
   }
   return url;
 }
@@ -48,6 +50,10 @@ auth.get("/google", async (c) => {
   const frontendUrl = resolveFrontendUrl(c.env);
   if (!token || !user) {
     return c.redirect(`${frontendUrl}/home?error=auth_failed`);
+  }
+
+  if (!c.env.JWT_SECRET) {
+    return c.json({ error: "Missing JWT_SECRET env variable" }, 500);
   }
 
   const jwtPayload: JWTPayload = {

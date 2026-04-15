@@ -7,42 +7,65 @@ import type { DashboardData } from "@/types/models";
 /**
  * Provides raw dashboard data for the currently active league.
  *
- * This composable is intentionally thin — it fetches and caches the API
- * response and exposes the data as-is. Any derived filtering (e.g. urgent
- * contracts, leaderboard slicing) is the responsibility of the component
- * that needs it, keeping this composable reusable and easy to reason about.
- *
- * The query key contains the leagueId so:
- *   - Each league has its own cache entry.
- *   - Switching leagues triggers a fresh fetch automatically.
- *   - Going back to a previously visited league reuses cached data until stale.
+ * DashboardData is a class with computed getters (rank, portfolioValue, etc.)
+ * — expose those directly instead of re-deriving them here.
  */
 export function useDashboard() {
   const leagueStore = useLeagueStore();
 
-  const { data, isLoading, isError, error, refetch } = useQuery<DashboardData>({
+  const {
+    data: dashboardData,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<DashboardData>({
     queryKey: computed(() => ["dashboard", leagueStore.currentLeagueId]),
-    queryFn: () => api.dashboard.getData(leagueStore.currentLeagueId!),
+    queryFn: () => api.dashboard.getDashboardData(leagueStore.currentLeague!),
     enabled: computed(() => !!leagueStore.currentLeagueId),
   });
 
-  // Expose individual slices with safe defaults so components don't need
-  // to null-check data.value everywhere.
-  const summary = computed(() => data.value?.summary ?? null);
-  const contracts = computed(() => data.value?.contracts ?? []);
-  const leaderboard = computed(() => data.value?.leaderboard ?? []);
-  const team = computed(() => data.value?.team ?? null);
+  // Raw slices — safe defaults so components skip null-checks
+  const team = computed(() => dashboardData.value?.team ?? null);
+  const league = computed(() => dashboardData.value?.league ?? null);
+  const contracts = computed(() => dashboardData.value?.contracts ?? []);
+  const notifications = computed(
+    () => dashboardData.value?.notifications ?? []
+  );
+
+  // Derived from DashboardData class getters
+  const rank = computed(() => dashboardData.value?.rank ?? null);
+  const portfolioValue = computed(
+    () => dashboardData.value?.portfolioValue ?? 0
+  );
+  const activeContracts = computed(
+    () => dashboardData.value?.activeContracts ?? 0
+  );
+  const maxContracts = computed(() => dashboardData.value?.maxContracts ?? 0);
+  const totalPlayers = computed(() => dashboardData.value?.totalPlayers ?? 0);
+  const leaderBoard = computed(
+    () =>
+      [...(league.value?.teams ?? [])].sort((a, b) => b.points - a.points) ?? []
+  );
 
   return {
+    dashboardData,
     // Query state
     isLoading,
     isError,
     error,
     refetch,
-    // Raw data slices — filter in the component that needs it
-    summary,
-    contracts,
-    leaderboard,
+    // Raw slices
     team,
+    league,
+    contracts,
+    notifications,
+    // Computed from DashboardData getters
+    rank,
+    portfolioValue,
+    activeContracts,
+    maxContracts,
+    totalPlayers,
+    leaderBoard,
   };
 }

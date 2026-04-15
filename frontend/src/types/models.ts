@@ -11,12 +11,12 @@ export function formatDuration(duration: Temporal.Duration): string {
 
   if (totalSeconds <= 0) return "0d, 00:00";
 
-  const days = Math.round(totalSeconds / 86400);
+  const days = Math.floor(totalSeconds / 86400);
 
   if (days > 0) return `${days} d`;
 
-  const hours = Math.round((totalSeconds % 86400) / 3600);
-  const minutes = Math.round((totalSeconds % 3600) / 60);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
 
   const hh = String(hours).padStart(2, "0");
   const mm = String(minutes).padStart(2, "0");
@@ -58,7 +58,7 @@ export class DashboardData {
     return MAX_CONTRACTS;
   }
 
-  get totalPLayers(): number {
+  get totalPlayers(): number {
     return this.league.teams.length;
   }
 

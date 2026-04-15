@@ -76,7 +76,7 @@ export function useNotifications() {
       await queryClient.cancelQueries({ queryKey: ["notifications"] });
       queryClient.setQueryData<NotificationDTO[]>(
         ["notifications"],
-        (old) => old?.map((n) => (n.id === id ? { ...n, read: true } : n)) ?? []
+        (old) => old?.map((n) => (n.id === id ? { ...n, isRead: true } : n)) ?? []
       );
     },
     onError: () => {

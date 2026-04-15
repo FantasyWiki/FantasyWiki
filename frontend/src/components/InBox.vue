@@ -80,27 +80,6 @@
           </ion-text>
         </div>
 
-        <!-- Error state -->
-        <div v-else-if="false" class="ion-padding ion-text-center">
-          <ion-icon
-            :icon="alertCircleOutline"
-            color="danger"
-            class="state-icon"
-          />
-          <ion-text color="danger">
-            <p class="ion-no-margin">{{}}</p>
-          </ion-text>
-          <ion-button
-            fill="clear"
-            size="small"
-            color="primary"
-            class="ion-margin-top"
-            @click="emit('retry')"
-          >
-            Retry
-          </ion-button>
-        </div>
-
         <!-- Empty state -->
         <div
           v-else-if="

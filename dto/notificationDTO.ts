@@ -9,5 +9,4 @@ export interface NotificationDTO {
   date: Temporal.PlainDate;
   isRead: boolean;
   //type: "contract_expiring" | "trade_offer" | "league_update" | "general";
-  read: boolean;
 }

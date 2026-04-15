@@ -45,7 +45,7 @@
             <div class="rank-pill" v-if="data">
               <ion-icon :icon="trophyOutline" color="warning" />
               <span class="rank-value">#{{ data.rank }}</span>
-              <span class="rank-label">of {{ data.totalPLayers }}</span>
+              <span class="rank-label">of {{ data.totalPlayers }}</span>
             </div>
 
             <!-- Actions: Buy Articles + inbox bell -->
@@ -280,7 +280,7 @@ const allStats = computed<StatDef[]>(() => {
     {
       label: "Standing",
       value: `#${s.rank}`,
-      sub: `of ${s.totalPLayers} players`,
+      sub: `of ${s.totalPlayers} players`,
       icon: trophyOutline,
       iconBg: "rgba(var(--ion-color-warning-rgb), 0.15)",
       iconColor: "var(--ion-color-warning)",

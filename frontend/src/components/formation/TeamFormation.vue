@@ -15,7 +15,7 @@
           <ion-icon :icon="swapHorizontalOutline" />
           <span>
             Select a position to swap with
-            <strong>{{ swapSource.word }}</strong>
+            <strong>{{ swapSource.article.title }}</strong>
           </span>
           <button class="swap-cancel" @click="$emit('cancelSwap')">✕</button>
         </div>
@@ -26,13 +26,13 @@
         <template v-for="posKey in activePositions" :key="posKey">
           <!-- Filled slot -->
           <ArticleNode
-            v-if="slotMap[posKey]"
-            :article="slotMap[posKey]!"
+            v-if="formation.formation.map((f) => f.position).includes(posKey)"
+            :article="formation[posKey]!"
             :is-goalkeeper="posKey === 'GK'"
-            :swap-mode="swapMode && slotMap[posKey]?.id !== swapSource?.id"
-            :selected="slotMap[posKey]?.id === swapSource?.id"
+            :swap-mode="swapMode && formation[posKey]?.id !== swapSource?.id"
+            :selected="formation[posKey]?.id === swapSource?.id"
             :style="gridStyle(posKey)"
-            @click="$emit('articleClick', slotMap[posKey]!)"
+            @click="$emit('articleClick', formation[posKey]!)"
             @swap="(fromId, toId) => $emit('swap', fromId, toId)"
           />
 
@@ -43,7 +43,9 @@
             :style="gridStyle(posKey)"
             :class="{ 'pitch-slot-empty--swap': swapMode }"
             :aria-label="`Empty position ${posKey}`"
-            @click="swapMode && swapSource ? $emit('moveToEmpty', posKey) : undefined"
+            @click="
+              swapMode && swapSource ? $emit('moveToEmpty', posKey) : undefined
+            "
           >
             <span class="slot-pos-label">{{ posKey }}</span>
             <ion-icon
@@ -58,8 +60,8 @@
       <!-- ── Chemistry legend ───────────────────────────────────────────── -->
       <div class="chemistry-legend" role="list" aria-label="Chemistry bonuses">
         <span class="chem-item chem-high" role="listitem">+20%</span>
-        <span class="chem-item chem-mid"  role="listitem">+10%</span>
-        <span class="chem-item chem-low"  role="listitem">+5%</span>
+        <span class="chem-item chem-mid" role="listitem">+10%</span>
+        <span class="chem-item chem-low" role="listitem">+5%</span>
         <span class="chem-item chem-none" role="listitem">0%</span>
       </div>
     </div>
@@ -70,24 +72,27 @@
 import { computed } from "vue";
 import { IonCard, IonIcon } from "@ionic/vue";
 import { swapHorizontalOutline, addCircleOutline } from "ionicons/icons";
-import { POSITION_MAP, FORMATIONS } from "@/types/pitch";
-import type { SlotMap, Contract } from "@/types/team";
+import { POSITION_MAP } from "@/types/pitch";
+import type { SlotMap } from "@/types/team";
+
 import ArticleNode from "./ArticleNode.vue";
+import { ContractDTO } from "../../../../dto/contractDTO";
+import { FORMATIONS, Position, Schema } from "../../../../dto/enums";
+import { FormationDTO } from "../../../../dto/formationDTO";
 
 const props = defineProps<{
-  /** e.g. "4-3-3" */
-  formationId: string;
-  /** positionKey → Contract | null — fed directly from teamStore.slotMap */
-  slotMap: SlotMap;
+  formation: FormationDTO;
   /** When true, ArticleNodes pulse to indicate they are swap targets */
   swapMode?: boolean;
   /** The article currently selected as the swap source (highlighted differently) */
-  swapSource?: Contract | null;
+  swapSource?: ContractDTO | null;
+
+  orientation: "horizontal" | "vertical";
 }>();
 
 const emit = defineEmits<{
   /** User clicked a filled slot */
-  articleClick: [article: Contract];
+  articleClick: [article: ContractDTO];
   /** User dropped/clicked a swap target */
   swap: [fromId: number, toId: number];
   /** User clicked an empty slot while in swap mode */
@@ -97,20 +102,18 @@ const emit = defineEmits<{
 }>();
 
 const activePositions = computed(
-  () => FORMATIONS[props.formationId] ?? []
+  () => FORMATIONS[props.formation.schema] ?? []
 );
 
 /**
  * Returns inline CSS grid-placement styles for the given position key.
  * CSS grid is 1-indexed, POSITION_MAP uses 0-indexed values.
  */
-function gridStyle(posKey: string): Record<string, number> {
+function gridStyle(posKey: Position): Record<number, number> {
   const pos = POSITION_MAP[posKey];
+
   if (!pos) return {};
-  return {
-    gridRow:    pos.row + 1,
-    gridColumn: pos.col + 1,
-  };
+  return pos;
 }
 </script>
 
@@ -129,7 +132,7 @@ function gridStyle(posKey: string): Record<string, number> {
   background: linear-gradient(
     to bottom,
     rgba(var(--ion-color-primary-rgb), 0.04) 0%,
-    rgba(var(--ion-color-primary-rgb), 0.10) 50%,
+    rgba(var(--ion-color-primary-rgb), 0.1) 50%,
     rgba(var(--ion-color-primary-rgb), 0.04) 100%
   );
   border-radius: 12px;
@@ -170,8 +173,16 @@ function gridStyle(posKey: string): Record<string, number> {
   border: 1px solid rgba(var(--ion-color-primary-rgb), 0.18);
   pointer-events: none;
 }
-.pitch-goal--top    { top: 0;    border-top: none;    border-radius: 0 0 6px 6px; }
-.pitch-goal--bottom { bottom: 0; border-bottom: none; border-radius: 6px 6px 0 0; }
+.pitch-goal--top {
+  top: 0;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+}
+.pitch-goal--bottom {
+  bottom: 0;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+}
 
 /* ── Swap mode banner ─────────────────────────────────────────────────────── */
 .swap-banner {
@@ -202,12 +213,14 @@ function gridStyle(posKey: string): Record<string, number> {
   line-height: 1;
   opacity: 0.7;
 }
-.swap-cancel:hover { opacity: 1; }
+.swap-cancel:hover {
+  opacity: 1;
+}
 
 /* ── Main grid ────────────────────────────────────────────────────────────── */
 .pitch-grid {
   display: grid;
-  grid-template-rows:    repeat(6, minmax(60px, auto));
+  grid-template-rows: repeat(6, minmax(60px, auto));
   grid-template-columns: repeat(5, 1fr);
   gap: 6px;
   min-height: 480px;
@@ -225,7 +238,9 @@ function gridStyle(posKey: string): Record<string, number> {
   border: 2px dashed rgba(var(--ion-color-medium-rgb), 0.3);
   border-radius: 8px;
   min-height: 56px;
-  transition: border-color 180ms ease, background 180ms ease;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease;
 }
 
 .slot-pos-label {
@@ -270,14 +285,30 @@ function gridStyle(posKey: string): Record<string, number> {
   border-radius: 999px;
 }
 
-.chem-high { background: rgba(var(--ion-color-primary-rgb), 0.15);  color: var(--ion-color-primary); }
-.chem-mid  { background: rgba(var(--ion-color-warning-rgb), 0.2);   color: var(--ion-color-warning); }
-.chem-low  { background: rgba(var(--ion-color-tertiary-rgb), 0.2);  color: var(--ion-color-tertiary); }
-.chem-none { background: var(--ion-color-light);                    color: var(--ion-color-medium); }
+.chem-high {
+  background: rgba(var(--ion-color-primary-rgb), 0.15);
+  color: var(--ion-color-primary);
+}
+.chem-mid {
+  background: rgba(var(--ion-color-warning-rgb), 0.2);
+  color: var(--ion-color-warning);
+}
+.chem-low {
+  background: rgba(var(--ion-color-tertiary-rgb), 0.2);
+  color: var(--ion-color-tertiary);
+}
+.chem-none {
+  background: var(--ion-color-light);
+  color: var(--ion-color-medium);
+}
 
 /* ── Transitions ──────────────────────────────────────────────────────────── */
 .fade-enter-active,
-.fade-leave-active { transition: opacity 200ms ease; }
+.fade-leave-active {
+  transition: opacity 200ms ease;
+}
 .fade-enter-from,
-.fade-leave-to     { opacity: 0; }
+.fade-leave-to {
+  opacity: 0;
+}
 </style>

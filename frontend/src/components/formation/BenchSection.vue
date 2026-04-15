@@ -40,7 +40,14 @@
 </template>
 
 <script setup lang="ts">
-import { IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonNote, IonIcon } from "@ionic/vue";
+import {
+  IonCard,
+  IonCardHeader,
+  IonCardTitle,
+  IonCardContent,
+  IonNote,
+  IonIcon,
+} from "@ionic/vue";
 import { bookOutline } from "ionicons/icons";
 import type { Contract } from "@/types/team";
 import ArticleNode from "./ArticleNode.vue";

@@ -2,11 +2,7 @@
   <div class="formation-selector">
     <p class="formation-label">Formation</p>
 
-    <ion-segment
-      :value="currentFormation"
-      scrollable
-      @ionChange="onChange"
-    >
+    <ion-segment :value="currentFormation" scrollable @ionChange="onChange">
       <ion-segment-button
         v-for="f in formations"
         :key="f"

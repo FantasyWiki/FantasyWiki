@@ -7,16 +7,11 @@
  */
 
 import { ContractDTO } from "../../../dto/contractDTO";
+import {FormationDTO} from "../../../dto/formationDTO";
 
 /** Raw shape returned by GET /leagues/:id/teams/:userId */
 export interface TeamResponse {
-  /** e.g. "4-3-3" */
-  formation: string;
-  /** positionKey → contractId (null = unfilled slot) */
-  slots: Record<string, number | null>;
+  formation: FormationDTO
   /** contractIds on the bench */
-  bench: number[];
+  bench: ContractDTO[];
 }
-
-/** The shape TeamFormation.vue consumes: posKey → resolved Contract or null */
-export type SlotMap = Record<string, ContractDTO | null>;

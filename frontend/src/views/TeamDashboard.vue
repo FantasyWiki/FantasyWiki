@@ -54,7 +54,7 @@
         :current-team="team"
         :data="dashboardData!"
       />
-
+      <team-formation formation-id="" formation="" />
       <ion-grid class="content-grid ion-no-padding">
         <ion-row>
           <ion-col size="12" size-lg="6">
@@ -109,6 +109,7 @@ import LeagueLeaderboard from "@/components/teamDashboard/LeagueLeaderboard.vue"
 import { useLeagueStore } from "@/stores/league";
 import { useDashboard } from "@/stores/useDashboard";
 import { useLeaguePerformances } from "@/stores/useLeaguePerformances";
+import TeamFormation from "@/components/formation/TeamFormation.vue";
 
 const router = useRouter();
 const leagueStore = useLeagueStore();

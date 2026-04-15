@@ -5,6 +5,7 @@ import TeamDashboard from "@/views/TeamDashboard.vue";
 import HomePage from "@/views/HomePage.vue";
 import AuthCallbackPage from "@/views/auth/AuthCallbackPage.vue";
 import EnvInfoPage from "@/views/EnvInfoPage.vue";
+import TeamPage from "@/views/TeamPage.vue";
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -43,6 +44,11 @@ const routes: Array<RouteRecordRaw> = [
     path: "/env-info",
     name: "EnvInfo",
     component: EnvInfoPage,
+  },
+  {
+    path: "/team",
+    name: "Team",
+    component: TeamPage,
   },
 ];
 

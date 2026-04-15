@@ -6,8 +6,8 @@
   <button
     class="article-node"
     :class="{
-      'article-node--gk':       isGoalkeeper,
-      'article-node--swap':     swapMode,
+      'article-node--gk': isGoalkeeper,
+      'article-node--swap': swapMode,
       'article-node--dragover': isDragOver,
       'article-node--selected': selected,
     }"
@@ -23,7 +23,7 @@
       v-if="article.weeklyDelta !== undefined"
       class="article-delta"
       :class="{
-        'article-delta--up':   article.weeklyDelta > 0,
+        'article-delta--up': article.weeklyDelta > 0,
         'article-delta--down': article.weeklyDelta < 0,
       }"
     >
@@ -138,8 +138,12 @@ function onDrop(e: DragEvent) {
   line-height: 1;
 }
 
-.article-delta--up   { color: var(--ion-color-success, #2dd36f); }
-.article-delta--down { color: var(--ion-color-danger, #eb445a); }
+.article-delta--up {
+  color: var(--ion-color-success, #2dd36f);
+}
+.article-delta--down {
+  color: var(--ion-color-danger, #eb445a);
+}
 
 /* ── Goalkeeper variant ────────────────────────────────────────────────── */
 .article-node--gk {
@@ -185,7 +189,12 @@ function onDrop(e: DragEvent) {
 }
 
 @keyframes article-pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.55; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
 }
 </style>

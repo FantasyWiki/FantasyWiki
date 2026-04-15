@@ -20,7 +20,12 @@
           <div>
             <p class="error-title">Failed to load team</p>
             <p class="error-detail">{{ store.error }}</p>
-            <ion-button fill="outline" color="light" size="small" @click="reload">
+            <ion-button
+              fill="outline"
+              color="light"
+              size="small"
+              @click="reload"
+            >
               <ion-icon slot="start" :icon="refreshOutline" />
               Retry
             </ion-button>
@@ -62,7 +67,7 @@
       <!-- Pitch -->
       <TeamFormation
         :formation-id="store.formation"
-        :slot-map="store.slotMap"
+        :formation="store.slotMap"
         :swap-mode="swapMode"
         :swap-source="swapSource"
         @article-click="handleArticleClick"
@@ -88,7 +93,11 @@
         class="save-indicator"
         :class="{ 'save-indicator--saving': store.isSaving }"
       >
-        <ion-spinner v-if="store.isSaving" name="crescent" class="save-spinner" />
+        <ion-spinner
+          v-if="store.isSaving"
+          name="crescent"
+          class="save-spinner"
+        />
         <span>{{ store.isSaving ? "Saving…" : "Unsaved changes" }}</span>
       </div>
     </transition>
@@ -118,16 +127,13 @@ import {
   IonSkeletonText,
   IonSpinner,
 } from "@ionic/vue";
-import {
-  alertCircleOutline,
-  refreshOutline,
-} from "ionicons/icons";
+import { alertCircleOutline, refreshOutline } from "ionicons/icons";
 
 import NavBar from "@/layout/NavBar.vue";
-import FormationSelector from "@/modules/formation/FormationSelector.vue";
-import TeamFormation from "@/modules/formation/TeamFormation.vue";
-import BenchSection from "@/modules/formation/BenchSection.vue";
-import ArticleDetail from "@/modules/ArticleDetail.vue";
+import FormationSelector from "@/components/formation/FormationSelector.vue";
+import TeamFormation from "@/components/formation/TeamFormation.vue";
+import BenchSection from "@/components/formation/BenchSection.vue";
+import ArticleDetail from "@/components/ArticleDetail.vue";
 
 import { useTeamStore } from "@/stores/teamStore";
 import { useLeagueStore } from "@/stores/league";
@@ -147,7 +153,7 @@ const formationIds = Object.keys(FORMATIONS);
 onMounted(() => {
   // Use current league + authenticated user; fall back to placeholders during dev.
   const lgId = leagueStore.currentLeagueId ?? "italy";
-  const uid  = appStore.currentUser?.id ?? "player-1";
+  const uid = appStore.currentUser?.id ?? "player-1";
   store.loadTeam(lgId, uid);
 });
 
@@ -158,7 +164,7 @@ onIonViewWillLeave(() => {
 
 function reload() {
   const lgId = leagueStore.currentLeagueId ?? "italy";
-  const uid  = appStore.currentUser?.id ?? "player-1";
+  const uid = appStore.currentUser?.id ?? "player-1";
   store.loadTeam(lgId, uid);
 }
 
@@ -196,17 +202,17 @@ function closeDetail() {
 }
 
 // ── Swap logic ────────────────────────────────────────────────────────────
-const swapMode   = ref(false);
+const swapMode = ref(false);
 const swapSource = ref<Contract | null>(null);
 
 function enterSwapMode(article: Contract) {
-  swapMode.value   = true;
+  swapMode.value = true;
   swapSource.value = article;
   isDetailOpen.value = false;
 }
 
 function cancelSwap() {
-  swapMode.value   = false;
+  swapMode.value = false;
   swapSource.value = null;
 }
 
@@ -336,7 +342,9 @@ function handleMoveToEmpty(posKey: string) {
 /* ── Transitions ─────────────────────────────────────────────────────── */
 .fade-up-enter-active,
 .fade-up-leave-active {
-  transition: opacity 200ms ease, transform 200ms ease;
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
 }
 
 .fade-up-enter-from,
@@ -346,7 +354,11 @@ function handleMoveToEmpty(posKey: string) {
 }
 
 .fade-enter-active,
-.fade-leave-active { transition: opacity 200ms ease; }
+.fade-leave-active {
+  transition: opacity 200ms ease;
+}
 .fade-enter-from,
-.fade-leave-to     { opacity: 0; }
+.fade-leave-to {
+  opacity: 0;
+}
 </style>

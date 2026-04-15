@@ -3,6 +3,12 @@
 # This file is expected to be part of source control.
 com.dorongold.plugins:task-tree:4.0.1=classpath
 com.dorongold.task-tree:com.dorongold.task-tree.gradle.plugin:4.0.1=classpath
+com.fasterxml.jackson.core:jackson-annotations:2.14.2=classpath
+com.fasterxml.jackson.core:jackson-core:2.14.2=classpath
+com.fasterxml.jackson.core:jackson-databind:2.14.2=classpath
+com.fasterxml.jackson:jackson-bom:2.14.2=classpath
+com.github.node-gradle.node:com.github.node-gradle.node.gradle.plugin:7.1.0=classpath
+com.github.node-gradle:gradle-node-plugin:7.1.0=classpath
 org.apache.commons:commons-lang3:3.14.0=classpath
 org.codehaus.groovy:groovy-bom:3.0.21=classpath
 org.codehaus.groovy:groovy:3.0.21=classpath

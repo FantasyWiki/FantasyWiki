@@ -20,7 +20,8 @@
     "semantic-release-preconfigured-conventional-commits": "1.1.157"
   },
   "engines": {
-    "node": "24.14"
+    "node": "24.14.1",
+    "npm": "11.12.1"
   },
   "dependencies": {
     "@js-temporal/polyfill": "^0.5.1"

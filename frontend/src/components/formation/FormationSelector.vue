@@ -2,7 +2,7 @@
   <div class="formation-selector">
     <p class="formation-label">Formation</p>
 
-    <ion-segment :value="currentFormation" scrollable @ionChange="onChange">
+    <ion-segment :value="currentSchema" scrollable @ionChange="onChange">
       <ion-segment-button
         v-for="f in formations"
         :key="f"
@@ -17,21 +17,22 @@
 
 <script setup lang="ts">
 import { IonSegment, IonSegmentButton, IonLabel } from "@ionic/vue";
+import type { Schema } from "../../../../dto/formationDTO";
 
 defineProps<{
-  /** All available formation IDs, e.g. ['4-3-3', '4-4-2', ...] */
-  formations: string[];
-  /** Currently active formation */
-  currentFormation: string;
+  /** All available formation schemas, e.g. ['4-3-3', '4-4-2', ...] */
+  formations: Schema[];
+  /** Currently active schema */
+  currentSchema: Schema;
 }>();
 
 const emit = defineEmits<{
-  /** Fires when the user selects a different formation */
-  change: [formation: string];
+  /** Fires when the user selects a different formation schema */
+  change: [schema: Schema];
 }>();
 
 function onChange(e: CustomEvent) {
-  emit("change", e.detail.value as string);
+  emit("change", e.detail.value as Schema);
 }
 </script>
 

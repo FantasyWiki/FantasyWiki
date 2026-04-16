@@ -49,23 +49,23 @@ import {
   IonIcon,
 } from "@ionic/vue";
 import { bookOutline } from "ionicons/icons";
-import type { Contract } from "@/types/team";
+import type { ContractDTO } from "../../../../dto/contractDTO";
 import ArticleNode from "./ArticleNode.vue";
 
 defineProps<{
-  /** Bench article list from teamStore.benchContracts */
-  articles: Contract[];
+  /** Bench article list */
+  articles: ContractDTO[];
   /** When true, ArticleNodes pulse as valid swap targets */
   swapMode?: boolean;
   /** The article currently selected as swap source */
-  swapSource?: Contract | null;
+  swapSource?: ContractDTO | null;
 }>();
 
 defineEmits<{
   /** User clicked an article tile */
-  articleClick: [article: Contract];
+  articleClick: [article: ContractDTO];
   /** User drag-dropped or tapped a swap target */
-  swap: [fromId: number, toId: number];
+  swap: [fromId: string, toId: string];
 }>();
 </script>
 

@@ -41,7 +41,7 @@
         <div class="heading-left">
           <h2 class="page-title">Team Management</h2>
           <ion-badge v-if="currentLeague" color="primary" class="league-badge">
-            {{ currentLeague.icon }} {{ currentLeague.name }}
+            {{ currentLeague.icon }} {{ currentLeague.title }}
           </ion-badge>
         </div>
         <!-- Manual save button — visible only when there are unsaved changes -->
@@ -60,14 +60,13 @@
       <!-- Formation selector -->
       <FormationSelector
         :formations="formationIds"
-        :current-formation="store.formation"
-        @change="onFormationChange"
+        :current-schema="store.schema"
+        @change="onSchemaChange"
       />
 
       <!-- Pitch -->
       <TeamFormation
-        :formation-id="store.formation"
-        :formation="store.slotMap"
+        :formation="store.draftFormation"
         :swap-mode="swapMode"
         :swap-source="swapSource"
         @article-click="handleArticleClick"
@@ -139,7 +138,8 @@ import { useTeamStore } from "@/stores/teamStore";
 import { useLeagueStore } from "@/stores/league";
 import { useAppStore } from "@/stores/app";
 import { FORMATIONS } from "@/types/pitch";
-import type { Contract } from "@/types/team";
+import type { Schema, Position } from "@/../../dto/formationDTO";
+import type { ContractDTO } from "@/../../dto/contractDTO";
 
 // ── Stores ────────────────────────────────────────────────────────────────
 const store = useTeamStore();
@@ -147,24 +147,23 @@ const leagueStore = useLeagueStore();
 const appStore = useAppStore();
 
 const currentLeague = computed(() => leagueStore.currentLeague);
-const formationIds = Object.keys(FORMATIONS);
+const formationIds = Object.keys(FORMATIONS) as Schema[];
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────
 onMounted(() => {
-  // Use current league + authenticated user; fall back to placeholders during dev.
   const lgId = leagueStore.currentLeagueId ?? "italy";
-  const uid = appStore.currentUser?.id ?? "player-1";
+  const uid = appStore.currentUser?.sub ?? "player-1";
   store.loadTeam(lgId, uid);
 });
 
-// Reliable save-on-leave: fires on Ionic back-button, tab switch, etc.
+// Save on Ionic back-button, tab switch, etc.
 onIonViewWillLeave(() => {
   if (store.isDirty) store.saveTeam();
 });
 
 function reload() {
   const lgId = leagueStore.currentLeagueId ?? "italy";
-  const uid = appStore.currentUser?.id ?? "player-1";
+  const uid = appStore.currentUser?.sub ?? "player-1";
   store.loadTeam(lgId, uid);
 }
 
@@ -173,16 +172,16 @@ async function handleRefresh(event: CustomEvent) {
   (event.target as HTMLIonRefresherElement).complete();
 }
 
-// ── Formation change ──────────────────────────────────────────────────────
-function onFormationChange(newFormation: string) {
-  store.formation = newFormation;
+// ── Schema change ─────────────────────────────────────────────────────────
+function onSchemaChange(newSchema: Schema) {
+  store.setSchema(newSchema);
 }
 
 // ── Article detail dialog ─────────────────────────────────────────────────
-const selectedContract = ref<Contract | null>(null);
+const selectedContract = ref<ContractDTO | null>(null);
 const isDetailOpen = ref(false);
 
-function handleArticleClick(article: Contract) {
+function handleArticleClick(article: ContractDTO) {
   if (swapMode.value && swapSource.value) {
     // User tapped a target while in swap mode → execute the swap.
     handleSwap(swapSource.value.id, article.id);
@@ -203,9 +202,9 @@ function closeDetail() {
 
 // ── Swap logic ────────────────────────────────────────────────────────────
 const swapMode = ref(false);
-const swapSource = ref<Contract | null>(null);
+const swapSource = ref<ContractDTO | null>(null);
 
-function enterSwapMode(article: Contract) {
+function enterSwapMode(article: ContractDTO) {
   swapMode.value = true;
   swapSource.value = article;
   isDetailOpen.value = false;
@@ -216,18 +215,23 @@ function cancelSwap() {
   swapSource.value = null;
 }
 
-function handleSwap(fromId: number, toId: number) {
-  // Find toPos: the position key of the contract currently at toId.
+function handleSwap(fromId: string, toId: string) {
+  // Find toPos: the pitch position key of the contract currently at toId.
   const toPos =
-    Object.entries(store.rawSlots).find(([, id]) => id === toId)?.[0] ??
-    "bench";
+    (
+      Object.entries(store.draftFormation.formation) as [
+        Position,
+        ContractDTO,
+      ][]
+    ).find(([, c]) => c.id === toId)?.[0] ?? "bench";
+
   store.swapSlots(fromId, toPos, toId);
   cancelSwap();
 }
 
 function handleMoveToEmpty(posKey: string) {
   if (!swapSource.value) return;
-  store.swapSlots(swapSource.value.id, posKey, null);
+  store.moveToEmpty(swapSource.value.id, posKey as Position);
   cancelSwap();
 }
 </script>

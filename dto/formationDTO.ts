@@ -1,11 +1,10 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { ContractDTO } from "./contractDTO";
-import {FORMATIONS} from "./enums";
+import { FORMATIONS } from "./enums";
 
 export type Schema = keyof typeof FORMATIONS;
 export type Position = typeof FORMATIONS[Schema][number];
 export type PositionsForSchema<S extends Schema> = typeof FORMATIONS[S][number];
-
 
 /**
  * Editable formation used while the user is composing or modifying a lineup.
@@ -76,22 +75,20 @@ export function createDraftFormation<S extends Schema>(
 }
 
 /**
- * Creates a draft formation for the given schema.
+ * Creates a complete formation for the given schema.
  *
- * A draft formation is the editable version used by the UI while the player
- * is building or modifying a lineup. Unlike the final saved formation, a draft
- * may be incomplete, so some positions can still be missing.
+ * Unlike a draft formation, this function expects all positions required by the
+ * selected schema to be present. TypeScript enforces this at compile time through
+ * `Record<PositionsForSchema<S>, ContractDTO>`.
  *
- * This is useful when:
- * - the user has just selected a schema,
- * - the user is still assigning contracts to positions,
- * - the schema changes and contracts need to be remapped before validation.
+ * Use this when you already know the lineup is complete and valid and want to
+ * create the final domain object.
  *
  * @typeParam S - The selected schema type.
- * @param schema - The schema used by the draft formation.
- * @param formation - Optional initial mapping between positions and contracts.
- * @param date - Optional timestamp associated with the draft.
- * @returns A draft formation object.
+ * @param schema - The schema of the final formation.
+ * @param formation - A complete mapping of all required schema positions to contracts.
+ * @param date - Optional timestamp associated with the formation.
+ * @returns A fully typed complete formation.
  */
 export function createFormation<S extends Schema>(
     schema: S,
@@ -116,7 +113,9 @@ export function createFormation<S extends Schema>(
  * @param draft - The draft formation to validate.
  * @returns `true` if the draft exactly matches the schema requirements, otherwise `false`.
  */
-export function validateDraftFormation<S extends Schema>(draft: DraftFormationDTO<S>): boolean {
+export function validateDraftFormation<S extends Schema>(
+    draft: DraftFormationDTO<S>,
+): boolean {
     const expected = FORMATIONS[draft.schema];
     const actual = Object.keys(draft.formation) as Position[];
 

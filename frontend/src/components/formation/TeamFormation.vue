@@ -26,13 +26,15 @@
         <template v-for="posKey in activePositions" :key="posKey">
           <!-- Filled slot -->
           <ArticleNode
-            v-if="formation.formation.map((f) => f.position).includes(posKey)"
-            :article="formation[posKey]!"
+            v-if="formation.formation[posKey]"
+            :article="formation.formation[posKey]!"
             :is-goalkeeper="posKey === 'GK'"
-            :swap-mode="swapMode && formation[posKey]?.id !== swapSource?.id"
-            :selected="formation[posKey]?.id === swapSource?.id"
+            :swap-mode="
+              swapMode && formation.formation[posKey]?.id !== swapSource?.id
+            "
+            :selected="formation.formation[posKey]?.id === swapSource?.id"
             :style="gridStyle(posKey)"
-            @click="$emit('articleClick', formation[posKey]!)"
+            @click="$emit('articleClick', formation.formation[posKey]!)"
             @swap="(fromId, toId) => $emit('swap', fromId, toId)"
           />
 
@@ -72,48 +74,47 @@
 import { computed } from "vue";
 import { IonCard, IonIcon } from "@ionic/vue";
 import { swapHorizontalOutline, addCircleOutline } from "ionicons/icons";
-import { POSITION_MAP } from "@/types/pitch";
-import type { SlotMap } from "@/types/team";
-
+import { POSITION_MAP, FORMATIONS } from "@/types/pitch";
+import type { DraftFormationDTO, Position } from "../../../../dto/formationDTO";
+import type { ContractDTO } from "../../../../dto/contractDTO";
 import ArticleNode from "./ArticleNode.vue";
-import { ContractDTO } from "../../../../dto/contractDTO";
-import { FORMATIONS, Position, Schema } from "../../../../dto/enums";
-import { FormationDTO } from "../../../../dto/formationDTO";
 
 const props = defineProps<{
-  formation: FormationDTO;
+  /** The current draft formation (may have missing slots) */
+  formation: DraftFormationDTO;
   /** When true, ArticleNodes pulse to indicate they are swap targets */
   swapMode?: boolean;
   /** The article currently selected as the swap source (highlighted differently) */
   swapSource?: ContractDTO | null;
-
-  orientation: "horizontal" | "vertical";
 }>();
 
 const emit = defineEmits<{
   /** User clicked a filled slot */
   articleClick: [article: ContractDTO];
-  /** User dropped/clicked a swap target */
-  swap: [fromId: number, toId: number];
+  /** User dropped/clicked a swap target (string IDs) */
+  swap: [fromId: string, toId: string];
   /** User clicked an empty slot while in swap mode */
   moveToEmpty: [posKey: string];
   /** User dismissed the swap banner */
   cancelSwap: [];
 }>();
 
+/** Positions required by the current schema */
 const activePositions = computed(
   () => FORMATIONS[props.formation.schema] ?? []
 );
 
 /**
  * Returns inline CSS grid-placement styles for the given position key.
- * CSS grid is 1-indexed, POSITION_MAP uses 0-indexed values.
+ * CSS grid is 1-indexed; POSITION_MAP uses 0-indexed values.
  */
-function gridStyle(posKey: Position): Record<number, number> {
+function gridStyle(posKey: Position): Record<string, string> {
   const pos = POSITION_MAP[posKey];
-
   if (!pos) return {};
-  return pos;
+  return {
+    gridRow: String(pos.row + 1),
+    gridColumn: String(pos.col + 1),
+  };
 }
 </script>
 

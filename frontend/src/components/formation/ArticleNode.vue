@@ -11,27 +11,17 @@
       'article-node--dragover': isDragOver,
       'article-node--selected': selected,
     }"
-    :aria-label="article.word"
+    :aria-label="article.article.title"
     @click="$emit('click')"
     @dragstart="onDragStart"
     @dragover.prevent="isDragOver = true"
     @dragleave="isDragOver = false"
     @drop="onDrop"
   >
-    <!-- Points delta badge (positive = green, negative = red) -->
-    <span
-      v-if="article.weeklyDelta !== undefined"
-      class="article-delta"
-      :class="{
-        'article-delta--up': article.weeklyDelta > 0,
-        'article-delta--down': article.weeklyDelta < 0,
-      }"
-    >
-      {{ article.weeklyDelta > 0 ? "+" : "" }}{{ article.weeklyDelta }}
+    <span class="article-name">{{ article.article.title }}</span>
+    <span class="article-tier" :class="`tier--${article.tier.toLowerCase()}`">
+      {{ article.tier }}
     </span>
-
-    <span class="article-name">{{ article.word }}</span>
-    <span class="article-pts">{{ article.points }} pts</span>
 
     <!-- GK label floats below the tile -->
     <span v-if="isGoalkeeper" class="gk-label">GK</span>
@@ -40,10 +30,11 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import type { Contract } from "@/types/team";
+import type { ContractDTO } from "../../../../dto/contractDTO";
 
 const props = defineProps<{
-  article: Contract;
+  /** The contract to display in this slot */
+  article: ContractDTO;
   /** Renders the goalkeeper colour variant and GK label */
   isGoalkeeper?: boolean;
   /** When true, applies the pulsing ring to signal swap-target availability */
@@ -56,7 +47,7 @@ const emit = defineEmits<{
   /** Fired on click — parent decides whether to open detail dialog or enter swap mode */
   click: [];
   /** Fired when another article is dropped onto this node */
-  swap: [fromId: number, toId: number];
+  swap: [fromId: string, toId: string];
 }>();
 
 const isDragOver = ref(false);
@@ -67,12 +58,12 @@ const isDragOver = ref(false);
 // or integrate vue-draggable-plus.
 
 function onDragStart(e: DragEvent) {
-  e.dataTransfer?.setData("articleId", String(props.article.id));
+  e.dataTransfer?.setData("articleId", props.article.id);
 }
 
 function onDrop(e: DragEvent) {
   isDragOver.value = false;
-  const fromId = Number(e.dataTransfer?.getData("articleId"));
+  const fromId = e.dataTransfer?.getData("articleId");
   if (fromId && fromId !== props.article.id) {
     emit("swap", fromId, props.article.id);
   }
@@ -122,27 +113,30 @@ function onDrop(e: DragEvent) {
   line-height: 1.3;
 }
 
-.article-pts {
-  font-size: 10px;
-  color: var(--ion-color-medium);
-  margin-top: 2px;
-}
-
-/* ── Weekly delta badge ────────────────────────────────────────────────── */
-.article-delta {
-  position: absolute;
-  top: 3px;
-  right: 4px;
-  font-size: 8px;
+/* ── Tier badge ────────────────────────────────────────────────────────── */
+.article-tier {
+  font-size: 9px;
   font-weight: 700;
-  line-height: 1;
+  margin-top: 3px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.article-delta--up {
-  color: var(--ion-color-success, #2dd36f);
+.tier--short {
+  background: rgba(var(--ion-color-warning-rgb), 0.2);
+  color: var(--ion-color-warning);
 }
-.article-delta--down {
-  color: var(--ion-color-danger, #eb445a);
+
+.tier--medium {
+  background: rgba(var(--ion-color-primary-rgb), 0.15);
+  color: var(--ion-color-primary);
+}
+
+.tier--long {
+  background: rgba(var(--ion-color-success-rgb), 0.15);
+  color: var(--ion-color-success);
 }
 
 /* ── Goalkeeper variant ────────────────────────────────────────────────── */

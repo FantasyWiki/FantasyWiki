@@ -60,7 +60,3 @@ export const contracts: ContractDTO[] = [
     140
   ),
 ];
-
-
-
-

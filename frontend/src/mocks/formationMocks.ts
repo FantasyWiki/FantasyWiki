@@ -41,7 +41,11 @@ function instantDaysAgo(days: number): Temporal.Instant {
     .toInstant();
 }
 
-function buildContract(id: string, article: ArticleDTO, daysAgo: number): ContractDTO {
+function buildContract(
+  id: string,
+  article: ArticleDTO,
+  daysAgo: number
+): ContractDTO {
   return new ContractDTO(
     id,
     mockTeam,
@@ -67,30 +71,30 @@ const contractsByPosition = {
 } as const;
 
 /** Complete 4-3-3 formation with all required positions filled. */
-export const mockFullFormation433: FormationDTO<"4-3-3"> = createFormation("4-3-3", {
-  LW: contractsByPosition.LW,
-  ST: contractsByPosition.ST,
-  RW: contractsByPosition.RW,
-  CLM: contractsByPosition.CLM,
-  CM: contractsByPosition.CM,
-  CRM: contractsByPosition.CRM,
-  LB: contractsByPosition.LB,
-  CLB: contractsByPosition.CLB,
-  CRB: contractsByPosition.CRB,
-  RB: contractsByPosition.RB,
-  GK: contractsByPosition.GK,
-});
-
-/** Draft 4-3-3 formation with missing slots to preview empty positions in TeamFormation. */
-export const mockDraftFormation433: DraftFormationDTO<"4-3-3"> = createDraftFormation(
+export const mockFullFormation433: FormationDTO<"4-3-3"> = createFormation(
   "4-3-3",
   {
+    LW: contractsByPosition.LW,
+    ST: contractsByPosition.ST,
+    RW: contractsByPosition.RW,
+    CLM: contractsByPosition.CLM,
+    CM: contractsByPosition.CM,
+    CRM: contractsByPosition.CRM,
+    LB: contractsByPosition.LB,
+    CLB: contractsByPosition.CLB,
+    CRB: contractsByPosition.CRB,
+    RB: contractsByPosition.RB,
+    GK: contractsByPosition.GK,
+  }
+);
+
+/** Draft 4-3-3 formation with missing slots to preview empty positions in TeamFormation. */
+export const mockDraftFormation433: DraftFormationDTO<"4-3-3"> =
+  createDraftFormation("4-3-3", {
     LW: contractsByPosition.LW,
     ST: contractsByPosition.ST,
     CM: contractsByPosition.CM,
     LB: contractsByPosition.LB,
     CLB: contractsByPosition.CLB,
     GK: contractsByPosition.GK,
-  }
-);
-
+  });

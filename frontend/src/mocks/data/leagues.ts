@@ -47,5 +47,3 @@ export const leagues: LeagueDTO[] = [
     teams: [teams[7]],
   },
 ];
-
-

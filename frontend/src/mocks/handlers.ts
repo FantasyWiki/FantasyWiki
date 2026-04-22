@@ -13,7 +13,6 @@ import { ContractDTO } from "../../../dto/contractDTO";
 import type { TeamDTO } from "../../../dto/teamDTO";
 import Instant = Temporal.Instant;
 
-
 // =============================================================================
 // HELPER
 // =============================================================================
@@ -135,7 +134,9 @@ export const handlers = [
         { status: 400 }
       );
 
-    const article = articles.find((a) => a.id === data.articleID);
+    const article = articles.find(
+      (a: { id: string }) => a.id === data.articleID
+    );
     if (!article)
       return HttpResponse.json({ error: "Article not found" }, { status: 404 });
 
@@ -211,7 +212,10 @@ export const handlers = [
   http.get("*/api/articles", () => HttpResponse.json(articles)),
 
   http.get("*/api/articles/:articleId", ({ params }) => {
-    const article = articles.find((a) => a.id === params.articleId);
+    const article = articles.find(
+      (a: { id: string | readonly string[] | undefined }) =>
+        a.id === params.articleId
+    );
     if (!article)
       return HttpResponse.json({ error: "Article not found" }, { status: 404 });
     return HttpResponse.json(article);

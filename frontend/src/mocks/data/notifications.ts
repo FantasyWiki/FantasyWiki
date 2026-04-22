@@ -44,5 +44,3 @@ export const notifications: NotificationDTO[] = [
     isRead: false,
   },
 ];
-
-

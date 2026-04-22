@@ -59,5 +59,3 @@ export const teams: TeamDTO[] = [
     points: 6500,
   },
 ];
-
-

@@ -8,4 +8,3 @@ export const players: PlayerDTO[] = [
   { id: "player-5", name: "SarahKim" },
   { id: "player-6", name: "JamieLee" },
 ];
-

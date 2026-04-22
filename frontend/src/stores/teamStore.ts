@@ -15,7 +15,7 @@ import { defineStore } from "pinia";
 import { ref, computed, watch } from "vue";
 import { fetchTeam, saveTeamApi } from "@/services/teamService";
 import { FORMATIONS } from "@/types/pitch";
-import type { TeamResponse } from "@/types/team";
+import type { TeamLineUp } from "@/types/team";
 import type {
   FormationDTO,
   DraftFormationDTO,
@@ -87,14 +87,13 @@ export const useTeamStore = defineStore("team", () => {
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
-  async function loadTeam(lgId: string, uid: string) {
+  async function loadTeam(lgId: string) {
     leagueId.value = lgId;
-    userId.value = uid;
     isLoading.value = true;
     error.value = null;
 
     try {
-      const team: TeamResponse = await fetchTeam(lgId, uid);
+      const team: TeamLineUp = await fetchTeam(lgId);
 
       // The API already returns a fully resolved FormationDTO.
       // We treat it as a draft so the user can edit it freely.
@@ -127,7 +126,7 @@ export const useTeamStore = defineStore("team", () => {
 
     isSaving.value = true;
     try {
-      await saveTeamApi(leagueId.value, userId.value, {
+      await saveTeamApi(leagueId.value, {
         formation: draft.value as FormationDTO,
         bench: benchContracts.value,
       });

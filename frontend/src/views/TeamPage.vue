@@ -152,8 +152,7 @@ const formationIds = Object.keys(FORMATIONS) as Schema[];
 // ── Lifecycle ─────────────────────────────────────────────────────────────
 onMounted(() => {
   const lgId = leagueStore.currentLeagueId ?? "italy";
-  const uid = appStore.currentUser?.sub ?? "player-1";
-  store.loadTeam(lgId, uid);
+  store.loadTeam(lgId);
 });
 
 // Save on Ionic back-button, tab switch, etc.
@@ -164,7 +163,7 @@ onIonViewWillLeave(() => {
 function reload() {
   const lgId = leagueStore.currentLeagueId ?? "italy";
   const uid = appStore.currentUser?.sub ?? "player-1";
-  store.loadTeam(lgId, uid);
+  store.loadTeam(lgId);
 }
 
 async function handleRefresh(event: CustomEvent) {

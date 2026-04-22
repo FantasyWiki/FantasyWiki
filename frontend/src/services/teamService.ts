@@ -4,25 +4,74 @@
  * Intentionally does no transformation: all mapping from raw API shapes
  * to derived UI state lives in the Pinia teamStore.
  */
-import type { TeamResponse } from "@/types/team";
+import type { TeamLineUp } from "@/types/team";
 import type { FormationDTO } from "../../../dto/formationDTO";
 import type { ContractDTO } from "../../../dto/contractDTO";
+import { ContractDTO as ContractModel } from "../../../dto/contractDTO";
+import { Temporal } from "@js-temporal/polyfill";
 
 const BASE = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787";
+
+type RawContract = {
+  id: string;
+  team: ContractDTO["team"];
+  article: ContractDTO["article"];
+  startDate: string;
+  duration: string | Record<string, unknown>;
+  purchasePrice: number;
+};
+
+type RawTeamLineUp = {
+  formation: {
+    date: string;
+    schema: FormationDTO["schema"];
+    formation: Record<string, RawContract>;
+  };
+  bench: RawContract[];
+};
+
+function deserializeContract(c: RawContract): ContractDTO {
+  return new ContractModel(
+    c.id,
+    c.team,
+    c.article,
+    Temporal.Instant.from(c.startDate),
+    Temporal.Duration.from(c.duration),
+    c.purchasePrice
+  );
+}
+
+function deserializeLineup(raw: RawTeamLineUp): TeamLineUp {
+  const formation = Object.fromEntries(
+    Object.entries(raw.formation.formation).map(([position, contract]) => [
+      position,
+      deserializeContract(contract),
+    ])
+  ) as FormationDTO["formation"];
+
+  return {
+    formation: {
+      date: Temporal.Instant.from(raw.formation.date),
+      schema: raw.formation.schema,
+      formation,
+    } as FormationDTO,
+    bench: raw.bench.map(deserializeContract),
+  };
+}
 
 /**
  * Fetch the current team layout for a given league / user combination.
  * Returns a TeamResponse containing a fully resolved FormationDTO and bench.
  */
 export async function fetchTeam(
-  leagueId: string,
-  userId: string
-): Promise<TeamResponse> {
-  const res = await fetch(`${BASE}/api/leagues/${leagueId}/teams/${userId}`, {
+  leagueId: string
+): Promise<TeamLineUp> {
+  const res = await fetch(`${BASE}/api/leagues/${leagueId}/lineup`, {
     credentials: "include",
   });
-  if (!res.ok) throw new Error(`Failed to fetch team: ${res.status}`);
-  return res.json();
+  if (!res.ok) throw new Error(`Failed to fetch lineup: ${res.status}`);
+  const raw = (await res.json()) as RawTeamLineUp;
+  return deserializeLineup(raw);
 }
 
 /**
@@ -31,13 +80,12 @@ export async function fetchTeam(
  */
 export async function saveTeamApi(
   leagueId: string,
-  userId: string,
   payload: {
     formation: FormationDTO;
     bench: ContractDTO[];
   }
 ): Promise<void> {
-  const res = await fetch(`${BASE}/api/leagues/${leagueId}/teams/${userId}`, {
+  const res = await fetch(`${BASE}/api/leagues/${leagueId}/lineup`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     credentials: "include",

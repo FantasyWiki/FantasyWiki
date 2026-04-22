@@ -9,7 +9,7 @@ import { ContractDTO } from "../../../dto/contractDTO";
 import { FormationDTO } from "../../../dto/formationDTO";
 
 /** Raw shape returned by GET /leagues/:id/teams/:userId */
-export interface TeamResponse {
+export interface TeamLineUp {
   /** Fully resolved formation with schema and contract map */
   formation: FormationDTO;
   /** Contracts on the bench */

@@ -11,6 +11,8 @@ import {
 } from "./data";
 import { ContractDTO } from "../../../dto/contractDTO";
 import type { TeamDTO } from "../../../dto/teamDTO";
+import type { TeamLineUp } from "@/types/team";
+import { mockTeamResponse } from "@/mocks/formationMocks";
 import Instant = Temporal.Instant;
 
 // =============================================================================
@@ -21,6 +23,17 @@ function getMyTeam(leagueId: string): TeamDTO | undefined {
   const league = leagues.find((l) => l.id === leagueId);
   return league?.teams.find((t) => t.player.id === currentPlayerId);
 }
+
+function teamResponseKey(leagueId: string): string {
+  return `${leagueId}`;
+}
+
+const mockTeamResponses: Record<string, TeamLineUp> = {
+  [teamResponseKey("italy")]: mockTeamResponse,
+  [teamResponseKey("global")]: mockTeamResponse,
+  [teamResponseKey("europe")]: mockTeamResponse,
+  [teamResponseKey("americas")]: mockTeamResponse,
+};
 
 // =============================================================================
 // HANDLERS
@@ -76,6 +89,30 @@ export const handlers = [
         { status: 404 }
       );
     return HttpResponse.json(team);
+  }),
+
+  http.get("*/api/leagues/:leagueId/lineup", ({ params }) => {
+    const leagueId = String(params.leagueId);
+    const key = teamResponseKey(leagueId);
+
+    const response = mockTeamResponses[key];
+    if (!response) {
+      return HttpResponse.json({ error: "Team layout not found" }, { status: 404 });
+    }
+
+    return HttpResponse.json(response);
+  }),
+
+  http.put("*/api/leagues/:leagueId/lineup", ({ params }) => {
+    const leagueId = String(params.leagueId);
+    const key = teamResponseKey(leagueId);
+
+    if (!mockTeamResponses[key]) {
+      return HttpResponse.json({ error: "Team layout not found" }, { status: 404 });
+    }
+
+    // Keep a deterministic static mock; accept save requests without mutating fixtures.
+    return new HttpResponse(null, { status: 204 });
   }),
 
   http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {

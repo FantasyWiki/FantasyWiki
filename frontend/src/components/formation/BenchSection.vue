@@ -2,7 +2,7 @@
   <ion-card class="bench-card">
     <!-- ── Header ──────────────────────────────────────────────────────── -->
     <ion-card-header class="bench-header">
-      <div class="bench-header-row">
+      <div class="bench-header-row fm-center-row">
         <ion-card-title class="bench-title">Bench</ion-card-title>
         <ion-note class="bench-count">
           {{ articles.length }}
@@ -14,7 +14,7 @@
     <!-- ── Content ─────────────────────────────────────────────────────── -->
     <ion-card-content class="bench-content">
       <!-- Empty state -->
-      <div v-if="articles.length === 0" class="bench-empty">
+      <div v-if="articles.length === 0" class="bench-empty fm-center-col">
         <ion-icon :icon="bookOutline" class="bench-empty-icon" />
         <p class="bench-empty-title">No articles on the bench</p>
         <p class="bench-empty-hint">
@@ -69,6 +69,8 @@ defineEmits<{
 }>();
 </script>
 
+<style scoped src="src/components/formation/formation-shared.css"></style>
+
 <style scoped>
 /* ── Card shell ─────────────────────────────────────────────────────────── */
 .bench-card {
@@ -82,8 +84,6 @@ defineEmits<{
 }
 
 .bench-header-row {
-  display: flex;
-  align-items: center;
   justify-content: space-between;
 }
 
@@ -125,9 +125,6 @@ defineEmits<{
 
 /* ── Empty state ────────────────────────────────────────────────────────── */
 .bench-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   padding: 20px 0 8px;
   text-align: center;
   color: var(--ion-color-medium);

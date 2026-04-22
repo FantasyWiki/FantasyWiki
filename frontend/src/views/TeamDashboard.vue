@@ -54,9 +54,7 @@
         :current-team="team"
         :data="dashboardData!"
       />
-      <team-management
-        :formation="teamStore.draftFormation"
-      />
+      <team-management :formation="teamStore.draftFormation" />
       <ion-grid class="content-grid ion-no-padding">
         <ion-row>
           <ion-col size="12" size-lg="6">

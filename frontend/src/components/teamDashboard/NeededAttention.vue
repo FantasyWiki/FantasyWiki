@@ -1,13 +1,15 @@
 <template>
-  <ion-card class="needed-attention-card">
+  <ion-card class="needed-attention-card td-card">
     <ion-card-header>
-      <div class="attention-header">
-        <div class="header-left">
-          <div class="icon-wrapper">
+      <div class="attention-header td-header">
+        <div class="header-left td-header-left">
+          <div class="icon-wrapper td-header-icon td-header-icon--warning">
             <ion-icon :icon="alertCircleOutline" color="warning" />
           </div>
           <div>
-            <ion-card-title>Attention Needed</ion-card-title>
+            <ion-card-title class="td-card-title"
+              >Attention Needed</ion-card-title
+            >
             <ion-card-subtitle>
               <span v-if="props.urgentContract.length > 0">
                 {{ props.urgentContract.length }} contract{{
@@ -201,49 +203,9 @@ function onDismiss(/*contract: Contract*/) {
 }
 </script>
 
+<style scoped src="src/components/teamDashboard/team-dashboard.css"></style>
+
 <style scoped>
-.needed-attention-card {
-  --background: var(--ion-background-color);
-  border: 1px solid var(--ion-border-color);
-  border-radius: 0.875rem;
-  box-shadow: 0 2px 8px var(--ion-box-shadow-color);
-  margin: 0 0 1rem 0;
-}
-
-.attention-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.icon-wrapper {
-  width: 2.5rem;
-  height: 2.5rem;
-  min-width: 2.5rem;
-  border-radius: 0.5rem;
-  background: rgba(var(--ion-color-warning-rgb), 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.icon-wrapper ion-icon {
-  font-size: 1.25rem;
-}
-
-ion-card-title {
-  font-size: 1.1rem;
-  margin-bottom: 2px;
-}
-
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -379,19 +341,9 @@ ion-card-title {
     height: 1.05rem;
   }
 }
-.expiry-chip ion-icon,
-.trade-chip ion-icon {
+.expiry-chip ion-icon {
   font-size: 0.75rem;
   margin-right: 3px;
-}
-
-.item-trend ion-icon {
-  font-size: 0.8rem;
-}
-
-.item-chevron {
-  font-size: 1rem;
-  flex-shrink: 0;
 }
 
 /* ion-text-color already adapts in dark mode — no override needed */

@@ -4,7 +4,7 @@
     dynamic class logic without Ionic's shadow DOM interfering.
   -->
   <button
-    class="article-node"
+    class="article-node fm-center-col"
     :class="{
       'article-node--gk': isGoalkeeper,
       'article-node--swap': swapMode,
@@ -18,7 +18,9 @@
     @dragleave="isDragOver = false"
     @drop="onDrop"
   >
-    <span class="article-name">{{ article.article.title }}</span>
+    <span class="article-name fm-text-truncate">{{
+      article.article.title
+    }}</span>
     <span class="article-tier" :class="`tier--${article.tier.toLowerCase()}`">
       {{ article.tier }}
     </span>
@@ -70,14 +72,12 @@ function onDrop(e: DragEvent) {
 }
 </script>
 
+<style scoped src="src/components/formation/formation-shared.css"></style>
+
 <style scoped>
 /* ── Base tile ──────────────────────────────────────────────────────────── */
 .article-node {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
   padding: 8px 6px;
   border-radius: 8px;
   border: 2px solid var(--ion-border-color, rgba(0, 0, 0, 0.12));
@@ -106,9 +106,6 @@ function onDrop(e: DragEvent) {
   font-size: 11px;
   font-weight: 600;
   text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   max-width: 70px;
   line-height: 1.3;
 }

@@ -74,7 +74,8 @@ export async function fetchTeam(leagueId: string): Promise<TeamLineUp> {
 
 /**
  * Persist the current team layout.
- * Called automatically by the store's auto-save logic; no explicit save button needed.
+ * Used by both the explicit Save action in the UI and auto-save flows
+ * such as saving when leaving the team view.
  */
 export async function saveTeamApi(
   leagueId: string,

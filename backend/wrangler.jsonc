@@ -7,6 +7,13 @@
     "GOOGLE_CLIENT_ID": "457796621894-7krpa8n09mekpj2cdd952jjkf1c3ookt.apps.googleusercontent.com",
     "FRONTEND_URL": "fantasywiki.pages.dev",
   },
+  "d1_databases": [
+    {
+      "binding": "db",
+      "database_name": "db",
+      "database_id": "640d7014-0bf9-44f6-8026-15bf2a18cdda",
+    },
+  ],
   // "compatibility_flags": [
   //   "nodejs_compat"
   // ],

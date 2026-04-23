@@ -7,6 +7,9 @@
     "skipLibCheck": true,
     "lib": ["ESNext"],
     "jsx": "react-jsx",
-    "jsxImportSource": "hono/jsx"
-  }
+    "jsxImportSource": "hono/jsx",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "../model/**/*.ts", "worker-configuration.d.ts"],
+  "exclude": ["src/tests/**/*.ts"]
 }

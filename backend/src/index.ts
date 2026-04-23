@@ -4,10 +4,12 @@ import { jwt } from "hono/jwt";
 import auth, { resolveFrontendUrl } from "./routes/auth";
 import session from "./routes/session";
 import leagues from "./routes/leagues";
+import players from "./routes/players";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
 type Bindings = {
+  db: D1Database;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   JWT_SECRET: string;
@@ -49,5 +51,8 @@ app.route("/api/session", session);
 
 // Mount leagues routes
 app.route("/api/leagues", leagues);
+
+// Mount players routes
+app.route("/api/players", players);
 
 export default app;

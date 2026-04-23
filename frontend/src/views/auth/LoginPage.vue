@@ -35,7 +35,7 @@ import { useRoute } from "vue-router";
 import { alertCircleOutline, closeOutline, logoGoogle } from "ionicons/icons";
 import { computed } from "vue";
 import AppLogo from "@/components/AppLogo.vue";
-import { resolveBackendUrl } from "@/services/api";
+import { resolveBackendUrl } from "@/services/resolveBackendUrl";
 
 const route = useRoute();
 

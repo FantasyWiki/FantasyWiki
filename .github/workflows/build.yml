@@ -33,6 +33,15 @@ jobs:
       - name: Create URL-friendly branch name
         run: echo "WORKERS_CI_BRANCH=${GITHUB_REF_NAME//\//-}" >> $GITHUB_ENV
 
+      - name: Apply D1 migrations
+        uses: cloudflare/wrangler-action@v3
+        with:
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ secrets.CLOUDFLARE_D1_MIGRATION_RUNNER_SECRET }}
+          wranglerVersion: "4.80.0"
+          workingDirectory: "backend"
+          command: d1 migrations apply db --remote
+
       - name: Deploy Worker to Cloudflare
         uses: cloudflare/wrangler-action@v3
         with:
@@ -59,7 +68,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version-file: 'frontend/package.json'
+          node-version-file: "frontend/package.json"
 
       - name: Install root dependencies
         run: npm ci

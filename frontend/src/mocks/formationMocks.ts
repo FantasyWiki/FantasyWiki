@@ -69,4 +69,3 @@ export const mockTeamResponse: TeamLineUp = {
   formation: mockFullFormation433 as unknown as FormationDTO,
   bench: mockFormationBench,
 };
-

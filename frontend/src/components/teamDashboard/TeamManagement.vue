@@ -29,9 +29,21 @@
     </ion-card-header>
 
     <ion-card-content class="ion-padding">
-      <team-formation :formation="props.formation" :swap-mode="false" />
+      <team-formation
+        :formation="props.formation"
+        :swap-mode="false"
+        @article-click="handleArticleClick"
+      />
     </ion-card-content>
   </ion-card>
+
+  <!-- ── Article detail modal ──────────────────────────────────────── -->
+  <ArticleDetail
+    v-if="selectedContract"
+    :selected-contract="selectedContract"
+    :is-open="isDetailOpen"
+    @close="closeDetail"
+  />
 </template>
 
 <script setup lang="ts">
@@ -47,6 +59,9 @@ import {
 import { arrowForwardOutline, layersOutline } from "ionicons/icons";
 import { DraftFormationDTO } from "../../../../dto/formationDTO";
 import TeamFormation from "@/components/formation/TeamFormation.vue";
+import ArticleDetail from "@/components/ArticleDetail.vue";
+import { ref } from "vue";
+import type { ContractDTO } from "../../../../dto/contractDTO";
 
 // ── Props ──────────────────────────────────────────────────────────────────
 interface Props {
@@ -54,6 +69,19 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+// ── Article detail dialog ─────────────────────────────────────────────────
+const selectedContract = ref<ContractDTO | null>(null);
+const isDetailOpen = ref(false);
+
+function closeDetail() {
+  isDetailOpen.value = false;
+}
+
+function handleArticleClick(article: ContractDTO) {
+  selectedContract.value = article;
+  isDetailOpen.value = true;
+}
 </script>
 
 <style scoped src="src/components/teamDashboard/team-dashboard.css"></style>

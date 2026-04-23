@@ -97,22 +97,30 @@ export const handlers = [
 
     const response = mockTeamResponses[key];
     if (!response) {
-      return HttpResponse.json({ error: "Team layout not found" }, { status: 404 });
+      return HttpResponse.json(
+        { error: "Team layout not found" },
+        { status: 404 }
+      );
     }
 
     return HttpResponse.json(response);
   }),
 
-  http.put("*/api/leagues/:leagueId/lineup", ({ params }) => {
+  http.put("*/api/leagues/:leagueId/lineup", async ({ params, request }) => {
     const leagueId = String(params.leagueId);
     const key = teamResponseKey(leagueId);
 
     if (!mockTeamResponses[key]) {
-      return HttpResponse.json({ error: "Team layout not found" }, { status: 404 });
+      return HttpResponse.json(
+        { error: "Team layout not found" },
+        { status: 404 }
+      );
     }
 
-    // Keep a deterministic static mock; accept save requests without mutating fixtures.
-    return new HttpResponse(null, { status: 204 });
+    const body = (await request.json()) as TeamLineUp;
+    mockTeamResponses[key] = body;
+
+    return HttpResponse.json(mockTeamResponses[key]);
   }),
 
   http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {

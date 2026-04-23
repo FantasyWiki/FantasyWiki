@@ -63,9 +63,7 @@ function deserializeLineup(raw: RawTeamLineUp): TeamLineUp {
  * Fetch the current team layout for a given league / user combination.
  * Returns a TeamResponse containing a fully resolved FormationDTO and bench.
  */
-export async function fetchTeam(
-  leagueId: string
-): Promise<TeamLineUp> {
+export async function fetchTeam(leagueId: string): Promise<TeamLineUp> {
   const res = await fetch(`${BASE}/api/leagues/${leagueId}/lineup`, {
     credentials: "include",
   });

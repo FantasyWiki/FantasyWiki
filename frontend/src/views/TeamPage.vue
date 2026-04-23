@@ -6,25 +6,25 @@
     </ion-refresher>
 
     <!-- ── Loading skeleton ────────────────────────────────────────────── -->
-    <div v-if="store.isLoading" class="pitch-skeleton" aria-busy="true">
+    <div v-if="isLoading" class="pitch-skeleton" aria-busy="true">
       <ion-skeleton-text :animated="true" class="skeleton-formation" />
       <ion-skeleton-text :animated="true" class="skeleton-pitch" />
       <ion-skeleton-text :animated="true" class="skeleton-bench" />
     </div>
 
     <!-- ── Error state ─────────────────────────────────────────────────── -->
-    <ion-card v-else-if="store.error" color="danger" class="error-card">
+    <ion-card v-else-if="isError" color="danger" class="error-card">
       <ion-card-content>
         <div class="error-row">
           <ion-icon :icon="alertCircleOutline" />
           <div>
             <p class="error-title">Failed to load team</p>
-            <p class="error-detail">{{ store.error }}</p>
+            <p class="error-detail">{{ error?.message }}</p>
             <ion-button
               fill="outline"
               color="light"
               size="small"
-              @click="reload"
+              @click="refetch()"
             >
               <ion-icon slot="start" :icon="refreshOutline" />
               Retry
@@ -44,13 +44,12 @@
             {{ currentLeague.icon }} {{ currentLeague.title }}
           </ion-badge>
         </div>
-        <!-- Manual save button — visible only when there are unsaved changes -->
         <transition name="fade-up">
           <ion-button
-            v-if="store.isDirty && !store.isSaving"
+            v-if="isDirty && !isSaving"
             fill="outline"
             size="small"
-            @click="store.saveTeam()"
+            @click="saveTeam()"
           >
             Save
           </ion-button>
@@ -60,13 +59,13 @@
       <!-- Formation selector -->
       <FormationSelector
         :formations="formationIds"
-        :current-schema="store.schema"
+        :current-schema="schema"
         @change="onSchemaChange"
       />
 
       <!-- Pitch -->
       <TeamFormation
-        :formation="store.draftFormation"
+        :formation="draftFormation"
         :swap-mode="swapMode"
         :swap-source="swapSource"
         @article-click="handleArticleClick"
@@ -77,7 +76,7 @@
 
       <!-- Bench -->
       <BenchSection
-        :articles="store.benchContracts"
+        :articles="benchContracts"
         :swap-mode="swapMode"
         :swap-source="swapSource"
         @article-click="handleArticleClick"
@@ -88,16 +87,12 @@
     <!-- ── Floating save indicator ────────────────────────────────────── -->
     <transition name="fade-up">
       <div
-        v-if="store.isDirty || store.isSaving"
+        v-if="isDirty || isSaving"
         class="save-indicator"
-        :class="{ 'save-indicator--saving': store.isSaving }"
+        :class="{ 'save-indicator--saving': isSaving }"
       >
-        <ion-spinner
-          v-if="store.isSaving"
-          name="crescent"
-          class="save-spinner"
-        />
-        <span>{{ store.isSaving ? "Saving…" : "Unsaved changes" }}</span>
+        <ion-spinner v-if="isSaving" name="crescent" class="save-spinner" />
+        <span>{{ isSaving ? "Saving…" : "Unsaved changes" }}</span>
       </div>
     </transition>
 
@@ -113,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
 import { onIonViewWillLeave } from "@ionic/vue";
 import {
   IonBadge,
@@ -134,46 +129,46 @@ import TeamFormation from "@/components/formation/TeamFormation.vue";
 import BenchSection from "@/components/formation/BenchSection.vue";
 import ArticleDetail from "@/components/ArticleDetail.vue";
 
-import { useTeamStore } from "@/stores/teamStore";
+import { useTeamLineup } from "@/stores/useTeamLineup";
 import { useLeagueStore } from "@/stores/league";
-import { useAppStore } from "@/stores/app";
 import { FORMATIONS } from "@/types/pitch";
 import type { Schema, Position } from "@/../../dto/formationDTO";
 import type { ContractDTO } from "@/../../dto/contractDTO";
 
-// ── Stores ────────────────────────────────────────────────────────────────
-const store = useTeamStore();
-const leagueStore = useLeagueStore();
-const appStore = useAppStore();
+// ── Composable ────────────────────────────────────────────────────────────
+const {
+  isLoading,
+  isError,
+  error,
+  refetch,
+  benchContracts,
+  schema,
+  draftFormation,
+  isDirty,
+  isSaving,
+  saveTeam,
+  setSchema,
+  swapSlots,
+  moveToEmpty,
+} = useTeamLineup();
 
+const leagueStore = useLeagueStore();
 const currentLeague = computed(() => leagueStore.currentLeague);
 const formationIds = Object.keys(FORMATIONS) as Schema[];
 
-// ── Lifecycle ─────────────────────────────────────────────────────────────
-onMounted(() => {
-  const lgId = leagueStore.currentLeagueId ?? "italy";
-  store.loadTeam(lgId);
-});
-
-// Save on Ionic back-button, tab switch, etc.
+// Save on Ionic back-button / tab switch
 onIonViewWillLeave(() => {
-  if (store.isDirty) store.saveTeam();
+  if (isDirty.value) saveTeam();
 });
-
-function reload() {
-  const lgId = leagueStore.currentLeagueId ?? "italy";
-  const uid = appStore.currentUser?.sub ?? "player-1";
-  store.loadTeam(lgId);
-}
 
 async function handleRefresh(event: CustomEvent) {
-  reload();
+  await refetch();
   (event.target as HTMLIonRefresherElement).complete();
 }
 
 // ── Schema change ─────────────────────────────────────────────────────────
 function onSchemaChange(newSchema: Schema) {
-  store.setSchema(newSchema);
+  setSchema(newSchema);
 }
 
 // ── Article detail dialog ─────────────────────────────────────────────────
@@ -182,14 +177,11 @@ const isDetailOpen = ref(false);
 
 function handleArticleClick(article: ContractDTO) {
   if (swapMode.value && swapSource.value) {
-    // User tapped a target while in swap mode → execute the swap.
     handleSwap(swapSource.value.id, article.id);
     cancelSwap();
   } else if (swapMode.value) {
-    // User tapped to select the swap source.
     enterSwapMode(article);
   } else {
-    // Normal tap → open detail dialog.
     selectedContract.value = article;
     isDetailOpen.value = true;
   }
@@ -215,28 +207,26 @@ function cancelSwap() {
 }
 
 function handleSwap(fromId: string, toId: string) {
-  // Find toPos: the pitch position key of the contract currently at toId.
   const toPos =
     (
-      Object.entries(store.draftFormation.formation) as [
+      Object.entries(draftFormation.value.formation) as [
         Position,
         ContractDTO,
       ][]
     ).find(([, c]) => c.id === toId)?.[0] ?? "bench";
 
-  store.swapSlots(fromId, toPos, toId);
+  swapSlots(fromId, toPos, toId);
   cancelSwap();
 }
 
 function handleMoveToEmpty(posKey: string) {
   if (!swapSource.value) return;
-  store.moveToEmpty(swapSource.value.id, posKey as Position);
+  moveToEmpty(swapSource.value.id, posKey as Position);
   cancelSwap();
 }
 </script>
 
 <style scoped>
-/* ── Page heading ─────────────────────────────────────────────────────── */
 .page-heading {
   display: flex;
   align-items: center;
@@ -264,7 +254,6 @@ function handleMoveToEmpty(posKey: string) {
   font-size: 11px;
 }
 
-/* ── Loading skeleton ────────────────────────────────────────────────── */
 .pitch-skeleton {
   display: flex;
   flex-direction: column;
@@ -286,7 +275,6 @@ function handleMoveToEmpty(posKey: string) {
   border-radius: 12px;
 }
 
-/* ── Error card ──────────────────────────────────────────────────────── */
 .error-card {
   margin-top: 16px;
 }
@@ -314,7 +302,6 @@ function handleMoveToEmpty(posKey: string) {
   opacity: 0.85;
 }
 
-/* ── Floating save indicator ─────────────────────────────────────────── */
 .save-indicator {
   position: fixed;
   bottom: calc(64px + var(--ion-safe-area-bottom, 0px) + 8px);
@@ -340,28 +327,5 @@ function handleMoveToEmpty(posKey: string) {
 .save-spinner {
   width: 14px;
   height: 14px;
-}
-
-/* ── Transitions ─────────────────────────────────────────────────────── */
-.fade-up-enter-active,
-.fade-up-leave-active {
-  transition:
-    opacity 200ms ease,
-    transform 200ms ease;
-}
-
-.fade-up-enter-from,
-.fade-up-leave-to {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 200ms ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
 }
 </style>

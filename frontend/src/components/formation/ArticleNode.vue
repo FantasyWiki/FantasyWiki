@@ -12,6 +12,7 @@
       'article-node--selected': selected,
     }"
     :aria-label="article.article.title"
+    draggable="true"
     @click="$emit('click')"
     @dragstart="onDragStart"
     @dragover.prevent="isDragOver = true"

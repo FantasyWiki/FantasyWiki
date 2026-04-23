@@ -12,7 +12,7 @@ import { Temporal } from "@js-temporal/polyfill";
 export function resolveBackendUrl(): string {
   const branch = import.meta.env.VITE_WORKERS_CI_BRANCH;
   const backend = import.meta.env.VITE_BACKEND_URL;
-  let url = backend;
+  let url = backend || "localhost:8787";
   if (branch) {
     url = branch + "." + backend;
   }

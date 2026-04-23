@@ -54,7 +54,7 @@
         :current-team="team"
         :data="dashboardData!"
       />
-
+      <team-management :formation="draftFormation" />
       <ion-grid class="content-grid ion-no-padding">
         <ion-row>
           <ion-col size="12" size-lg="6">
@@ -109,9 +109,12 @@ import LeagueLeaderboard from "@/components/teamDashboard/LeagueLeaderboard.vue"
 import { useLeagueStore } from "@/stores/league";
 import { useDashboard } from "@/stores/useDashboard";
 import { useLeaguePerformances } from "@/stores/useLeaguePerformances";
+import { useTeamLineup } from "@/stores/useTeamLineup";
+import TeamManagement from "@/components/teamDashboard/TeamManagement.vue";
 
 const router = useRouter();
 const leagueStore = useLeagueStore();
+const { draftFormation, refetch: refetchTeamLineup } = useTeamLineup();
 
 const currentLeague = computed(() => leagueStore.currentLeague);
 //const loading = ref(true);
@@ -138,6 +141,7 @@ const LEADERBOARD_SLICE = 5;
 const { pastLeaderboard } = useLeaguePerformances();
 
 async function handleRefresh(event: CustomEvent) {
+  await refetchTeamLineup();
   await refetch();
   (event.target as HTMLIonRefresherElement).complete();
 }

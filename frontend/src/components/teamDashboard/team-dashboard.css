@@ -1,0 +1,52 @@
+.td-card {
+  --background: var(--ion-background-color);
+  border: 1px solid var(--ion-border-color);
+  border-radius: 0.875rem;
+  box-shadow: 0 2px 8px var(--ion-box-shadow-color);
+  margin: 0 0 1rem;
+}
+
+.td-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.td-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.td-header-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 2.5rem;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.td-header-icon ion-icon {
+  font-size: 1.25rem;
+}
+
+.td-header-icon--primary {
+  background: rgba(var(--ion-color-primary-rgb), 0.15);
+}
+
+.td-header-icon--secondary {
+  background: rgba(var(--ion-color-secondary-rgb), 0.15);
+}
+
+.td-header-icon--warning {
+  background: rgba(var(--ion-color-warning-rgb), 0.15);
+}
+
+.td-card-title {
+  font-size: 1.1rem;
+  margin-bottom: 2px;
+}

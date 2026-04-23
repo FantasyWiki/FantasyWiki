@@ -1,246 +1,19 @@
 import { http, HttpResponse, passthrough } from "msw";
 import { Temporal } from "@js-temporal/polyfill";
-import type { ArticleDTO } from "../../../dto/articleDTO";
-import type { LeagueDTO } from "../../../dto/leagueDTO";
-import type { TeamDTO } from "../../../dto/teamDTO";
-import type { PlayerDTO } from "../../../dto/playerDTO";
+import {
+  contracts,
+  currentPlayerId,
+  leagues,
+  articles,
+  notifications,
+  players,
+  teams,
+} from "./data";
 import { ContractDTO } from "../../../dto/contractDTO";
-import type { NotificationDTO } from "../../../dto/notificationDTO";
+import type { TeamDTO } from "../../../dto/teamDTO";
+import type { TeamLineUp } from "@/types/team";
+import { mockTeamResponse } from "@/mocks/formationMocks";
 import Instant = Temporal.Instant;
-
-const currentPlayerId = "player-1";
-
-function instantDaysFromNow(days: number) {
-  return Temporal.Now.instant()
-    .toZonedDateTimeISO("UTC")
-    .add({ days })
-    .toInstant();
-}
-
-// =============================================================================
-// MOCK DATA
-// =============================================================================
-
-const articles: ArticleDTO[] = [
-  { id: "art-1", title: "Bitcoin", domain: "itwiki" },
-  { id: "art-2", title: "Ethereum", domain: "itwiki" },
-  { id: "art-3", title: "Intelligenza Artificiale", domain: "itwiki" },
-  { id: "art-4", title: "Machine Learning", domain: "itwiki" },
-  { id: "art-5", title: "Cloud Computing", domain: "itwiki" },
-  { id: "art-6", title: "Blockchain", domain: "itwiki" },
-  { id: "art-7", title: "Python", domain: "itwiki" },
-  { id: "art-8", title: "JavaScript", domain: "itwiki" },
-  { id: "art-9", title: "React", domain: "itwiki" },
-  { id: "art-10", title: "TypeScript", domain: "itwiki" },
-  { id: "art-11", title: "Albert Einstein", domain: "enwiki" },
-  { id: "art-12", title: "Artificial Intelligence", domain: "enwiki" },
-];
-
-const players: PlayerDTO[] = [
-  { id: "player-1", name: "Mario_Rossi" },
-  { id: "player-2", name: "WikiMaster" },
-  { id: "player-3", name: "DataKing" },
-  { id: "player-4", name: "AlexChen" },
-  { id: "player-5", name: "SarahKim" },
-  { id: "player-6", name: "JamieLee" },
-];
-
-const teams: TeamDTO[] = [
-  {
-    id: "team-1",
-    name: "I Cesarini",
-    player: players[0],
-    credits: 550,
-    points: 7250,
-  },
-  {
-    id: "team-2",
-    name: "Global Warriors",
-    player: players[0],
-    credits: 800,
-    points: 12750,
-  },
-  {
-    id: "team-3",
-    name: "Euro Champions",
-    player: players[0],
-    credits: 320,
-    points: 8950,
-  },
-  {
-    id: "team-4",
-    name: "Wiki Masters",
-    player: players[1],
-    credits: 200,
-    points: 8950,
-  },
-  {
-    id: "team-5",
-    name: "Data Lords",
-    player: players[2],
-    credits: 450,
-    points: 8420,
-  },
-  {
-    id: "team-6",
-    name: "Wiki Warriors",
-    player: players[3],
-    credits: 600,
-    points: 11200,
-  },
-  {
-    id: "team-7",
-    name: "Data Dynamos",
-    player: players[4],
-    credits: 380,
-    points: 7800,
-  },
-  {
-    id: "team-8",
-    name: "Page Pioneers",
-    player: players[5],
-    credits: 290,
-    points: 6500,
-  },
-];
-
-const leagues: LeagueDTO[] = [
-  {
-    id: "global",
-    title: "Global League",
-    icon: "🌍",
-    description:
-      "Compete with players from around the world in the ultimate Wikipedia trading experience!",
-    domain: "en",
-    startDate: Instant.from("2024-01-01T00:00:00Z"),
-    endDate: Instant.from("2024-12-31T23:59:59Z"),
-    teams: [teams[1], teams[5]],
-  },
-  {
-    id: "italy",
-    title: "Italia League",
-    icon: "🍕",
-    description: "La lega italiana",
-    domain: "it",
-    startDate: Instant.from("2024-01-01T00:00:00Z"),
-    endDate: Instant.from("2024-02-28T23:59:59Z"),
-    teams: [teams[0], teams[3], teams[4]],
-  },
-  {
-    id: "europe",
-    title: "Europe League",
-    icon: "🇪🇺",
-    description: "Compete across Europe",
-    domain: "en",
-    startDate: Instant.from("2024-01-01T00:00:00Z"),
-    endDate: Instant.from("2024-03-15T23:59:59Z"),
-    teams: [teams[2], teams[6]],
-  },
-  {
-    id: "americas",
-    title: "Americas League",
-    icon: "🌎",
-    description: "The Americas league",
-    domain: "en",
-    startDate: Instant.from("2024-01-01T00:00:00Z"),
-    endDate: Instant.from("2024-03-20T23:59:59Z"),
-    teams: [teams[7]],
-  },
-];
-
-const contracts: ContractDTO[] = [
-  new ContractDTO(
-    "ctr-1",
-    teams[0],
-    articles[0],
-    instantDaysFromNow(-8),
-    Temporal.Duration.from({ days: 10 }),
-    150
-  ),
-  new ContractDTO(
-    "ctr-2",
-    teams[0],
-    articles[1],
-    instantDaysFromNow(-20),
-    Temporal.Duration.from({ days: 15 }),
-    120
-  ),
-  new ContractDTO(
-    "ctr-3",
-    teams[0],
-    articles[2],
-    instantDaysFromNow(-15),
-    Temporal.Duration.from({ days: 30 }),
-    200
-  ),
-  new ContractDTO(
-    "ctr-4",
-    teams[0],
-    articles[3],
-    instantDaysFromNow(-4),
-    Temporal.Duration.from({ days: 7 }),
-    80
-  ),
-  new ContractDTO(
-    "ctr-5",
-    teams[1],
-    articles[4],
-    instantDaysFromNow(-20),
-    Temporal.Duration.from({ days: 30 }),
-    180
-  ),
-  new ContractDTO(
-    "ctr-6",
-    teams[1],
-    articles[5],
-    instantDaysFromNow(-13),
-    Temporal.Duration.from({ days: 14 }),
-    140
-  ),
-];
-
-const notifications: NotificationDTO[] = [
-  {
-    id: "notif-1",
-    leagueId: "italy",
-    contract: contracts[0],
-    message: "Contratto in scadenza: Bitcoin",
-    date: Temporal.PlainDate.from("2024-02-09"),
-    isRead: false,
-  },
-  {
-    id: "notif-2",
-    leagueId: "global",
-    contract: contracts[5],
-    message: "Contract expiring soon: Cloud Computing",
-    date: Temporal.PlainDate.from("2024-02-09"),
-    isRead: false,
-  },
-  {
-    id: "notif-3",
-    leagueId: "italy",
-    contract: contracts[1],
-    message: "Attenzione: il contratto per Ethereum scade a breve",
-    date: Temporal.PlainDate.from("2024-02-12"),
-    isRead: false,
-  },
-  {
-    id: "notif-4",
-    leagueId: "italy",
-    contract: contracts[3],
-    message: "Contratto terminato per Machine Learning",
-    date: Temporal.PlainDate.from("2024-02-15"),
-    isRead: true,
-  },
-  {
-    id: "notif-5",
-    leagueId: "global",
-    contract: contracts[4],
-    message: "Contract update: Artificial Intelligence usage increased",
-    date: Temporal.PlainDate.from("2024-02-18"),
-    isRead: false,
-  },
-];
 
 // =============================================================================
 // HELPER
@@ -250,6 +23,17 @@ function getMyTeam(leagueId: string): TeamDTO | undefined {
   const league = leagues.find((l) => l.id === leagueId);
   return league?.teams.find((t) => t.player.id === currentPlayerId);
 }
+
+function teamResponseKey(leagueId: string): string {
+  return `${leagueId}`;
+}
+
+const mockTeamResponses: Record<string, TeamLineUp> = {
+  [teamResponseKey("italy")]: mockTeamResponse,
+  [teamResponseKey("global")]: mockTeamResponse,
+  [teamResponseKey("europe")]: mockTeamResponse,
+  [teamResponseKey("americas")]: mockTeamResponse,
+};
 
 // =============================================================================
 // HANDLERS
@@ -305,6 +89,38 @@ export const handlers = [
         { status: 404 }
       );
     return HttpResponse.json(team);
+  }),
+
+  http.get("*/api/leagues/:leagueId/lineup", ({ params }) => {
+    const leagueId = String(params.leagueId);
+    const key = teamResponseKey(leagueId);
+
+    const response = mockTeamResponses[key];
+    if (!response) {
+      return HttpResponse.json(
+        { error: "Team layout not found" },
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json(response);
+  }),
+
+  http.put("*/api/leagues/:leagueId/lineup", async ({ params, request }) => {
+    const leagueId = String(params.leagueId);
+    const key = teamResponseKey(leagueId);
+
+    if (!mockTeamResponses[key]) {
+      return HttpResponse.json(
+        { error: "Team layout not found" },
+        { status: 404 }
+      );
+    }
+
+    const body = (await request.json()) as TeamLineUp;
+    mockTeamResponses[key] = body;
+
+    return HttpResponse.json(mockTeamResponses[key]);
   }),
 
   http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {
@@ -363,7 +179,9 @@ export const handlers = [
         { status: 400 }
       );
 
-    const article = articles.find((a) => a.id === data.articleID);
+    const article = articles.find(
+      (a: { id: string }) => a.id === data.articleID
+    );
     if (!article)
       return HttpResponse.json({ error: "Article not found" }, { status: 404 });
 
@@ -439,7 +257,10 @@ export const handlers = [
   http.get("*/api/articles", () => HttpResponse.json(articles)),
 
   http.get("*/api/articles/:articleId", ({ params }) => {
-    const article = articles.find((a) => a.id === params.articleId);
+    const article = articles.find(
+      (a: { id: string | readonly string[] | undefined }) =>
+        a.id === params.articleId
+    );
     if (!article)
       return HttpResponse.json({ error: "Article not found" }, { status: 404 });
     return HttpResponse.json(article);

@@ -1,13 +1,15 @@
 <template>
-  <ion-card class="leaderboard-card">
+  <ion-card class="leaderboard-card td-card">
     <!-- ── Header ───────────────────────────────── -->
     <ion-card-header>
-      <div class="leaderboard-header">
-        <div class="header-icon-wrapper">
+      <div class="leaderboard-header td-header-left">
+        <div class="header-icon-wrapper td-header-icon td-header-icon--warning">
           <ion-icon :icon="trophyOutline" color="warning" />
         </div>
         <div class="header-text">
-          <ion-card-title>League Standings</ion-card-title>
+          <ion-card-title class="td-card-title"
+            >League Standings</ion-card-title
+          >
           <ion-card-subtitle v-if="props.currentLeague">
             {{ props.currentLeague?.icon }} {{ props.currentLeague?.title }}
           </ion-card-subtitle>
@@ -112,7 +114,10 @@
               class="player-change"
               :class="getRankChange(player.id).cssClass"
             >
-              <ion-icon :icon="getRankChange(player.id).icon" />
+              <ion-icon
+                class="player-change-icon"
+                :icon="getRankChange(player.id).icon"
+              />
               <span>{{ getRankChange(player.id).label }}</span>
             </div>
           </div>
@@ -258,42 +263,12 @@ function getRankChange(teamId: string): {
 }
 </script>
 
-<style scoped>
-/* ── Card ──────────────────────────────────────── */
-.leaderboard-card {
-  --background: var(--ion-background-color);
-  border: 1px solid var(--ion-border-color);
-  border-radius: 0.875rem;
-  box-shadow: 0 2px 8px var(--ion-box-shadow-color);
-  margin: 0 0 1rem 0;
-}
+<style scoped src="src/components/teamDashboard/team-dashboard.css"></style>
 
+<style scoped>
 /* ── Header ────────────────────────────────────── */
 .leaderboard-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
   margin-bottom: 0.75rem;
-}
-
-.header-icon-wrapper {
-  width: 2.5rem;
-  height: 2.5rem;
-  min-width: 2.5rem;
-  border-radius: 0.5rem;
-  background: rgba(var(--ion-color-warning-rgb), 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.header-icon-wrapper ion-icon {
-  font-size: 1.25rem;
-}
-
-.header-text ion-card-title {
-  font-size: 1.1rem;
-  margin-bottom: 2px;
 }
 
 .header-text ion-card-subtitle {
@@ -463,7 +438,7 @@ function getRankChange(teamId: string): {
   white-space: nowrap;
 }
 
-.player-change ion-icon {
+.player-change-icon {
   font-size: 0.85rem;
 }
 
@@ -490,12 +465,6 @@ function getRankChange(teamId: string): {
 
 .footer-btn {
   --border-color: var(--ion-border-color);
-}
-
-.footer-divider {
-  height: 1px;
-  background: var(--ion-border-color);
-  margin: 0.25rem 0;
 }
 
 /* ion-text-color already adapts in dark mode — no override needed */

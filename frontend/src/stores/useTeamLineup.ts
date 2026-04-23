@@ -36,13 +36,26 @@ export function useTeamLineup() {
   const draft = ref<DraftFormationDTO>(createDraftFormation("4-3-3"));
   const benchContracts = ref<ContractDTO[]>([]);
   const savedSnapshot = ref<string>("");
+  // Tracks whether server data has been loaded into the draft at least once.
+  const isInitialized = ref(false);
 
-  // Sync draft automatically whenever the query delivers new data.
-  // TeamPage never needs to know this happens.
+  // ── Dirty tracking ────────────────────────────────────────────────────────
+  const isDirty = computed(() => {
+    const current = JSON.stringify({
+      draft: draft.value,
+      bench: benchContracts.value.map((c) => c.id),
+    });
+    return current !== savedSnapshot.value;
+  });
+
+  // Sync draft from server data on first load and after a successful save
+  // (isDirty will be false then). Skips sync when the user has unsaved edits
+  // to avoid clobbering changes on automatic refetches (e.g. window focus).
   watch(
     teamLineup,
     (lineup) => {
       if (!lineup) return;
+      if (isInitialized.value && isDirty.value) return;
       draft.value = {
         date: lineup.formation.date,
         schema: lineup.formation.schema,
@@ -53,18 +66,10 @@ export function useTeamLineup() {
         draft: draft.value,
         bench: benchContracts.value.map((c) => c.id),
       });
+      isInitialized.value = true;
     },
     { immediate: true }
   );
-
-  // ── Dirty tracking ────────────────────────────────────────────────────────
-  const isDirty = computed(() => {
-    const current = JSON.stringify({
-      draft: draft.value,
-      bench: benchContracts.value.map((c) => c.id),
-    });
-    return current !== savedSnapshot.value;
-  });
 
   // ── Save mutation ─────────────────────────────────────────────────────────
   const { mutateAsync: saveTeam, isPending: isSaving } = useMutation({

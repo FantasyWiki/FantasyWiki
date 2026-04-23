@@ -1,8 +1,11 @@
 /**
- * teamService.ts — thin HTTP layer for team data.
+ * teamService.ts — HTTP layer for team data.
  *
- * Intentionally does no transformation: all mapping from raw API shapes
- * to derived UI state lives in the Pinia teamStore.
+ * Fetches raw API payloads and deserializes them into typed domain objects:
+ * - ISO-8601 date strings → Temporal.Instant
+ * - ISO-8601 duration strings → Temporal.Duration
+ * - Plain contract objects → ContractDTO instances
+ * Higher-level UI state derivation lives in the composable / store layer.
  */
 import type { TeamLineUp } from "@/types/team";
 import type { FormationDTO } from "../../../dto/formationDTO";

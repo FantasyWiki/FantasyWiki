@@ -49,4 +49,3 @@ const asyncIndicator = useAsyncIndicator();
   transform: translateY(8px);
 }
 </style>
-

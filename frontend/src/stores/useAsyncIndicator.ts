@@ -38,7 +38,10 @@ export const useAsyncIndicator = defineStore("asyncIndicator", () => {
     tasks.value = tasks.value.filter((task) => task.id !== id);
   }
 
-  async function trackTask<T>(labelText: string, task: () => Promise<T>): Promise<T> {
+  async function trackTask<T>(
+    labelText: string,
+    task: () => Promise<T>
+  ): Promise<T> {
     const id = startTask(labelText);
     try {
       return await task();
@@ -57,4 +60,3 @@ export const useAsyncIndicator = defineStore("asyncIndicator", () => {
     trackTask,
   };
 });
-

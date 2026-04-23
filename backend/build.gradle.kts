@@ -19,6 +19,20 @@ tasks.named<NpmTask>("npm_audit") {
     args.set(listOf("--omit=dev"))
 }
 
+tasks.register<NpmTask>("npm_run_test_suite") {
+    dependsOn("npmInstall")
+    args.set(listOf("run", "test:run"))
+}
+
+tasks.register<NpmTask>("npm_run_db_init_local") {
+    dependsOn("npmInstall")
+    args.set(listOf("run", "db:init:local"))
+}
+
+tasks.named<NpmTask>("npm_run_dev") {
+    dependsOn("npm_run_db_init_local")
+}
+
 tasks.register("check") {
     dependsOn(
         "npm_audit",

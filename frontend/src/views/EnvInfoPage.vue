@@ -52,7 +52,7 @@ import {
   IonItem,
   IonLabel,
 } from "@ionic/vue";
-import { resolveBackendUrl } from "@/services/api";
+import { resolveBackendUrl } from "@/services/resolveBackendUrl";
 
 const workersCiBranch = import.meta.env.VITE_WORKERS_CI_BRANCH;
 const backendUrl = import.meta.env.VITE_BACKEND_URL;

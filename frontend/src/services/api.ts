@@ -1,4 +1,3 @@
-// frontend/src/services/api.ts
 import { DashboardData, Session, TeamPointsData } from "@/types/models";
 import { PlayerDTO } from "../../../dto/playerDTO";
 import { LeagueDTO } from "../../../dto/leagueDTO";
@@ -8,23 +7,11 @@ import { ContractDTO } from "../../../dto/contractDTO";
 import { ArticleDTO } from "../../../dto/articleDTO";
 import { PerformanceDTO } from "../../../dto/performanceDTO";
 import { Temporal } from "@js-temporal/polyfill";
-
-export function resolveBackendUrl(): string {
-  const branch = import.meta.env.VITE_WORKERS_CI_BRANCH;
-  const backend = import.meta.env.VITE_BACKEND_URL;
-  let url = backend || "localhost:8787";
-  if (branch) {
-    url = branch + "." + backend;
-  }
-  if (!url.startsWith("http://") && !url.startsWith("https://")) {
-    url = "https://" + url;
-  }
-  return url;
-}
+import { resolveBackendUrl } from "@/services/resolveBackendUrl";
 
 const API_BASE_URL = resolveBackendUrl() + "/api";
 
-async function apiRequest<T>(
+async function apiRequest<T = unknown>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
@@ -41,9 +28,14 @@ async function apiRequest<T>(
     const error = await response
       .json()
       .catch(() => ({ error: "Network error" }));
+
     throw new Error(
       error.error || `HTTP ${response.status}: ${response.statusText}`
     );
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return response.json();
@@ -68,13 +60,28 @@ function deserializeContract(c: ContractDTO): ContractDTO {
   );
 }
 
-// ── Player ────────────────────────────────────────────────────────────────────
+// ── Me (current authenticated player) ────────────────────────────────────────
 
-export const playerApi = {
-  getCurrent: () => apiRequest<PlayerDTO>("/player"),
-  getTeams: () => apiRequest<TeamDTO[]>("/player/teams"),
-  getNotifications: () =>
-    apiRequest<NotificationDTO[]>("/player/notifications"),
+export const meApi = {
+  getCurrent: () => apiRequest<PlayerDTO>("/me"),
+  getTeams: () => apiRequest<TeamDTO[]>("/me/teams"),
+  getNotifications: () => apiRequest<NotificationDTO[]>("/me/notifications"),
+  updateCurrent: (data: Partial<PlayerDTO>) =>
+    apiRequest<PlayerDTO>("/me", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+};
+
+// ── Players ───────────────────────────────────────────────────────────────────
+
+export const playersApi = {
+  create: (data: Partial<PlayerDTO>) =>
+    apiRequest<PlayerDTO>("/players", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  getById: (id: string) => apiRequest<PlayerDTO>(`/players/${id}`),
 };
 
 // ── Leagues ───────────────────────────────────────────────────────────────────
@@ -86,15 +93,15 @@ export const leaguesApi = {
   getById: (id: string) =>
     apiRequest<LeagueDTO>(`/leagues/${id}`).then(deserializeLeague),
   /** The current player's team inside this league (resolved from JWT on backend) */
-  getMyTeam: (id: string) => apiRequest<TeamDTO>(`/leagues/${id}/team`),
+  getMyTeam: (id: string) => apiRequest<TeamDTO>(`/leagues/${id}/my-team`),
   /** All contracts of the current player's team in this league */
   getMyContracts: (id: string) =>
-    apiRequest<ContractDTO[]>(`/leagues/${id}/contracts`).then((cs) =>
+    apiRequest<ContractDTO[]>(`/leagues/${id}/my-contracts`).then((cs) =>
       cs.map(deserializeContract)
     ),
   /** All notifications for the current player in this league */
   getMyNotifications: (id: string) =>
-    apiRequest<NotificationDTO[]>(`/leagues/${id}/notifications`),
+    apiRequest<NotificationDTO[]>(`/leagues/${id}/my-notifications`),
 
   // ── Performance ────────────────────────────────────────────────────────────
 
@@ -105,6 +112,7 @@ export const leaguesApi = {
     const [yesterday, twoDaysAgo] = await apiRequest<PerformanceDTO[]>(
       `/leagues/${id}/performances?limit=2`
     );
+
     return {
       yesterdayPoints: yesterday?.points ?? 0,
       pointsChange: (yesterday?.points ?? 0) - (twoDaysAgo?.points ?? 0),
@@ -125,17 +133,26 @@ export const teamsApi = {
   createContract: (
     teamId: string,
     data: {
-      teamID: string;
-      articleID: string;
+      articleId?: string;
+      articleID?: string;
       startDate: Temporal.Instant;
       duration: Temporal.Duration;
       purchasePrice: number;
+      teamID?: string;
     }
-  ) =>
-    apiRequest<ContractDTO>(`/teams/${teamId}/contracts`, {
+  ) => {
+    const normalizedPayload = {
+      articleId: data.articleId ?? data.articleID,
+      startDate: data.startDate,
+      duration: data.duration,
+      purchasePrice: data.purchasePrice,
+    };
+
+    return apiRequest<ContractDTO>(`/teams/${teamId}/contracts`, {
       method: "POST",
-      body: JSON.stringify(data),
-    }),
+      body: JSON.stringify(normalizedPayload),
+    }).then(deserializeContract);
+  },
 };
 
 // ── Contracts ─────────────────────────────────────────────────────────────────
@@ -178,7 +195,6 @@ export const dashboardApi = {
       leaguesApi.getRecentPoints(league.id),
     ]);
 
-    // Shape the resolved values into DashboardData
     return new DashboardData(
       team,
       league,
@@ -200,7 +216,9 @@ export const sessionApi = {
 // ── Unified export ────────────────────────────────────────────────────────────
 
 export const api = {
-  player: playerApi,
+  me: meApi,
+  player: meApi,
+  players: playersApi,
   leagues: leaguesApi,
   teams: teamsApi,
   contracts: contractsApi,

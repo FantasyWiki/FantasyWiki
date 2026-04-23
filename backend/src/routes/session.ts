@@ -31,7 +31,7 @@ session.delete("/", async (c) => {
 });
 
 session.options("/", async (c) => {
-  return c.text("", 204);
+  return c.text("", 200);
 });
 
 export default session;

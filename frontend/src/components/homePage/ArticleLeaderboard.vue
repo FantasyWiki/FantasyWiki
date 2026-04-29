@@ -9,10 +9,10 @@
       </div>
     </ion-card-header>
     <ion-card-content class="ion-text-center ion-no-padding">
-      <ion-list class="ion-no-padding">
+      <ion-list v-if="entries.length > 0" class="ion-no-padding">
         <ion-item
-          v-for="n in 5"
-          :key="n"
+          v-for="entry in entries"
+          :key="entry.canonicalTitle"
           class="ion-margin-bottom ion-no-padding"
         >
           <ion-badge class="ion-margin ion-padding">
@@ -22,30 +22,41 @@
             ></ion-icon>
           </ion-badge>
           <ion-label class="ion-text-start ion-padding-horizontal">
-            <h3 class="ion-no-margin">Article Title {{ n }}</h3>
+            <a
+              class="article-link"
+              :href="entry.articleUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <h3 class="ion-no-margin">
+                #{{ entry.filteredRank }} {{ entry.displayTitle }}
+              </h3>
+            </a>
             <p class="ion-display-flex ion-align-items-center">
               <ion-icon
                 :icon="eyeOutline"
                 aria-hidden="true"
                 class="eye-icon ion-margin-end"
               ></ion-icon>
-              Avg: 98.5K/day
+              Avg: {{ formatCompactViews(entry.averageViews30d) }}/day
             </p>
           </ion-label>
           <ion-note slot="end" color="dark" class="ion-text-end">
-            <ion-text class="views ion-display-block">145.2K</ion-text>
-            <ion-text color="primary" class="ion-display-block">+47%</ion-text>
+            <ion-text class="views ion-display-block">
+              {{ formatCompactViews(entry.dailyViews) }}
+            </ion-text>
           </ion-note>
         </ion-item>
       </ion-list>
-      <div class="top-border ion-padding-top">
-        Updated in real-time from Wikipedia
+      <div v-else class="ion-padding unavailable-message">
+        Top article data unavailable right now.
       </div>
     </ion-card-content>
   </ion-card>
 </template>
 
 <script setup lang="ts">
+import { onMounted, ref } from "vue";
 import {
   IonCard,
   IonCardHeader,
@@ -60,6 +71,44 @@ import {
   IonIcon,
 } from "@ionic/vue";
 import { eyeOutline, trendingUpOutline } from "ionicons/icons";
+import { createWikimediaClient } from "@/services/wikimediaClient";
+import type { TopReadEntry } from "../../../../model/wikimedia";
+
+const emit = defineEmits<{
+  volumeResolved: [volume: number];
+}>();
+
+const entries = ref<TopReadEntry[]>([]);
+const wikimediaClient = createWikimediaClient();
+
+function formatCompactViews(value: number | undefined): string {
+  if (value === undefined) {
+    return "N/A";
+  }
+
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}M`;
+  }
+
+  if (value >= 1_000) {
+    return `${(value / 1_000).toFixed(1)}K`;
+  }
+
+  return value.toFixed(0);
+}
+
+onMounted(async () => {
+  try {
+    const topRead = await wikimediaClient.pageviews.getTopReadList({
+      domain: "en",
+      limit: 5,
+    });
+    entries.value = topRead.entries;
+    emit("volumeResolved", topRead.filteredSnapshotVolume);
+  } catch {
+    entries.value = [];
+  }
+});
 </script>
 
 <style scoped>
@@ -88,6 +137,11 @@ h3 {
   line-height: 1.25rem;
 }
 
+.article-link {
+  color: inherit;
+  text-decoration: none;
+}
+
 ion-item ion-badge {
   --ion-margin: 0.5rem;
   --ion-padding: 0.5rem;
@@ -113,8 +167,7 @@ ion-label {
   --ion-margin: 4px;
 }
 
-div.top-border {
-  border-top: 1px solid var(--ion-border-color);
-  --ion-padding: 16px;
+.unavailable-message {
+  color: var(--ion-color-medium);
 }
 </style>

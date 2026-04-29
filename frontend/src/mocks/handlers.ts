@@ -8,6 +8,8 @@ import {
   notifications,
   players,
   teams,
+  wikimediaPerArticleViews,
+  wikimediaTopReadArticles,
 } from "./data";
 import { ContractDTO } from "../../../dto/contractDTO";
 import type { TeamDTO } from "../../../dto/teamDTO";
@@ -40,6 +42,47 @@ const mockTeamResponses: Record<string, TeamLineUp> = {
 // =============================================================================
 
 export const handlers = [
+  // ── Wikimedia pageviews ───────────────────────────────────────────────────────
+  http.get(
+    "https://wikimedia.org/api/rest_v1/metrics/pageviews/top/:project/all-access/:year/:month/:day",
+    () =>
+      HttpResponse.json({
+        items: [
+          {
+            project: "en.wikipedia",
+            access: "all-access",
+            year: "2026",
+            month: "04",
+            day: "27",
+            articles: wikimediaTopReadArticles,
+          },
+        ],
+      })
+  ),
+
+  http.get(
+    "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/:project/all-access/user/:article/daily/:start/:end",
+    ({ params }) => {
+      const article = decodeURIComponent(String(params.article));
+      const series = wikimediaPerArticleViews[article];
+      if (!series) {
+        return HttpResponse.json({ error: "Not found" }, { status: 404 });
+      }
+
+      return HttpResponse.json({
+        items: series.map((views, index) => ({
+          project: params.project,
+          article,
+          granularity: "daily",
+          timestamp: `202604${String(26 + index).padStart(2, "0")}00`,
+          access: "all-access",
+          agent: "user",
+          views,
+        })),
+      });
+    }
+  ),
+
   // ── Session & Auth → passthrough al backend reale ──────────────────────────
   // Il login Google è un redirect del browser (non fetch), MSW non lo vede.
   // /api/session è invece una fetch normale: la lasciamo passare al backend

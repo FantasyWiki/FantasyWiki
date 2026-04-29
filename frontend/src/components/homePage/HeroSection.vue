@@ -32,10 +32,12 @@
         <app-stats></app-stats>
       </ion-col>
       <ion-col size="12" size-lg="6" class="ion-no-padding">
-        <article-leaderboard></article-leaderboard>
+        <article-leaderboard
+          @volume-resolved="handleVolumeResolved"
+        ></article-leaderboard>
         <ion-chip class="top-right animate-float">📡 Live data</ion-chip>
         <ion-chip class="bottom-left animate-float"
-          >📊 Over 2 million views today</ion-chip
+          >📊 {{ todayVolumeLabel }}</ion-chip
         >
       </ion-col>
     </ion-row>
@@ -43,6 +45,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import {
   IonButton,
   IonIcon,
@@ -55,6 +58,13 @@ import {
 import { arrowForwardOutline, flashOutline } from "ionicons/icons";
 import AppStats from "./AppStats.vue";
 import ArticleLeaderboard from "./ArticleLeaderboard.vue";
+
+const todayVolumeLabel = ref("Over 2 million views today");
+
+function handleVolumeResolved(volume: number): void {
+  const inMillions = (volume / 1_000_000).toFixed(1).replace(/\.0$/, "");
+  todayVolumeLabel.value = `Over ${inMillions} million views today`;
+}
 </script>
 
 <style scoped src="src/components/homePage/home-page.css"></style>

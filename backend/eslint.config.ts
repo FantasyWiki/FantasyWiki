@@ -5,7 +5,7 @@ import { defineConfig } from "eslint/config";
 
 export default defineConfig([
   {
-    ignores: [".wrangler/**", "node_modules/**", "build/**"],
+    ignores: [".wrangler/**", "node_modules/**", "build/**", "coverage/**"],
   },
   {
     files: ["src/**/*.{js,mjs,cjs,ts,mts,cts}", "eslint.config.ts"],

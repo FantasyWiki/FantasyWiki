@@ -1,9 +1,15 @@
-# TODO LIST
+# FantasyWiki
 
-1. Rename the project in `settings.gradle.kts`
-1. Change the project name and description in the `publishOnCentral` block in `build.gradle.kts`
-1. Configure the repository to have the following variables set:
-  * ORG_GRADLE_PROJECT_signingKey
-  * ORG_GRADLE_PROJECT_signingPassword
-  * MAVEN_CENTRAL_USERNAME
-  * MAVEN_CENTRAL_PASSWORD
+![CI/CD](https://github.com/FantasyWiki/FantasyWiki/actions/workflows/build.yml/badge.svg)
+![Backend coverage check](https://github.com/FantasyWiki/FantasyWiki/actions/workflows/backend-coverage.yml/badge.svg)
+
+## Backend coverage
+
+Run backend coverage locally:
+
+```bash
+cd backend
+npm run test-coverage
+```
+
+Backend coverage is verified by the dedicated GitHub Actions workflow in `.github/workflows/backend-coverage.yml`.

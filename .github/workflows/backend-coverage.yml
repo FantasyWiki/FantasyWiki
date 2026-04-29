@@ -14,8 +14,9 @@ on:
 jobs:
   backend-coverage:
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,27 +30,14 @@ jobs:
 
       - name: Install backend dependencies
         run: npm ci
-        working-directory: backend
 
       - name: Run backend coverage
         run: npm run test-coverage
-        working-directory: backend
 
-      - name: Update coverage badge data
-        if: github.event_name == 'push' && github.ref_name == 'master'
-        run: |
-          New-Item -ItemType Directory -Force -Path .github/badges | Out-Null
-          Copy-Item backend/coverage/coverage-summary.json .github/badges/backend-coverage-summary.json -Force
-        shell: pwsh
-
-      - name: Commit coverage badge data
-        if: github.event_name == 'push' && github.ref_name == 'master'
-        uses: stefanzweifel/git-auto-commit-action@v5
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
         with:
-          commit_message: "chore: update backend coverage badge data"
-          file_pattern: .github/badges/backend-coverage-summary.json
-
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          name: backend-coverage
+          path: |
+            backend/coverage/lcov.info
+            backend/coverage/coverage-summary.json

@@ -1,0 +1,55 @@
+name: Backend Coverage
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-coverage.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-coverage.yml"
+  workflow_dispatch:
+
+jobs:
+  backend-coverage:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: "backend/package.json"
+          cache: "npm"
+          cache-dependency-path: "backend/package-lock.json"
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Run backend coverage
+        run: npm run test-coverage
+        working-directory: backend
+
+      - name: Update coverage badge data
+        if: github.event_name == 'push' && github.ref_name == 'master'
+        run: |
+          New-Item -ItemType Directory -Force -Path .github/badges | Out-Null
+          Copy-Item backend/coverage/coverage-summary.json .github/badges/backend-coverage-summary.json -Force
+        shell: pwsh
+
+      - name: Commit coverage badge data
+        if: github.event_name == 'push' && github.ref_name == 'master'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update backend coverage badge data"
+          file_pattern: .github/badges/backend-coverage-summary.json
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

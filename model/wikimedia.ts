@@ -28,6 +28,7 @@ const EXCLUDED_PREFIXES = [
 
 const EXCLUDED_EXACT_TITLES = new Set(["Main_Page", "Main Page"]);
 
+//TODO: remove this useless function and add the .wikipedia suffix where needed
 export function toWikimediaProjectDomain(domain: Enums): `${Enums}.wikipedia` {
   return `${domain}.wikipedia`;
 }

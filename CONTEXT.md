@@ -81,3 +81,6 @@ _Avoid_: displayed rank
 - "service scope naming" was ambiguous — resolved: use **Wikimedia Client** as the generic integration boundary, with feature-specific interactions beneath it.
 - "project id format" was ambiguous — resolved: use `en.wikipedia`/`it.wikipedia` (not `*.org`) in Top Read endpoint paths.
 - "badge total" was ambiguous — resolved: badge uses **Filtered Snapshot Volume** (sum over all filtered snapshot entries), not top-5 only.
+- "today badge wording" was ambiguous — resolved: domain semantics remain latest available **Top Read Snapshot**, but landing marketing copy may say "views today" as a deliberate UI simplification.
+- "most searched" vs "most viewed" was ambiguous — resolved: this feature uses pageview-based **Top Read** data, so canonical wording is "most viewed."
+- "centralized Wikimedia service" was ambiguous — resolved: centralization means a shared **Wikimedia Client** policy contract, while callers may still be distributed across frontend and backend.

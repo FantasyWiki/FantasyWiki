@@ -1,48 +1,57 @@
+# Backend
+
+## Development
+
 ```txt
 npm install
 npm run dev
 ```
 
+## Testing
+
+The backend test suite currently focuses on Cloudflare runtime integration tests
+configured in `vitest.config.ts`.
+
+```txt
+# Integration tests (watch)
+npm run test
+
+# Integration tests (single run)
+npm run test:integration
+
+# Backend test command used by Gradle check
+npm run test:run
+```
+
+Cloudflare integration tests use `@cloudflare/vitest-pool-workers` and:
+
+- load Worker config from `wrangler.jsonc`
+- apply D1 migrations from `migrations/` via `applyD1Migrations`
+- reset D1 test data before each test
+
 ## Deployment
 
-### Production Deployment
-
-Deploy to production (main branch):
+Deploy to Cloudflare Workers:
 
 ```txt
 npm run deploy
 ```
 
-### Preview Deployment
-
-Deploy to preview environment (feature branches):
-
-```txt
-npm run deploy:preview
-```
-
-The preview environment allows you to test changes on a separate worker instance before merging to main. Each branch preview will be deployed as `backend-preview` on Cloudflare Workers.
-
 ## Type Generation
 
-[For generating/synchronizing types based on your Worker configuration run](https://developers.cloudflare.com/workers/wrangler/commands/#types):
+Generate and sync Worker runtime/bindings types:
 
 ```txt
 npm run cf-typegen
 ```
 
-Pass the `CloudflareBindings` as generics when instantiation `Hono`:
+Pass `CloudflareBindings` as generic when instantiating `Hono`:
 
 ```ts
-// src/index.ts
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 ```
 
 ## Environment Configuration
 
-The project uses two environments:
-
-- **Production** (`wrangler.jsonc` root): Deploys to `backend` worker (main branch)
-- **Preview** (`wrangler.jsonc` → `env.preview`): Deploys to `backend-preview` worker (feature branches)
-
-Both environments can have different configurations (variables, KV namespaces, R2 buckets, etc.)
+- `wrangler.jsonc` defines the base Worker (`backend`) and D1 binding (`db`).
+- CI preview deployments use `wrangler deploy --name=<branch-name>` to publish branch-specific Workers.

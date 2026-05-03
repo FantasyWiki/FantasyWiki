@@ -3,7 +3,7 @@
   "type": "module",
   "engines": {
     "node": "24.15.0",
-    "npm": "11.12.1"
+    "npm": "11.13.0"
   },
   "scripts": {
     "dev": "wrangler dev",

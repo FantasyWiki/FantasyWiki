@@ -1,6 +1,6 @@
-export { Contract } from "./contract";
-export { League } from "./league";
-export { Notification } from "./notification";
-export { Player } from "./player";
-export { Team } from "./team";
+export type { Contract } from "./contract";
+export type { League } from "./league";
+export type { Notification } from "./notification";
+export type { Player } from "./player";
+export type { Team } from "./team";
 export * from "./wikimedia";

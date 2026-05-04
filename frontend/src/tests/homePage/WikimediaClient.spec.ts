@@ -23,7 +23,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 describe("external-apis/wikimedia/client", () => {
   it("supports positional API and returns normalized top-read data", async () => {
     const fetchFn = vi
-      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(jsonResponse({ error: "missing" }, 404))
       .mockResolvedValueOnce(
         jsonResponse(buildTopReadResponse({ articles: topReadArticles }))
@@ -57,7 +57,7 @@ describe("external-apis/wikimedia/client", () => {
 
   it("ignores corrupt cache entries and falls back to network", async () => {
     const fetchFn = vi
-      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(
         jsonResponse(buildTopReadResponse({ articles: topReadArticles }))
       )
@@ -82,7 +82,7 @@ describe("external-apis/wikimedia/client", () => {
 
   it("returns fetched result even when cache writes fail", async () => {
     const fetchFn = vi
-      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(
         jsonResponse(buildTopReadResponse({ articles: topReadArticles }))
       )
@@ -110,7 +110,7 @@ describe("external-apis/wikimedia/client", () => {
 
   it("keeps entries when 30d average lookup fails for an article", async () => {
     const fetchFn = vi
-      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(
         jsonResponse(
           buildTopReadResponse({

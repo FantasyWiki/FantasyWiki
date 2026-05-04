@@ -8,5 +8,10 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "*.ts", "dto/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "*.ts", "dto/*.ts"],
+  "exclude": [
+    "../model/eslint.config.ts",
+    "node_modules"
+  ]
+
 }

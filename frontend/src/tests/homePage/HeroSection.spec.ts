@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import router from "@/router/index";
 import HeroSection from "@/components/homePage/HeroSection.vue";
 
@@ -14,9 +14,9 @@ describe("home-page/HeroSection.vue", () => {
       },
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flushPromises();
 
     expect(wrapper.exists()).toBe(true);
-    expect(wrapper.text()).toContain("Over 1.2 million views today");
+    expect(wrapper.text()).toContain("Over 1.2M views today");
   });
 });

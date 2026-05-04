@@ -15,6 +15,7 @@ import { ContractDTO } from "../../../dto/contractDTO";
 import type { TeamDTO } from "../../../dto/teamDTO";
 import type { TeamLineUp } from "@/types/team";
 import { mockTeamResponse } from "@/mocks/formationMocks";
+import { buildTopReadResponse } from "../../../external-apis/wikimedia/test-utils/fixtures";
 import Instant = Temporal.Instant;
 
 // =============================================================================
@@ -45,19 +46,16 @@ export const handlers = [
   // ── Wikimedia pageviews ───────────────────────────────────────────────────────
   http.get(
     "https://wikimedia.org/api/rest_v1/metrics/pageviews/top/:project/all-access/:year/:month/:day",
-    () =>
-      HttpResponse.json({
-        items: [
-          {
-            project: "en.wikipedia",
-            access: "all-access",
-            year: "2026",
-            month: "04",
-            day: "27",
-            articles: wikimediaTopReadArticles,
-          },
-        ],
-      })
+    ({ params }) =>
+      HttpResponse.json(
+        buildTopReadResponse({
+          project: String(params.project),
+          year: String(params.year),
+          month: String(params.month),
+          day: String(params.day),
+          articles: wikimediaTopReadArticles,
+        })
+      )
   ),
 
   http.get(

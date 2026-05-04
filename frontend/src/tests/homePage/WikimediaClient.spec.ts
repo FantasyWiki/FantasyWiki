@@ -1,5 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
-import { createWikimediaClient } from "@/services/wikimediaClient";
+import { createWikimediaClient } from "../../../../external-apis/wikimedia/client";
+import {
+  buildTopReadResponse,
+  buildPerArticleViewsResponse,
+} from "../../../../external-apis/wikimedia/test-utils/fixtures";
+
+const topReadArticles = [
+  { article: "Main_Page", views: 5000, rank: 1 },
+  { article: "Special:Search", views: 4000, rank: 2 },
+  { article: "ChatGPT", views: 3000, rank: 3 },
+  { article: "Pope_Francis", views: 2000, rank: 4 },
+  { article: "A_Minecraft_Movie", views: 1000, rank: 5 },
+];
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -8,45 +20,23 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-describe("services/wikimediaClient", () => {
-  it("falls back up to 2 days and returns filtered top list with volume", async () => {
+describe("external-apis/wikimedia/client", () => {
+  it("supports positional API and returns normalized top-read data", async () => {
     const fetchFn = vi
       .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
       .mockResolvedValueOnce(jsonResponse({ error: "missing" }, 404))
       .mockResolvedValueOnce(
-        jsonResponse({
-          items: [
-            {
-              project: "en.wikipedia",
-              access: "all-access",
-              year: "2026",
-              month: "04",
-              day: "27",
-              articles: [
-                { article: "Main_Page", views: 5000, rank: 1 },
-                { article: "Special:Search", views: 4000, rank: 2 },
-                { article: "ChatGPT", views: 3000, rank: 3 },
-                { article: "Pope_Francis", views: 2000, rank: 4 },
-                { article: "A_Minecraft_Movie", views: 1000, rank: 5 },
-              ],
-            },
-          ],
-        })
+        jsonResponse(buildTopReadResponse({ articles: topReadArticles }))
       )
-      .mockResolvedValue(
-        jsonResponse({ items: [{ views: 10 }, { views: 20 }] })
-      );
+      .mockResolvedValue(jsonResponse(buildPerArticleViewsResponse([10, 20])));
 
     const client = createWikimediaClient({
-      fetchFn,
+      fetchFn: fetchFn,
       now: () => new Date("2026-04-29T12:00:00.000Z"),
-      storage: null,
+      cache: null,
     });
 
-    const result = await client.pageviews.getTopReadList({
-      domain: "en",
-      limit: 5,
-    });
+    const result = await client.pageviews.getTopReadList("en", 5);
 
     expect(fetchFn).toHaveBeenCalledWith(
       expect.stringContaining("/top/en.wikipedia/all-access/2026/04/28")
@@ -65,22 +55,68 @@ describe("services/wikimediaClient", () => {
     });
   });
 
+  it("ignores corrupt cache entries and falls back to network", async () => {
+    const fetchFn = vi
+      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(
+        jsonResponse(buildTopReadResponse({ articles: topReadArticles }))
+      )
+      .mockResolvedValue(jsonResponse(buildPerArticleViewsResponse([10, 20])));
+    const cache = {
+      getItem: vi.fn().mockReturnValueOnce("{broken-json"),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    };
+
+    const client = createWikimediaClient({
+      fetchFn,
+      now: () => new Date("2026-04-29T12:00:00.000Z"),
+      cache,
+    });
+
+    const result = await client.pageviews.getTopReadList("en", 5);
+
+    expect(result.entries.length).toBeGreaterThan(0);
+    expect(cache.removeItem).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns fetched result even when cache writes fail", async () => {
+    const fetchFn = vi
+      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(
+        jsonResponse(buildTopReadResponse({ articles: topReadArticles }))
+      )
+      .mockResolvedValue(jsonResponse(buildPerArticleViewsResponse([10, 20])));
+
+    const cache = {
+      getItem: vi.fn().mockReturnValueOnce(null),
+      setItem: vi.fn(() => {
+        throw new Error("quota exceeded");
+      }),
+      removeItem: vi.fn(),
+    };
+
+    const client = createWikimediaClient({
+      fetchFn,
+      now: () => new Date("2026-04-29T12:00:00.000Z"),
+      cache,
+    });
+
+    const result = await client.pageviews.getTopReadList("en", 5);
+
+    expect(result.filteredSnapshotVolume).toBe(6000);
+    expect(cache.setItem).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps entries when 30d average lookup fails for an article", async () => {
     const fetchFn = vi
       .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
       .mockResolvedValueOnce(
-        jsonResponse({
-          items: [
-            {
-              project: "en.wikipedia",
-              access: "all-access",
-              year: "2026",
-              month: "04",
-              day: "28",
-              articles: [{ article: "ChatGPT", views: 3000, rank: 1 }],
-            },
-          ],
-        })
+        jsonResponse(
+          buildTopReadResponse({
+            articles: [{ article: "ChatGPT", views: 3000, rank: 1 }],
+          })
+        )
       )
       .mockResolvedValueOnce(jsonResponse({ error: "boom" }, 500))
       .mockResolvedValueOnce(jsonResponse({ error: "boom" }, 500))
@@ -89,13 +125,10 @@ describe("services/wikimediaClient", () => {
     const client = createWikimediaClient({
       fetchFn,
       now: () => new Date("2026-04-29T12:00:00.000Z"),
-      storage: null,
+      cache: null,
     });
 
-    const result = await client.pageviews.getTopReadList({
-      domain: "en",
-      limit: 5,
-    });
+    const result = await client.pageviews.getTopReadList("en", 5);
 
     expect(result.entries).toHaveLength(1);
     expect(result.entries[0].averageViews30d).toBeUndefined();

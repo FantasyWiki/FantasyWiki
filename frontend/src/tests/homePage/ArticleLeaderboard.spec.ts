@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import router from "@/router/index";
 import ArticleLeaderboard from "@/components/homePage/ArticleLeaderboard.vue";
 import { server } from "@/mocks/server";
@@ -8,6 +8,24 @@ import { http, HttpResponse } from "msw";
 describe("ArticleLeaderboard.vue", () => {
   beforeEach(() => {
     window.localStorage.clear();
+  });
+
+  it("shows loading placeholder before the first Wikimedia response", async () => {
+    router.push("/");
+    await router.isReady();
+
+    const wrapper = mount(ArticleLeaderboard, {
+      global: {
+        plugins: [router],
+      },
+    });
+
+    expect(wrapper.find(".loading-message").exists()).toBe(true);
+    expect(wrapper.text()).not.toContain(
+      "Top article data unavailable right now."
+    );
+
+    await flushPromises();
   });
 
   it("renders Wikimedia top-read entries with daily and 30d average views", async () => {
@@ -20,7 +38,7 @@ describe("ArticleLeaderboard.vue", () => {
       },
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flushPromises();
 
     expect(wrapper.text()).not.toContain("Article Title 1");
     expect(wrapper.text()).toContain("ChatGPT");
@@ -44,7 +62,7 @@ describe("ArticleLeaderboard.vue", () => {
       },
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flushPromises();
     expect(wrapper.text()).toContain("Top article data unavailable right now.");
   });
 });

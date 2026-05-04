@@ -5,11 +5,15 @@
         <ion-card-title class="ion-text-start">
           🔥 Trending Today
         </ion-card-title>
-        <ion-text> Most searched </ion-text>
+        <ion-text> Most viewed </ion-text>
       </div>
     </ion-card-header>
     <ion-card-content class="ion-text-center ion-no-padding">
-      <ion-list v-if="entries.length > 0" class="ion-no-padding">
+      <div v-if="isLoading" class="ion-padding loading-message">
+        <ion-skeleton-text animated class="loading-line"></ion-skeleton-text>
+        <ion-skeleton-text animated class="loading-line"></ion-skeleton-text>
+      </div>
+      <ion-list v-else-if="entries.length > 0" class="ion-no-padding">
         <ion-item
           v-for="entry in entries"
           :key="entry.canonicalTitle"
@@ -38,7 +42,10 @@
                 aria-hidden="true"
                 class="eye-icon ion-margin-end"
               ></ion-icon>
-              Avg: {{ formatCompactViews(entry.averageViews30d) }}/day
+              Avg: {{ formatCompactViews(entry.averageViews30d)
+              }}<template v-if="entry.averageViews30d !== undefined"
+                >/day</template
+              >
             </p>
           </ion-label>
           <ion-note slot="end" color="dark" class="ion-text-end">
@@ -48,7 +55,7 @@
           </ion-note>
         </ion-item>
       </ion-list>
-      <div v-else class="ion-padding unavailable-message">
+      <div v-else-if="hasError" class="ion-padding unavailable-message">
         Top article data unavailable right now.
       </div>
     </ion-card-content>
@@ -62,6 +69,7 @@ import {
   IonCardHeader,
   IonCardTitle,
   IonCardContent,
+  IonSkeletonText,
   IonList,
   IonItem,
   IonLabel,
@@ -79,6 +87,8 @@ const emit = defineEmits<{
 }>();
 
 const entries = ref<TopReadEntry[]>([]);
+const isLoading = ref(true);
+const hasError = ref(false);
 const wikimediaClient = createWikimediaClient();
 
 function formatCompactViews(value: number | undefined): string {
@@ -98,15 +108,17 @@ function formatCompactViews(value: number | undefined): string {
 }
 
 onMounted(async () => {
+  isLoading.value = true;
+  hasError.value = false;
   try {
-    const topRead = await wikimediaClient.pageviews.getTopReadList({
-      domain: "en",
-      limit: 5,
-    });
+    const topRead = await wikimediaClient.pageviews.getTopReadList("en", 5);
     entries.value = topRead.entries;
     emit("volumeResolved", topRead.filteredSnapshotVolume);
   } catch {
     entries.value = [];
+    hasError.value = true;
+  } finally {
+    isLoading.value = false;
   }
 });
 </script>
@@ -169,5 +181,16 @@ ion-label {
 
 .unavailable-message {
   color: var(--ion-color-medium);
+}
+
+.loading-message {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.loading-line {
+  width: 90%;
+  height: 1.2rem;
+  margin: 0 auto;
 }
 </style>

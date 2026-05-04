@@ -24,6 +24,65 @@ Centralization here means shared behavior, not single traffic ownership.
 - Observability is runtime-agnostic through hooks (`request_start`, `request_success`, `request_failure`, `cache_hit`, `cache_miss`).
 - Domain normalization remains consistent with shared model artifacts.
 
+## What this feature does
+
+The shared Wikimedia module fetches a **Top Read Snapshot**, filters and normalizes it into domain-safe entries, computes **Filtered Snapshot Volume**, and enriches each entry with a 30-day average pageview value when available.
+
+It also applies resilience policies consistently:
+
+- Snapshot fallback across recent UTC days (`maxFallbackDays`)
+- Retry for transient failures (`retryCount`, 429/5xx)
+- Best-effort cache (cache read/parse/write failures must not break the main flow)
+
+## Where Axios is used
+
+Axios is used only inside runtime wrappers:
+
+- `frontend/src/services/wikimediaClient.ts`
+- `backend/src/services/wikimediaClient.ts`
+
+Each wrapper builds an Axios-backed `http` adapter (`createAxiosHttp`) and passes it to `external-apis/wikimedia/client.ts`.
+
+The external API module itself is transport-agnostic and does not depend on Axios directly.
+
+## How to use it
+
+### Frontend
+
+```ts
+import { createWikimediaClient } from "@/services/wikimediaClient";
+
+const client = createWikimediaClient();
+const result = await client.pageviews.getTopReadList("en", 5);
+```
+
+### Backend
+
+```ts
+import { createWikimediaClient } from "../services/wikimediaClient";
+
+const client = createWikimediaClient();
+const result = await client.pageviews.getTopReadList("it", 5);
+```
+
+### Return shape
+
+`getTopReadList(domain, limit)` returns:
+
+- `projectDomain`
+- `snapshotDate`
+- `filteredSnapshotVolume`
+- `entries` (normalized list with display title, filtered/source rank, daily views, article URL, and optional `averageViews30d`)
+
+## How to expand it safely
+
+1. Add new behavior in `external-apis/wikimedia/client.ts` first; keep wrappers thin.
+2. Preserve the public API unless a deliberate breaking change is approved.
+3. If a new runtime needs custom transport, pass a custom `http` implementation via `WikimediaClientOptions`.
+4. If new caching behavior is needed, inject a `cache` implementation rather than hardcoding runtime storage.
+5. Reuse fixtures in `external-apis/wikimedia/test-utils/fixtures.ts` for deterministic tests.
+6. Keep domain semantics aligned with `CONTEXT.md` (snapshot date, filtered rank, filtered snapshot volume).
+
 ## Runtime responsibilities
 
 - Frontend and backend can each provide transport, cache, and telemetry implementations suitable for their environment.
@@ -44,12 +103,3 @@ Centralization here means shared behavior, not single traffic ownership.
 - Preserve existing domain output semantics during migration (`Top Read List`, `Filtered Snapshot Volume`, rank semantics, and snapshot-date rules).
 - Frontend remains direct-to-Wikimedia for current landing presentation paths.
 - Backend integration is required now at module level (internal use + tests), with endpoint exposure deferred until a backend product use case appears.
-
-## Approved implementation sequence (TDD)
-
-1. Shared module extraction tracer bullet with the canonical positional API.
-2. Cache safety behaviors (`localStorage` access, cache parse failures, cache write failures).
-3. Explicit loading/ready/error UI state in leaderboard (unavailable message only on error).
-4. Formatting fixes (compact volume label; `Avg: N/A` without `/day` when average is unavailable).
-5. Fixture and mock fidelity updates (shared fixture builders and request-date echo in MSW).
-6. Deterministic async test waits (replace `setTimeout(..., 0)` waits).

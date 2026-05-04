@@ -59,11 +59,19 @@ import { arrowForwardOutline, flashOutline } from "ionicons/icons";
 import AppStats from "./AppStats.vue";
 import ArticleLeaderboard from "./ArticleLeaderboard.vue";
 
-const todayVolumeLabel = ref("Over 2 million views today");
+const compactVolumeFormatter = new Intl.NumberFormat("en", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+function formatTodayVolumeLabel(volume: number): string {
+  return `Over ${compactVolumeFormatter.format(volume)} views today`;
+}
+
+const todayVolumeLabel = ref(formatTodayVolumeLabel(2_000_000));
 
 function handleVolumeResolved(volume: number): void {
-  const inMillions = (volume / 1_000_000).toFixed(1).replace(/\.0$/, "");
-  todayVolumeLabel.value = `Over ${inMillions} million views today`;
+  todayVolumeLabel.value = formatTodayVolumeLabel(volume);
 }
 </script>
 

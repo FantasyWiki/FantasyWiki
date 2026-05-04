@@ -30,6 +30,7 @@
     "@ionic/vue-router": "^8.0.0",
     "@js-temporal/polyfill": "^0.5.1",
     "@tanstack/vue-query": "^5.92.12",
+    "axios": "^1.16.0",
     "ionicons": "^8.0.0",
     "pinia": "^3.0.4",
     "vue": "^3.3.0",

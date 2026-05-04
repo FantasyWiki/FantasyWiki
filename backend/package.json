@@ -19,12 +19,13 @@
   "dependencies": {
     "@hono/oauth-providers": "^0.8.5",
     "@js-temporal/polyfill": "^0.5.1",
+    "axios": "^1.16.0",
     "hono": "^4.12.8"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@vitest/coverage-v8": "^4.0.16",
     "@types/node": "^25.5.0",
+    "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^10.0.3",
     "globals": "^17.4.0",
     "jiti": "^2.6.1",

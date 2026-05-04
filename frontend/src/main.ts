@@ -40,12 +40,27 @@ const queryClient = new QueryClient({
   },
 });
 
+function clearWikimediaTopReadCacheInDev(): void {
+  if (!import.meta.env.DEV || typeof window === "undefined") {
+    return;
+  }
+
+  for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+    const key = window.localStorage.key(index);
+    if (key?.startsWith("wikimedia:top-read:")) {
+      window.localStorage.removeItem(key);
+    }
+  }
+}
+
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 // Order matters:
 //   1. MSW must be fully active before any component mounts and fires a fetch.
 //   2. The app is created and all plugins registered before mount.
 //   3. mount() is the last thing called.
 async function bootstrap() {
+  clearWikimediaTopReadCacheInDev();
+
   // Step 1 — start MSW in dev so it intercepts every fetch from the start.
   const mock = import.meta.env.VITE_MOCK;
   if (!mock || mock === "true") {

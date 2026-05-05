@@ -63,7 +63,7 @@ async function bootstrap() {
 
   // Step 1 — start MSW in dev so it intercepts every fetch from the start.
   const mock = import.meta.env.VITE_MOCK;
-  if (!mock || mock === "true") {
+  if (mock === "true") {
     const { worker } = await import("./mocks/browser");
     // worker.start() resolves when the service worker is both registered
     // and activated — safe to mount immediately after.

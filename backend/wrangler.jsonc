@@ -1,49 +1,60 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "backend",
-  "main": "src/index.ts",
-  "compatibility_date": "2026-03-17",
-  "vars": {
-    "GOOGLE_CLIENT_ID": "457796621894-7krpa8n09mekpj2cdd952jjkf1c3ookt.apps.googleusercontent.com",
-    "FRONTEND_URL": "fantasywiki.pages.dev",
-  },
-  "d1_databases": [
-    {
-      "binding": "db",
-      "database_name": "db",
-      "database_id": "640d7014-0bf9-44f6-8026-15bf2a18cdda",
-    },
-  ],
-  // "compatibility_flags": [
-  //   "nodejs_compat"
-  // ],
-  // "vars": {
-  //   "MY_VAR": "my-variable"
-  // },
-  // "kv_namespaces": [
-  //   {
-  //     "binding": "MY_KV_NAMESPACE",
-  //     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  //   }
-  // ],
-  // "r2_buckets": [
-  //   {
-  //     "binding": "MY_BUCKET",
-  //     "bucket_name": "my-bucket"
-  //   }
-  // ],
-  // "d1_databases": [
-  //   {
-  //     "binding": "MY_DB",
-  //     "database_name": "my-database",
-  //     "database_id": ""
-  //   }
-  // ],
-  // "ai": {
-  //   "binding": "AI"
-  // },
-  // "observability": {
-  //   "enabled": true,
-  //   "head_sampling_rate": 1
-  // }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "backend",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-03-17",
+	"vars": {
+		"GOOGLE_CLIENT_ID": "457796621894-7krpa8n09mekpj2cdd952jjkf1c3ookt.apps.googleusercontent.com",
+		"FRONTEND_URL": "fantasywiki.pages.dev",
+	},
+	"d1_databases": [
+		{
+			"binding": "db",
+			"database_name": "db",
+			"database_id": "640d7014-0bf9-44f6-8026-15bf2a18cdda",
+		}
+	],
+	"env": {
+		"dev": {
+			"d1_databases": [
+        {
+          "binding": "db_dev",
+          "database_name": "db-dev",
+          "database_id": "cd2e57f5-b1c1-47f4-ac3a-70b4621043c8"
+        },
+			],
+		},
+	},
+	// "compatibility_flags": [
+	//   "nodejs_compat"
+	// ],
+	// "vars": {
+	//   "MY_VAR": "my-variable"
+	// },
+	// "kv_namespaces": [
+	//   {
+	//     "binding": "MY_KV_NAMESPACE",
+	//     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+	//   }
+	// ],
+	// "r2_buckets": [
+	//   {
+	//     "binding": "MY_BUCKET",
+	//     "bucket_name": "my-bucket"
+	//   }
+	// ],
+	// "d1_databases": [
+	//   {
+	//     "binding": "MY_DB",
+	//     "database_name": "my-database",
+	//     "database_id": ""
+	//   }
+	// ],
+	// "ai": {
+	//   "binding": "AI"
+	// },
+	// "observability": {
+	//   "enabled": true,
+	//   "head_sampling_rate": 1
+	// }
 }

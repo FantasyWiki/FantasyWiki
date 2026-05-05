@@ -5,7 +5,7 @@ import {
   toWikimediaProjectDomain,
   type TopReadEntry,
   type WikimediaTopReadArticle,
-} from "../../model";
+} from "../../model/wikimedia";
 
 type FetchFn = typeof fetch;
 

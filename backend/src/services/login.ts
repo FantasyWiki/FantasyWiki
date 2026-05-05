@@ -25,6 +25,9 @@ export class LoginService {
     if (existingResult.ok) {
       return existingResult;
     }
+    if (!existingResult.error.includes("not found")) {
+      return existingResult;
+    }
 
     // Player not found, create a new one
     // Extract local-part from email (before @)
@@ -58,7 +61,13 @@ export class LoginService {
       return createResult;
     }
 
-    // If failed, try with numeric suffixes
+    const isUsernameConflict = (error: string) =>
+      error.includes("UNIQUE constraint failed: players.username");
+    if (!isUsernameConflict(createResult.error)) {
+      return createResult;
+    }
+
+    // If username is already taken, try with numeric suffixes
     for (let suffix = 1; suffix < 1000; suffix++) {
       candidate = `${baseUsername}${suffix}`;
       createResult = await this.playerService.createPlayer(
@@ -68,6 +77,9 @@ export class LoginService {
       );
 
       if (createResult.ok) {
+        return createResult;
+      }
+      if (!isUsernameConflict(createResult.error)) {
         return createResult;
       }
     }

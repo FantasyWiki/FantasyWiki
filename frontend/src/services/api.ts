@@ -63,14 +63,11 @@ function deserializeContract(c: ContractDTO): ContractDTO {
 // ── Me (current authenticated player) ────────────────────────────────────────
 
 export const meApi = {
-  getCurrent: () => apiRequest<PlayerDTO>("/me"),
-  getTeams: () => apiRequest<TeamDTO[]>("/me/teams"),
-  getNotifications: () => apiRequest<NotificationDTO[]>("/me/notifications"),
-  updateCurrent: (data: Partial<PlayerDTO>) =>
-    apiRequest<PlayerDTO>("/me", {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    }),
+  getCurrent: () => apiRequest<Session>("/session"),
+  getTeams: async () => [] as TeamDTO[],
+  getNotifications: async () => [] as NotificationDTO[],
+  updateCurrent: async () =>
+    Promise.reject(new Error("PATCH /api/me is not available on backend")),
 };
 
 // ── Players ───────────────────────────────────────────────────────────────────

@@ -14,7 +14,7 @@ The Player API provides endpoints to manage player accounts and retrieve their l
 
 **POST** `/api/players`
 
-Create a new player with a username.
+Create a new player with a username. The authenticated Google account identity (`email`, `accountId`) is resolved from the session/JWT.
 
 **Request Body:**
 
@@ -47,11 +47,11 @@ Create a new player with a username.
 
 **GET** `/api/players/:id`
 
-Fetch a player by their UUID.
+Fetch the authenticated player's own profile by UUID.
 
 **Parameters:**
 
-- `id` (string) - Player UUID
+- `id` (string) - Player UUID (must match the authenticated player)
 
 **Success Response (200):**
 
@@ -76,11 +76,11 @@ Fetch a player by their UUID.
 
 **GET** `/api/players/account/:accountId`
 
-Fetch a player by their Google account ID.
+Fetch the authenticated player's own profile by Google account ID.
 
 **Parameters:**
 
-- `accountId` (string) - Google account ID from `google_accounts` table
+- `accountId` (string) - Google account ID from `google_accounts` table (must match authenticated account)
 
 **Success Response (200):**
 
@@ -189,7 +189,7 @@ See `backend/migrations/README.md` for database migration instructions and compl
 ### Related Tables
 
 - `players` - User accounts (id, username)
-- `google_accounts` - OAuth account associations (id, googleId, email, playerId)
+- `google_accounts` - OAuth account associations (id, googleId, email)
 - `teams` - Player-league associations (id, name, playerId, leagueId, credits)
 - `leagues` - League definitions (id, name, adminId, startDate, endDate, domain, icon)
 

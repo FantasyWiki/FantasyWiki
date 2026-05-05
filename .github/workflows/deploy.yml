@@ -17,8 +17,6 @@ jobs:
           wranglerVersion: "4.80.0"
           workingDirectory: "backend"
           command: ${{ github.ref_name == 'master' && 'deploy --name=backend' || 'deploy --name=backend-qa --env=dev' }}
-          vars: |
-            FRONTEND_URL=${{ github.ref_name == 'master' && 'fantasywiki.pages.dev' || 'frontend-qa.pages.dev' }}
 
   deploy-frontend:
     runs-on: ubuntu-latest
@@ -39,10 +37,8 @@ jobs:
         working-directory: frontend
 
       - name: Build frontend
-        run: npm run build
+        run: ${{ github.ref_name == 'master' && 'npm run build' || 'npm run build -- --mode qa' }}
         working-directory: frontend
-        env:
-          VITE_BACKEND_URL: ${{ github.ref_name == 'master' && 'luca0patrignani.workers.dev' || 'backend-qa.luca0patrignani.workers.dev' }}
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3

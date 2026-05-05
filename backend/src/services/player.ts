@@ -1,12 +1,17 @@
 import { Player } from "../../../model";
+import { PlayerRepository } from "../repositories/playerRepository";
 import { PlayerRepositoryD1 } from "../repositories/d1/playerRepositoryD1";
 import { Result } from "../repositories/result";
 
 export class PlayerService {
-  private repository: PlayerRepositoryD1;
+  private repository: PlayerRepository;
 
-  constructor(db: D1Database) {
-    this.repository = new PlayerRepositoryD1(db);
+  constructor(repositoryOrDb: PlayerRepository | D1Database) {
+    if ("save" in repositoryOrDb) {
+      this.repository = repositoryOrDb;
+      return;
+    }
+    this.repository = new PlayerRepositoryD1(repositoryOrDb);
   }
 
   async createPlayer(

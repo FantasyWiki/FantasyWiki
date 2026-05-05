@@ -39,6 +39,17 @@ describe("resolveBackendUrl", () => {
     expect(url).toBe("https://preview-123.workers.dev");
   });
 
+  it("does not prefix local URLs when branch is present", () => {
+    const url = resolveBackendUrl(
+      makeEnv({
+        VITE_BACKEND_URL: "http://127.0.0.1:8787",
+        VITE_WORKERS_CI_BRANCH: "preview-123",
+      })
+    );
+
+    expect(url).toBe("http://127.0.0.1:8787");
+  });
+
   it("falls back to localhost when backend URL is missing", () => {
     const url = resolveBackendUrl(
       makeEnv({

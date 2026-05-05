@@ -3,16 +3,21 @@ export function resolveBackendUrl(
 ): string {
   const branch = env.VITE_WORKERS_CI_BRANCH;
   const backend = env.VITE_BACKEND_URL || "http://localhost:8787";
-
-  let url = backend;
+  const hasScheme =
+    backend.startsWith("http://") || backend.startsWith("https://");
+  const normalizedUrl = hasScheme ? backend : `https://${backend}`;
+  const parsed = new URL(normalizedUrl);
 
   if (branch) {
-    url = `${branch}.${backend}`;
+    const isLocalHost =
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname.endsWith(".localhost");
+
+    if (!isLocalHost) {
+      parsed.hostname = `${branch}.${parsed.hostname}`;
+    }
   }
 
-  if (!url.startsWith("http://") && !url.startsWith("https://")) {
-    url = `https://${url}`;
-  }
-
-  return url;
+  return parsed.toString().replace(/\/$/, "");
 }

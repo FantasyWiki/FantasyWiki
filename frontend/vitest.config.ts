@@ -8,7 +8,6 @@ export default mergeConfig(
     test: {
       env: {
         VITE_BACKEND_URL: "http://127.0.0.1:8787",
-        VITE_WORKERS_CI_BRANCH: "",
         VITE_MOCK: "true",
       },
     },

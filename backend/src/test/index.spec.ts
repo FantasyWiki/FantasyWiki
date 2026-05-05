@@ -7,7 +7,6 @@ type TestBindings = {
   GOOGLE_CLIENT_SECRET: string;
   JWT_SECRET: string;
   FRONTEND_URL: string;
-  WORKERS_CI_BRANCH: string;
 };
 
 function makeEnv(overrides: Partial<TestBindings> = {}): TestBindings {
@@ -16,7 +15,6 @@ function makeEnv(overrides: Partial<TestBindings> = {}): TestBindings {
     GOOGLE_CLIENT_SECRET: "test-google-client-secret",
     JWT_SECRET: "super-secret-for-tests",
     FRONTEND_URL: "localhost:5173",
-    WORKERS_CI_BRANCH: "",
     ...overrides,
   };
 }
@@ -25,13 +23,12 @@ describe("backend app", () => {
   it("returns runtime frontend resolution on GET /", async () => {
     const response = await app.fetch(
       new Request("http://localhost/"),
-      makeEnv({ WORKERS_CI_BRANCH: "feature-abc" }),
+      makeEnv(),
     );
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      resolved_url: "https://feature-abc.localhost:5173",
-      WORKERS_CI_BRANCH: "feature-abc",
+      resolved_url: "http://localhost:5173",
       FRONTEND_URL: "localhost:5173",
     });
   });

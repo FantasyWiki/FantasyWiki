@@ -28,11 +28,11 @@ When `dev` is deployed, the workflow deploys:
 
 1. **QA Backend Worker**
    - worker name: `backend-qa`
-   - deploy variable: `WORKERS_CI_BRANCH=dev`
+   - deploy command uses `--env=dev` with QA-specific `wrangler` env config
 
 2. **QA Frontend**
    - dedicated Cloudflare Pages project: `frontend-qa`
-   - frontend build variable: `VITE_WORKERS_CI_BRANCH=dev`
+   - frontend build variable: `VITE_BACKEND_URL=backend-qa.luca0patrignani.workers.dev`
 
 3. **QA D1 Database**
    - remote migrations applied to QA D1

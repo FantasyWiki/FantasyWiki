@@ -22,7 +22,6 @@ export default defineConfig({
         bindings: {
           JWT_SECRET: "test-jwt-secret",
           GOOGLE_CLIENT_SECRET: "test-google-client-secret",
-          WORKERS_CI_BRANCH: "master",
           TEST_MIGRATIONS: migrations.filter((migration) =>
             migration.name.startsWith("0001_"),
           ),

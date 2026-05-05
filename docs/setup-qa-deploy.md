@@ -115,7 +115,7 @@ The workflow will redeploy with the reverted code.
 
 After deployment, QA is available on:
 
-- **Backend API**: `dev.luca0patrignani.workers.dev/api`
+- **Backend API**: `backend-qa.luca0patrignani.workers.dev/api`
 - **Frontend**: domain associated with the `frontend-qa` Pages project
 - **Database**: `fantasydb-qa` (D1 remote)
 
@@ -135,13 +135,12 @@ ERROR: D1_QA_DATABASE_ID secret is not set
 
 If you see CORS or redirect issues, check:
 - `backend/wrangler.jsonc` QA env vars (`FRONTEND_URL`)
-- local frontend env contains `VITE_WORKERS_CI_BRANCH=dev` when testing QA behavior locally
+- local frontend env points to the local backend (`VITE_BACKEND_URL=http://127.0.0.1:8787`) during local testing
 
 ### Frontend cannot reach QA backend
 
 If build or runtime fails due to backend URL:
-- verify `deploy-frontend` (dev matrix entry) uses `VITE_WORKERS_CI_BRANCH: dev`
-- verify `VITE_BACKEND_URL: "luca0patrignani.workers.dev"` is correct
+- verify `deploy-frontend` (dev branch entry) uses `VITE_BACKEND_URL: backend-qa.luca0patrignani.workers.dev`
 
 ---
 

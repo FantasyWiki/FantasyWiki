@@ -11,15 +11,10 @@ type Bindings = {
   GOOGLE_CLIENT_SECRET: string;
   JWT_SECRET: string;
   FRONTEND_URL: string;
-  WORKERS_CI_BRANCH: string;
 };
 
 export function resolveFrontendUrl(env: Bindings): string {
   let url = env.FRONTEND_URL ?? "localhost:5173";
-  // Only add branch prefix if not master
-  if (env.WORKERS_CI_BRANCH && env.WORKERS_CI_BRANCH !== "master") {
-    url = env.WORKERS_CI_BRANCH + "." + url;
-  }
 
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
     const isLocal = url.startsWith("localhost") || url.startsWith("127.");

@@ -28,14 +28,11 @@ Create the file at `FantasyWiki/backend/.dev.vars` with the following content:
 GOOGLE_CLIENT_SECRET=<ask a team member>
 JWT_SECRET=<any random string, at least 32 characters>
 FRONTEND_URL=localhost:5173
-WORKERS_CI_BRANCH=
 ```
 
 **Notes:**
 - `GOOGLE_CLIENT_ID` and `FRONTEND_URL` are already in `wrangler.jsonc` for production.
   The `.dev.vars` values override them locally.
-- `WORKERS_CI_BRANCH` must be present but empty — this prevents the backend from
-  prefixing the branch name onto the frontend URL.
 - `JWT_SECRET` can be any random string. Generate one with:
   ```bash
   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
@@ -51,15 +48,12 @@ Create the file at `FantasyWiki/frontend/.env.local` with the following content:
 
 ```ini
 VITE_BACKEND_URL=http://127.0.0.1:8787
-VITE_WORKERS_CI_BRANCH=
 VITE_MOCK=true
 ```
 
 **Notes:**
 - `VITE_BACKEND_URL` must include `http://` explicitly — without it the frontend
   code adds `https://` automatically, causing an SSL error on localhost.
-- `VITE_WORKERS_CI_BRANCH` must be present but empty — without it the frontend
-  prefixes `master.` onto the backend URL, pointing to production.
 - `VITE_MOCK=true` enables MSW (Mock Service Worker), which intercepts all API
   calls except `/api/session` and `/auth/*`, which pass through to the real
   local backend.
@@ -141,7 +135,5 @@ so those requests reach the real Wrangler backend. Everything else is mocked.
 | `ERR_SSL_PROTOCOL_ERROR` | `VITE_BACKEND_URL` missing `http://` prefix | Add `http://` explicitly in `.env.local` |
 | `redirect_uri_mismatch` | Local URI not registered in Google Console | Follow Step 3 above |
 | `401` on `/api/session` | `FRONTEND_URL` in `.dev.vars` still points to production | Check `.dev.vars` exists inside `backend/` and restart Wrangler |
-| `master.*.workers.dev` in errors | `VITE_WORKERS_CI_BRANCH` not overridden | Add `VITE_WORKERS_CI_BRANCH=` (empty) to `frontend/.env.local` |
 | Backend not reachable | Wrangler not running or wrong port | Run `npx wrangler dev` and check the port in the log |
 | Cookie not sent | Browser privacy settings blocking cookies | Use Chrome/Firefox, disable aggressive privacy extensions during dev |
-

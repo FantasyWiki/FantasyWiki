@@ -30,7 +30,7 @@ This document describes the FantasyWiki Cloudflare deployment strategy across lo
 
 ### 3. Deploy Workflow (`deploy.yml`)
 - **Trigger**: `workflow_call`, `workflow_dispatch`
-- **Purpose**: branch-aware deployment for backend, frontend, and D1 migrations
+- **Purpose**: deploy backend, frontend, and D1 migrations to explicit target environments
   - `master`: backend `backend`, Pages project `frontend`, D1 `db`
   - `dev`: backend `backend-qa`, Pages project `frontend-qa`, D1 via `D1_QA_DATABASE_ID`
 
@@ -43,16 +43,16 @@ This document describes the FantasyWiki Cloudflare deployment strategy across lo
 - **Frontend Pages**: `frontend` (`fantasywiki.pages.dev`)
 - **D1 Database**: production database (`db`)
 - **Main vars**:
-  - `WORKERS_CI_BRANCH=master`
   - `FRONTEND_URL=fantasywiki.pages.dev`
+  - `VITE_BACKEND_URL=luca0patrignani.workers.dev`
 
 ### QA (`dev`)
 - **Backend Worker**: `backend-qa`
 - **Frontend Pages**: `frontend-qa` (dedicated QA Pages project)
 - **D1 Database**: QA D1 database (from `D1_QA_DATABASE_ID`)
 - **Main vars**:
-  - `WORKERS_CI_BRANCH=dev`
-  - `FRONTEND_URL=fantasywiki.pages.dev`
+  - `FRONTEND_URL=frontend-qa.pages.dev`
+  - `VITE_BACKEND_URL=backend-qa.luca0patrignani.workers.dev`
 
 ### Local
 - **Backend**: `wrangler dev` (`localhost:8787`)
@@ -136,7 +136,6 @@ The `db` binding is declared in Worker configuration and injected by Wrangler at
 ```typescript
 type Bindings = {
   db: D1Database;
-  WORKERS_CI_BRANCH: string;
   // ...
 };
 

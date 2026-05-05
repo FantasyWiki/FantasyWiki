@@ -5,3 +5,7 @@ export { notifications } from "./notifications";
 export { currentPlayerId } from "./session";
 export { teams } from "./teams";
 export { players } from "./players";
+export {
+  wikimediaTopReadArticles,
+  wikimediaPerArticleViews,
+} from "./wikimedia";

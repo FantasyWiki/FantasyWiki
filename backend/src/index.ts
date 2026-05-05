@@ -14,7 +14,6 @@ type Bindings = {
   GOOGLE_CLIENT_SECRET: string;
   JWT_SECRET: string;
   FRONTEND_URL: string;
-  WORKERS_CI_BRANCH: string;
 };
 
 app.use(
@@ -28,7 +27,6 @@ app.use(
 app.get("/", (c) => {
   return c.json({
     resolved_url: resolveFrontendUrl(c.env),
-    WORKERS_CI_BRANCH: c.env.WORKERS_CI_BRANCH,
     FRONTEND_URL: c.env.FRONTEND_URL,
   });
 });

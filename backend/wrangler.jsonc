@@ -16,6 +16,9 @@
   ],
   "env": {
     "dev": {
+      "vars": {
+        "FRONTEND_URL": "frontend-qa.pages.dev",
+      },
       "d1_databases": [
         {
           "binding": "db_dev",

@@ -1,4 +1,4 @@
-name: CI/CD
+name: ci-cd
 on:
   push:
   pull_request:
@@ -17,10 +17,28 @@ jobs:
       || startsWith(github.head_ref, 'dependabot/')
     steps:
       - run: 'true'
-  ci-cd:
+  check:
     needs:
       - dispatcher
-    uses: ./.github/workflows/build.yml
+    uses: ./.github/workflows/check.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+
+  coverage:
+    needs:
+      - dispatcher
+    uses: ./.github/workflows/backend-coverage.yml
+    secrets: inherit
+    permissions:
+      contents: write
+
+  deploy:
+    needs:
+      - check
+      - coverage
+    uses: ./.github/workflows/deploy.yml
     secrets: inherit
     permissions:
       contents: write

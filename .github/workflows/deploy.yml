@@ -1,0 +1,115 @@
+name: Deploy
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target_branch: master
+            worker_name: backend
+            workers_ci_branch: master
+          - target_branch: dev
+            worker_name: backend-qa
+            workers_ci_branch: dev
+    if: github.ref_name == matrix.target_branch
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy Worker to Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          wranglerVersion: "4.80.0"
+          workingDirectory: "backend"
+          command: deploy --name=${{ matrix.worker_name }}
+          vars: |
+            WORKERS_CI_BRANCH=${{ matrix.workers_ci_branch }}
+        env:
+          DEPLOYED_BRANCH: ${{ matrix.workers_ci_branch }}
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target_branch: master
+            pages_project: frontend
+            workers_ci_branch: master
+          - target_branch: dev
+            pages_project: frontend-qa
+            workers_ci_branch: dev
+    if: github.ref_name == matrix.target_branch
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: "frontend/package.json"
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+        env:
+          VITE_WORKERS_CI_BRANCH: ${{ matrix.workers_ci_branch }}
+          VITE_BACKEND_URL: "luca0patrignani.workers.dev"
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          wranglerVersion: "4.80.0"
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: "frontend"
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=${{ matrix.pages_project }}
+
+  migrate-d1:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target_branch: master
+            db_command: d1 migrations apply db --remote
+            migration_token: d1_runner
+          - target_branch: dev
+            db_command: d1 migrations apply $D1_QA_DATABASE_ID --remote
+            migration_token: api_token
+    if: github.ref_name == matrix.target_branch
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply D1 migrations
+        uses: cloudflare/wrangler-action@v3
+        with:
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ matrix.migration_token == 'd1_runner' && secrets.CLOUDFLARE_D1_MIGRATION_RUNNER_SECRET || secrets.CLOUDFLARE_API_TOKEN }}
+          wranglerVersion: "4.80.0"
+          workingDirectory: "backend"
+          command: ${{ matrix.db_command }}
+        env:
+          D1_QA_DATABASE_ID: ${{ secrets.D1_QA_DATABASE_ID }}
+
+  success:
+    runs-on: ubuntu-24.04
+    needs:
+      - deploy-backend
+      - deploy-frontend
+      - migrate-d1
+    if: >-
+      always() && (
+        contains(join(needs.*.result, ','), 'failure')
+        || !contains(join(needs.*.result, ','), 'cancelled')
+      )
+    steps:
+      - name: Verify deploy workflow
+        run: ${{ !contains(join(needs.*.result, ','), 'failure') }}

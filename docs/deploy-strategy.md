@@ -131,11 +131,11 @@ https://github.com/luca0patrignani/FantasyWiki/actions
 
 ## D1 Binding Notes
 
-The `DB` binding is declared in Worker configuration and injected by Wrangler at runtime. In backend code:
+The `db` binding is declared in Worker configuration and injected by Wrangler at runtime. In backend code:
 
 ```typescript
 type Bindings = {
-  DB: D1Database;
+  db: D1Database;
   WORKERS_CI_BRANCH: string;
   // ...
 };
@@ -143,4 +143,4 @@ type Bindings = {
 const app = new Hono<{ Bindings: Bindings }>();
 ```
 
-`c.env.DB` resolves to the correct database for each environment.
+`c.env.db` resolves to the correct database for each environment.

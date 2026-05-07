@@ -1,0 +1,27 @@
+[    1410ms] [LOG] %cDocumentation: %chttps://mswjs.io/docs font-weight:bold font-weight:normal @ http://localhost:5173/node_modules/.vite/deps/msw_browser.js?v=bf2f908f:3425
+[    1410ms] [LOG] Found an issue? https://github.com/mswjs/msw/issues @ http://localhost:5173/node_modules/.vite/deps/msw_browser.js?v=bf2f908f:3430
+[    1410ms] [LOG] Worker script URL: http://localhost:5173/mockServiceWorker.js @ http://localhost:5173/node_modules/.vite/deps/msw_browser.js?v=bf2f908f:3431
+[    1410ms] [LOG] Worker scope: http://localhost:5173/ @ http://localhost:5173/node_modules/.vite/deps/msw_browser.js?v=bf2f908f:3432
+[    1410ms] [LOG] Client ID: %s (%s) 5ecc26d4-1d1d-497a-9170-ccaca4daccf3 top-level @ http://localhost:5173/node_modules/.vite/deps/msw_browser.js?v=bf2f908f:3434
+[    1773ms] [LOG] Request {url: URL, method: GET, headers: Object, body: } @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:560
+[    1774ms] [LOG] Handler: HttpHandler @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:561
+[    1774ms] [LOG] Response {status: 200, statusText: OK, headers: Object, body: [{"id":"notif-1","leagueId":"italy","contract":{"i…e increased","date":"2024-02-18","isRead":false}]} @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:562
+[    1774ms] [LOG] Request {url: URL, method: GET, headers: Object, body: } @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:560
+[    1774ms] [LOG] Handler: HttpHandler @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:561
+[    1774ms] [LOG] Response {status: 200, statusText: OK, headers: Object, body: {"items":[{"project":"en.wikipedia","access":"all-…cle":"Taylor_Swift","views":1200000,"rank":8}]}]}} @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:562
+[    1807ms] [LOG] Request {url: URL, method: GET, headers: Object, body: } @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:560
+[    1807ms] [LOG] Handler: HttpHandler @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:561
+[    1807ms] [LOG] Response {status: 200, statusText: OK, headers: Object, body: {"items":[{"project":"en.wikipedia","article":"Cha…cess":"all-access","agent":"user","views":2000}]}} @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:562
+[    1807ms] [LOG] Request {url: URL, method: GET, headers: Object, body: } @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:560
+[    1807ms] [LOG] Handler: HttpHandler @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:561
+[    1807ms] [LOG] Response {status: 200, statusText: OK, headers: Object, body: {"items":[{"project":"en.wikipedia","article":"Pop…cess":"all-access","agent":"user","views":1600}]}} @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:562
+[    1808ms] [LOG] Request {url: URL, method: GET, headers: Object, body: } @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:560
+[    1808ms] [LOG] Handler: HttpHandler @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:561
+[    1808ms] [LOG] Response {status: 200, statusText: OK, headers: Object, body: {"items":[{"project":"en.wikipedia","article":"A_M…cess":"all-access","agent":"user","views":1700}]}} @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:562
+[    1810ms] [LOG] Request {url: URL, method: GET, headers: Object, body: } @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:560
+[    1810ms] [LOG] Handler: HttpHandler @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:561
+[    1810ms] [LOG] Response {status: 200, statusText: OK, headers: Object, body: {"items":[{"project":"en.wikipedia","article":"Don…cess":"all-access","agent":"user","views":1100}]}} @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:562
+[    1811ms] [LOG] Request {url: URL, method: GET, headers: Object, body: } @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:560
+[    1811ms] [LOG] Handler: HttpHandler @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:561
+[    1811ms] [LOG] Response {status: 200, statusText: OK, headers: Object, body: {"items":[{"project":"en.wikipedia","article":"The…cess":"all-access","agent":"user","views":1800}]}} @ http://localhost:5173/node_modules/.vite/deps/msw.js?v=bf2f908f:562
+[   20557ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5173/@vite/client:864

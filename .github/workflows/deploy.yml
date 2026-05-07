@@ -61,7 +61,7 @@ jobs:
           apiToken: ${{ github.ref_name == 'master' && secrets.CLOUDFLARE_D1_MIGRATION_RUNNER_SECRET || secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: "4.80.0"
           workingDirectory: "backend"
-          command: ${{ github.ref_name == 'master' && 'd1 migrations apply db --remote' || 'd1 migrations apply db_dev --remote' }}
+          command: ${{ github.ref_name == 'master' && 'd1 migrations apply db --remote' || 'd1 migrations apply db_dev --env=dev --remote' }}
 
   success:
     runs-on: ubuntu-24.04

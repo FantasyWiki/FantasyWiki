@@ -16,7 +16,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: "4.80.0"
           workingDirectory: "backend"
-          command: ${{ github.ref_name == 'master' && 'deploy --name=backend' || 'deploy --name=backend-qa --env=dev' }}
+          command: ${{ github.ref_name == 'master' && 'deploy --name=backend' || 'deploy --name=backend-dev --env=dev' }}
 
   deploy-frontend:
     runs-on: ubuntu-latest
@@ -47,7 +47,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: "frontend"
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=${{ github.ref_name == 'master' && 'frontend' || 'frontend-qa' }}
+          command: pages deploy dist --project-name=${{ github.ref_name == 'master' && 'frontend' || 'fantasywiki-dev' }}
 
   migrate-d1:
     runs-on: ubuntu-latest
@@ -58,7 +58,7 @@ jobs:
         uses: cloudflare/wrangler-action@v3
         with:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          apiToken: ${{ secrets.CLOUDFLARE_D1_MIGRATION_RUNNER_SECRET }}
           wranglerVersion: "4.80.0"
           workingDirectory: "backend"
           command: ${{ github.ref_name == 'master' && 'd1 migrations apply db --remote' || 'd1 migrations apply db-dev --env=dev --remote' }}

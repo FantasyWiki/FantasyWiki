@@ -17,11 +17,12 @@
   "env": {
     "dev": {
       "vars": {
+        "GOOGLE_CLIENT_ID": "457796621894-7krpa8n09mekpj2cdd952jjkf1c3ookt.apps.googleusercontent.com",
         "FRONTEND_URL": "frontend-qa.pages.dev",
       },
       "d1_databases": [
         {
-          "binding": "db_dev",
+          "binding": "db",
           "database_name": "db-dev",
           "database_id": "cd2e57f5-b1c1-47f4-ac3a-70b4621043c8",
         },

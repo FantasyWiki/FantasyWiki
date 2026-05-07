@@ -22,7 +22,7 @@
       },
       "d1_databases": [
         {
-          "binding": "db-dev",
+          "binding": "db",
           "database_name": "db-dev",
           "database_id": "cd2e57f5-b1c1-47f4-ac3a-70b4621043c8",
         },

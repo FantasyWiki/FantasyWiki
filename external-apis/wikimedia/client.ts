@@ -22,6 +22,12 @@ export type TopReadListResult = {
   entries: TopReadEntry[];
 };
 
+export type ArticleSummary = {
+  title: string;
+  extract: string;
+  thumbnailUrl?: string;
+};
+
 export type WikimediaClientOptions = {
   http?: WikimediaHttp;
   fetchFn?: FetchFn;
@@ -42,7 +48,16 @@ type PerArticleResponse = {
   items: Array<{ views: number }>;
 };
 
+type ArticleSummaryResponse = {
+  title?: string;
+  extract?: string;
+  thumbnail?: {
+    source?: string;
+  };
+};
+
 const BASE_URL = "https://wikimedia.org/api/rest_v1/metrics/pageviews";
+const BASE_WIKIPEDIA_URL = "https://wikipedia.org/api/rest_v1";
 
 function pad(value: number): string {
   return String(value).padStart(2, "0");
@@ -244,16 +259,48 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}) {
         }
         return result;
       } catch {
-        continue;
+
       }
     }
 
     throw new Error("Top read snapshot unavailable");
   }
 
+  async function getSummary(
+    domain: Enums,
+    title: string,
+  ): Promise<ArticleSummary> {
+    const projectDomain = toWikimediaProjectDomain(domain);
+    const encodedTitle = encodeURIComponent(title).replace(/%20/g, "_");
+    const url = `${BASE_WIKIPEDIA_URL}/page/summary/${encodedTitle}`;
+
+    const response = await fetchJsonWithRetry<ArticleSummaryResponse>(
+      {
+        get: async <ArticleSummaryResponse>(targetUrl: string) => {
+          const rewrittenUrl = targetUrl.replace(
+            BASE_WIKIPEDIA_URL,
+            `https://${projectDomain}.org/api/rest_v1`,
+          );
+          return http.get<ArticleSummaryResponse>(rewrittenUrl);
+        },
+      },
+      url,
+      retryCount,
+    );
+
+    return {
+      title: response.title ?? title,
+      extract: response.extract ?? "",
+      thumbnailUrl: response.thumbnail?.source,
+    };
+  }
+
   return {
     pageviews: {
       getTopReadList,
+    },
+    article: {
+      getSummary,
     },
   };
 }

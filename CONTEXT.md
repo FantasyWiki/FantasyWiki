@@ -52,6 +52,15 @@ _Avoid_: raw rank
 The original rank returned by the **Wikimedia Top Read API** before filtering.
 _Avoid_: displayed rank
 
+**Article Availability**:
+The ownership status of an article at the time detail is shown.
+Allowed values: **Free Agent**, **Owned by Viewer**, **Owned by Other Team**.
+_Avoid_: generic unavailable flag
+
+**Owner Team**:
+The team that currently owns a non-free article. This is always shown when availability is not **Free Agent**.
+_Avoid_: holder, assignee
+
 ## Relationships
 
 - A **Top Read Snapshot** belongs to exactly one **Project Domain**
@@ -64,6 +73,8 @@ _Avoid_: displayed rank
 - A **Top Read List** contains ordered **Top Read Entry** items
 - The landing badge metric is **Filtered Snapshot Volume**
 - A **Top Read Entry** displays **Filtered Rank** and may retain **Source Rank** for internal diagnostics
+- **Owner Team** exists only when **Article Availability** is not **Free Agent**
+- Buy action eligibility depends on **Article Availability** and viewer credits
 
 ## Example dialogue
 
@@ -82,5 +93,6 @@ _Avoid_: displayed rank
 - "project id format" was ambiguous — resolved: use `en.wikipedia`/`it.wikipedia` (not `*.org`) in Top Read endpoint paths.
 - "badge total" was ambiguous — resolved: badge uses **Filtered Snapshot Volume** (sum over all filtered snapshot entries), not top-5 only.
 - "today badge wording" was ambiguous — resolved: domain semantics remain latest available **Top Read Snapshot**, but landing marketing copy may say "views today" as a deliberate UI simplification.
-- "most searched" vs "most viewed" was ambiguous — resolved: this feature uses pageview-based **Top Read** data, so canonical wording is "most viewed."
-- "centralized Wikimedia service" was ambiguous — resolved: centralization means a shared **Wikimedia Client** policy contract, while callers may still be distributed across frontend and backend.
+- "most searched" vs "most viewed" was ambiguous - resolved: this feature uses pageview-based **Top Read** data, so canonical wording is "most viewed."
+- "centralized Wikimedia service" was ambiguous - resolved: centralization means a shared **Wikimedia Client** policy contract, while callers may still be distributed across frontend and backend.
+- "not available" was ambiguous - resolved: use explicit **Article Availability** states instead of a generic unavailable boolean.

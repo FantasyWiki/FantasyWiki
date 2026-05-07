@@ -7,14 +7,11 @@
     handle-behavior="cycle"
     class="article-detail-modal"
   >
-    <!-- ── Header ───────────────────────────────── -->
     <ion-header class="ion-no-border">
       <ion-toolbar>
         <ion-title class="modal-title">
           {{ selectedContract?.article.title ?? "Article Detail" }}
         </ion-title>
-
-        <!-- Tier badge next to title -->
         <ion-badge
           slot="end"
           :color="getTierColor(selectedContract?.tier)"
@@ -22,7 +19,6 @@
         >
           {{ selectedContract?.tier }}
         </ion-badge>
-
         <ion-buttons slot="end">
           <ion-button fill="clear" @click="emit('close')">
             <ion-icon :icon="closeOutline" slot="icon-only" />
@@ -31,31 +27,21 @@
       </ion-toolbar>
     </ion-header>
 
-    <!-- ── Content ──────────────────────────────── -->
-    <ion-content v-if="selectedContract" class="ion-padding">
-      <!-- 1. Points & current value highlight ───── -->
-      <div class="highlight-section">
-        <div class="highlight-row">
-          <div class="text-right">
-            <ion-text color="medium">
-              <p class="section-label ion-no-margin">Current Value</p>
-            </ion-text>
-            <p class="current-value ion-no-margin">
-              {{ selectedContract.currentPrice }} credits
-            </p>
-          </div>
-        </div>
-      </div>
+    <ion-content v-if="selectedContract && detailModel" class="ion-padding">
+      <ArticleInfoBlock
+        :model="detailModel"
+        :summary-extract="summary?.extract"
+        :summary-thumbnail-url="summary?.thumbnailUrl"
+        :is-loading-summary="isLoadingSummary"
+      />
 
       <ion-item-divider class="section-divider" />
 
-      <!-- 2. Contract details ─────────────────────  -->
       <div class="detail-section">
         <h3 class="section-title">
           <ion-icon :icon="timeOutline" />
           Contract Details
         </h3>
-
         <ion-grid class="ion-no-padding">
           <ion-row>
             <ion-col size="6">
@@ -71,135 +57,27 @@
             <ion-col size="6">
               <div class="info-box">
                 <ion-text color="medium">
-                  <p class="info-label ion-no-margin">
-                    <ion-icon :icon="calendarOutline" class="inline-icon" />
-                    Expires in
-                  </p>
+                  <p class="info-label ion-no-margin">Expires in</p>
                 </ion-text>
-                <p
-                  class="info-value ion-no-margin"
-                  :class="{
-                    'text-danger':
-                      selectedContract.expiresIn.total('days') <= 3,
-                  }"
-                >
+                <p class="info-value ion-no-margin">
                   {{ formatDuration(selectedContract.expiresIn) }}
                 </p>
               </div>
             </ion-col>
           </ion-row>
         </ion-grid>
-
-        <!-- Expiry warning chip -->
-        <ion-chip
-          v-if="selectedContract.expiresIn.total('days') <= 3"
-          color="danger"
-          outline
-          class="expiry-warning-chip"
-        >
-          <ion-icon :icon="warningOutline" />
-          <ion-label>
-            Contract expires
-            {{
-              selectedContract.expiresIn.total("days") <= 1
-                ? "tomorrow"
-                : `in ${formatDuration(selectedContract.expiresIn)}ays`
-            }}
-            — consider renewing
-          </ion-label>
-        </ion-chip>
       </div>
 
       <ion-item-divider class="section-divider" />
 
-      <!-- 3. Value tracking ───────────────────────  -->
-      <div class="detail-section">
-        <h3 class="section-title">
-          <ion-icon :icon="cashOutline" />
-          Value Tracking
-        </h3>
-
-        <ion-grid class="ion-no-padding">
-          <ion-row>
-            <ion-col size="6">
-              <div class="info-box">
-                <ion-text color="medium">
-                  <p class="info-label ion-no-margin">Purchase Price</p>
-                </ion-text>
-                <p class="info-value ion-no-margin">
-                  {{ selectedContract.purchasePrice }} credits
-                </p>
-              </div>
-            </ion-col>
-            <ion-col size="6">
-              <div class="info-box">
-                <ion-text color="medium">
-                  <p class="info-label ion-no-margin">Current Value</p>
-                </ion-text>
-                <p class="info-value ion-no-margin">
-                  {{ selectedContract.currentPrice }} credits
-                </p>
-              </div>
-            </ion-col>
-          </ion-row>
-        </ion-grid>
-
-        <!-- Value change pill -->
-        <div
-          class="value-change-pill"
-          :class="
-            valueChange >= 0
-              ? 'value-change-pill--up'
-              : 'value-change-pill--down'
-          "
-        >
-          <ion-icon
-            :icon="valueChange >= 0 ? trendingUpOutline : trendingDownOutline"
-          />
-          <span>
-            {{ valueChange >= 0 ? "+" : "" }}{{ valueChange }} credits ({{
-              valueChange >= 0 ? "+" : ""
-            }}{{ valueChangePercent }}%)
-          </span>
-        </div>
-      </div>
-
-      <ion-item-divider class="section-divider" />
-
-      <!-- 4. Actions ──────────────────────────────  -->
-      <div class="detail-section actions-section">
-        <!-- Renew — only shown when contract is close to expiry -->
-        <ion-button
-          v-if="selectedContract.expiresIn.total('days') <= 3"
-          expand="block"
-          color="primary"
-          fill="solid"
-          @click="emit('renew', selectedContract)"
-        >
-          <ion-icon slot="start" :icon="refreshOutline" />
-          Renew Contract
-        </ion-button>
-
-        <!-- Swap article -->
-        <ion-button
-          expand="block"
-          fill="outline"
-          @click="emit('swap', selectedContract)"
-        >
-          <ion-icon slot="start" :icon="swapHorizontalOutline" />
-          Swap Article
-        </ion-button>
-
-        <!-- Close -->
-        <ion-button
-          expand="block"
-          fill="clear"
-          color="medium"
-          @click="emit('close')"
-        >
-          Close
-        </ion-button>
-      </div>
+      <ArticleActions
+        :model="detailModel"
+        :selected-contract="selectedContract"
+        @buy="emit('buy')"
+        @renew="(contract) => emit('renew', contract)"
+        @swap="(contract) => emit('swap', contract)"
+        @close="emit('close')"
+      />
     </ion-content>
   </ion-modal>
 </template>
@@ -210,72 +88,84 @@ import {
   IonBadge,
   IonButton,
   IonButtons,
-  IonChip,
   IonCol,
   IonContent,
   IonGrid,
   IonHeader,
   IonIcon,
   IonItemDivider,
-  IonLabel,
   IonModal,
   IonRow,
   IonText,
   IonTitle,
   IonToolbar,
 } from "@ionic/vue";
-import {
-  calendarOutline,
-  cashOutline,
-  closeOutline,
-  refreshOutline,
-  swapHorizontalOutline,
-  timeOutline,
-  trendingDownOutline,
-  trendingUpOutline,
-  warningOutline,
-} from "ionicons/icons";
+import { closeOutline, timeOutline } from "ionicons/icons";
 import { ContractDTO } from "../../../dto/contractDTO";
+import type { Enums } from "../../../dto/enums";
+import { useAppStore } from "@/stores/app";
+import { useLeagueStore } from "@/stores/league";
 import { formatDuration } from "@/types/models";
+import { buildArticleDetailModel } from "@/components/articleDetail/articleDetailModel";
+import ArticleInfoBlock from "@/components/articleDetail/ArticleInfoBlock.vue";
+import ArticleActions from "@/components/articleDetail/ArticleActions.vue";
+import { useArticleSummary } from "@/composables/useArticleSummary";
 
-// ── Props ─────────────────────────────────────────
 interface Props {
-  /** The contract to display. Pass null to unmount content. */
   selectedContract: ContractDTO | null;
-  /** Controls modal visibility. */
   isOpen: boolean;
 }
 
 const props = defineProps<Props>();
 
-// ── Emits ─────────────────────────────────────────
 const emit = defineEmits<{
-  /** Modal dismissed / Close button tapped */
   close: [];
-  /** Renew Contract button tapped */
+  buy: [];
   renew: [contract: ContractDTO];
-  /** Swap Article button tapped */
   swap: [contract: ContractDTO];
 }>();
 
-// ── Computed ──────────────────────────────────────
-const valueChange = computed(() => {
-  if (!props.selectedContract) return 0;
+const appStore = useAppStore();
+const leagueStore = useLeagueStore();
+
+const viewerTeam = computed(() => {
+  const viewerId = appStore.currentUser?.sub;
+  if (!viewerId) return null;
   return (
-    props.selectedContract.currentPrice - props.selectedContract.purchasePrice
+    leagueStore.currentLeague?.teams.find(
+      (team) => team.player.id === viewerId
+    ) ?? null
   );
 });
 
-const valueChangePercent = computed(() => {
-  if (!props.selectedContract || props.selectedContract.purchasePrice === 0)
-    return "0.0";
-  return (
-    (valueChange.value / props.selectedContract.purchasePrice) *
-    100
-  ).toFixed(1);
+const detailModel = computed(() => {
+  const contract = props.selectedContract;
+  if (!contract) return null;
+  return buildArticleDetailModel({
+    article: contract.article,
+    currentPrice: contract.currentPrice,
+    purchasePrice: contract.purchasePrice,
+    expiresIn: contract.expiresIn,
+    tier: contract.tier,
+    ownerTeamId: contract.team.id,
+    ownerTeamName: contract.team.name,
+    viewerTeamId: viewerTeam.value?.id,
+    viewerCredits: viewerTeam.value?.credits,
+  });
 });
 
-// ── Helpers ───────────────────────────────────────
+const summarySource = computed(() => {
+  const contract = props.selectedContract;
+  if (!contract) return null;
+  return {
+    title: contract.article.title,
+    domain: contract.article.domain as Enums,
+  };
+});
+
+const { summary, isLoading: isLoadingSummary } =
+  useArticleSummary(summarySource);
+
 function getTierColor(tier?: string): string {
   switch (tier) {
     case "SHORT":
@@ -291,12 +181,10 @@ function getTierColor(tier?: string): string {
 </script>
 
 <style scoped>
-/* ── Modal shell ─────────────────────────────── */
 .article-detail-modal {
   --border-radius: 1rem 1rem 0 0;
 }
 
-/* ── Toolbar ─────────────────────────────────── */
 ion-toolbar {
   --background: var(--ion-background-color);
   --border-width: 0;
@@ -317,40 +205,6 @@ ion-toolbar {
   border-radius: 999px;
 }
 
-/* ── Highlight block ─────────────────────────── */
-.highlight-section {
-  background: rgba(var(--ion-color-primary-rgb), 0.06);
-  border-radius: 0.75rem;
-  padding: 1rem 1.25rem;
-  margin-bottom: 0.5rem;
-}
-
-.highlight-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.highlight-row .text-right {
-  text-align: right;
-}
-
-.section-label {
-  font-size: 0.72rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 4px;
-}
-
-.current-value {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--ion-color-dark);
-  margin-top: 4px;
-}
-
-/* ── Section divider ─────────────────────────── */
 .section-divider {
   --background: var(--ion-border-color);
   --padding-start: 0;
@@ -358,7 +212,6 @@ ion-toolbar {
   margin: 0.5rem 0;
 }
 
-/* ── Generic detail section ──────────────────── */
 .detail-section {
   padding: 0.75rem 0;
 }
@@ -374,12 +227,6 @@ ion-toolbar {
   margin: 0 0 0.75rem 0;
 }
 
-.section-title ion-icon {
-  font-size: 1rem;
-  color: var(--ion-color-medium);
-}
-
-/* ── Info boxes (contract & value grid) ──────── */
 .info-box {
   background: var(--ion-background-color-step-50);
   border: 1px solid var(--ion-border-color);
@@ -393,80 +240,12 @@ ion-toolbar {
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin-bottom: 4px;
 }
 
 .info-value {
   font-size: 1rem;
   font-weight: 600;
   color: var(--ion-color-dark);
-}
-
-.text-danger {
-  color: var(--ion-color-danger) !important;
-}
-
-/* ── Expiry warning chip ─────────────────────── */
-.expiry-warning-chip {
-  width: 100%;
-  height: auto;
-  border-radius: 0.5rem;
-  margin: 0.375rem 0 0;
-  --background: transparent;
-  font-size: 0.78rem;
-  white-space: normal;
-}
-
-.expiry-warning-chip ion-label {
-  white-space: normal;
-  line-height: 1.4;
-  padding: 0.25rem 0;
-}
-
-/* ── Value change pill ───────────────────────── */
-.value-change-pill {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  padding: 0.625rem 1rem;
-  border-radius: 0.625rem;
-  font-weight: 600;
-  font-size: 0.9rem;
-  margin-top: 0.375rem;
-}
-
-.value-change-pill ion-icon {
-  font-size: 1rem;
-}
-
-.value-change-pill--up {
-  background: rgba(var(--ion-color-success-rgb), 0.1);
-  color: var(--ion-color-success);
-}
-
-.value-change-pill--down {
-  background: rgba(var(--ion-color-danger-rgb), 0.1);
-  color: var(--ion-color-danger);
-}
-
-/* ── Actions section ─────────────────────────── */
-.actions-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding-bottom: 1.5rem;
-}
-
-.actions-section ion-button {
-  --border-radius: 0.625rem;
-  margin: 0;
-}
-
-/* ── Inline icon utility ─────────────────────── */
-.inline-icon {
-  font-size: 0.8rem;
-  vertical-align: middle;
-  margin-right: 2px;
+  margin-top: 0.2rem;
 }
 </style>

@@ -15,7 +15,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 describe("services/wikimediaClient", () => {
   it("uses external-api positional API in backend module", async () => {
     const fetchFn = vi
-      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(jsonResponse(buildTopReadResponse({})))
       .mockResolvedValue(jsonResponse(buildPerArticleViewsResponse([10, 20])));
 

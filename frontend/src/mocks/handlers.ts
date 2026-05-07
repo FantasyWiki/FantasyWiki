@@ -81,6 +81,20 @@ export const handlers = [
     }
   ),
 
+  http.get(
+    "https://:project.wikipedia.org/api/rest_v1/page/summary/:title",
+    ({ params }) => {
+      const decodedTitle = decodeURIComponent(String(params.title)).replace(
+        /_/g,
+        " "
+      );
+      return HttpResponse.json({
+        title: decodedTitle,
+        extract: `${decodedTitle} summary`,
+      });
+    }
+  ),
+
   // ── Session & Auth → passthrough al backend reale ──────────────────────────
   // Il login Google è un redirect del browser (non fetch), MSW non lo vede.
   // /api/session è invece una fetch normale: la lasciamo passare al backend

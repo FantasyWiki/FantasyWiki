@@ -7,9 +7,9 @@
   },
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "npm run deploy:master",
-    "deploy:master": "wrangler deploy --minify",
-    "deploy:dev": "wrangler deploy --env dev --minify",
+    "deploy": "npm run deploy:production",
+    "deploy:production": "wrangler deploy --minify",
+    "deploy:preview": "wrangler deploy --env preview --minify",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "test": "vitest run",
     "test-coverage": "vitest run --coverage",

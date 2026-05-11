@@ -16,7 +16,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: "4.80.0"
           workingDirectory: "backend"
-          command: ${{ github.ref_name == 'master' && 'deploy --name=backend' || 'deploy --name=backend-dev --env=dev' }}
+          command: ${{ github.ref_name == 'master' && 'deploy --name=backend' || 'deploy --name=backend-preview --env=preview' }}
 
   deploy-frontend:
     runs-on: ubuntu-latest
@@ -37,7 +37,7 @@ jobs:
         working-directory: frontend
 
       - name: Build frontend
-        run: ${{ github.ref_name == 'master' && 'npm run build' || 'npm run build -- --mode qa' }}
+        run: ${{ github.ref_name == 'master' && 'npm run build' || 'npm run build -- --mode preview' }}
         working-directory: frontend
 
       - name: Deploy to Cloudflare Pages
@@ -47,7 +47,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: "frontend"
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=${{ github.ref_name == 'master' && 'frontend' || 'fantasywiki-dev' }}
+          command: pages deploy dist --project-name=${{ github.ref_name == 'master' && 'frontend' || 'fantasywiki-preview' }}
 
   migrate-d1:
     runs-on: ubuntu-latest
@@ -61,7 +61,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_D1_MIGRATION_RUNNER_SECRET }}
           wranglerVersion: "4.80.0"
           workingDirectory: "backend"
-          command: ${{ github.ref_name == 'master' && 'd1 migrations apply db --remote' || 'd1 migrations apply db-dev --env=dev --remote' }}
+          command: ${{ github.ref_name == 'master' && 'd1 migrations apply db --remote' || 'd1 migrations apply db-preview --env=preview --remote' }}
 
   success:
     runs-on: ubuntu-24.04

@@ -7,10 +7,10 @@ compatibility_date = "2025-12-29"
 NODE_VERSION = "24.14.0"
 VITE_BACKEND_URL = "master.luca0patrignani.workers.dev"
 
-[env.dev.vars]
+[env.preview.vars]
 NODE_VERSION = "24.14.0"
 VITE_MOCK = "false"
-VITE_BACKEND_URL = "backend-dev.luca0patrignani.workers.dev"
+VITE_BACKEND_URL = "backend-preview.luca0patrignani.workers.dev"
 
 [env.production.vars]
 NODE_VERSION = "24.14.0"

@@ -54,4 +54,4 @@ const app = new Hono<{ Bindings: CloudflareBindings }>();
 ## Environment Configuration
 
 - `wrangler.jsonc` defines the base Worker (`backend`) and D1 binding (`db`).
-- `wrangler.jsonc` also defines the `dev` environment used for QA deployment (`backend-qa`) with its own bindings/vars.
+- `wrangler.jsonc` also defines the `preview` environment used for preview deployment (`backend-preview`) with its own bindings/vars.

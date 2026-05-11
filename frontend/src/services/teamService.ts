@@ -16,7 +16,7 @@ import type { ContractDTO } from "../../../dto/contractDTO";
 import { ContractDTO as ContractModel } from "../../../dto/contractDTO";
 import { Temporal } from "@js-temporal/polyfill";
 
-const BASE = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8787";
+const BASE = import.meta.env.VITE_BACKEND_URL;
 
 type RawContract = {
   id: string;

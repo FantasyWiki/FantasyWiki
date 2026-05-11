@@ -35,7 +35,6 @@ import { useRoute } from "vue-router";
 import { alertCircleOutline, closeOutline, logoGoogle } from "ionicons/icons";
 import { computed } from "vue";
 import AppLogo from "@/components/AppLogo.vue";
-import { resolveBackendUrl } from "@/services/resolveBackendUrl";
 
 const route = useRoute();
 
@@ -50,7 +49,7 @@ function dismiss() {
 }
 
 function signInWithGoogle() {
-  window.location.href = `${resolveBackendUrl()}/auth/google`;
+  window.location.href = `${import.meta.env.VITE_BACKEND_URL}/auth/google`;
 }
 </script>
 

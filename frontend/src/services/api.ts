@@ -7,9 +7,8 @@ import { ContractDTO } from "../../../dto/contractDTO";
 import { ArticleDTO } from "../../../dto/articleDTO";
 import { PerformanceDTO } from "../../../dto/performanceDTO";
 import { Temporal } from "@js-temporal/polyfill";
-import { resolveBackendUrl } from "@/services/resolveBackendUrl";
 
-const API_BASE_URL = resolveBackendUrl() + "/api";
+const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/api`;
 
 async function apiRequest<T = unknown>(
   endpoint: string,

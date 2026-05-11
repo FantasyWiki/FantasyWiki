@@ -20,8 +20,8 @@
             </ion-item>
             <ion-item>
               <ion-label>
-                <h3>Resolved Backend URL</h3>
-                <p>{{ resolvedBackendUrl }}</p>
+                <h3>Runtime Backend URL</h3>
+                <p>{{ backendUrl || "(not set)" }}</p>
               </ion-label>
             </ion-item>
           </ion-list>
@@ -46,10 +46,8 @@ import {
   IonItem,
   IonLabel,
 } from "@ionic/vue";
-import { resolveBackendUrl } from "@/services/resolveBackendUrl";
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
-const resolvedBackendUrl = resolveBackendUrl();
 </script>
 
 <style scoped>

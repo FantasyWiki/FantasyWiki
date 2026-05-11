@@ -52,8 +52,8 @@ VITE_MOCK=true
 ```
 
 **Notes:**
-- `VITE_BACKEND_URL` must include `http://` explicitly — without it the frontend
-  code adds `https://` automatically, causing an SSL error on localhost.
+- `VITE_BACKEND_URL` is used as-is by the frontend runtime, so include
+  `http://` explicitly for local backend.
 - `VITE_MOCK=true` enables MSW (Mock Service Worker), which intercepts all API
   calls except `/api/session` and `/auth/*`, which pass through to the real
   local backend.

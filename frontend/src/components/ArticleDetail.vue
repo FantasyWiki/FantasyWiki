@@ -2,8 +2,8 @@
   <ion-modal
     :is-open="isOpen"
     @did-dismiss="emit('close')"
-    :initial-breakpoint="0.92"
-    :breakpoints="[0, 0.92, 1]"
+    :initial-breakpoint="1"
+    :breakpoints="[0, 1]"
     handle-behavior="cycle"
     class="article-detail-modal"
   >
@@ -21,13 +21,20 @@
         </ion-badge>
         <ion-buttons slot="end">
           <ion-button fill="clear" @click="emit('close')">
-            <ion-icon :icon="closeOutline" slot="icon-only" />
+            <ion-icon
+              :icon="closeOutline"
+              slot="icon-only"
+              class="close-icon"
+            />
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
-    <ion-content v-if="selectedContract && detailModel" class="ion-padding">
+    <ion-content
+      v-if="selectedContract && detailModel"
+      class="ion-padding detail-content"
+    >
       <ArticleInfoBlock
         :model="detailModel"
         :summary-extract="summary?.extract"
@@ -37,11 +44,23 @@
 
       <ion-item-divider class="section-divider" />
 
-      <div class="detail-section">
-        <h3 class="section-title">
-          <ion-icon :icon="timeOutline" />
-          Contract Details
-        </h3>
+      <div class="detail-section contract-section">
+        <div class="section-head">
+          <h3 class="section-title">
+            <ion-icon :icon="timeOutline" />
+            Contract Details
+          </h3>
+          <ion-chip
+            class="urgency-chip"
+            :class="{
+              'urgency-chip--critical': expiryDays <= 1,
+              'urgency-chip--warning': expiryDays > 1 && expiryDays <= 3,
+            }"
+          >
+            {{ expiryLabel }}
+          </ion-chip>
+        </div>
+
         <ion-grid class="ion-no-padding">
           <ion-row>
             <ion-col size="6">
@@ -71,6 +90,7 @@
       <ion-item-divider class="section-divider" />
 
       <ArticleActions
+        v-if="ownershipContextStatus === 'ready'"
         :model="detailModel"
         :selected-contract="selectedContract"
         @buy="emit('buy')"
@@ -78,6 +98,32 @@
         @swap="(contract) => emit('swap', contract)"
         @close="emit('close')"
       />
+      <div v-else class="detail-section ownership-state">
+        <ion-text color="medium">
+          <p class="ownership-state__title ion-no-margin">
+            {{
+              ownershipContextStatus === "loading"
+                ? "Resolving ownership..."
+                : "Unable to determine ownership"
+            }}
+          </p>
+          <p class="ownership-state__subtitle ion-no-margin">
+            {{
+              ownershipContextStatus === "loading"
+                ? "Actions will appear when your team context is ready."
+                : "Please refresh and try again."
+            }}
+          </p>
+        </ion-text>
+        <ion-button
+          v-if="ownershipContextStatus === 'error'"
+          fill="outline"
+          size="small"
+          @click="leagueStore.fetchCurrentTeamContext()"
+        >
+          Retry ownership check
+        </ion-button>
+      </div>
     </ion-content>
   </ion-modal>
 </template>
@@ -88,6 +134,7 @@ import {
   IonBadge,
   IonButton,
   IonButtons,
+  IonChip,
   IonCol,
   IonContent,
   IonGrid,
@@ -103,7 +150,6 @@ import {
 import { closeOutline, timeOutline } from "ionicons/icons";
 import { ContractDTO } from "../../../dto/contractDTO";
 import type { Enums } from "../../../dto/enums";
-import { useAppStore } from "@/stores/app";
 import { useLeagueStore } from "@/stores/league";
 import { formatDuration } from "@/types/models";
 import { buildArticleDetailModel } from "@/components/articleDetail/articleDetailModel";
@@ -125,20 +171,17 @@ const emit = defineEmits<{
   swap: [contract: ContractDTO];
 }>();
 
-const appStore = useAppStore();
 const leagueStore = useLeagueStore();
 
-const viewerTeam = computed(() => {
-  const viewerId = appStore.currentUser?.sub;
-  if (!viewerId) return null;
-  return (
-    leagueStore.currentLeague?.teams.find(
-      (team) => team.player.id === viewerId
-    ) ?? null
-  );
+const ownershipContextStatus = computed<"loading" | "ready" | "error">(() => {
+  if (leagueStore.isTeamLoading) return "loading";
+  if (leagueStore.teamError) return "error";
+  if (!leagueStore.currentTeamId) return "loading";
+  return "ready";
 });
 
 const detailModel = computed(() => {
+  if (ownershipContextStatus.value !== "ready") return null;
   const contract = props.selectedContract;
   if (!contract) return null;
   return buildArticleDetailModel({
@@ -149,8 +192,8 @@ const detailModel = computed(() => {
     tier: contract.tier,
     ownerTeamId: contract.team.id,
     ownerTeamName: contract.team.name,
-    viewerTeamId: viewerTeam.value?.id,
-    viewerCredits: viewerTeam.value?.credits,
+    viewerTeamId: leagueStore.currentTeamId ?? undefined,
+    viewerCredits: leagueStore.currentTeam?.credits,
   });
 });
 
@@ -165,6 +208,18 @@ const summarySource = computed(() => {
 
 const { summary, isLoading: isLoadingSummary } =
   useArticleSummary(summarySource);
+
+const expiryDays = computed(() => {
+  const contract = props.selectedContract;
+  if (!contract) return 0;
+  return Math.max(0, Math.floor(contract.expiresIn.total("days")));
+});
+
+const expiryLabel = computed(() => {
+  if (expiryDays.value <= 1) return "Urgent";
+  if (expiryDays.value <= 3) return "Renew soon";
+  return "Healthy";
+});
 
 function getTierColor(tier?: string): string {
   switch (tier) {
@@ -185,6 +240,27 @@ function getTierColor(tier?: string): string {
   --border-radius: 1rem 1rem 0 0;
 }
 
+.detail-content {
+  --padding-bottom: calc(var(--ion-safe-area-bottom, 0px) + 1rem);
+}
+
+.ownership-state {
+  border: 1px dashed var(--ion-border-color);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.ownership-state__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.ownership-state__subtitle {
+  font-size: 0.8rem;
+}
+
 ion-toolbar {
   --background: var(--ion-background-color);
   --border-width: 0;
@@ -203,6 +279,10 @@ ion-toolbar {
   margin-right: 0.25rem;
   padding: 3px 8px;
   border-radius: 999px;
+}
+
+.close-icon {
+  font-size: 1.2rem;
 }
 
 .section-divider {
@@ -227,6 +307,40 @@ ion-toolbar {
   margin: 0 0 0.75rem 0;
 }
 
+.section-title ion-icon {
+  font-size: 0.95rem;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.urgency-chip {
+  --background: rgba(var(--ion-color-success-rgb), 0.12);
+  --color: var(--ion-color-success-shade);
+  font-weight: 600;
+}
+
+.urgency-chip--warning {
+  --background: rgba(var(--ion-color-warning-rgb), 0.18);
+  --color: var(--ion-color-warning-shade);
+}
+
+.urgency-chip--critical {
+  --background: rgba(var(--ion-color-danger-rgb), 0.18);
+  --color: var(--ion-color-danger-shade);
+}
+
+.contract-section {
+  background: rgba(var(--ion-color-primary-rgb), 0.03);
+  border: 1px solid var(--ion-border-color);
+  border-radius: 0.875rem;
+  padding: 0.875rem;
+}
+
 .info-box {
   background: var(--ion-background-color-step-50);
   border: 1px solid var(--ion-border-color);
@@ -247,5 +361,40 @@ ion-toolbar {
   font-weight: 600;
   color: var(--ion-color-dark);
   margin-top: 0.2rem;
+}
+
+@media (max-width: 576px) {
+  .modal-title {
+    font-size: 1rem;
+    padding-inline-start: 0.5rem;
+  }
+
+  .tier-badge {
+    font-size: 0.58rem;
+    padding: 2px 6px;
+  }
+
+  .close-icon {
+    font-size: 1rem;
+  }
+
+  .contract-section {
+    padding: 0.65rem;
+  }
+
+  .section-title {
+    font-size: 0.86rem;
+    gap: 0.38rem;
+    margin-bottom: 0.55rem;
+  }
+
+  .section-title ion-icon {
+    font-size: 0.8rem;
+  }
+
+  .urgency-chip {
+    font-size: 0.68rem;
+    height: 1.45rem;
+  }
 }
 </style>

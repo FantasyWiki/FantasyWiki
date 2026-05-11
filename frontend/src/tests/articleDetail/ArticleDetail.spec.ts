@@ -1,13 +1,26 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { Temporal } from "@js-temporal/polyfill";
 import { createPinia, setActivePinia } from "pinia";
+import { ref } from "vue";
 import ArticleDetail from "@/components/ArticleDetail.vue";
 import { ContractDTO } from "../../../../dto/contractDTO";
 import { useAppStore } from "@/stores/app";
 import { useLeagueStore } from "@/stores/league";
 import type { TeamDTO } from "../../../../dto/teamDTO";
 import type { LeagueDTO } from "../../../../dto/leagueDTO";
+
+vi.mock("@/composables/useArticleSummary", () => ({
+  useArticleSummary: () => ({
+    summary: ref({
+      title: "ChatGPT",
+      extract: "ChatGPT summary",
+      thumbnailUrl: undefined,
+    }),
+    isLoading: ref(false),
+    error: ref(null),
+  }),
+}));
 
 const viewerTeam: TeamDTO = {
   id: "team-viewer",
@@ -90,6 +103,11 @@ describe("ArticleDetail.vue", () => {
     expect(wrapper.text()).toContain("Swap Article");
     expect(wrapper.text()).not.toContain("Buy");
     expect(wrapper.text()).toContain("Availability");
+    const wikipediaLink = wrapper.find(".summary-link");
+    expect(wikipediaLink.exists()).toBe(true);
+    expect(wikipediaLink.attributes("href")).toContain(
+      "https://en.wikipedia.org/wiki/ChatGPT"
+    );
   });
 
   it("shows disabled buy and hides renew/swap when owned by another team", () => {

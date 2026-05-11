@@ -8,14 +8,11 @@ import {
   notifications,
   players,
   teams,
-  wikimediaPerArticleViews,
-  wikimediaTopReadArticles,
 } from "./data";
 import { ContractDTO } from "../../../dto/contractDTO";
 import type { TeamDTO } from "../../../dto/teamDTO";
 import type { TeamLineUp } from "@/types/team";
 import { mockTeamResponse } from "@/mocks/formationMocks";
-import { buildTopReadResponse } from "../../../external-apis/wikimedia/test-utils/fixtures";
 import Instant = Temporal.Instant;
 
 // =============================================================================
@@ -43,58 +40,6 @@ const mockTeamResponses: Record<string, TeamLineUp> = {
 // =============================================================================
 
 export const handlers = [
-  // ── Wikimedia pageviews ───────────────────────────────────────────────────────
-  http.get(
-    "https://wikimedia.org/api/rest_v1/metrics/pageviews/top/:project/all-access/:year/:month/:day",
-    ({ params }) =>
-      HttpResponse.json(
-        buildTopReadResponse({
-          project: String(params.project),
-          year: String(params.year),
-          month: String(params.month),
-          day: String(params.day),
-          articles: wikimediaTopReadArticles,
-        })
-      )
-  ),
-
-  http.get(
-    "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/:project/all-access/user/:article/daily/:start/:end",
-    ({ params }) => {
-      const article = decodeURIComponent(String(params.article));
-      const series = wikimediaPerArticleViews[article];
-      if (!series) {
-        return HttpResponse.json({ error: "Not found" }, { status: 404 });
-      }
-
-      return HttpResponse.json({
-        items: series.map((views, index) => ({
-          project: params.project,
-          article,
-          granularity: "daily",
-          timestamp: `202604${String(26 + index).padStart(2, "0")}00`,
-          access: "all-access",
-          agent: "user",
-          views,
-        })),
-      });
-    }
-  ),
-
-  http.get(
-    "https://:project.wikipedia.org/api/rest_v1/page/summary/:title",
-    ({ params }) => {
-      const decodedTitle = decodeURIComponent(String(params.title)).replace(
-        /_/g,
-        " "
-      );
-      return HttpResponse.json({
-        title: decodedTitle,
-        extract: `${decodedTitle} summary`,
-      });
-    }
-  ),
-
   // ── Session & Auth → passthrough al backend reale ──────────────────────────
   // Il login Google è un redirect del browser (non fetch), MSW non lo vede.
   // /api/session è invece una fetch normale: la lasciamo passare al backend

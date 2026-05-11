@@ -61,6 +61,10 @@ _Avoid_: generic unavailable flag
 The team that currently owns a non-free article. This is always shown when availability is not **Free Agent**.
 _Avoid_: holder, assignee
 
+**Viewer Team Context**:
+The team id representing the authenticated player's active team in the selected league.
+_Avoid_: viewer player id, session subject id
+
 ## Relationships
 
 - A **Top Read Snapshot** belongs to exactly one **Project Domain**
@@ -74,6 +78,7 @@ _Avoid_: holder, assignee
 - The landing badge metric is **Filtered Snapshot Volume**
 - A **Top Read Entry** displays **Filtered Rank** and may retain **Source Rank** for internal diagnostics
 - **Owner Team** exists only when **Article Availability** is not **Free Agent**
+- **Owner Team** and **Viewer Team Context** are both team-level concepts; ownership comparisons are team-id based, not player-id based
 - Buy action eligibility depends on **Article Availability** and viewer credits
 
 ## Example dialogue
@@ -96,3 +101,4 @@ _Avoid_: holder, assignee
 - "most searched" vs "most viewed" was ambiguous - resolved: this feature uses pageview-based **Top Read** data, so canonical wording is "most viewed."
 - "centralized Wikimedia service" was ambiguous - resolved: centralization means a shared **Wikimedia Client** policy contract, while callers may still be distributed across frontend and backend.
 - "not available" was ambiguous - resolved: use explicit **Article Availability** states instead of a generic unavailable boolean.
+- "contract owner identity" was ambiguous - resolved: ownership is determined by team id (**Owner Team** vs **Viewer Team Context**), not by player/session ids.

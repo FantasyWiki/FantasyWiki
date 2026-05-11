@@ -11,16 +11,20 @@ describe("HomePage.vue", () => {
     // Create a fresh Pinia instance for each test
     pinia = createPinia();
   });
-  it("should mount without any console errors or warnings", () => {
+  it("should mount without any console errors or warnings", async () => {
     router.push("/");
-    router.isReady().then(() => {
-      const wrapper = mount(HomePage, {
-        global: {
-          plugins: [router, pinia],
+    await router.isReady();
+    const wrapper = mount(HomePage, {
+      global: {
+        plugins: [router, pinia],
+        stubs: {
+          HeroSection: {
+            template: "<div data-testid='hero-stub' />",
+          },
         },
-      });
-
-      expect(wrapper.exists()).toBe(true);
+      },
     });
+
+    expect(wrapper.exists()).toBe(true);
   });
 });

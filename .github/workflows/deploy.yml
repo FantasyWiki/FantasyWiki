@@ -47,7 +47,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: "frontend"
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=${{ github.ref_name == 'master' && 'frontend' || 'fantasywiki-preview' }}
+          command: pages deploy dist --branch=${{ github.ref_name }}
 
   migrate-d1:
     runs-on: ubuntu-latest

@@ -1,23 +1,32 @@
 <template>
   <div class="detail-section">
-    <div class="summary-layout">
-      <img
-        class="summary-thumbnail"
-        :src="thumbnailUrl"
-        :alt="`${model.article.title} thumbnail`"
-      />
-      <div class="summary-text">
-        <p class="section-label ion-no-margin">Wikipedia Extract</p>
-        <p v-if="isLoadingSummary" class="summary-content ion-no-margin">
-          Loading summary...
-        </p>
-        <p v-else class="summary-content ion-no-margin">
-          {{ summaryText }}
-        </p>
+    <div class="summary-surface">
+      <div class="summary-layout">
+        <img
+          class="summary-thumbnail"
+          :src="thumbnailUrl"
+          :alt="`${model.article.title} thumbnail`"
+        />
+        <div class="summary-text">
+          <a
+            class="summary-link section-label ion-no-margin"
+            :href="wikipediaUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Open on Wikipedia
+          </a>
+          <p v-if="isLoadingSummary" class="summary-content ion-no-margin">
+            Loading summary...
+          </p>
+          <p v-else class="summary-content ion-no-margin">
+            {{ summaryText }}
+          </p>
+        </div>
       </div>
     </div>
 
-    <ion-grid class="ion-no-padding info-grid">
+    <ion-grid class="ion-no-padding info-grid stat-grid">
       <ion-row>
         <ion-col size="6">
           <div class="info-box">
@@ -113,21 +122,36 @@ const valueDelta = computed(() => {
   if (props.model.purchasePrice === undefined) return 0;
   return props.model.currentPrice - props.model.purchasePrice;
 });
+
+const wikipediaUrl = computed(() => {
+  const title = encodeURIComponent(props.model.article.title).replace(
+    /%20/g,
+    "_"
+  );
+  return `https://${props.model.article.domain}.wikipedia.org/wiki/${title}`;
+});
 </script>
 
 <style scoped>
 .summary-layout {
   display: grid;
-  grid-template-columns: 96px 1fr;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
+  grid-template-columns: 112px 1fr;
+  gap: 0.9rem;
+}
+
+.summary-surface {
+  background: var(--ion-background-color-step-50);
+  border: 1px solid var(--ion-border-color);
+  border-radius: 0.875rem;
+  padding: 0.875rem;
+  margin-bottom: 0.85rem;
 }
 
 .summary-thumbnail {
-  width: 96px;
-  height: 96px;
+  width: 112px;
+  height: 112px;
   object-fit: cover;
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   border: 1px solid var(--ion-border-color);
 }
 
@@ -140,8 +164,23 @@ const valueDelta = computed(() => {
   line-height: 1.4;
 }
 
+.summary-link {
+  display: inline-block;
+  color: var(--ion-color-primary-shade);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.summary-link:hover {
+  text-decoration: underline;
+}
+
 .info-grid {
   margin-top: 0.25rem;
+}
+
+.stat-grid .info-box {
+  min-height: 86px;
 }
 
 .info-box {
@@ -174,7 +213,20 @@ const valueDelta = computed(() => {
 }
 
 .buy-hint {
-  margin-top: 0.15rem;
+  margin-top: 0.35rem;
   font-size: 0.8rem;
+}
+
+@media (max-width: 480px) {
+  .summary-layout {
+    grid-template-columns: 96px 1fr;
+    gap: 0.65rem;
+  }
+
+  .summary-thumbnail {
+    width: 96px;
+    height: 96px;
+    border-radius: 0.6rem;
+  }
 }
 </style>

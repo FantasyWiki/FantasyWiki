@@ -14,7 +14,9 @@
             <ion-text color="medium">
               <p class="info-label ion-no-margin">Current Price</p>
             </ion-text>
-            <p class="info-value ion-no-margin">{{ model.currentPrice }} credits</p>
+            <p class="info-value ion-no-margin">
+              {{ model.currentPrice }} credits
+            </p>
           </div>
         </ion-col>
         <ion-col size="6">
@@ -44,13 +46,21 @@
         <ion-col size="6">
           <div class="info-box">
             <ion-text color="medium">
-              <p class="info-label ion-no-margin">Value Tracking
-                <ion-icon :icon="valueDelta >= 0 ? trendingUpOutline: trendingDownOutline" :color="valueDelta >= 0 ? 'success' : 'danger'"></ion-icon>
+              <p class="info-label ion-no-margin">
+                Value Tracking
+                <ion-icon
+                  :icon="
+                    valueDelta >= 0 ? trendingUpOutline : trendingDownOutline
+                  "
+                  :color="valueDelta >= 0 ? 'success' : 'danger'"
+                ></ion-icon>
               </p>
-            </ion-text >
+            </ion-text>
 
-            <p class="info-value ion-no-margin" >
-              <ion-label :color="valueDelta >= 0 ? 'success' : 'danger'">{{ valueDelta >= 0 ? "+ " : "- " }}{{ percentageDelta.toFixed(2) }} %
+            <p class="info-value ion-no-margin">
+              <ion-label :color="valueDelta >= 0 ? 'success' : 'danger'"
+                >{{ valueDelta >= 0 ? "+ " : "- "
+                }}{{ percentageDelta.toFixed(2) }} %
               </ion-label>
             </p>
           </div>
@@ -62,8 +72,19 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IonCol, IonGrid, IonIcon, IonLabel, IonRow, IonText } from "@ionic/vue";
-import {statsChartOutline, trendingDownOutline, trendingUpOutline} from "ionicons/icons";
+import {
+  IonCol,
+  IonGrid,
+  IonIcon,
+  IonLabel,
+  IonRow,
+  IonText,
+} from "@ionic/vue";
+import {
+  statsChartOutline,
+  trendingDownOutline,
+  trendingUpOutline,
+} from "ionicons/icons";
 import type { ArticleDetail } from "@/types/articleDetail";
 
 interface Props {
@@ -92,7 +113,7 @@ const valueDelta = computed(() => {
 
 const percentageDelta = computed(() => {
   if (props.model.purchasePrice === undefined) return 0;
-  return (valueDelta.value / props.model.purchasePrice)*100
+  return (valueDelta.value / props.model.purchasePrice) * 100;
 });
 </script>
 

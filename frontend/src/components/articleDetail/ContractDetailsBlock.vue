@@ -57,7 +57,10 @@ interface Props {
 const props = defineProps<Props>();
 
 const expiryDays = computed(() => {
-  return Math.max(0, Math.floor(props.selectedContract.expiresIn.total("days")));
+  return Math.max(
+    0,
+    Math.floor(props.selectedContract.expiresIn.total("days"))
+  );
 });
 
 const expiryLabel = computed(() => {

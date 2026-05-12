@@ -1,44 +1,44 @@
 <template>
-    <div class="summary-header">
-      <img
-        class="summary-thumbnail"
-        :src="thumbnailUrl"
-        :alt="`${model.article.title} thumbnail`"
-      />
-      <div class="summary-meta">
-        <h2 class="summary-title ion-no-margin">{{ model.article.title }}</h2>
-        <a
-          class="summary-link"
-          :href="wikipediaUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Open on Wikipedia
-        </a>
-      </div>
-    </div>
-
-    <p class="summary-content summary-content--single ion-margin">
-      <span>{{ summaryPreview }}</span>
-      <button
-        v-if="hasSummaryRemainder && !isExpanded"
-        class="summary-inline-toggle"
-        type="button"
-        @click="isExpanded = true"
+  <div class="summary-header">
+    <img
+      class="summary-thumbnail"
+      :src="thumbnailUrl"
+      :alt="`${model.article.title} thumbnail`"
+    />
+    <div class="summary-meta">
+      <h2 class="summary-title ion-no-margin">{{ model.article.title }}</h2>
+      <a
+        class="summary-link"
+        :href="wikipediaUrl"
+        target="_blank"
+        rel="noopener noreferrer"
       >
-        ...
+        Open on Wikipedia
+      </a>
+    </div>
+  </div>
+
+  <p class="summary-content summary-content--single ion-margin">
+    <span>{{ summaryPreview }}</span>
+    <button
+      v-if="hasSummaryRemainder && !isExpanded"
+      class="summary-inline-toggle"
+      type="button"
+      @click="isExpanded = true"
+    >
+      ...
+    </button>
+    <template v-if="isExpanded && hasSummaryRemainder">
+      <span> {{ summaryRemainder }}</span>
+      <button
+        class="summary-inline-toggle summary-inline-toggle--less"
+        type="button"
+        @click="isExpanded = false"
+      >
+        less
       </button>
-      <template v-if="isExpanded && hasSummaryRemainder">
-        <span> {{ summaryRemainder }}</span>
-        <button
-          class="summary-inline-toggle summary-inline-toggle--less"
-          type="button"
-          @click="isExpanded = false"
-        >
-          less
-        </button>
-      </template>
-    </p>
+    </template>
+  </p>
 </template>
 
 <script setup lang="ts">
@@ -76,7 +76,10 @@ const summarySplit = computed(() => {
   }
 
   const sentenceBoundary = text.search(/[.!?]\s+/);
-  if (sentenceBoundary >= minPreviewChars && sentenceBoundary <= maxPreviewChars) {
+  if (
+    sentenceBoundary >= minPreviewChars &&
+    sentenceBoundary <= maxPreviewChars
+  ) {
     const splitIndex = sentenceBoundary + 1;
     return {
       preview: text.slice(0, splitIndex).trimEnd(),
@@ -85,7 +88,8 @@ const summarySplit = computed(() => {
   }
 
   const wordBoundary = text.lastIndexOf(" ", maxPreviewChars);
-  const splitIndex = wordBoundary > minPreviewChars ? wordBoundary : maxPreviewChars;
+  const splitIndex =
+    wordBoundary > minPreviewChars ? wordBoundary : maxPreviewChars;
 
   return {
     preview: text.slice(0, splitIndex).trimEnd(),
@@ -108,7 +112,6 @@ const wikipediaUrl = computed(() => {
 </script>
 
 <style scoped>
-
 .summary-header {
   display: grid;
   grid-template-columns: 112px 1fr;
@@ -182,7 +185,6 @@ const wikipediaUrl = computed(() => {
 }
 
 @media (max-width: 576px) {
-
   .summary-header {
     grid-template-columns: 88px 1fr;
     gap: 0.62rem;

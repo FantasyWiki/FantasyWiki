@@ -30,9 +30,7 @@
         :is-loading-summary="isLoadingSummary"
       />
 
-
       <ArticleStatsBlock v-if="detailModel" :model="detailModel" />
-
 
       <ContractDetailsBlock
         v-if="selectedContract"
@@ -155,7 +153,6 @@ const summarySource = computed(() => {
 
 const { summary, isLoading: isLoadingSummary } =
   useArticleSummary(summarySource);
-
 </script>
 
 <style scoped>
@@ -202,11 +199,9 @@ ion-toolbar {
 }
 
 @media (max-width: 576px) {
-
   .close-icon {
     font-size: 1rem;
   }
-
 }
 
 @media (min-width: 992px) {

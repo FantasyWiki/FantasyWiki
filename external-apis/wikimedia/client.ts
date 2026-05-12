@@ -259,7 +259,7 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}) {
         }
         return result;
       } catch {
-
+          // Fall back to the previous day's snapshot when this date is unavailable.
       }
     }
 

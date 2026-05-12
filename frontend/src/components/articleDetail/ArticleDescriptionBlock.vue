@@ -24,15 +24,19 @@
       v-if="hasSummaryRemainder && !isExpanded"
       class="summary-inline-toggle"
       type="button"
+      aria-label="Expand summary"
+      title="Expand summary"
       @click="isExpanded = true"
     >
-      ...
+      more...
     </button>
     <template v-if="isExpanded && hasSummaryRemainder">
       <span> {{ summaryRemainder }}</span>
       <button
         class="summary-inline-toggle summary-inline-toggle--less"
         type="button"
+        aria-label="Collapse summary"
+        title="Collapse summary"
         @click="isExpanded = false"
       >
         less

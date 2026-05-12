@@ -59,7 +59,7 @@
 
             <p class="info-value ion-no-margin">
               <ion-label :color="valueDelta >= 0 ? 'success' : 'danger'"
-                >{{ valueDelta >= 0 ? "+ " : "- "
+                >{{ valueDelta >= 0 ? "+ " : ""
                 }}{{ percentageDelta.toFixed(2) }} %
               </ion-label>
             </p>

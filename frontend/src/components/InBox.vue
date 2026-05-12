@@ -166,7 +166,7 @@ import {
 
 // Inside InBox.vue <script setup> — no props needed for these
 import { useLeagueStore } from "@/stores/league";
-import { useNotifications } from "@/stores/useNotifications";
+import { useNotifications } from "@/composables/useNotifications";
 import { useMutation, useQueryClient } from "@tanstack/vue-query";
 import api from "@/services/api";
 

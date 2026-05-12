@@ -21,6 +21,34 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 describe("external-apis/wikimedia/client", () => {
+  it("returns article summary with extract and thumbnail", async () => {
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      jsonResponse({
+        title: "ChatGPT",
+        extract: "ChatGPT is a chatbot by OpenAI.",
+        thumbnail: { source: "https://upload.wikimedia.org/chatgpt.jpg" },
+      })
+    );
+
+    const client = createWikimediaClient({
+      fetchFn,
+      cache: null,
+    });
+
+    const result = await client.article.getSummary("en", "ChatGPT");
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "https://en.wikipedia.org/api/rest_v1/page/summary/ChatGPT"
+      )
+    );
+    expect(result).toEqual({
+      title: "ChatGPT",
+      extract: "ChatGPT is a chatbot by OpenAI.",
+      thumbnailUrl: "https://upload.wikimedia.org/chatgpt.jpg",
+    });
+  });
+
   it("supports positional API and returns normalized top-read data", async () => {
     const fetchFn = vi
       .fn<typeof fetch>()

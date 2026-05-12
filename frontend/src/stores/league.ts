@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import api, { deserializeLeague } from "@/services/api";
 import { LeagueDTO } from "../../../dto/leagueDTO";
+import type { TeamDTO } from "../../../dto/teamDTO";
 import { Temporal } from "@js-temporal/polyfill";
 import Now = Temporal.Now;
 
@@ -30,13 +31,18 @@ export const useLeagueStore = defineStore("league", () => {
     teams: [],
   });
   const currentLeague = ref<LeagueDTO>();
+  const currentTeam = ref<TeamDTO | null>(null);
   const availableLeagues = ref<LeagueDTO[]>([]);
   const isLoading = ref(false);
+  const isTeamLoading = ref(false);
+  const currentTeamRequestId = ref(0);
   const error = ref<string | null>(null);
+  const teamError = ref<string | null>(null);
 
   // ── Getters ────────────────────────────────────────────────────────────────
 
   const currentLeagueId = computed(() => currentLeague.value?.id ?? null);
+  const currentTeamId = computed(() => currentTeam.value?.id ?? null);
 
   const currentLeagueName = computed(
     () => currentLeague.value?.title ?? "No League Selected"
@@ -69,6 +75,35 @@ export const useLeagueStore = defineStore("league", () => {
     return resolved;
   }
 
+  async function fetchCurrentTeamContext() {
+    const requestId = ++currentTeamRequestId.value;
+    const leagueId = currentLeague.value?.id;
+    if (!leagueId) {
+      currentTeam.value = null;
+      teamError.value = null;
+      isTeamLoading.value = false;
+      return;
+    }
+
+    isTeamLoading.value = true;
+    teamError.value = null;
+    try {
+      const nextTeam = await api.leagues.getMyTeam(leagueId);
+      if (requestId !== currentTeamRequestId.value) return;
+      currentTeam.value = nextTeam;
+    } catch (err) {
+      if (requestId !== currentTeamRequestId.value) return;
+      currentTeam.value = null;
+      teamError.value =
+        err instanceof Error ? err.message : "Failed to fetch current team";
+      console.error("Failed to fetch current team:", err);
+    } finally {
+      if (requestId === currentTeamRequestId.value) {
+        isTeamLoading.value = false;
+      }
+    }
+  }
+
   // ── Actions ────────────────────────────────────────────────────────────────
 
   /**
@@ -82,6 +117,7 @@ export const useLeagueStore = defineStore("league", () => {
     try {
       availableLeagues.value = await api.leagues.getAll();
       _resolveCurrentLeague();
+      await fetchCurrentTeamContext();
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to fetch leagues";
@@ -100,6 +136,7 @@ export const useLeagueStore = defineStore("league", () => {
   function setCurrentLeague(league: LeagueDTO) {
     currentLeague.value = league;
     localStorage.setItem("currentLeague", JSON.stringify(league));
+    void fetchCurrentTeamContext();
   }
 
   /**
@@ -131,15 +168,20 @@ export const useLeagueStore = defineStore("league", () => {
   return {
     // State
     currentLeague,
+    currentTeam,
     availableLeagues,
     isLoading,
+    isTeamLoading,
     error,
+    teamError,
     // Getters
     currentLeagueId,
+    currentTeamId,
     currentLeagueName,
     // Actions
     setCurrentLeague,
     fetchLeagues,
+    fetchCurrentTeamContext,
     initialize,
   };
 });

@@ -1,16 +1,34 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import router from "@/router/index";
 import ArticleLeaderboard from "@/components/homePage/ArticleLeaderboard.vue";
-import { server } from "@/mocks/server";
-import { http, HttpResponse } from "msw";
+
+const { mockGetTopReadList } = vi.hoisted(() => ({
+  mockGetTopReadList: vi.fn(),
+}));
+
+vi.mock("@/services/wikimediaClient", () => ({
+  createWikimediaClient: () => ({
+    pageviews: {
+      getTopReadList: mockGetTopReadList,
+    },
+  }),
+}));
 
 describe("ArticleLeaderboard.vue", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    mockGetTopReadList.mockReset();
   });
 
   it("shows loading placeholder before the first Wikimedia response", async () => {
+    mockGetTopReadList.mockResolvedValue({
+      projectDomain: "en.wikipedia",
+      snapshotDate: "2026-04-27",
+      filteredSnapshotVolume: 6000,
+      entries: [],
+    });
+
     router.push("/");
     await router.isReady();
 
@@ -29,6 +47,23 @@ describe("ArticleLeaderboard.vue", () => {
   });
 
   it("renders Wikimedia top-read entries with daily and 30d average views", async () => {
+    mockGetTopReadList.mockResolvedValue({
+      projectDomain: "en.wikipedia",
+      snapshotDate: "2026-04-27",
+      filteredSnapshotVolume: 6000,
+      entries: [
+        {
+          canonicalTitle: "ChatGPT",
+          displayTitle: "ChatGPT",
+          sourceRank: 3,
+          filteredRank: 1,
+          dailyViews: 3000,
+          articleUrl: "https://en.wikipedia.org/wiki/ChatGPT",
+          averageViews30d: 1500,
+        },
+      ],
+    });
+
     router.push("/");
     await router.isReady();
 
@@ -47,12 +82,7 @@ describe("ArticleLeaderboard.vue", () => {
   });
 
   it("shows non-blocking unavailable message when Wikimedia data fails", async () => {
-    server.use(
-      http.get(
-        "https://wikimedia.org/api/rest_v1/metrics/pageviews/top/:project/all-access/:year/:month/:day",
-        () => HttpResponse.json({ error: "upstream down" }, { status: 503 })
-      )
-    );
+    mockGetTopReadList.mockRejectedValue(new Error("upstream down"));
 
     router.push("/");
     await router.isReady();

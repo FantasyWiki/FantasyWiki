@@ -83,10 +83,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IonCol, IonGrid, IonRow, IonText } from "@ionic/vue";
-import type { ArticleDetailModel } from "@/components/articleDetail/articleDetailModel";
+import type { ArticleDetail } from "@/types/articleDetail";
 
 interface Props {
-  model: ArticleDetailModel;
+  model: ArticleDetail;
   summaryExtract?: string;
   summaryThumbnailUrl?: string;
   isLoadingSummary: boolean;

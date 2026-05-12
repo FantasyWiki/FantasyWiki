@@ -9,7 +9,7 @@
 
 <script setup lang="ts">
 import { IonSpinner } from "@ionic/vue";
-import { useAsyncIndicator } from "@/stores/useAsyncIndicator";
+import { useAsyncIndicator } from "@/composables/useAsyncIndicator";
 
 const asyncIndicator = useAsyncIndicator();
 </script>

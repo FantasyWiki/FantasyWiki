@@ -107,9 +107,9 @@ import NeededAttention from "@/components/teamDashboard/NeededAttention.vue";
 import LeagueLeaderboard from "@/components/teamDashboard/LeagueLeaderboard.vue";
 
 import { useLeagueStore } from "@/stores/league";
-import { useDashboard } from "@/stores/useDashboard";
-import { useLeaguePerformances } from "@/stores/useLeaguePerformances";
-import { useTeamLineup } from "@/stores/useTeamLineup";
+import { useDashboard } from "@/composables/useDashboard";
+import { useLeaguePerformances } from "@/composables/useLeaguePerformances";
+import { useTeamLineup } from "@/composables/useTeamLineup";
 import TeamManagement from "@/components/teamDashboard/TeamManagement.vue";
 
 const router = useRouter();

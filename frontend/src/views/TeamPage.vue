@@ -129,7 +129,7 @@ import TeamFormation from "@/components/formation/TeamFormation.vue";
 import BenchSection from "@/components/formation/BenchSection.vue";
 import ArticleDetail from "@/components/ArticleDetail.vue";
 
-import { useTeamLineup } from "@/stores/useTeamLineup";
+import { useTeamLineup } from "@/composables/useTeamLineup";
 import { useLeagueStore } from "@/stores/league";
 import { FORMATIONS } from "@/types/pitch";
 import type { Schema, Position } from "@/../../dto/formationDTO";

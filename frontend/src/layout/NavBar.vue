@@ -209,7 +209,7 @@ import AppLogo from "@/components/AppLogo.vue";
 import LoginPage from "@/views/auth/LoginPage.vue";
 import { useAppStore } from "@/stores/app";
 import { useLeagueStore } from "@/stores/league";
-import { useNotifications } from "@/stores/useNotifications";
+import { useNotifications } from "@/composables/useNotifications";
 import { LeagueDTO } from "../../../dto/leagueDTO";
 
 const router = useRouter();

@@ -1,16 +1,16 @@
 <template>
   <div class="detail-section actions-section">
     <ion-button
-      v-if="model.showBuy"
+      v-if="model?.showBuy"
       expand="block"
       color="primary"
-      :disabled="model.buyDisabled"
+      :disabled="model?.buyDisabled"
       @click="emit('buy')"
     >
       Buy
     </ion-button>
 
-    <template v-if="model.showContractActions && selectedContract">
+    <template v-if="model?.showContractActions && selectedContract">
       <ion-button
         expand="block"
         color="primary"
@@ -51,10 +51,10 @@
 import { IonButton, IonIcon } from "@ionic/vue";
 import { refreshOutline, swapHorizontalOutline } from "ionicons/icons";
 import type { ContractDTO } from "../../../../dto/contractDTO";
-import type { ArticleDetailModel } from "@/components/articleDetail/articleDetailModel";
+import type { ArticleDetail } from "@/types/articleDetail";
 
 interface Props {
-  model: ArticleDetailModel;
+  model: ArticleDetail | null;
   selectedContract: ContractDTO | null;
 }
 

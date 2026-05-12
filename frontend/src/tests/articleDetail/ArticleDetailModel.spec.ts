@@ -3,7 +3,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import { ContractDTO } from "../../../../dto/contractDTO";
 import type { TeamDTO } from "../../../../dto/teamDTO";
 import type { ArticleDTO } from "../../../../dto/articleDTO";
-import { buildArticleDetailModel } from "@/components/articleDetail/articleDetailModel";
+import { buildArticleDetail } from "@/types/articleDetail";
 
 const viewerTeam: TeamDTO = {
   id: "team-viewer",
@@ -43,7 +43,7 @@ function makeContract(team: TeamDTO, purchasePrice = 800): ContractDTO {
 
 describe("articleDetailModel", () => {
   it("marks contract owned by viewer and hides buy action", () => {
-    const model = buildArticleDetailModel({
+    const model = buildArticleDetail({
       article,
       currentPrice: 1000,
       purchasePrice: 800,
@@ -63,7 +63,7 @@ describe("articleDetailModel", () => {
   it("marks contract owned by other team and disables buy", () => {
     const contract = makeContract(otherTeam, 700);
 
-    const model = buildArticleDetailModel({
+    const model = buildArticleDetail({
       article: contract.article,
       currentPrice: contract.currentPrice,
       purchasePrice: contract.purchasePrice,
@@ -84,7 +84,7 @@ describe("articleDetailModel", () => {
   });
 
   it("marks free-agent and disables buy when viewer credits are insufficient", () => {
-    const model = buildArticleDetailModel({
+    const model = buildArticleDetail({
       article,
       currentPrice: 1000,
       viewerTeamId: viewerTeam.id,

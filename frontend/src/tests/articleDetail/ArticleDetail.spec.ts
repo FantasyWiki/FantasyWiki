@@ -5,7 +5,6 @@ import { createPinia, setActivePinia } from "pinia";
 import { ref } from "vue";
 import ArticleDetail from "@/components/ArticleDetail.vue";
 import { ContractDTO } from "../../../../dto/contractDTO";
-import { useAppStore } from "@/stores/app";
 import { useLeagueStore } from "@/stores/league";
 import type { TeamDTO } from "../../../../dto/teamDTO";
 import type { LeagueDTO } from "../../../../dto/leagueDTO";
@@ -63,21 +62,21 @@ function makeContract(team: TeamDTO, purchasePrice = 800): ContractDTO {
   );
 }
 
-function mountWithStores(contract: ContractDTO) {
+interface MountOptions {
+  currentTeam?: TeamDTO | null;
+  isTeamLoading?: boolean;
+  teamError?: string | null;
+}
+
+function mountWithStores(contract: ContractDTO, options: MountOptions = {}) {
   const pinia = createPinia();
   setActivePinia(pinia);
 
-  const appStore = useAppStore();
-  appStore.isAuthenticated = true;
-  appStore.currentUser = {
-    sub: "viewer-player",
-    email: "viewer@test.com",
-    name: "Viewer",
-    picture: "",
-  };
-
   const leagueStore = useLeagueStore();
   leagueStore.currentLeague = league;
+  leagueStore.currentTeam = options.currentTeam ?? viewerTeam;
+  leagueStore.isTeamLoading = options.isTeamLoading ?? false;
+  leagueStore.teamError = options.teamError ?? null;
 
   return mount(ArticleDetail, {
     props: {
@@ -97,7 +96,9 @@ function mountWithStores(contract: ContractDTO) {
 
 describe("ArticleDetail.vue", () => {
   it("shows renew and swap actions for viewer-owned contract", () => {
-    const wrapper = mountWithStores(makeContract(viewerTeam));
+    const wrapper = mountWithStores(makeContract(viewerTeam), {
+      currentTeam: viewerTeam,
+    });
 
     expect(wrapper.text()).toContain("Renew Contract");
     expect(wrapper.text()).toContain("Swap Article");
@@ -111,11 +112,41 @@ describe("ArticleDetail.vue", () => {
   });
 
   it("shows disabled buy and hides renew/swap when owned by another team", () => {
-    const wrapper = mountWithStores(makeContract(otherTeam));
+    const wrapper = mountWithStores(makeContract(otherTeam), {
+      currentTeam: viewerTeam,
+    });
 
     expect(wrapper.text()).toContain("Buy");
     expect(wrapper.text()).toContain("Already Owned");
     expect(wrapper.text()).toContain("Other FC");
+    expect(wrapper.text()).not.toContain("Renew Contract");
+    expect(wrapper.text()).not.toContain("Swap Article");
+  });
+
+  it("delays actions while ownership context is loading", () => {
+    const wrapper = mountWithStores(makeContract(otherTeam), {
+      currentTeam: null,
+      isTeamLoading: true,
+    });
+
+    expect(wrapper.text()).toContain("Resolving ownership...");
+    expect(wrapper.text()).toContain(
+      "Actions will appear when your team context is ready."
+    );
+    expect(wrapper.text()).not.toContain("Buy");
+    expect(wrapper.text()).not.toContain("Renew Contract");
+    expect(wrapper.text()).not.toContain("Swap Article");
+  });
+
+  it("shows ownership-unavailable state when team context fails", () => {
+    const wrapper = mountWithStores(makeContract(otherTeam), {
+      currentTeam: null,
+      teamError: "boom",
+    });
+
+    expect(wrapper.text()).toContain("Unable to determine ownership");
+    expect(wrapper.text()).toContain("Retry ownership check");
+    expect(wrapper.text()).not.toContain("Buy");
     expect(wrapper.text()).not.toContain("Renew Contract");
     expect(wrapper.text()).not.toContain("Swap Article");
   });

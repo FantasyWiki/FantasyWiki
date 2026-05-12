@@ -34,6 +34,39 @@ It also applies resilience policies consistently:
 - Retry for transient failures (`retryCount`, 429/5xx)
 - Best-effort cache (cache read/parse/write failures must not break the main flow)
 
+## Atomic notes: article-detail data contract
+
+This section documents the data boundaries used by article detail behavior.
+
+### Source-of-truth split
+
+- **External Wikimedia data (non-persisted)**:
+  - Article summary (`title`, `extract`, optional `thumbnailUrl`) is loaded from Wikimedia on demand through the shared client API:
+    - `external-apis/wikimedia/client.ts` → `article.getSummary(domain, title)`
+- **Persisted game/domain data**:
+  - Contract ownership, price, expiry, and team context come from backend game APIs (`/api/*`), not Wikimedia.
+
+### Runtime/mock policy
+
+- Runtime mock mode must not replace Wikimedia summary responses.
+- Wikimedia behavior may be stubbed only in tests at the service/composable boundary for determinism.
+
+### Ownership contract boundary
+
+- Ownership evaluation is team-based:
+  - **Owner Team**: contract owner team id from contract payload.
+  - **Viewer Team Context**: active team id for selected league from `/api/leagues/:leagueId/team`.
+- Client ownership logic must compare team ids, never player ids or session subject ids.
+
+### Change points for data behavior
+
+- To change summary mapping/fallback policy:
+  - edit `external-apis/wikimedia/client.ts` (`ArticleSummaryResponse` mapping and `article.getSummary`).
+- To change summary loading/caching semantics in frontend:
+  - edit `frontend/src/composables/useArticleSummary.ts` (`summaryCache`, fetch trigger, error behavior).
+- To change ownership context acquisition:
+  - edit `frontend/src/stores/league.ts` (`fetchCurrentTeamContext`, `currentTeamId`, loading/error states).
+
 ## Where Axios is used
 
 Axios is used only inside runtime wrappers:

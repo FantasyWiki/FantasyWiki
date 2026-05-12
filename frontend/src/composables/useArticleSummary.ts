@@ -1,11 +1,11 @@
 import { ref, watch, type Ref } from "vue";
-import type { Enums } from "../../../dto/enums";
+import type { Domain } from "../../../dto/enums";
 import { createWikimediaClient } from "@/services/wikimediaClient";
 import type { ArticleSummary } from "../../../external-apis/wikimedia/client";
 
 type ArticleSummarySource = {
   title: string;
-  domain: Enums;
+  domain: Domain;
 } | null;
 
 const summaryCache = new Map<string, ArticleSummary>();

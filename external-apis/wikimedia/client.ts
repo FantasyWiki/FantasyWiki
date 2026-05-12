@@ -1,4 +1,4 @@
-import type { Enums } from "../../dto/enums";
+import type { Domain } from "../../dto/enums";
 import {
   computeFilteredSnapshotVolume,
   normalizeTopReadEntries,
@@ -188,7 +188,7 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}) {
   const averageDays = options.averageDays ?? 30;
 
   async function getTopReadList(
-    domain: Enums,
+    domain: Domain,
     limit: number,
   ): Promise<TopReadListResult> {
     const projectDomain = toWikimediaProjectDomain(domain);
@@ -267,7 +267,7 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}) {
   }
 
   async function getSummary(
-    domain: Enums,
+    domain: Domain,
     title: string,
   ): Promise<ArticleSummary> {
     const projectDomain = toWikimediaProjectDomain(domain);

@@ -25,17 +25,21 @@
       class="summary-inline-toggle"
       type="button"
       aria-label="Expand summary"
+      :aria-expanded="false"
+      :aria-controls="summaryRemainderId"
       title="Expand summary"
       @click="isExpanded = true"
     >
       more...
     </button>
     <template v-if="isExpanded && hasSummaryRemainder">
-      <span> {{ summaryRemainder }}</span>
+      <span :id="summaryRemainderId"> {{ summaryRemainder }}</span>
       <button
         class="summary-inline-toggle summary-inline-toggle--less"
         type="button"
         aria-label="Collapse summary"
+        :aria-expanded="true"
+        :aria-controls="summaryRemainderId"
         title="Collapse summary"
         @click="isExpanded = false"
       >
@@ -105,6 +109,9 @@ const summaryPreview = computed(() => summarySplit.value.preview);
 const summaryRemainder = computed(() => summarySplit.value.remainder);
 
 const hasSummaryRemainder = computed(() => summaryRemainder.value.length > 0);
+const summaryRemainderId = computed(
+  () => `summary-remainder-${props.model.article.id}`
+);
 
 const wikipediaUrl = computed(() => {
   const title = encodeURIComponent(props.model.article.title).replace(

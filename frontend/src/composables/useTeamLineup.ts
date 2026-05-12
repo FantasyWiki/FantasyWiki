@@ -71,6 +71,17 @@ export function useTeamLineup() {
     { immediate: true }
   );
 
+  watch(
+    () => leagueStore.currentLeagueId,
+    (nextLeagueId, previousLeagueId) => {
+      if (nextLeagueId === previousLeagueId) return;
+      draft.value = createDraftFormation("4-3-3");
+      benchContracts.value = [];
+      savedSnapshot.value = "";
+      isInitialized.value = false;
+    }
+  );
+
   // ── Save mutation ─────────────────────────────────────────────────────────
   const { mutateAsync: saveTeam, isPending: isSaving } = useMutation({
     mutationFn: () => {

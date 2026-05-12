@@ -24,8 +24,8 @@
             <ion-text color="medium">
               <p class="info-label ion-no-margin">Availability</p>
             </ion-text>
-            <p v-if="model.ownerTeamName" class="info-value ion-no-margin">
-              {{ availabilityText }} {{ model.ownerTeamName }}
+            <p class="info-value ion-no-margin">
+              {{ availabilityValue }}
             </p>
           </div>
         </ion-col>
@@ -92,14 +92,15 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const availabilityText = computed(() => {
+const availabilityValue = computed(() => {
   switch (props.model.availability) {
     case "free-agent":
       return "Free Agent";
     case "owned-by-viewer":
-      return "Owned by ";
     case "owned-by-other":
-      return "Owned by ";
+      return props.model.ownerTeamName
+        ? `Owned by ${props.model.ownerTeamName}`
+        : "Owned";
     default:
       return "Free Agent";
   }

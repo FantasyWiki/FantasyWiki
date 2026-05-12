@@ -24,9 +24,8 @@
             <ion-text color="medium">
               <p class="info-label ion-no-margin">Availability</p>
             </ion-text>
-            <p class="info-value ion-no-margin">{{ availabilityText }}</p>
-            <p v-if="model.ownerTeamName" class="owner-team ion-no-margin">
-              {{ model.ownerTeamName }}
+            <p v-if="model.ownerTeamName" class="info-value ion-no-margin">
+              {{ availabilityText }} {{ model.ownerTeamName }}
             </p>
           </div>
         </ion-col>
@@ -98,9 +97,9 @@ const availabilityText = computed(() => {
     case "free-agent":
       return "Free Agent";
     case "owned-by-viewer":
-      return "Owned by your team";
+      return "Owned by ";
     case "owned-by-other":
-      return "Already Owned";
+      return "Owned by ";
     default:
       return "Free Agent";
   }

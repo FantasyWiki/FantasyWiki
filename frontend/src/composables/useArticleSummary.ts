@@ -18,7 +18,12 @@ export function useArticleSummary(source: Ref<ArticleSummarySource>) {
 
   watch(
     source,
-    async (nextSource) => {
+    async (nextSource, _previousSource, onInvalidate) => {
+      let cancelled = false;
+      onInvalidate(() => {
+        cancelled = true;
+      });
+
       if (!nextSource) {
         summary.value = null;
         error.value = null;
@@ -42,14 +47,18 @@ export function useArticleSummary(source: Ref<ArticleSummarySource>) {
           nextSource.domain,
           nextSource.title
         );
+        if (cancelled) return;
         summaryCache.set(cacheKey, nextSummary);
         summary.value = nextSummary;
       } catch (err) {
+        if (cancelled) return;
         summary.value = null;
         error.value =
           err instanceof Error ? err.message : "Summary unavailable";
       } finally {
-        isLoading.value = false;
+        if (!cancelled) {
+          isLoading.value = false;
+        }
       }
     },
     { immediate: true }

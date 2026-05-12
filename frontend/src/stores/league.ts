@@ -35,6 +35,7 @@ export const useLeagueStore = defineStore("league", () => {
   const availableLeagues = ref<LeagueDTO[]>([]);
   const isLoading = ref(false);
   const isTeamLoading = ref(false);
+  const currentTeamRequestId = ref(0);
   const error = ref<string | null>(null);
   const teamError = ref<string | null>(null);
 
@@ -75,6 +76,7 @@ export const useLeagueStore = defineStore("league", () => {
   }
 
   async function fetchCurrentTeamContext() {
+    const requestId = ++currentTeamRequestId.value;
     const leagueId = currentLeague.value?.id;
     if (!leagueId) {
       currentTeam.value = null;
@@ -86,14 +88,19 @@ export const useLeagueStore = defineStore("league", () => {
     isTeamLoading.value = true;
     teamError.value = null;
     try {
-      currentTeam.value = await api.leagues.getMyTeam(leagueId);
+      const nextTeam = await api.leagues.getMyTeam(leagueId);
+      if (requestId !== currentTeamRequestId.value) return;
+      currentTeam.value = nextTeam;
     } catch (err) {
+      if (requestId !== currentTeamRequestId.value) return;
       currentTeam.value = null;
       teamError.value =
         err instanceof Error ? err.message : "Failed to fetch current team";
       console.error("Failed to fetch current team:", err);
     } finally {
-      isTeamLoading.value = false;
+      if (requestId === currentTeamRequestId.value) {
+        isTeamLoading.value = false;
+      }
     }
   }
 

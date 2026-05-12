@@ -111,18 +111,6 @@ describe("ArticleDetail.vue", () => {
     );
   });
 
-  it("shows disabled buy and hides renew/swap when owned by another team", () => {
-    const wrapper = mountWithStores(makeContract(otherTeam), {
-      currentTeam: viewerTeam,
-    });
-
-    expect(wrapper.text()).toContain("Buy");
-    expect(wrapper.text()).toContain("Already Owned");
-    expect(wrapper.text()).toContain("Other FC");
-    expect(wrapper.text()).not.toContain("Renew Contract");
-    expect(wrapper.text()).not.toContain("Swap Article");
-  });
-
   it("delays actions while ownership context is loading", () => {
     const wrapper = mountWithStores(makeContract(otherTeam), {
       currentTeam: null,

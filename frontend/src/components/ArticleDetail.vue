@@ -93,7 +93,6 @@ import {
 } from "@ionic/vue";
 import { closeOutline } from "ionicons/icons";
 import { ContractDTO } from "../../../dto/contractDTO";
-import type { Enums } from "../../../dto/enums";
 import { useLeagueStore } from "@/stores/league";
 import { buildArticleDetail } from "@/types/articleDetail";
 import ArticleDescriptionBlock from "@/components/articleDetail/ArticleDescriptionBlock.vue";
@@ -147,7 +146,7 @@ const summarySource = computed(() => {
   if (!contract) return null;
   return {
     title: contract.article.title,
-    domain: contract.article.domain as Enums,
+    domain: contract.article.domain,
   };
 });
 

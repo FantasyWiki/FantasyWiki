@@ -1,80 +1,76 @@
-import type { Domain } from "../../dto/enums";
-import {
-  computeFilteredSnapshotVolume,
-  normalizeTopReadEntries,
-  toWikimediaProjectDomain,
-  type TopReadEntry,
-  type WikimediaTopReadArticle,
-} from "../../model/wikimedia";
+import { createGetSummary } from "./client/getSummary";
+import { createGetTopReadList } from "./client/getTopReadList";
+import type {
+  CacheLike,
+  WikimediaClient,
+  WikimediaClientOptions,
+  WikimediaHttp,
+} from "./client/public-api";
 
-type FetchFn = typeof fetch;
-
-export type CacheLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-
-export type WikimediaHttp = {
-  get<T>(url: string): Promise<{ status: number; data: T }>;
-};
-
-export type TopReadListResult = {
-  projectDomain: string;
-  snapshotDate: string;
-  filteredSnapshotVolume: number;
-  entries: TopReadEntry[];
-};
-
-export type ArticleSummary = {
-  title: string;
-  extract: string;
-  thumbnailUrl?: string;
-};
-
-export type WikimediaClientOptions = {
-  http?: WikimediaHttp;
-  fetchFn?: FetchFn;
-  now?: () => Date;
-  cache?: CacheLike | null;
-  maxFallbackDays?: number;
-  retryCount?: number;
-  averageDays?: number;
-};
-
-type TopReadResponse = {
-  items: Array<{
-    articles: WikimediaTopReadArticle[];
-  }>;
-};
-
-type PerArticleResponse = {
-  items: Array<{ views: number }>;
-};
-
-type ArticleSummaryResponse = {
-  title?: string;
-  extract?: string;
-  thumbnail?: {
-    source?: string;
-  };
-};
+export type {
+  ArticleSummary,
+  CacheLike,
+  TopReadListResult,
+  WikimediaClient,
+  WikimediaClientOptions,
+  WikimediaHttp,
+} from "./client/public-api";
 
 const BASE_URL = "https://wikimedia.org/api/rest_v1/metrics/pageviews";
 const BASE_WIKIPEDIA_URL = "https://wikipedia.org/api/rest_v1";
 
+/**
+ * Formats a numeric date fragment as two digits.
+ *
+ * Used by UTC date helpers to keep Wikimedia path fragments deterministic
+ * (for example, month/day values like `04` instead of `4`).
+ *
+ * @param value - Numeric date fragment.
+ * @returns Two-character decimal string with left zero padding when needed.
+ */
 function pad(value: number): string {
   return String(value).padStart(2, "0");
 }
 
+/**
+ * Converts a Date into canonical `YYYY-MM-DD` UTC format.
+ *
+ * This format is used for cache keys and snapshot metadata so callers
+ * can reason about a single date representation across runtimes.
+ *
+ * @param date - Date to format.
+ * @returns UTC date string in `YYYY-MM-DD` format.
+ */
 function toYmd(date: Date): string {
   return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(
     date.getUTCDate(),
   )}`;
 }
 
+/**
+ * Shifts a date by a UTC day offset.
+ *
+ * The helper clones the incoming Date to avoid mutating caller state.
+ *
+ * @param date - Base UTC date.
+ * @param days - Signed day offset (negative for past, positive for future).
+ * @returns New Date shifted by the provided UTC day delta.
+ */
 function shiftUtcDays(date: Date, days: number): Date {
   const shifted = new Date(date);
   shifted.setUTCDate(shifted.getUTCDate() + days);
   return shifted;
 }
 
+/**
+ * Splits a UTC date into zero-padded Wikimedia path fragments.
+ *
+ * Useful for building endpoint paths that expect separate `year/month/day`
+ * segments instead of a single combined date.
+ *
+ * @param date - Source UTC date.
+ * @returns Date parts for Wikimedia endpoint path construction.
+ */
 function toDateParts(date: Date): { year: string; month: string; day: string } {
   return {
     year: String(date.getUTCFullYear()),
@@ -83,6 +79,15 @@ function toDateParts(date: Date): { year: string; month: string; day: string } {
   };
 }
 
+/**
+ * Resolves the default cache implementation for browser runtimes.
+ *
+ * This is intentionally best-effort:
+ * - non-browser runtimes return `null`
+ * - storage access failures return `null`
+ *
+ * @returns `localStorage` when available and accessible, otherwise `null`.
+ */
 function getDefaultCache(): CacheLike | null {
   if (typeof window === "undefined") {
     return null;
@@ -95,7 +100,16 @@ function getDefaultCache(): CacheLike | null {
   }
 }
 
-function createFetchHttp(fetchFn: FetchFn): WikimediaHttp {
+/**
+ * Creates the default HTTP adapter based on a Fetch implementation.
+ *
+ * The Wikimedia client consumes a transport-neutral `WikimediaHttp` contract;
+ * this adapter converts fetch responses to that shape.
+ *
+ * @param fetchFn - Fetch implementation to use (native or injected).
+ * @returns Transport adapter exposing `get(url) -> { status, data }`.
+ */
+function createFetchHttp(fetchFn: typeof fetch): WikimediaHttp {
   return {
     async get<T>(url: string): Promise<{ status: number; data: T }> {
       const response = await fetchFn(url);
@@ -105,6 +119,24 @@ function createFetchHttp(fetchFn: FetchFn): WikimediaHttp {
   };
 }
 
+/**
+ * Executes an HTTP GET and retries transient failures with bounded attempts.
+ *
+ * Retry policy:
+ * - retries 429 and 5xx responses
+ * - does not retry non-429 4xx responses
+ * - retries thrown transport/network errors until attempts are exhausted
+ *
+ * This helper is shared by all capability modules to keep retry behavior
+ * consistent across current and future Wikimedia operations.
+ *
+ * @typeParam T - Expected response payload shape.
+ * @param http - Transport adapter used by the request.
+ * @param url - Absolute request URL.
+ * @param retryCount - Maximum number of retries after the first attempt.
+ * @returns Parsed response payload on success.
+ * @throws Error when retries are exhausted or a non-retryable 4xx response occurs.
+ */
 async function fetchJsonWithRetry<T>(
   http: WikimediaHttp,
   url: string,
@@ -146,39 +178,27 @@ async function fetchJsonWithRetry<T>(
   throw lastError ?? new Error("Network request failed");
 }
 
-async function resolveAverageViews(
-  http: WikimediaHttp,
-  projectDomain: string,
-  title: string,
-  snapshotDate: Date,
-  averageDays: number,
-  retryCount: number,
-): Promise<number | undefined> {
-  const end = toDateParts(snapshotDate);
-  const startDate = shiftUtcDays(snapshotDate, -(averageDays - 1));
-  const start = toDateParts(startDate);
-  const encodedTitle = encodeURIComponent(title).replace(/%20/g, "_");
-
-  const url = `${BASE_URL}/per-article/${projectDomain}/all-access/user/${encodedTitle}/daily/${start.year}${start.month}${start.day}/${end.year}${end.month}${end.day}`;
-
-  try {
-    const response = await fetchJsonWithRetry<PerArticleResponse>(
-      http,
-      url,
-      retryCount,
-    );
-    if (response.items.length === 0) {
-      return undefined;
-    }
-
-    const total = response.items.reduce((sum, item) => sum + item.views, 0);
-    return total / response.items.length;
-  } catch {
-    return undefined;
-  }
-}
-
-export function createWikimediaClient(options: WikimediaClientOptions = {}) {
+/**
+ * Creates the shared Wikimedia client used by frontend and backend wrappers.
+ *
+ * How to use:
+ * - call `createWikimediaClient()` for defaults
+ * - inject `http` or `fetchFn` to customize transport/testing
+ * - call namespaced capabilities, e.g. `client.pageviews.getTopReadList(...)`
+ *
+ * How to extend with new behavior:
+ * 1. Add a new capability factory under `external-apis/wikimedia/client/`
+ * 2. Reuse shared helpers injected from this composition root
+ * 3. Expose the capability under a new namespace in the returned object
+ *
+ * This keeps existing namespaces stable while allowing additive extension.
+ *
+ * @param options - Runtime and policy overrides for transport, cache, clock, and retry behavior.
+ * @returns Configured Wikimedia client with namespaced capabilities.
+ */
+export function createWikimediaClient(
+  options: WikimediaClientOptions = {},
+): WikimediaClient {
   const fetchFn = options.fetchFn ?? fetch;
   const http = options.http ?? createFetchHttp(fetchFn);
   const now = options.now ?? (() => new Date());
@@ -187,113 +207,26 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}) {
   const retryCount = options.retryCount ?? 2;
   const averageDays = options.averageDays ?? 30;
 
-  async function getTopReadList(
-    domain: Domain,
-    limit: number,
-  ): Promise<TopReadListResult> {
-    const projectDomain = toWikimediaProjectDomain(domain);
-    const baseDate = now();
+  const getTopReadList = createGetTopReadList({
+    http,
+    now,
+    cache,
+    maxFallbackDays,
+    retryCount,
+    averageDays,
+    baseUrl: BASE_URL,
+    toYmd,
+    shiftUtcDays,
+    toDateParts,
+    fetchJsonWithRetry,
+  });
 
-    for (let offset = 1; offset <= maxFallbackDays; offset += 1) {
-      const snapshotDate = shiftUtcDays(baseDate, -offset);
-      const snapshotDateText = toYmd(snapshotDate);
-      const cacheKey = `wikimedia:top-read:${projectDomain}:${snapshotDateText}:limit:${limit}`;
-
-      let cached: string | null = null;
-      try {
-        cached = cache?.getItem(cacheKey) ?? null;
-      } catch {
-        cached = null;
-      }
-
-      if (cached) {
-        try {
-          return JSON.parse(cached) as TopReadListResult;
-        } catch {
-          try {
-            cache?.removeItem(cacheKey);
-          } catch {
-            // Ignore cache remove failures: cache is best-effort.
-          }
-        }
-      }
-
-      const parts = toDateParts(snapshotDate);
-      const url = `${BASE_URL}/top/${projectDomain}/all-access/${parts.year}/${parts.month}/${parts.day}`;
-
-      try {
-        const topRead = await fetchJsonWithRetry<TopReadResponse>(
-          http,
-          url,
-          retryCount,
-        );
-        const articles = topRead.items?.[0]?.articles ?? [];
-        const filteredSnapshotVolume = computeFilteredSnapshotVolume(articles);
-        const entries = normalizeTopReadEntries(articles, limit, projectDomain);
-
-        const entriesWithAverage = await Promise.all(
-          entries.map(async (entry) => ({
-            ...entry,
-            averageViews30d: await resolveAverageViews(
-              http,
-              projectDomain,
-              entry.canonicalTitle,
-              snapshotDate,
-              averageDays,
-              retryCount,
-            ),
-          })),
-        );
-
-        const result: TopReadListResult = {
-          projectDomain,
-          snapshotDate: snapshotDateText,
-          filteredSnapshotVolume,
-          entries: entriesWithAverage,
-        };
-
-        try {
-          cache?.setItem(cacheKey, JSON.stringify(result));
-        } catch {
-          // Ignore cache write failures: cache is best-effort.
-        }
-        return result;
-      } catch {
-          // Fall back to the previous day's snapshot when this date is unavailable.
-      }
-    }
-
-    throw new Error("Top read snapshot unavailable");
-  }
-
-  async function getSummary(
-    domain: Domain,
-    title: string,
-  ): Promise<ArticleSummary> {
-    const projectDomain = toWikimediaProjectDomain(domain);
-    const encodedTitle = encodeURIComponent(title).replace(/%20/g, "_");
-    const url = `${BASE_WIKIPEDIA_URL}/page/summary/${encodedTitle}`;
-
-    const response = await fetchJsonWithRetry<ArticleSummaryResponse>(
-      {
-        get: async <ArticleSummaryResponse>(targetUrl: string) => {
-          const rewrittenUrl = targetUrl.replace(
-            BASE_WIKIPEDIA_URL,
-            `https://${projectDomain}.org/api/rest_v1`,
-          );
-          return http.get<ArticleSummaryResponse>(rewrittenUrl);
-        },
-      },
-      url,
-      retryCount,
-    );
-
-    return {
-      title: response.title ?? title,
-      extract: response.extract ?? "",
-      thumbnailUrl: response.thumbnail?.source,
-    };
-  }
+  const getSummary = createGetSummary({
+    http,
+    retryCount,
+    baseWikipediaUrl: BASE_WIKIPEDIA_URL,
+    fetchJsonWithRetry,
+  });
 
   return {
     pageviews: {

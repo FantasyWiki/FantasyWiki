@@ -1,138 +1,59 @@
 # Wikimedia Client Architecture
 
-This document defines how FantasyWiki centralizes Wikimedia integration behavior without requiring a single runtime owner.
+This document describes the internal architecture of the shared Wikimedia module at `external-apis/wikimedia/client.ts`.
 
-## Decision
+## Purpose
 
-FantasyWiki centralizes the **Wikimedia Client** as a shared cross-runtime policy contract used by both frontend and backend.
+`external-apis/wikimedia/client.ts` is the composition root for the Wikimedia integration boundary.  
+It centralizes shared runtime policy while allowing feature capabilities to evolve in separate modules.
 
-Centralization here means shared behavior, not single traffic ownership.
+## Architectural shape
 
-## Canonical interpretation
+The shared client is split into two layers:
 
-- **Centralized**: one shared policy contract for Wikimedia access (request semantics, retries/backoff, cache abstraction, normalization, and telemetry hooks).
-- **Distributed callers**: frontend and backend may both call Wikimedia using that same contract.
-- **Transport baseline**: native `fetch` is the default transport.
-- **Axios role**: Axios is optional and treated as an adapter, not the canonical transport.
+1. **Composition root (`client.ts`)**
+   - Resolves runtime dependencies (`http`, `fetchFn`, cache, clocks, policy options)
+   - Hosts generic internal utilities used across capabilities (date helpers, retryable fetch policy, default cache resolution)
+   - Wires capability factories into the exported client surface
+2. **Capability modules (`external-apis/wikimedia/client/*.ts`)**
+   - Each capability lives in its own file and receives dependencies from the composition root
+   - Capability modules contain feature-specific request/response behavior
+   - Existing capabilities remain unchanged when new capabilities are added
 
-## Shared policy requirements
+## Type boundaries
 
-- Public API remains high-level and stable (`pageviews.getTopReadList(domain, limit)`).
-- Transport is injected so tests can run with fake HTTP without live Wikimedia calls.
-- Retry/backoff policy is explicit and shared (429/5xx retry with capped backoff and jitter).
-- Cache is runtime-injected via interface (no hard dependency on browser `localStorage`).
-- Observability is runtime-agnostic through hooks (`request_start`, `request_success`, `request_failure`, `cache_hit`, `cache_miss`).
-- Domain normalization remains consistent with shared model artifacts.
+- `external-apis/wikimedia/client/public-api.ts` contains the stable types exposed to callers of the shared client.
+- `external-apis/wikimedia/client/wikimedia-wire.ts` contains raw upstream Wikimedia payload shapes used only for mapping/normalization.
 
-## What this feature does
+This split avoids ambiguity between domain "contracts" and integration-layer types.
 
-The shared Wikimedia module fetches a **Top Read Snapshot**, filters and normalizes it into domain-safe entries, computes **Filtered Snapshot Volume**, and enriches each entry with a 30-day average pageview value when available.
+## Open/Closed extension model
 
-It also applies resilience policies consistently:
+The module follows Open/Closed by keeping existing capability contracts stable and adding new behavior through new capability files.
 
-- Snapshot fallback across recent UTC days (`maxFallbackDays`)
-- Retry for transient failures (`retryCount`, 429/5xx)
-- Best-effort cache (cache read/parse/write failures must not break the main flow)
+Extension workflow:
 
-## Atomic notes: article-detail data contract
+1. Create a new capability file under `external-apis/wikimedia/client/`
+2. Implement the behavior as a factory that accepts shared dependencies
+3. Wire it from `createWikimediaClient` in `client.ts` under a new namespace
 
-This section documents the data boundaries used by article detail behavior.
+This keeps `client.ts` open for composition and closed for breaking changes to existing namespaces.
 
-### Source-of-truth split
+## Shared internal policies in `client.ts`
 
-- **External Wikimedia data (non-persisted)**:
-  - Article summary (`title`, `extract`, optional `thumbnailUrl`) is loaded from Wikimedia on demand through the shared client API:
-    - `external-apis/wikimedia/client.ts` → `article.getSummary(domain, title)`
-- **Persisted game/domain data**:
-  - Contract ownership, price, expiry, and team context come from backend game APIs (`/api/*`), not Wikimedia.
+The composition root enforces the policies that must stay consistent across capabilities:
 
-### Runtime/mock policy
+- **Transport policy**: default `fetch` transport, with optional injected `http` adapter
+- **Retry policy**: retries for retryable statuses/network failures via a shared helper
+- **Date policy**: UTC-based snapshot/date formatting helpers
+- **Cache policy**: optional cache abstraction with browser-safe default cache discovery
 
-- Runtime mock mode must not replace Wikimedia summary responses.
-- Wikimedia behavior may be stubbed only in tests at the service/composable boundary for determinism.
+## Runtime adapters and ownership
 
-### Ownership contract boundary
+Runtime-specific wrappers (frontend/backend) provide transport adapters and call the same shared client factory.  
+Runtime concerns remain outside the shared module so the capability behavior stays deterministic and reusable.
 
-- Ownership evaluation is team-based:
-  - **Owner Team**: contract owner team id from contract payload.
-  - **Viewer Team Context**: active team id for selected league from `/api/leagues/:leagueId/team`.
-- Client ownership logic must compare team ids, never player ids or session subject ids.
+## Related documentation
 
-### Change points for data behavior
-
-- To change summary mapping/fallback policy:
-  - edit `external-apis/wikimedia/client.ts` (`ArticleSummaryResponse` mapping and `article.getSummary`).
-- To change summary loading/caching semantics in frontend:
-  - edit `frontend/src/composables/useArticleSummary.ts` (`summaryCache`, fetch trigger, error behavior).
-- To change ownership context acquisition:
-  - edit `frontend/src/stores/league.ts` (`fetchCurrentTeamContext`, `currentTeamId`, loading/error states).
-
-## Where Axios is used
-
-Axios is used only inside runtime wrappers:
-
-- `frontend/src/services/wikimediaClient.ts`
-- `backend/src/services/wikimediaClient.ts`
-
-Each wrapper builds an Axios-backed `http` adapter (`createAxiosHttp`) and passes it to `external-apis/wikimedia/client.ts`.
-
-The external API module itself is transport-agnostic and does not depend on Axios directly.
-
-## How to use it
-
-### Frontend
-
-```ts
-import { createWikimediaClient } from "@/services/wikimediaClient";
-
-const client = createWikimediaClient();
-const result = await client.pageviews.getTopReadList("en", 5);
-```
-
-### Backend
-
-```ts
-import { createWikimediaClient } from "../services/wikimediaClient";
-
-const client = createWikimediaClient();
-const result = await client.pageviews.getTopReadList("it", 5);
-```
-
-### Return shape
-
-`getTopReadList(domain, limit)` returns:
-
-- `projectDomain`
-- `snapshotDate`
-- `filteredSnapshotVolume`
-- `entries` (normalized list with display title, filtered/source rank, daily views, article URL, and optional `averageViews30d`)
-
-## How to expand it safely
-
-1. Add new behavior in `external-apis/wikimedia/client.ts` first; keep wrappers thin.
-2. Preserve the public API unless a deliberate breaking change is approved.
-3. If a new runtime needs custom transport, pass a custom `http` implementation via `WikimediaClientOptions`.
-4. If new caching behavior is needed, inject a `cache` implementation rather than hardcoding runtime storage.
-5. Reuse fixtures in `external-apis/wikimedia/test-utils/fixtures.ts` for deterministic tests.
-6. Keep domain semantics aligned with `CONTEXT.md` (snapshot date, filtered rank, filtered snapshot volume).
-
-## Runtime responsibilities
-
-- Frontend and backend can each provide transport, cache, and telemetry implementations suitable for their environment.
-- Runtime-specific concerns (browser storage constraints, worker limits, deployment config) must not change shared policy semantics.
-- Frontend may call Wikimedia directly for presentation-only use cases.
-- Backend adopts the same shared client immediately as an internal module, even before exposing Wikimedia-backed endpoints.
-
-## Non-goals
-
-- This decision does not force all Wikimedia traffic through backend.
-- This decision does not mandate Axios as the primary transport.
-- This decision does not move domain terminology into implementation-specific code.
-
-## Migration direction
-
-- Replace the current frontend-only Wikimedia service with a shared root integration module.
-- Keep frontend and backend wrappers thin: each runtime only provides transport/cache/telemetry adapters.
-- Preserve existing domain output semantics during migration (`Top Read List`, `Filtered Snapshot Volume`, rank semantics, and snapshot-date rules).
-- Frontend remains direct-to-Wikimedia for current landing presentation paths.
-- Backend integration is required now at module level (internal use + tests), with endpoint exposure deferred until a backend product use case appears.
+- For domain language and expansion hierarchy conventions, see `docs/wikimedia-client-terminology-hierarchy.md`.
+- For step-by-step behavior extension with a concrete example, see `docs/wikimedia-client-behavior-extension.md`.

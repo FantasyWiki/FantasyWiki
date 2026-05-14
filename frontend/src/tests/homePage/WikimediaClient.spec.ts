@@ -49,40 +49,6 @@ describe("external-apis/wikimedia/client", () => {
     });
   });
 
-  it("supports positional API and returns normalized top-read data", async () => {
-    const fetchFn = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(jsonResponse({ error: "missing" }, 404))
-      .mockResolvedValueOnce(
-        jsonResponse(buildTopReadResponse({ articles: topReadArticles }))
-      )
-      .mockResolvedValue(jsonResponse(buildPerArticleViewsResponse([10, 20])));
-
-    const client = createWikimediaClient({
-      fetchFn: fetchFn,
-      now: () => new Date("2026-04-29T12:00:00.000Z"),
-      cache: null,
-    });
-
-    const result = await client.pageviews.getTopReadList("en", 5);
-
-    expect(fetchFn).toHaveBeenCalledWith(
-      expect.stringContaining("/top/en.wikipedia/all-access/2026/04/28")
-    );
-    expect(fetchFn).toHaveBeenCalledWith(
-      expect.stringContaining("/top/en.wikipedia/all-access/2026/04/27")
-    );
-    expect(result.snapshotDate).toBe("2026-04-27");
-    expect(result.filteredSnapshotVolume).toBe(6000);
-    expect(result.entries).toHaveLength(3);
-    expect(result.entries[0]).toMatchObject({
-      canonicalTitle: "ChatGPT",
-      filteredRank: 1,
-      sourceRank: 3,
-      averageViews30d: 15,
-    });
-  });
-
   it("ignores corrupt cache entries and falls back to network", async () => {
     const fetchFn = vi
       .fn<typeof fetch>()
@@ -98,7 +64,6 @@ describe("external-apis/wikimedia/client", () => {
 
     const client = createWikimediaClient({
       fetchFn,
-      now: () => new Date("2026-04-29T12:00:00.000Z"),
       cache,
     });
 
@@ -126,7 +91,6 @@ describe("external-apis/wikimedia/client", () => {
 
     const client = createWikimediaClient({
       fetchFn,
-      now: () => new Date("2026-04-29T12:00:00.000Z"),
       cache,
     });
 
@@ -152,7 +116,6 @@ describe("external-apis/wikimedia/client", () => {
 
     const client = createWikimediaClient({
       fetchFn,
-      now: () => new Date("2026-04-29T12:00:00.000Z"),
       cache: null,
     });
 

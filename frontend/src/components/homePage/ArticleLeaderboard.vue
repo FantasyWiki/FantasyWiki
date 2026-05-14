@@ -80,7 +80,7 @@ import {
 } from "@ionic/vue";
 import { eyeOutline, trendingUpOutline } from "ionicons/icons";
 import { createWikimediaClient } from "@/services/wikimediaClient";
-import type { TopReadEntry } from "../../../../model/wikimedia";
+import type { TopReadEntry } from "../../../../external-apis/wikimedia/wikimedia";
 
 const emit = defineEmits<{
   volumeResolved: [volume: number];

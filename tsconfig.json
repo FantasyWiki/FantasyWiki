@@ -8,6 +8,6 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "*.ts", "dto/*.ts", "model/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "*.ts", "dto/*.ts", "model/*.ts", "external-apis/**/*.ts"],
 
 }

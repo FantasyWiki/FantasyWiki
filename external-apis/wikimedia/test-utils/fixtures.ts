@@ -1,4 +1,4 @@
-import type { WikimediaTopReadArticle } from "../../../model/wikimedia";
+import type { WikimediaTopReadArticle } from "../wikimedia";
 
 export const defaultTopReadArticles: WikimediaTopReadArticle[] = [
   { article: "Main_Page", views: 5000, rank: 1 },

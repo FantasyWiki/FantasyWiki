@@ -1,4 +1,4 @@
-import type { Domain } from "../dto/enums";
+import type { Domain } from "../../dto/enums";
 
 export type WikimediaTopReadArticle = {
   article: string;
@@ -27,11 +27,6 @@ const EXCLUDED_PREFIXES = [
 ];
 
 const EXCLUDED_EXACT_TITLES = new Set(["Main_Page", "Main Page"]);
-
-//TODO: remove this useless function and add the .wikipedia suffix where needed
-export function toWikimediaProjectDomain(domain: Domain): `${Domain}.wikipedia` {
-  return `${domain}.wikipedia`;
-}
 
 export function isContentArticleTitle(title: string): boolean {
   if (EXCLUDED_EXACT_TITLES.has(title)) {

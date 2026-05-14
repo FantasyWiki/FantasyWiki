@@ -1,7 +1,7 @@
 import { ref, watch, type Ref } from "vue";
 import type { Domain } from "../../../dto/enums";
 import { createWikimediaClient } from "@/services/wikimediaClient";
-import type { ArticleSummary } from "../../../external-apis/wikimedia/client";
+import type { ArticleSummary } from "../../../external-apis/wikimedia/client/getSummary";
 
 type ArticleSummarySource = {
   title: string;

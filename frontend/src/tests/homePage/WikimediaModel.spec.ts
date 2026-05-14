@@ -1,21 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { Domain } from "../../../../dto/enums";
 import {
   computeFilteredSnapshotVolume,
   normalizeTopReadEntries,
-  toWikimediaProjectDomain,
-} from "../../../../model/wikimedia";
+} from "../../../../external-apis/wikimedia/wikimedia";
 
 describe("model/wikimedia", () => {
-  it("maps app domain enum to Wikimedia project domain", () => {
-    expect(toWikimediaProjectDomain("en" satisfies Domain)).toBe(
-      "en.wikipedia"
-    );
-    expect(toWikimediaProjectDomain("it" satisfies Domain)).toBe(
-      "it.wikipedia"
-    );
-  });
-
   it("filters non-content entries and reassigns filtered rank", () => {
     const entries = normalizeTopReadEntries(
       [

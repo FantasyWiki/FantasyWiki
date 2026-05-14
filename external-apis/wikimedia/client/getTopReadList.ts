@@ -1,140 +1,133 @@
 import type { Domain } from "../../../dto/enums";
 import {
-  computeFilteredSnapshotVolume,
-  normalizeTopReadEntries,
-  toWikimediaProjectDomain,
-} from "../../../model/wikimedia";
-import type {
-  CacheLike,
-  TopReadListResult,
-  WikimediaHttp,
-} from "./public-api";
-import type { PerArticleResponse, TopReadResponse } from "./wikimedia-wire";
+    computeFilteredSnapshotVolume,
+    normalizeTopReadEntries, TopReadEntry, WikimediaTopReadArticle,
+} from "../wikimedia";
+import {
+    PAGEVIEWS_BASE_URL,
+    fetchJsonWithRetry,
+    shiftUtcDays,
+    toDateParts,
+    toYmd,
+} from "./internal";
+import {CacheLike, WikimediaHttp} from "../client";
 
-type DateParts = { year: string; month: string; day: string };
-
-type GetTopReadListDependencies = {
-  http: WikimediaHttp;
-  now: () => Date;
-  cache: CacheLike | null;
-  maxFallbackDays: number;
-  retryCount: number;
-  averageDays: number;
-  baseUrl: string;
-  toYmd: (date: Date) => string;
-  shiftUtcDays: (date: Date, days: number) => Date;
-  toDateParts: (date: Date) => DateParts;
-  fetchJsonWithRetry: <T>(
-    http: WikimediaHttp,
-    url: string,
-    retryCount: number,
-  ) => Promise<T>;
+/**
+ * Raw payload returned by Wikimedia per-article pageviews endpoint.
+ */
+export type PerArticleResponse = {
+    items: Array<{ views: number }>;
 };
 
-async function resolveAverageViews(
-  deps: GetTopReadListDependencies,
-  projectDomain: string,
-  title: string,
-  snapshotDate: Date,
-): Promise<number | undefined> {
-  const end = deps.toDateParts(snapshotDate);
-  const startDate = deps.shiftUtcDays(snapshotDate, -(deps.averageDays - 1));
-  const start = deps.toDateParts(startDate);
-  const encodedTitle = encodeURIComponent(title).replace(/%20/g, "_");
-  const url = `${deps.baseUrl}/per-article/${projectDomain}/all-access/user/${encodedTitle}/daily/${start.year}${start.month}${start.day}/${end.year}${end.month}${end.day}`;
 
-  try {
-    const response = await deps.fetchJsonWithRetry<PerArticleResponse>(
-      deps.http,
-      url,
-      deps.retryCount,
-    );
-    if (response.items.length === 0) {
-      return undefined;
-    }
+/**
+ * Raw payload returned by Wikimedia top-read endpoint.
+ *
+ * This type is intentionally internal: it models upstream response shape
+ * before normalization into domain-friendly DTOs.
+ */
+export type TopReadResponse = {
+    items: Array<{
+        articles: WikimediaTopReadArticle[];
+    }>;
+};
 
-    const total = response.items.reduce((sum, item) => sum + item.views, 0);
-    return total / response.items.length;
-  } catch {
-    return undefined;
-  }
-}
+/**
+ * Normalized result returned by `pageviews.getTopReadList`.
+ */
+export type TopReadListResult = {
+    projectDomain: string;
+    snapshotDate: string;
+    filteredSnapshotVolume: number;
+    entries: TopReadEntry[];
+};
 
-export function createGetTopReadList(deps: GetTopReadListDependencies) {
-  return async function getTopReadList(
-    domain: Domain,
-    limit: number,
-  ): Promise<TopReadListResult> {
-    const projectDomain = toWikimediaProjectDomain(domain);
-    const baseDate = deps.now();
+export type GetTopReadListDeps = {
+    http: WikimediaHttp;
+    cache: CacheLike | null;
+    maxFallbackDays: number;
+    retryCount: number;
+    averageDays: number;
+};
 
-    for (let offset = 1; offset <= deps.maxFallbackDays; offset += 1) {
-      const snapshotDate = deps.shiftUtcDays(baseDate, -offset);
-      const snapshotDateText = deps.toYmd(snapshotDate);
-      const cacheKey = `wikimedia:top-read:${projectDomain}:${snapshotDateText}:limit:${limit}`;
+export function createGetTopReadList(deps: GetTopReadListDeps) {
+    const { http, cache, maxFallbackDays, retryCount, averageDays } = deps;
 
-      let cached: string | null = null;
-      try {
-        cached = deps.cache?.getItem(cacheKey) ?? null;
-      } catch {
-        cached = null;
-      }
-
-      if (cached) {
-        try {
-          return JSON.parse(cached) as TopReadListResult;
-        } catch {
-          try {
-            deps.cache?.removeItem(cacheKey);
-          } catch {
-            // Ignore cache remove failures: cache is best-effort.
-          }
-        }
-      }
-
-      const parts = deps.toDateParts(snapshotDate);
-      const url = `${deps.baseUrl}/top/${projectDomain}/all-access/${parts.year}/${parts.month}/${parts.day}`;
-
-      try {
-        const topRead = await deps.fetchJsonWithRetry<TopReadResponse>(
-          deps.http,
-          url,
-          deps.retryCount,
-        );
-        const articles = topRead.items?.[0]?.articles ?? [];
-        const filteredSnapshotVolume = computeFilteredSnapshotVolume(articles);
-        const entries = normalizeTopReadEntries(articles, limit, projectDomain);
-
-        const entriesWithAverage = await Promise.all(
-          entries.map(async (entry) => ({
-            ...entry,
-            averageViews30d: await resolveAverageViews(
-              deps,
-              projectDomain,
-              entry.canonicalTitle,
-              snapshotDate,
-            ),
-          })),
-        );
-
-        const result: TopReadListResult = {
-          projectDomain,
-          snapshotDate: snapshotDateText,
-          filteredSnapshotVolume,
-          entries: entriesWithAverage,
-        };
+    async function resolveAverageViews(
+        projectDomain: string,
+        title: string,
+        snapshotDate: Date,
+    ): Promise<number | undefined> {
+        const end = toDateParts(snapshotDate);
+        const startDate = shiftUtcDays(snapshotDate, -(averageDays - 1));
+        const start = toDateParts(startDate);
+        const encodedTitle = encodeURIComponent(title).replace(/%20/g, "_");
+        const url = `${PAGEVIEWS_BASE_URL}/per-article/${projectDomain}/all-access/user/${encodedTitle}/daily/${start.year}${start.month}${start.day}/${end.year}${end.month}${end.day}`;
 
         try {
-          deps.cache?.setItem(cacheKey, JSON.stringify(result));
+            const response = await fetchJsonWithRetry<PerArticleResponse>(http, url, retryCount);
+            if (response.items.length === 0) return undefined;
+            const total = response.items.reduce((sum, item) => sum + item.views, 0);
+            return total / response.items.length;
         } catch {
-          // Ignore cache write failures: cache is best-effort.
+            return undefined;
         }
-        return result;
-      } catch {
-        // Fall back to the previous day's snapshot when this date is unavailable.
-      }
     }
 
-    throw new Error("Top read snapshot unavailable");
-  };
+    return async function getTopReadList(domain: Domain, limit: number): Promise<TopReadListResult> {
+        const projectDomain = `${domain}.wikipedia`;
+        const baseDate = new Date();
+
+        for (let offset = 1; offset <= maxFallbackDays; offset += 1) {
+            const snapshotDate = shiftUtcDays(baseDate, -offset);
+            const snapshotDateText = toYmd(snapshotDate);
+            const cacheKey = `wikimedia:top-read:${projectDomain}:${snapshotDateText}:limit:${limit}`;
+
+            let cached: string | null = null;
+            try {
+                cached = cache?.getItem(cacheKey) ?? null;
+            } catch {
+                cached = null;
+            }
+
+            if (cached) {
+                try {
+                    return JSON.parse(cached) as TopReadListResult;
+                } catch {
+                    try { cache?.removeItem(cacheKey); } catch { /* best-effort */ }
+                }
+            }
+
+            const parts = toDateParts(snapshotDate);
+            const url = `${PAGEVIEWS_BASE_URL}/top/${projectDomain}/all-access/${parts.year}/${parts.month}/${parts.day}`;
+
+            try {
+                const topRead = await fetchJsonWithRetry<TopReadResponse>(http, url, retryCount);
+                const articles = topRead.items?.[0]?.articles ?? [];
+                const filteredSnapshotVolume = computeFilteredSnapshotVolume(articles);
+                const entries = normalizeTopReadEntries(articles, limit, projectDomain);
+
+                const entriesWithAverage = await Promise.all(
+                    entries.map(async (entry) => ({
+                        ...entry,
+                        averageViews30d: await resolveAverageViews(projectDomain, entry.canonicalTitle, snapshotDate),
+                    })),
+                );
+
+                const result: TopReadListResult = {
+                    projectDomain,
+                    snapshotDate: snapshotDateText,
+                    filteredSnapshotVolume,
+                    entries: entriesWithAverage,
+                };
+
+                try { cache?.setItem(cacheKey, JSON.stringify(result)); } catch { /* best-effort */ }
+                return result;
+            } catch {
+                // Fall back to the previous day's snapshot when this date is unavailable.
+            }
+        }
+
+        throw new Error("Top read snapshot unavailable");
+    };
 }

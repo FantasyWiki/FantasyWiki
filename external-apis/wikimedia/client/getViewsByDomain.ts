@@ -7,11 +7,12 @@ import {
     toYmd,
 } from "./internal";
 import {CacheLike, WikimediaHttp} from "../client";
+import {WikimediaTopReadArticle} from "../wikimedia";
 
+export type DomainResponse = {
+    items: Array<DomainResult>;
+};
 
-/**
- * Normalized result returned by `pageviews.getTopReadList`.
- */
 export type DomainResult = {
     domain: Domain;
     snapshotDate: string;
@@ -56,13 +57,12 @@ export function createGetViewsByDomain(deps: GetViewsByDomainDeps) {
 
 
             try {
-                const domainViews = await fetchJsonWithRetry<DomainResult>(http, url, retryCount);
+                const domainViews = await fetchJsonWithRetry<DomainResponse>(http, url, retryCount);
 
-                console.log(`Received total views for ${domain} on ${snapshotDateText}: ${domainViews.views}`);
                 const result: DomainResult = {
                     domain,
                     snapshotDate: snapshotDateText,
-                    views: domainViews.views,
+                    views: domainViews.items[0].views
                 };
 
                 try { cache?.setItem(cacheKey, JSON.stringify(result)); } catch { /* best-effort */ }

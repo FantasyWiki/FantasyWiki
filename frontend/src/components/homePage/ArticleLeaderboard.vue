@@ -60,6 +60,10 @@
       </div>
     </ion-card-content>
   </ion-card>
+  <ion-chip class="top-right animate-float">📡 Live data</ion-chip>
+  <ion-chip class="bottom-left animate-float"
+    >📊 {{ todayVolumeLabel }}</ion-chip
+  >
 </template>
 
 <script setup lang="ts">
@@ -77,16 +81,14 @@ import {
   IonBadge,
   IonNote,
   IonIcon,
+  IonChip,
 } from "@ionic/vue";
 import { eyeOutline, trendingUpOutline } from "ionicons/icons";
 import { createWikimediaClient } from "@/services/wikimediaClient";
 import type { TopReadEntry } from "../../../../external-apis/wikimedia/wikimedia";
 
-const emit = defineEmits<{
-  volumeResolved: [volume: number];
-}>();
-
 const entries = ref<TopReadEntry[]>([]);
+const views = ref<number>();
 const isLoading = ref(true);
 const hasError = ref(false);
 const wikimediaClient = createWikimediaClient();
@@ -107,15 +109,33 @@ function formatCompactViews(value: number | undefined): string {
   return value.toFixed(0);
 }
 
+const compactVolumeFormatter = new Intl.NumberFormat("en", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+function formatTodayVolumeLabel(volume: number | undefined): string {
+  if (volume === undefined) {
+    return "Total views not available right now";
+  } else {
+    return `Over ${compactVolumeFormatter.format(volume)} views today`;
+  }
+}
+
+const todayVolumeLabel = ref(formatTodayVolumeLabel(views.value));
+
 onMounted(async () => {
   isLoading.value = true;
   hasError.value = false;
   try {
     const topRead = await wikimediaClient.pageviews.getTopReadList("en", 5);
     entries.value = topRead.entries;
-    emit("volumeResolved", topRead.filteredSnapshotVolume);
+    const viewsPerDomain =
+      await wikimediaClient.pageviews.getViewsByDomain("en");
+    views.value = viewsPerDomain.views;
   } catch {
     entries.value = [];
+    views.value = -1;
     hasError.value = true;
   } finally {
     isLoading.value = false;
@@ -124,6 +144,39 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+ion-chip.top-right {
+  position: absolute;
+  top: -0.5rem;
+  right: -1rem;
+  --background: var(--ion-color-wiki-gold);
+  --color: var(--ion-color-dark);
+}
+
+:root .ion-palette-dark ion-chip.top-right {
+  --color: var(--ion-color-light);
+}
+
+ion-chip.bottom-left {
+  position: absolute;
+  bottom: -0.5rem;
+  left: -1rem;
+  --background: var(--ion-color-primary);
+  --color: var(--ion-color-light);
+}
+
+ion-chip.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
 ion-card {
   border-radius: 1rem;
   /* There is no way to do this in Ionic */

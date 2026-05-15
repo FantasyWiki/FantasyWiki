@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  computeFilteredSnapshotVolume,
-  normalizeTopReadEntries,
-} from "../../../../external-apis/wikimedia/wikimedia";
+import { normalizeTopReadEntries } from "../../../../external-apis/wikimedia/wikimedia";
 
 describe("model/wikimedia", () => {
   it("filters non-content entries and reassigns filtered rank", () => {
@@ -32,16 +29,5 @@ describe("model/wikimedia", () => {
       filteredRank: 2,
       dailyViews: 1000,
     });
-  });
-
-  it("computes filtered snapshot volume over all filtered entries", () => {
-    const volume = computeFilteredSnapshotVolume([
-      { article: "Main_Page", views: 5000, rank: 1 },
-      { article: "ChatGPT", views: 3000, rank: 2 },
-      { article: "Special:Search", views: 2000, rank: 3 },
-      { article: "Pope_Francis", views: 1000, rank: 4 },
-    ]);
-
-    expect(volume).toBe(4000);
   });
 });

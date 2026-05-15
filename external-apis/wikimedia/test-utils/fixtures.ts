@@ -1,4 +1,6 @@
 import type { WikimediaTopReadArticle } from "../wikimedia";
+import {DomainResult, GetViewsByDomainDeps} from "../client/getViewsByDomain";
+import {Domain} from "../../../dto/enums";
 
 export const defaultTopReadArticles: WikimediaTopReadArticle[] = [
   { article: "Main_Page", views: 5000, rank: 1 },
@@ -10,6 +12,12 @@ export const defaultTopReadArticles: WikimediaTopReadArticle[] = [
   { article: "The_Last_of_Us_(TV_series)", views: 1600, rank: 7 },
   { article: "Taylor_Swift", views: 1200000, rank: 8 },
 ];
+
+export const defaultViewsByDomainResult: DomainResult = {
+    domain: "en",
+    snapshotDate: "2026-04-27",
+    views: 123456789,
+};
 
 export const defaultPerArticleViews: Record<string, number[]> = {
   ChatGPT: [1000, 2000],
@@ -26,6 +34,14 @@ type TopReadResponseOptions = {
   month?: string;
   day?: string;
   articles?: WikimediaTopReadArticle[];
+};
+
+type ViewsByDomainOptions = {
+    domain?: Domain;
+    year?: string;
+    month?: string;
+    day?: string;
+    result?: DomainResult;
 };
 
 export function buildTopReadResponse(options: TopReadResponseOptions): {
@@ -50,6 +66,16 @@ export function buildTopReadResponse(options: TopReadResponseOptions): {
       },
     ],
   };
+}
+
+export function buildViewByDomainResponse(options: ViewsByDomainOptions): ViewsByDomainOptions{
+    return {
+                domain: options.domain ?? "en",
+                year: options.year ?? "2026",
+                month: options.month ?? "04",
+                day: options.day ?? "27",
+                result: options.result ?? defaultViewsByDomainResult,
+            }
 }
 
 export function buildPerArticleViewsResponse(views: number[]): {

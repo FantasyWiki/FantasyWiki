@@ -21,13 +21,12 @@ describe("services/wikimediaClient", () => {
 
     const client = createWikimediaClient({
       fetchFn,
-      now: () => new Date("2026-04-29T12:00:00.000Z"),
       cache: null,
     });
 
     const result = await client.pageviews.getTopReadList("en", 5);
 
-    expect(result.projectDomain).toBe("en.wikipedia");
+    expect(result.domain).toBe("en");
     expect(result.entries.length).toBeGreaterThan(0);
     expect(fetchFn).toHaveBeenCalled();
   });

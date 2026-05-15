@@ -61,13 +61,13 @@
     </ion-card-content>
   </ion-card>
   <ion-chip class="top-right animate-float">📡 Live data</ion-chip>
-  <ion-chip class="bottom-left animate-float"
+  <ion-chip v-if="!isLoading" class="bottom-left animate-float"
     >📊 {{ todayVolumeLabel }}</ion-chip
   >
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import {
   IonCard,
   IonCardHeader,
@@ -122,7 +122,7 @@ function formatTodayVolumeLabel(volume: number | undefined): string {
   }
 }
 
-const todayVolumeLabel = ref(formatTodayVolumeLabel(views.value));
+const todayVolumeLabel = computed(() => formatTodayVolumeLabel(views.value));
 
 onMounted(async () => {
   isLoading.value = true;
@@ -133,6 +133,7 @@ onMounted(async () => {
     const viewsPerDomain =
       await wikimediaClient.pageviews.getViewsByDomain("en");
     views.value = viewsPerDomain.views;
+    console.log(views.value);
   } catch {
     entries.value = [];
     views.value = -1;

@@ -44,8 +44,8 @@ export function toDisplayTitle(title: string): string {
   }
 }
 
-function buildArticleUrl(projectDomain: string, title: string): string {
-  return `https://${projectDomain}.org/wiki/${encodeURIComponent(title).replace(
+function buildArticleUrl(domain: Domain, title: string): string {
+  return `https://${domain}.wikipedia.org/wiki/${encodeURIComponent(title).replace(
     /%20/g,
     "_"
   )}`;
@@ -54,7 +54,7 @@ function buildArticleUrl(projectDomain: string, title: string): string {
 export function normalizeTopReadEntries(
   articles: WikimediaTopReadArticle[],
   limit: number,
-  projectDomain = "en.wikipedia"
+  domain: Domain = "en"
 ): TopReadEntry[] {
   let filteredRank = 0;
 
@@ -69,15 +69,7 @@ export function normalizeTopReadEntries(
         sourceRank: article.rank,
         filteredRank,
         dailyViews: article.views,
-        articleUrl: buildArticleUrl(projectDomain, article.article),
+        articleUrl: buildArticleUrl(domain, article.article),
       };
     });
-}
-
-export function computeFilteredSnapshotVolume(
-  articles: WikimediaTopReadArticle[]
-): number {
-  return articles
-    .filter((article) => isContentArticleTitle(article.article))
-    .reduce((sum, article) => sum + article.views, 0);
 }

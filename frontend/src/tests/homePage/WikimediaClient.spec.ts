@@ -94,9 +94,9 @@ describe("external-apis/wikimedia/client", () => {
       cache,
     });
 
-    const result = await client.pageviews.getTopReadList("en", 5);
+    const result = await client.pageviews.getViewsByDomain("en");
 
-    expect(result.filteredSnapshotVolume).toBe(6000);
+    expect(result.views).toBe(6000);
     expect(cache.setItem).toHaveBeenCalledTimes(1);
   });
 

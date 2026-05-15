@@ -6,11 +6,17 @@ import ArticleLeaderboard from "@/components/homePage/ArticleLeaderboard.vue";
 const { mockGetTopReadList } = vi.hoisted(() => ({
   mockGetTopReadList: vi.fn(),
 }));
+const { mockGetViewsByDomain } = vi.hoisted(() => ({
+    mockGetViewsByDomain: vi.fn(),
+}));
+
 
 vi.mock("@/services/wikimediaClient", () => ({
   createWikimediaClient: () => ({
     pageviews: {
       getTopReadList: mockGetTopReadList,
+        getViewsByDomain: mockGetViewsByDomain
+
     },
   }),
 }));
@@ -95,4 +101,26 @@ describe("ArticleLeaderboard.vue", () => {
     await flushPromises();
     expect(wrapper.text()).toContain("Top article data unavailable right now.");
   });
+
+    it("updates the floating badge with filtered snapshot volume", async () => {
+        mockGetViewsByDomain.mockResolvedValue({
+            domain: "en",
+            snapshotDate: "2026-04-27",
+            views: 1_200_000,
+        });
+
+        window.localStorage.clear();
+        router.push("/");
+        await router.isReady();
+        const wrapper = mount(ArticleLeaderboard, {
+            global: {
+                plugins: [router],
+            },
+        });
+
+        await flushPromises();
+
+        expect(wrapper.exists()).toBe(true);
+        expect(wrapper.text()).toContain("Over 1.2M views today");
+    });
 });

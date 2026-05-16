@@ -32,7 +32,7 @@ This document describes the FantasyWiki Cloudflare deployment strategy across lo
 - **Trigger**: `workflow_call`, `workflow_dispatch`
 - **Purpose**: deploy backend, frontend, and D1 migrations to explicit target environments
   - `master`: backend `backend`, Pages project `frontend`, D1 `db`
-  - `dev`: backend `backend-qa`, Pages project `frontend-qa`, D1 via `D1_QA_DATABASE_ID`
+  - `dev`: backend `backend-preview`, Pages project `frontend`, D1 `db-preview`
 
 ---
 
@@ -47,12 +47,12 @@ This document describes the FantasyWiki Cloudflare deployment strategy across lo
   - `VITE_BACKEND_URL=luca0patrignani.workers.dev`
 
 ### QA (`dev`)
-- **Backend Worker**: `backend-qa`
-- **Frontend Pages**: `frontend-qa` (dedicated QA Pages project)
-- **D1 Database**: QA D1 database (from `D1_QA_DATABASE_ID`)
+- **Backend Worker**: `backend-preview`
+- **Frontend Pages**: `frontend` (`dev.fantasywiki.pages.dev`)
+- **D1 Database**: preview database (`db-preview`)
 - **Main vars**:
-  - `FRONTEND_URL=frontend-qa.pages.dev`
-  - `VITE_BACKEND_URL=backend-qa.luca0patrignani.workers.dev`
+  - `FRONTEND_URL=dev.fantasywiki.pages.dev`
+  - `VITE_BACKEND_URL=backend-preview.luca0patrignani.workers.dev`
 
 ### Local
 - **Backend**: `wrangler dev` (`localhost:8787`)
@@ -68,37 +68,28 @@ This document describes the FantasyWiki Cloudflare deployment strategy across lo
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID |
 | `CLOUDFLARE_D1_MIGRATION_RUNNER_SECRET` | Token used for production D1 migrations |
-| `D1_QA_DATABASE_ID` | QA D1 database ID |
 
 ---
 
 ## QA Setup Procedure
 
-### 1. Create QA D1 Database
+### 1. Create Preview D1 Database
 
 ```bash
-npx wrangler d1 create fantasydb-qa --remote
+npx wrangler d1 create db-preview --remote
 ```
 
-Save the returned `database_id` as a GitHub repository secret.
+Set the returned `database_id` in `backend/wrangler.jsonc` under `env.preview.d1_databases[0].database_id`.
 
-### 2. Add GitHub Secret
-
-1. Open: https://github.com/luca0patrignani/FantasyWiki/settings/secrets/actions
-2. Click **New repository secret**
-3. Name: `D1_QA_DATABASE_ID`
-4. Value: `<database_id_from_step_1>`
-5. Save
-
-### 3. (Optional) Create and Apply D1 Migrations
+### 2. Apply preview migrations
 
 ```bash
 cd backend
-npx wrangler d1 migrations create fantasydb-qa init
-npx wrangler d1 migrations apply fantasydb-qa --remote
+npx wrangler d1 migrations create db-preview init
+npx wrangler d1 migrations apply db-preview --remote
 ```
 
-### 4. Test QA Deployment
+### 3. Test QA Deployment
 
 ```bash
 git push origin dev
@@ -120,7 +111,7 @@ git push origin master
 ### QA D1 Debug Query
 
 ```bash
-npx wrangler d1 execute fantasydb-qa "SELECT * FROM users;" --remote
+npx wrangler d1 execute db-preview "SELECT * FROM users;" --remote
 ```
 
 ### Workflow Logs

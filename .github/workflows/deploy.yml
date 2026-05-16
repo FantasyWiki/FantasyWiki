@@ -5,75 +5,40 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy-backend:
-    runs-on: ubuntu-latest
-    if: github.ref_name == 'master' || github.ref_name == 'dev'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy Worker to Cloudflare
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          wranglerVersion: "4.80.0"
-          workingDirectory: "backend"
-          command: ${{ github.ref_name == 'master' && 'deploy --name=backend' || 'deploy --name=backend-preview --env=preview' }}
+  deploy-production:
+    if: github.ref_name == 'master'
+    uses: ./.github/workflows/deploy-target.yml
+    with:
+      environment: production
+      backend_worker_name: backend
+      frontend_url: fantasywiki.pages.dev
+      vite_backend_url: master.luca0patrignani.workers.dev
+      frontend_build_mode: production
+      frontend_deploy_branch: master
+      d1_database_name: db
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_D1_MIGRATION_RUNNER_SECRET: ${{ secrets.CLOUDFLARE_D1_MIGRATION_RUNNER_SECRET }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID_PRODUCTION }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET_PRODUCTION }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET_PRODUCTION }}
 
-  deploy-frontend:
-    runs-on: ubuntu-latest
-    if: github.ref_name == 'master' || github.ref_name == 'dev'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: "frontend/package.json"
-
-      - name: Install root dependencies
-        run: npm ci
-
-      - name: Install frontend dependencies
-        run: npm ci
-        working-directory: frontend
-
-      - name: Build frontend
-        run: ${{ github.ref_name == 'master' && 'npm run build' || 'npm run build -- --mode preview' }}
-        working-directory: frontend
-
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          wranglerVersion: "4.80.0"
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: "frontend"
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --branch=${{ github.ref_name }}
-
-  migrate-d1:
-    runs-on: ubuntu-latest
-    if: github.ref_name == 'master' || github.ref_name == 'dev'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Apply D1 migrations
-        uses: cloudflare/wrangler-action@v3
-        with:
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          apiToken: ${{ secrets.CLOUDFLARE_D1_MIGRATION_RUNNER_SECRET }}
-          wranglerVersion: "4.80.0"
-          workingDirectory: "backend"
-          command: ${{ github.ref_name == 'master' && 'd1 migrations apply db --remote' || 'd1 migrations apply db-preview --env=preview --remote' }}
-
-  success:
-    runs-on: ubuntu-24.04
-    needs:
-      - deploy-backend
-      - deploy-frontend
-      - migrate-d1
-    if: >-
-      always() && (
-        contains(join(needs.*.result, ','), 'failure')
-        || !contains(join(needs.*.result, ','), 'cancelled')
-      )
-    steps:
-      - name: Verify deploy workflow
-        run: ${{ !contains(join(needs.*.result, ','), 'failure') }}
+  deploy-preview:
+    if: github.ref_name == 'dev'
+    uses: ./.github/workflows/deploy-target.yml
+    with:
+      environment: preview
+      backend_worker_name: backend-preview
+      frontend_url: frontend-preview.pages.dev
+      vite_backend_url: backend-preview.luca0patrignani.workers.dev
+      frontend_build_mode: preview
+      frontend_deploy_branch: dev
+      d1_database_name: db-preview
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_D1_MIGRATION_RUNNER_SECRET: ${{ secrets.CLOUDFLARE_D1_MIGRATION_RUNNER_SECRET }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID_PREVIEW }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET_PREVIEW }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET_PREVIEW }}

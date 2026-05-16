@@ -16,6 +16,7 @@ export default defineConfig({
     cloudflareTest({
       wrangler: {
         configPath: "./wrangler.jsonc",
+        environment: "production",
       },
       miniflare: {
         d1Persist: false,

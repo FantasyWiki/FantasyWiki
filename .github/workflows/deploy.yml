@@ -30,7 +30,7 @@ jobs:
     with:
       environment: preview
       backend_worker_name: backend-preview
-      frontend_url: https://frontend-preview.pages.dev
+      frontend_url: https://dev.fantasywiki.pages.dev
       vite_backend_url: https://backend-preview.luca0patrignani.workers.dev
       frontend_build_mode: preview
       frontend_deploy_branch: dev

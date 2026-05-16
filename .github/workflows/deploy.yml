@@ -11,8 +11,8 @@ jobs:
     with:
       environment: production
       backend_worker_name: backend
-      frontend_url: fantasywiki.pages.dev
-      vite_backend_url: master.luca0patrignani.workers.dev
+      frontend_url: https://fantasywiki.pages.dev
+      vite_backend_url: https://master.luca0patrignani.workers.dev
       frontend_build_mode: production
       frontend_deploy_branch: master
       d1_database_name: db
@@ -30,8 +30,8 @@ jobs:
     with:
       environment: preview
       backend_worker_name: backend-preview
-      frontend_url: frontend-preview.pages.dev
-      vite_backend_url: backend-preview.luca0patrignani.workers.dev
+      frontend_url: https://frontend-preview.pages.dev
+      vite_backend_url: https://backend-preview.luca0patrignani.workers.dev
       frontend_build_mode: preview
       frontend_deploy_branch: dev
       d1_database_name: db-preview

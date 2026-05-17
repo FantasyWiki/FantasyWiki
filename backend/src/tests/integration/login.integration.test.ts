@@ -133,7 +133,7 @@ describe("LoginService Integration Tests", () => {
           return { ok: true, value: { id: "new-id", username: "newuser" } };
         },
       };
-      const service = new LoginService(mockedService);
+      const service = new LoginService(env.db, mockedService);
 
       const result = await service.loginWithGoogleAccount(
         "google-user-error",

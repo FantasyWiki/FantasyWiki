@@ -1,6 +1,6 @@
 -- Migration: Create initial schema for players, google_accounts, teams, and leagues tables
 -- Date: 2026-04-21
--- Updated: 2026-05-05 - players uses acoountId as foreign key to google_accounts
+-- Updated: 2026-05-05 - players uses accountId as foreign key to google_accounts
 
 -- Create google_accounts table first (no reference to players yet)
 CREATE TABLE IF NOT EXISTS google_accounts (
@@ -14,9 +14,9 @@ CREATE TABLE IF NOT EXISTS google_accounts (
 CREATE TABLE IF NOT EXISTS players (
   id TEXT PRIMARY KEY,
   username TEXT NOT NULL UNIQUE,
-  acoountId TEXT NOT NULL UNIQUE,
+  accountId TEXT NOT NULL UNIQUE,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (acoountId) REFERENCES google_accounts(id) ON DELETE CASCADE
+  FOREIGN KEY (accountId) REFERENCES google_accounts(id) ON DELETE CASCADE
 );
 
 -- Create leagues table
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 -- Create indexes for common queries
-CREATE INDEX IF NOT EXISTS idx_players_acoountId ON players(acoountId);
+CREATE INDEX IF NOT EXISTS idx_players_accountId ON players(accountId);
 CREATE INDEX IF NOT EXISTS idx_google_accounts_googleId ON google_accounts(googleId);
 CREATE INDEX IF NOT EXISTS idx_teams_playerId ON teams(playerId);
 CREATE INDEX IF NOT EXISTS idx_teams_leagueId ON teams(leagueId);

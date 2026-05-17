@@ -9,7 +9,7 @@ This document describes the FantasyWiki Cloudflare deployment strategy across lo
 | Branch | Trigger | Deploy | Environments |
 |--------|---------|--------|--------------|
 | **master** | push / PR | ✅ Production | Prod Workers, Prod Pages, Prod D1 |
-| **dev** | push | ✅ QA | `backend-qa`, `frontend-qa`, QA D1 |
+| **dev** | push | ✅ QA | `backend-preview`, `frontend` (dev branch), `db-preview` |
 | **feature/** | push / PR | ❌ CI only | No deploy |
 | **renovate/** | push | ❌ Skip | No deploy (dependency updates) |
 

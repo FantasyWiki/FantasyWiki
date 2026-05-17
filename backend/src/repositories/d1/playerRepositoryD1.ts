@@ -27,7 +27,12 @@ export class PlayerRepositoryD1 implements PlayerRepository {
       const googleAccountResult = await googleAccountStmt.run();
 
       if (!googleAccountResult.success) {
-        return failure("Failed to save google account");
+        const googleAccountError =
+          "error" in googleAccountResult &&
+          typeof googleAccountResult.error === "string"
+            ? googleAccountResult.error
+            : "Unknown D1 error";
+        return failure(`Failed to save google account: ${googleAccountError}`);
       }
 
       // Insert player with reference to google_account
@@ -39,7 +44,11 @@ export class PlayerRepositoryD1 implements PlayerRepository {
       const playerResult = await playerStmt.run();
 
       if (!playerResult.success) {
-        return failure("Failed to save player");
+        const playerError =
+          "error" in playerResult && typeof playerResult.error === "string"
+            ? playerResult.error
+            : "Unknown D1 error";
+        return failure(`Failed to save player: ${playerError}`);
       }
 
       return success({ id: playerId, username: player.username });

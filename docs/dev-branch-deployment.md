@@ -27,16 +27,16 @@ Deployment is handled by a single reusable workflow:
 When `dev` is deployed, the workflow deploys:
 
 1. **QA Backend Worker**
-   - worker name: `backend-qa`
-   - deploy command uses `--env=dev` with QA-specific `wrangler` env config
+   - worker name: `backend-preview`
+   - deploy command uses `--env=preview`
 
 2. **QA Frontend**
-   - dedicated Cloudflare Pages project: `frontend-qa`
-   - frontend build variable: `VITE_BACKEND_URL=backend-qa.luca0patrignani.workers.dev`
+   - Cloudflare Pages project: `frontend` (deployed from `dev` branch)
+   - frontend build variable: `VITE_BACKEND_URL=https://backend-preview.luca0patrignani.workers.dev`
 
 3. **QA D1 Database**
-   - remote migrations applied to QA D1
-   - selected through GitHub secret `D1_QA_DATABASE_ID`
+   - remote migrations applied to preview D1
+   - database name passed to migration step: `db-preview`
 
 ## What Gets Deployed on `master`
 
@@ -51,7 +51,6 @@ When `master` is deployed, the workflow deploys:
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
 - `CLOUDFLARE_D1_MIGRATION_RUNNER_SECRET` (production D1 migrations)
-- `D1_QA_DATABASE_ID` (QA D1 database)
 
 ## Recommended Delivery Flow
 

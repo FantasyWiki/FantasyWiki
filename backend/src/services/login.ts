@@ -7,18 +7,14 @@ type LoginPlayerService = Pick<
   "createPlayer" | "getPlayerByGoogleAccountId"
 >;
 
+const buildPlayerByAccountNotFoundError = (googleAccountId: string) =>
+  `Player with account id ${googleAccountId} not found`;
+
 export class LoginService {
   private playerService: LoginPlayerService;
 
-  constructor(dbOrPlayerService: D1Database | LoginPlayerService) {
-    if (
-      "createPlayer" in dbOrPlayerService &&
-      "getPlayerByGoogleAccountId" in dbOrPlayerService
-    ) {
-      this.playerService = dbOrPlayerService;
-      return;
-    }
-    this.playerService = new PlayerService(dbOrPlayerService);
+  constructor(db: D1Database, playerService?: LoginPlayerService) {
+    this.playerService = playerService ?? new PlayerService(db);
   }
 
   /**
@@ -39,7 +35,7 @@ export class LoginService {
     }
     if (
       existingResult.error !==
-      `Player with account id ${googleAccountId} not found`
+      buildPlayerByAccountNotFoundError(googleAccountId)
     ) {
       return existingResult;
     }

@@ -121,5 +121,30 @@ describe("LoginService Integration Tests", () => {
         expect(user1.value.username).not.toBe(user2.value.username);
       }
     });
+
+    it("should return lookup errors that are not not-found without creating a user", async () => {
+      let createCalled = false;
+      const lookupError = "Error retrieving player: database unavailable";
+      const mockedService = {
+        getPlayerByGoogleAccountId: async () =>
+          ({ ok: false, error: lookupError }) as const,
+        createPlayer: async () => {
+          createCalled = true;
+          return { ok: true, value: { id: "new-id", username: "newuser" } };
+        },
+      };
+      const service = new LoginService(mockedService);
+
+      const result = await service.loginWithGoogleAccount(
+        "google-user-error",
+        "error@example.com",
+      );
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toBe(lookupError);
+      }
+      expect(createCalled).toBe(false);
+    });
   });
 });

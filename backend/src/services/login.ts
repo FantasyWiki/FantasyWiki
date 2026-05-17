@@ -2,11 +2,23 @@ import { Player } from "../../../model";
 import { PlayerService } from "./player";
 import { Result, failure } from "../repositories/result";
 
-export class LoginService {
-  private playerService: PlayerService;
+type LoginPlayerService = Pick<
+  PlayerService,
+  "createPlayer" | "getPlayerByGoogleAccountId"
+>;
 
-  constructor(db: D1Database) {
-    this.playerService = new PlayerService(db);
+export class LoginService {
+  private playerService: LoginPlayerService;
+
+  constructor(dbOrPlayerService: D1Database | LoginPlayerService) {
+    if (
+      "createPlayer" in dbOrPlayerService &&
+      "getPlayerByGoogleAccountId" in dbOrPlayerService
+    ) {
+      this.playerService = dbOrPlayerService;
+      return;
+    }
+    this.playerService = new PlayerService(dbOrPlayerService);
   }
 
   /**
@@ -25,7 +37,10 @@ export class LoginService {
     if (existingResult.ok) {
       return existingResult;
     }
-    if (!existingResult.error.includes("not found")) {
+    if (
+      existingResult.error !==
+      `Player with account id ${googleAccountId} not found`
+    ) {
       return existingResult;
     }
 

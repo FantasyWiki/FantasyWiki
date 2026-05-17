@@ -3,21 +3,18 @@ import { googleAuth } from "@hono/oauth-providers/google";
 import { sign } from "hono/jwt";
 import { JWTPayload } from "hono/utils/jwt/types";
 import { setCookie } from "hono/cookie";
+import { LoginService } from "../services/login";
 
 type Bindings = {
+  db: D1Database;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   JWT_SECRET: string;
   FRONTEND_URL: string;
-  WORKERS_CI_BRANCH: string;
 };
 
 export function resolveFrontendUrl(env: Bindings): string {
   let url = env.FRONTEND_URL ?? "localhost:5173";
-  // Only add branch prefix if not master
-  if (env.WORKERS_CI_BRANCH && env.WORKERS_CI_BRANCH !== "master") {
-    url = env.WORKERS_CI_BRANCH + "." + url;
-  }
 
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
     const isLocal = url.startsWith("localhost") || url.startsWith("127.");
@@ -54,6 +51,17 @@ auth.get("/google", async (c) => {
 
   if (!c.env.JWT_SECRET) {
     return c.json({ error: "Missing JWT_SECRET env variable" }, 500);
+  }
+
+  // Login or create player with Google account
+  const loginService = new LoginService(c.env.db);
+  const playerResult = await loginService.loginWithGoogleAccount(
+    user.id!,
+    user.email!,
+  );
+
+  if (!playerResult.ok) {
+    return c.redirect(`${frontendUrl}/home?error=player_creation_failed`);
   }
 
   const jwtPayload: JWTPayload = {

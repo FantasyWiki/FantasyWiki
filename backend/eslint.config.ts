@@ -5,7 +5,13 @@ import { defineConfig } from "eslint/config";
 
 export default defineConfig([
   {
-    ignores: [".wrangler/**", "node_modules/**", "build/**", "coverage/**"],
+    ignores: [
+      ".wrangler/**",
+      "node_modules/**",
+      "build/**",
+      "src/tests/cloudflare-env.d.ts",
+      "coverage/**",
+    ],
   },
   {
     files: ["src/**/*.{js,mjs,cjs,ts,mts,cts}", "eslint.config.ts"],

@@ -33,7 +33,7 @@ export class PlayerRepositoryD1 implements PlayerRepository {
       // Insert player with reference to google_account
       const playerStmt = this.db
         .prepare(
-          "INSERT INTO players (id, username, acoountId) VALUES (?, ?, ?)",
+          "INSERT INTO players (id, username, accountId) VALUES (?, ?, ?)",
         )
         .bind(playerId, player.username, player.accountId);
       const playerResult = await playerStmt.run();
@@ -100,7 +100,7 @@ export class PlayerRepositoryD1 implements PlayerRepository {
           `
                     SELECT p.id, p.username
                     FROM players p
-                    WHERE p.acoountId = ?
+                    WHERE p.accountId = ?
                 `,
         )
         .bind(accountId)

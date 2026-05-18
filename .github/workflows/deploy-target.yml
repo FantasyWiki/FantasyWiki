@@ -106,17 +106,3 @@ jobs:
           workingDirectory: "backend"
           command: d1 migrations apply ${{ inputs.d1_database_name }} --env=${{ inputs.environment }} --remote
 
-  success:
-    runs-on: ubuntu-24.04
-    needs:
-      - deploy-backend
-      - deploy-frontend
-      - migrate-d1
-    if: >-
-      always() && (
-        contains(join(needs.*.result, ','), 'failure')
-        || !contains(join(needs.*.result, ','), 'cancelled')
-      )
-    steps:
-      - name: Verify deploy workflow
-        run: ${{ !contains(join(needs.*.result, ','), 'failure') }}

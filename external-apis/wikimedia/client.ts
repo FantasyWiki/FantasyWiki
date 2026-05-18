@@ -2,6 +2,7 @@ import {ArticleSummary, createGetSummary } from "./client/getSummary";
 import { createGetTopReadList } from "./client/getTopReadList";
 import {Domain} from "../../dto/enums";
 import {TopReadListResult} from "./client/getTopReadList";
+import {createGetViewsByDomain, DomainResult} from "./client/getViewsByDomain";
 
 /**
  * Minimal cache interface used by the shared client.
@@ -77,7 +78,9 @@ export function getDefaultCache(): CacheLike | null {
  */
 export type WikimediaClient = {
     pageviews: {
-        getTopReadList(domain: Domain, limit: number): Promise<TopReadListResult>;
+        getTopReadList(domain: Domain, limit: number): Promise<TopReadListResult>,
+        getViewsByDomain(domain: Domain): Promise<DomainResult>;
+
     };
     article: {
         getSummary(domain: Domain, title: string): Promise<ArticleSummary>;
@@ -118,6 +121,7 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}): Wik
             getTopReadList: createGetTopReadList({
                 http, cache, maxFallbackDays, retryCount, averageDays,
             }),
+            getViewsByDomain: createGetViewsByDomain({ http, cache, maxFallbackDays, retryCount }),
         },
         article: {
             getSummary: createGetSummary({ http, retryCount }),

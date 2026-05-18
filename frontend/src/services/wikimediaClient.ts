@@ -1,6 +1,6 @@
 import axios from "axios";
 import {
-  createWikimediaClient as createSharedWikimediaClient,
+  createWikimediaClient as createFrontendWikimediaClient,
   type WikimediaClientOptions,
 } from "../../../external-apis/wikimedia/client";
 
@@ -15,8 +15,8 @@ function createAxiosHttp() {
 
 export function createWikimediaClient(options: WikimediaClientOptions = {}) {
   if (options.http || options.fetchFn) {
-    return createSharedWikimediaClient(options);
+    return createFrontendWikimediaClient(options);
   }
 
-  return createSharedWikimediaClient({ ...options, http: createAxiosHttp() });
+  return createFrontendWikimediaClient({ ...options, http: createAxiosHttp() });
 }

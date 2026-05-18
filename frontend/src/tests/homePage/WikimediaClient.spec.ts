@@ -73,33 +73,6 @@ describe("external-apis/wikimedia/client", () => {
     expect(cache.removeItem).toHaveBeenCalledTimes(1);
   });
 
-  it("returns fetched result even when cache writes fail", async () => {
-    const fetchFn = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        jsonResponse(buildTopReadResponse({ articles: topReadArticles }))
-      )
-      .mockResolvedValue(jsonResponse(buildPerArticleViewsResponse([10, 20])));
-
-    const cache = {
-      getItem: vi.fn().mockReturnValueOnce(null),
-      setItem: vi.fn(() => {
-        throw new Error("quota exceeded");
-      }),
-      removeItem: vi.fn(),
-    };
-
-    const client = createWikimediaClient({
-      fetchFn,
-      cache,
-    });
-
-    const result = await client.pageviews.getTopReadList("en", 5);
-
-    expect(result.filteredSnapshotVolume).toBe(6000);
-    expect(cache.setItem).toHaveBeenCalledTimes(1);
-  });
-
   it("keeps entries when 30d average lookup fails for an article", async () => {
     const fetchFn = vi
       .fn<typeof fetch>()

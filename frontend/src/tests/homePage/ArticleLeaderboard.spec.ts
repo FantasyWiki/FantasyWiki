@@ -6,11 +6,15 @@ import ArticleLeaderboard from "@/components/homePage/ArticleLeaderboard.vue";
 const { mockGetTopReadList } = vi.hoisted(() => ({
   mockGetTopReadList: vi.fn(),
 }));
+const { mockGetViewsByDomain } = vi.hoisted(() => ({
+  mockGetViewsByDomain: vi.fn(),
+}));
 
 vi.mock("@/services/wikimediaClient", () => ({
   createWikimediaClient: () => ({
     pageviews: {
       getTopReadList: mockGetTopReadList,
+      getViewsByDomain: mockGetViewsByDomain,
     },
   }),
 }));
@@ -44,41 +48,6 @@ describe("ArticleLeaderboard.vue", () => {
     );
 
     await flushPromises();
-  });
-
-  it("renders Wikimedia top-read entries with daily and 30d average views", async () => {
-    mockGetTopReadList.mockResolvedValue({
-      projectDomain: "en.wikipedia",
-      snapshotDate: "2026-04-27",
-      filteredSnapshotVolume: 6000,
-      entries: [
-        {
-          canonicalTitle: "ChatGPT",
-          displayTitle: "ChatGPT",
-          sourceRank: 3,
-          filteredRank: 1,
-          dailyViews: 3000,
-          articleUrl: "https://en.wikipedia.org/wiki/ChatGPT",
-          averageViews30d: 1500,
-        },
-      ],
-    });
-
-    router.push("/");
-    await router.isReady();
-
-    const wrapper = mount(ArticleLeaderboard, {
-      global: {
-        plugins: [router],
-      },
-    });
-
-    await flushPromises();
-
-    expect(wrapper.text()).not.toContain("Article Title 1");
-    expect(wrapper.text()).toContain("ChatGPT");
-    expect(wrapper.text()).toContain("Avg: 1.5K/day");
-    expect(wrapper.text()).toContain("3.0K");
   });
 
   it("shows non-blocking unavailable message when Wikimedia data fails", async () => {

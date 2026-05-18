@@ -32,20 +32,13 @@
         <app-stats></app-stats>
       </ion-col>
       <ion-col size="12" size-lg="6" class="ion-no-padding">
-        <article-leaderboard
-          @volume-resolved="handleVolumeResolved"
-        ></article-leaderboard>
-        <ion-chip class="top-right animate-float">📡 Live data</ion-chip>
-        <ion-chip class="bottom-left animate-float"
-          >📊 {{ todayVolumeLabel }}</ion-chip
-        >
+        <article-leaderboard></article-leaderboard>
       </ion-col>
     </ion-row>
   </ion-grid>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
 import {
   IonButton,
   IonIcon,
@@ -58,56 +51,6 @@ import {
 import { arrowForwardOutline, flashOutline } from "ionicons/icons";
 import AppStats from "./AppStats.vue";
 import ArticleLeaderboard from "./ArticleLeaderboard.vue";
-
-const compactVolumeFormatter = new Intl.NumberFormat("en", {
-  notation: "compact",
-  maximumFractionDigits: 1,
-});
-
-function formatTodayVolumeLabel(volume: number): string {
-  return `Over ${compactVolumeFormatter.format(volume)} views today`;
-}
-
-const todayVolumeLabel = ref(formatTodayVolumeLabel(2_000_000));
-
-function handleVolumeResolved(volume: number): void {
-  todayVolumeLabel.value = formatTodayVolumeLabel(volume);
-}
 </script>
 
 <style scoped src="src/components/homePage/home-page.css"></style>
-<style scoped>
-ion-chip.top-right {
-  position: absolute;
-  top: -1rem;
-  right: -1rem;
-  --background: var(--ion-color-wiki-gold);
-  --color: var(--ion-color-dark);
-}
-
-:root .ion-palette-dark ion-chip.top-right {
-  --color: var(--ion-color-light);
-}
-
-ion-chip.bottom-left {
-  position: absolute;
-  bottom: -1rem;
-  left: -1rem;
-  --background: var(--ion-color-primary);
-  --color: var(--ion-color-light);
-}
-
-ion-chip.animate-float {
-  animation: float 6s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-</style>

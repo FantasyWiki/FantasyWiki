@@ -1,8 +1,5 @@
 import type { Domain } from "../../../dto/enums";
-import {
-    computeFilteredSnapshotVolume,
-    normalizeTopReadEntries, TopReadEntry, WikimediaTopReadArticle,
-} from "../wikimedia";
+import {normalizeTopReadEntries, TopReadEntry, WikimediaTopReadArticle,} from "../wikimedia";
 import {
     PAGEVIEWS_BASE_URL,
     fetchJsonWithRetry,
@@ -36,9 +33,8 @@ export type TopReadResponse = {
  * Normalized result returned by `pageviews.getTopReadList`.
  */
 export type TopReadListResult = {
-    projectDomain: string;
+    domain: Domain;
     snapshotDate: string;
-    filteredSnapshotVolume: number;
     entries: TopReadEntry[];
 };
 
@@ -54,7 +50,7 @@ export function createGetTopReadList(deps: GetTopReadListDeps) {
     const { http, cache, maxFallbackDays, retryCount, averageDays } = deps;
 
     async function resolveAverageViews(
-        projectDomain: string,
+        domain: Domain,
         title: string,
         snapshotDate: Date,
     ): Promise<number | undefined> {
@@ -62,7 +58,7 @@ export function createGetTopReadList(deps: GetTopReadListDeps) {
         const startDate = shiftUtcDays(snapshotDate, -(averageDays - 1));
         const start = toDateParts(startDate);
         const encodedTitle = encodeURIComponent(title).replace(/%20/g, "_");
-        const url = `${PAGEVIEWS_BASE_URL}/per-article/${projectDomain}/all-access/user/${encodedTitle}/daily/${start.year}${start.month}${start.day}/${end.year}${end.month}${end.day}`;
+        const url = `${PAGEVIEWS_BASE_URL}/per-article/${domain}.wikipedia/all-access/user/${encodedTitle}/daily/${start.year}${start.month}${start.day}/${end.year}${end.month}${end.day}`;
 
         try {
             const response = await fetchJsonWithRetry<PerArticleResponse>(http, url, retryCount);
@@ -74,14 +70,12 @@ export function createGetTopReadList(deps: GetTopReadListDeps) {
         }
     }
 
-    return async function getTopReadList(domain: Domain, limit: number): Promise<TopReadListResult> {
-        const projectDomain = `${domain}.wikipedia`;
-        const baseDate = new Date();
+    return async function getTopReadList(domain: Domain, limit: number): Promise<TopReadListResult> {const baseDate = new Date();
 
         for (let offset = 1; offset <= maxFallbackDays; offset += 1) {
             const snapshotDate = shiftUtcDays(baseDate, -offset);
             const snapshotDateText = toYmd(snapshotDate);
-            const cacheKey = `wikimedia:top-read:${projectDomain}:${snapshotDateText}:limit:${limit}`;
+            const cacheKey = `wikimedia:top-read:${domain}.wikipedia:${snapshotDateText}:limit:${limit}`;
 
             let cached: string | null = null;
             try {
@@ -99,25 +93,23 @@ export function createGetTopReadList(deps: GetTopReadListDeps) {
             }
 
             const parts = toDateParts(snapshotDate);
-            const url = `${PAGEVIEWS_BASE_URL}/top/${projectDomain}/all-access/${parts.year}/${parts.month}/${parts.day}`;
+            const url = `${PAGEVIEWS_BASE_URL}/top/${domain}.wikipedia/all-access/${parts.year}/${parts.month}/${parts.day}`;
 
             try {
                 const topRead = await fetchJsonWithRetry<TopReadResponse>(http, url, retryCount);
                 const articles = topRead.items?.[0]?.articles ?? [];
-                const filteredSnapshotVolume = computeFilteredSnapshotVolume(articles);
-                const entries = normalizeTopReadEntries(articles, limit, projectDomain);
+                const entries = normalizeTopReadEntries(articles, limit, domain);
 
                 const entriesWithAverage = await Promise.all(
                     entries.map(async (entry) => ({
                         ...entry,
-                        averageViews30d: await resolveAverageViews(projectDomain, entry.canonicalTitle, snapshotDate),
+                        averageViews30d: await resolveAverageViews(domain, entry.canonicalTitle, snapshotDate),
                     })),
                 );
 
                 const result: TopReadListResult = {
-                    projectDomain,
+                    domain,
                     snapshotDate: snapshotDateText,
-                    filteredSnapshotVolume,
                     entries: entriesWithAverage,
                 };
 

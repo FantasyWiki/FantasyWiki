@@ -28,7 +28,7 @@ jobs:
       - check
     if: "!startsWith(github.ref_name, 'renovate/')"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Create URL-friendly branch name
         run: echo "WORKERS_CI_BRANCH=${GITHUB_REF_NAME//\//-}" >> $GITHUB_ENV
@@ -51,7 +51,7 @@ jobs:
       - check
     if: "!startsWith(github.ref_name, 'renovate/')"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Create URL-friendly branch name
         run: echo "WORKERS_CI_BRANCH=${GITHUB_REF_NAME//\//-}" >> $GITHUB_ENV

@@ -43,36 +43,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy Worker to Cloudflare (production)
-        if: inputs.environment == 'production'
+      - name: Deploy Worker to Cloudflare
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: "4.80.0"
           workingDirectory: "backend"
-          environment: production
+          environment: ${{ inputs.environment }}
           secrets: |
             GOOGLE_CLIENT_ID
             GOOGLE_CLIENT_SECRET
             JWT_SECRET
-          command: deploy --name=${{ inputs.backend_worker_name }} --env=production --var FRONTEND_URL:${{ inputs.frontend_url }}
-        env:
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-      - name: Deploy Worker to Cloudflare (preview)
-        if: inputs.environment == 'preview'
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          wranglerVersion: "4.80.0"
-          workingDirectory: "backend"
-          environment: preview
-          secrets: |
-            GOOGLE_CLIENT_ID
-            GOOGLE_CLIENT_SECRET
-            JWT_SECRET
-          command: deploy --name=${{ inputs.backend_worker_name }} --env=preview --var FRONTEND_URL:${{ inputs.frontend_url }}
+          command: deploy --name=${{ inputs.backend_worker_name }} --env=${{ inputs.environment }} --var FRONTEND_URL:${{ inputs.frontend_url }}
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
@@ -115,24 +97,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply D1 migrations (production)
-        if: inputs.environment == 'production'
+      - name: Apply D1 migrations
         uses: cloudflare/wrangler-action@v3
         with:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           apiToken: ${{ secrets.CLOUDFLARE_D1_MIGRATION_RUNNER_SECRET }}
           wranglerVersion: "4.80.0"
           workingDirectory: "backend"
-          command: d1 migrations apply ${{ inputs.d1_database_name }} --env=production --remote
-      - name: Apply D1 migrations (preview)
-        if: inputs.environment == 'preview'
-        uses: cloudflare/wrangler-action@v3
-        with:
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          apiToken: ${{ secrets.CLOUDFLARE_D1_MIGRATION_RUNNER_SECRET }}
-          wranglerVersion: "4.80.0"
-          workingDirectory: "backend"
-          command: d1 migrations apply ${{ inputs.d1_database_name }} --env=preview --remote
+          command: d1 migrations apply ${{ inputs.d1_database_name }} --env=${{ inputs.environment }} --remote
 
   success:
     runs-on: ubuntu-24.04

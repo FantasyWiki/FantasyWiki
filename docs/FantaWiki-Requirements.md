@@ -123,10 +123,11 @@ The page shows three panels:
 
 The main panel shows the graphical formation of the team as a 4-3-3 with a goalkeeper. Links are shown between close players in formation (see FUT 2020 as reference).
 
-The line between articles A and B is colored this way:
-- **Green** if A references B and B references A (mutual link)
-- **Yellow** if A references B but B does not reference A (one-way link)
-- **Red** otherwise (no link)
+The line between articles A and B carries a chemistry level (and multiplier):
+- **Excellent** (green): +20%
+- **Good** (yellow): +10%
+- **Weak** (orange): +5%
+- **Empty** (gray): 0%
 
 ### A user can switch color themes
 
@@ -665,4 +666,3 @@ Using actual Wikipedia pageviews from Dec 27, 2025:
 - Team C shows that "perfect synergy, low traffic" is viable but requires a very different budget allocation
 
 This confirms your meta design: **Top tier is not "all viral" but "balanced compromise"**.
-

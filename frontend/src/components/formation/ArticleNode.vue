@@ -6,7 +6,6 @@
   <button
     class="article-node fm-center-col"
     :class="{
-      'article-node--gk': isGoalkeeper,
       'article-node--swap': swapMode,
       'article-node--dragover': isDragOver,
       'article-node--selected': selected,
@@ -25,9 +24,6 @@
     <span class="article-tier" :class="`tier--${article.tier.toLowerCase()}`">
       {{ article.tier }}
     </span>
-
-    <!-- GK label floats below the tile -->
-    <span v-if="isGoalkeeper" class="gk-label">GK</span>
   </button>
 </template>
 
@@ -38,8 +34,6 @@ import type { ContractDTO } from "../../../../dto/contractDTO";
 const props = defineProps<{
   /** The contract to display in this slot */
   article: ContractDTO;
-  /** Renders the goalkeeper colour variant and GK label */
-  isGoalkeeper?: boolean;
   /** When true, applies the pulsing ring to signal swap-target availability */
   swapMode?: boolean;
   /** Highlights the node as the currently selected swap source */
@@ -135,30 +129,6 @@ function onDrop(e: DragEvent) {
 .tier--long {
   background: rgba(var(--ion-color-success-rgb), 0.15);
   color: var(--ion-color-success);
-}
-
-/* ── Goalkeeper variant ────────────────────────────────────────────────── */
-.article-node--gk {
-  background: linear-gradient(
-    to bottom,
-    rgba(var(--ion-color-primary-rgb), 0.2),
-    rgba(var(--ion-color-primary-rgb), 0.05)
-  );
-  border-color: rgba(var(--ion-color-primary-rgb), 0.4);
-}
-
-.gk-label {
-  position: absolute;
-  bottom: -9px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--ion-color-primary);
-  background: var(--ion-background-color);
-  padding: 0 4px;
-  border-radius: 4px;
-  pointer-events: none;
 }
 
 /* ── Selected (swap source) ────────────────────────────────────────────── */

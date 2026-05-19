@@ -65,6 +65,26 @@ _Avoid_: holder, assignee
 The team id representing the authenticated player's active team in the selected league.
 _Avoid_: viewer player id, session subject id
 
+**Formation**:
+A lineup that assigns contracts to the positions required by a **Formation Schema**.
+_Avoid_: lineup, roster
+
+**Position**:
+A named slot in a formation (e.g., LW, CM, GK) where an article contract can be placed.
+_Avoid_: slot, role
+
+**Formation Schema**:
+A named layout that defines which **Positions** are required and which **Chemistry Links** exist between them.
+_Avoid_: formation type, layout only
+
+**Chemistry Link**:
+A schema-defined connection between two **Positions** that carries a **Chemistry Level** for the articles placed there.
+_Avoid_: adjacency line, edge
+
+**Chemistry Level**:
+A four-step rating (Excellent/Good/Weak/Empty) assigned to a **Chemistry Link** that drives UI color and score multipliers.
+_Avoid_: color tier
+
 ## Relationships
 
 - A **Top Read Snapshot** belongs to exactly one **Project Domain**
@@ -80,6 +100,9 @@ _Avoid_: viewer player id, session subject id
 - **Owner Team** exists only when **Article Availability** is not **Free Agent**
 - **Owner Team** and **Viewer Team Context** are both team-level concepts; ownership comparisons are team-id based, not player-id based
 - Buy action eligibility depends on **Article Availability** and viewer credits
+- A **Formation Schema** defines a set of **Positions** and **Chemistry Links**
+- A **Chemistry Link** connects exactly two **Positions**
+- A **Formation** assigns a contract to each required **Position** and carries a **Chemistry Level** for each **Chemistry Link**
 
 ## Example dialogue
 

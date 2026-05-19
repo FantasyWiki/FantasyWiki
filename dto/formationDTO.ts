@@ -1,10 +1,42 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { ContractDTO } from "./contractDTO";
-import { FORMATIONS } from "./enums";
+import {
+    CHEMISTRY_LINKS,
+    FORMATIONS,
+    type Position as EnumPosition,
+    type PositionsForSchema as EnumPositionsForSchema,
+    type Schema as EnumSchema,
+} from "./enums";
 
-export type Schema = keyof typeof FORMATIONS;
-export type Position = typeof FORMATIONS[Schema][number];
-export type PositionsForSchema<S extends Schema> = typeof FORMATIONS[S][number];
+export type Schema = EnumSchema;
+export type Position = EnumPosition;
+export type PositionsForSchema<S extends Schema> = EnumPositionsForSchema<S>;
+
+export const CHEMISTRY_LEVELS = [
+    "excellent",
+    "good",
+    "weak",
+    "empty",
+] as const;
+
+export type ChemistryLevel = (typeof CHEMISTRY_LEVELS)[number];
+
+export const CHEMISTRY_MULTIPLIER_BY_LEVEL = {
+    excellent: 1.2,
+    good: 1.1,
+    weak: 1.05,
+    empty: 1.0,
+} as const satisfies Record<ChemistryLevel, number>;
+
+export type ChemistryLink<S extends Schema = Schema> = {
+    from: PositionsForSchema<S>;
+    to: PositionsForSchema<S>;
+    level: ChemistryLevel;
+};
+
+export type ChemistryLinksForSchema<S extends Schema = Schema> = ChemistryLink<S>[];
+
+export { CHEMISTRY_LINKS } from "./enums";
 
 /**
  * Editable formation used while the user is composing or modifying a lineup.
@@ -14,6 +46,7 @@ export type DraftFormationDTO<S extends Schema = Schema> = {
     date: Temporal.Instant;
     schema: S;
     formation: Partial<Record<Position, ContractDTO>>;
+    chemistry: ChemistryLinksForSchema<S>;
 };
 
 /**
@@ -24,6 +57,7 @@ export type FormationDTO<S extends Schema = Schema> = {
     date: Temporal.Instant;
     schema: S;
     formation: Record<PositionsForSchema<S>, ContractDTO>;
+    chemistry: ChemistryLinksForSchema<S>;
 };
 
 const POSITION_FALLBACKS: Partial<Record<Position, Position[]>> = {
@@ -64,14 +98,16 @@ const POSITION_FALLBACKS: Partial<Record<Position, Position[]>> = {
  * @param schema - The schema used by the draft formation.
  * @param formation - Optional initial mapping between positions and contracts.
  * @param date - Optional timestamp associated with the draft.
+ * @param chemistry
  * @returns A draft formation object.
  */
 export function createDraftFormation<S extends Schema>(
     schema: S,
     formation: Partial<Record<Position, ContractDTO>> = {},
     date: Temporal.Instant = Temporal.Now.instant(),
+    chemistry: ChemistryLinksForSchema<S> = createChemistryLinks(schema),
 ): DraftFormationDTO<S> {
-    return { schema, formation, date };
+    return { schema, formation, date, chemistry };
 }
 
 /**
@@ -88,14 +124,53 @@ export function createDraftFormation<S extends Schema>(
  * @param schema - The schema of the final formation.
  * @param formation - A complete mapping of all required schema positions to contracts.
  * @param date - Optional timestamp associated with the formation.
+ * @param chemistry
  * @returns A fully typed complete formation.
  */
 export function createFormation<S extends Schema>(
     schema: S,
     formation: Record<PositionsForSchema<S>, ContractDTO>,
     date: Temporal.Instant = Temporal.Now.instant(),
+    chemistry: ChemistryLinksForSchema<S> = createChemistryLinks(schema),
 ): FormationDTO<S> {
-    return { schema, formation, date };
+    return { schema, formation, date, chemistry };
+}
+
+export function createChemistryLinks<S extends Schema>(
+    schema: S,
+    level: ChemistryLevel = "empty",
+): ChemistryLinksForSchema<S> {
+    return CHEMISTRY_LINKS[schema].map(([from, to]) => ({
+        from,
+        to,
+        level,
+    }));
+}
+
+function chemistryPairKey(from: Position, to: Position): string {
+    return [from, to].sort().join("-");
+}
+
+export function validateChemistryLinks<S extends Schema>(
+    schema: S,
+    chemistry: ChemistryLinksForSchema<S>,
+): boolean {
+    const expectedPairs = CHEMISTRY_LINKS[schema];
+    if (chemistry.length !== expectedPairs.length) return false;
+
+    const expectedSet = new Set(
+        expectedPairs.map(([from, to]) => chemistryPairKey(from, to)),
+    );
+    const seen = new Set<string>();
+
+    for (const link of chemistry) {
+        if (!CHEMISTRY_LEVELS.includes(link.level)) return false;
+        const key = chemistryPairKey(link.from, link.to);
+        if (!expectedSet.has(key) || seen.has(key)) return false;
+        seen.add(key);
+    }
+
+    return seen.size === expectedSet.size;
 }
 
 /**
@@ -105,6 +180,7 @@ export function createFormation<S extends Schema>(
  * - every position required by the selected schema is present,
  * - no extra positions outside the schema are present,
  * - every declared position has a defined contract.
+ * - chemistry links match the schema and contain valid levels.
  *
  * This is mainly intended as a runtime safety check before saving or finalizing
  * a draft edited in the UI.
@@ -128,7 +204,9 @@ export function validateDraftFormation<S extends Schema>(
         if (draft.formation[pos] == null) return false;
     }
 
-    return expected.every((pos) => draft.formation[pos] != null);
+    if (!expected.every((pos) => draft.formation[pos] != null)) return false;
+
+    return validateChemistryLinks(draft.schema, draft.chemistry);
 }
 
 /**
@@ -244,6 +322,7 @@ export function changeSchema(
         date: draft.date,
         schema: nextSchema,
         formation: remapFormation(draft.formation, draft.schema, nextSchema),
+        chemistry: createChemistryLinks(nextSchema),
     };
 }
 

@@ -1,6 +1,6 @@
 <template>
   <ion-card class="pitch-card">
-    <div class="pitch">
+    <div ref="pitchRef" class="pitch">
       <!-- ── Decorative pitch markings ──────────────────────────────────── -->
       <div class="pitch-center-line" aria-hidden="true" />
       <div class="pitch-center-circle" aria-hidden="true" />
@@ -29,6 +29,26 @@
         </div>
       </transition>
 
+      <!-- ── Chemistry links ────────────────────────────────────────────── -->
+      <svg
+        class="chemistry-lines"
+        :viewBox="`0 0 ${viewBox.width} ${viewBox.height}`"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <line
+          v-for="line in chemistryLines"
+          :key="line.key"
+          class="chem-line"
+          :class="`chem-line--${line.level}`"
+          :x1="line.x1"
+          :y1="line.y1"
+          :x2="line.x2"
+          :y2="line.y2"
+          vector-effect="non-scaling-stroke"
+        />
+      </svg>
+
       <!-- ── Main grid ──────────────────────────────────────────────────── -->
       <div class="pitch-grid" role="grid" aria-label="Formation grid">
         <template v-for="posKey in activePositions" :key="posKey">
@@ -36,12 +56,12 @@
           <ArticleNode
             v-if="formation.formation[posKey]"
             :article="formation.formation[posKey]!"
-            :is-goalkeeper="posKey === 'GK'"
             :swap-mode="
               swapMode && formation.formation[posKey]?.id !== swapSource?.id
             "
             :selected="formation.formation[posKey]?.id === swapSource?.id"
             :style="gridStyle(posKey)"
+            :data-position="posKey"
             @click="$emit('articleClick', formation.formation[posKey]!)"
             @swap="(fromId, toId) => $emit('swap', fromId, toId)"
           />
@@ -53,6 +73,7 @@
             :style="gridStyle(posKey)"
             :class="{ 'pitch-slot-empty--swap': swapMode }"
             :aria-label="`Empty position ${posKey}`"
+            :data-position="posKey"
             @click="
               swapMode && swapSource ? $emit('moveToEmpty', posKey) : undefined
             "
@@ -99,7 +120,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+  nextTick,
+} from "vue";
 import { IonButton, IonCard, IonChip, IonIcon, IonLabel } from "@ionic/vue";
 import {
   swapHorizontalOutline,
@@ -107,7 +135,11 @@ import {
   closeOutline,
 } from "ionicons/icons";
 import { POSITION_MAP, FORMATIONS } from "@/types/pitch";
-import type { DraftFormationDTO, Position } from "../../../../dto/formationDTO";
+import type {
+  ChemistryLevel,
+  DraftFormationDTO,
+  Position,
+} from "../../../../dto/formationDTO";
 import type { ContractDTO } from "../../../../dto/contractDTO";
 import ArticleNode from "./ArticleNode.vue";
 
@@ -141,19 +173,31 @@ const chemistryLegendItems = [
 const DESKTOP_MEDIA_QUERY = "(min-width: 768px)";
 const isDesktop = ref(false);
 let desktopMediaQuery: MediaQueryList | null = null;
+const pitchRef = ref<HTMLElement | null>(null);
+let pitchObserver: ResizeObserver | null = null;
 
 function updateDesktopLayout(event?: MediaQueryListEvent): void {
   isDesktop.value = event ? event.matches : !!desktopMediaQuery?.matches;
+  void nextTick(updateAnchors);
 }
 
 onMounted(() => {
   desktopMediaQuery = window.matchMedia(DESKTOP_MEDIA_QUERY);
   updateDesktopLayout();
   desktopMediaQuery.addEventListener("change", updateDesktopLayout);
+  pitchObserver = new ResizeObserver(() => {
+    updateAnchors();
+  });
+  if (pitchRef.value) {
+    pitchObserver.observe(pitchRef.value);
+  }
+  updateAnchors();
+  void nextTick(updateAnchors);
 });
 
 onBeforeUnmount(() => {
   desktopMediaQuery?.removeEventListener("change", updateDesktopLayout);
+  pitchObserver?.disconnect();
 });
 
 /** Positions required by the current schema */
@@ -182,6 +226,81 @@ function gridStyle(posKey: Position): Record<string, string> {
     gridColumn: String(pos.col + 1),
   };
 }
+
+type RenderedChemistryLine = {
+  key: string;
+  level: ChemistryLevel;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+};
+
+const viewBox = ref({ width: 1, height: 1 });
+const anchorMap = ref<Record<string, { x: number; y: number }>>({});
+
+function updateAnchors(): void {
+  if (!pitchRef.value) return;
+  const pitchRect = pitchRef.value.getBoundingClientRect();
+  const width = pitchRect.width || 1;
+  const height = pitchRect.height || 1;
+  viewBox.value = { width, height };
+
+  const anchors: Record<string, { x: number; y: number }> = {};
+  pitchRef.value
+    .querySelectorAll<HTMLElement>("[data-position]")
+    .forEach((el) => {
+      const posKey = el.dataset.position;
+      if (!posKey) return;
+      const rect = el.getBoundingClientRect();
+      anchors[posKey] = {
+        x: rect.left + rect.width / 2 - pitchRect.left,
+        y: rect.top + rect.height / 2 - pitchRect.top,
+      };
+    });
+
+  anchorMap.value = anchors;
+}
+
+watch(
+  () => props.formation.schema,
+  async () => {
+    await nextTick();
+    updateAnchors();
+  }
+);
+
+watch(
+  () => props.formation.formation,
+  async () => {
+    await nextTick();
+    updateAnchors();
+  },
+  { deep: true }
+);
+
+const chemistryLines = computed<RenderedChemistryLine[]>(() => {
+  const slots = props.formation.formation;
+  return props.formation.chemistry
+    .map((link) => {
+      const from = anchorMap.value[link.from];
+      const to = anchorMap.value[link.to];
+      if (!from || !to) return null;
+
+      const isActive = Boolean(slots[link.from] && slots[link.to]);
+      const level: ChemistryLevel = isActive ? link.level : "empty";
+
+      return {
+        key: `${link.from}-${link.to}`,
+        level,
+        x1: from.x,
+        y1: from.y,
+        x2: to.x,
+        y2: to.y,
+      };
+    })
+    .filter((line): line is RenderedChemistryLine => line !== null);
+});
 </script>
 
 <style scoped src="src/components/formation/formation-shared.css"></style>
@@ -205,6 +324,9 @@ function gridStyle(posKey: Position): Record<string, string> {
   --slot-gap-desktop: 18px;
   --node-size-mobile: 48px;
   --node-size-desktop: 56px;
+  --pitch-pad-top: 16px;
+  --pitch-pad-x: 8px;
+  --pitch-pad-bottom: 24px;
   background: linear-gradient(
     to bottom,
     rgba(var(--ion-color-primary-rgb), 0.04) 0%,
@@ -214,7 +336,39 @@ function gridStyle(posKey: Position): Record<string, string> {
   border-radius: 12px;
   border: 1px solid rgba(var(--ion-color-primary-rgb), 0.18);
   overflow: visible;
-  padding: 16px 8px 24px;
+  padding: var(--pitch-pad-top) var(--pitch-pad-x) var(--pitch-pad-bottom);
+}
+
+/* ── Chemistry links ─────────────────────────────────────────────────────── */
+.chemistry-lines {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  width: 100%;
+  height: 100%;
+}
+
+.chem-line {
+  stroke-width: 2.5px;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+
+.chem-line--excellent {
+  stroke: #2f8f5b;
+}
+
+.chem-line--good {
+  stroke: #d6a71a;
+}
+
+.chem-line--weak {
+  stroke: #d46a17;
+}
+
+.chem-line--empty {
+  stroke: rgba(var(--ion-color-medium-rgb), 0.75);
 }
 
 /* ── Pitch markings ───────────────────────────────────────────────────────── */
@@ -426,7 +580,8 @@ function gridStyle(posKey: Position): Record<string, string> {
       rgba(var(--ion-color-primary-rgb), 0.1) 50%,
       rgba(var(--ion-color-primary-rgb), 0.04) 100%
     );
-    padding: 16px 12px;
+    --pitch-pad-x: 12px;
+    --pitch-pad-bottom: 16px;
   }
 
   .pitch-grid {

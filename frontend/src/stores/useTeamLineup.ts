@@ -5,6 +5,7 @@ import { fetchTeam, saveTeamApi } from "@/services/teamService";
 import {
   createDraftFormation,
   changeSchema,
+  createChemistryLinks,
   isCompleteFormation,
   type DraftFormationDTO,
   type FormationDTO,
@@ -56,10 +57,14 @@ export function useTeamLineup() {
     (lineup) => {
       if (!lineup) return;
       if (isInitialized.value && isDirty.value) return;
+      const chemistry =
+        lineup.formation.chemistry ??
+        createChemistryLinks(lineup.formation.schema);
       draft.value = {
         date: lineup.formation.date,
         schema: lineup.formation.schema,
         formation: { ...lineup.formation.formation },
+        chemistry,
       };
       benchContracts.value = [...lineup.bench];
       savedSnapshot.value = JSON.stringify({

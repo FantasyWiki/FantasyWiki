@@ -65,7 +65,9 @@ describe("TeamFormation.vue chemistry rendering", () => {
     const chemistry = createChemistryLinks("4-3-3").map((link) =>
       link.from === "LW" && link.to === "ST" ? { ...link, level: "good" } : link
     );
-    const formation = { ...mockFullFormation433.formation };
+    const formation: Partial<typeof mockFullFormation433.formation> = {
+      ...mockFullFormation433.formation,
+    };
     delete formation.ST;
     const draft = {
       date: mockFullFormation433.date,

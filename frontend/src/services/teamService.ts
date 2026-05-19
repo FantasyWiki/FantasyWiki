@@ -8,7 +8,7 @@
  * Higher-level UI state derivation lives in the composable / store layer.
  */
 import type { TeamLineUp } from "@/types/team";
-import type { FormationDTO } from "../../../dto/formationDTO";
+import { createChemistryLinks, type FormationDTO } from "../../../dto/formationDTO";
 import type { ContractDTO } from "../../../dto/contractDTO";
 import { ContractDTO as ContractModel } from "../../../dto/contractDTO";
 import { Temporal } from "@js-temporal/polyfill";
@@ -29,6 +29,7 @@ type RawTeamLineUp = {
     date: string;
     schema: FormationDTO["schema"];
     formation: Record<string, RawContract>;
+    chemistry?: FormationDTO["chemistry"];
   };
   bench: RawContract[];
 };
@@ -51,12 +52,15 @@ function deserializeLineup(raw: RawTeamLineUp): TeamLineUp {
       deserializeContract(contract),
     ])
   ) as FormationDTO["formation"];
+  const chemistry =
+    raw.formation.chemistry ?? createChemistryLinks(raw.formation.schema);
 
   return {
     formation: {
       date: Temporal.Instant.from(raw.formation.date),
       schema: raw.formation.schema,
       formation,
+      chemistry,
     } as FormationDTO,
     bench: raw.bench.map(deserializeContract),
   };

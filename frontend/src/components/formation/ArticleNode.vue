@@ -24,7 +24,6 @@
     <span class="article-tier" :class="`tier--${article.tier.toLowerCase()}`">
       {{ article.tier }}
     </span>
-
   </button>
 </template>
 

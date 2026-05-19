@@ -120,7 +120,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch, nextTick } from "vue";
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+  nextTick,
+} from "vue";
 import { IonButton, IonCard, IonChip, IonIcon, IonLabel } from "@ionic/vue";
 import {
   swapHorizontalOutline,

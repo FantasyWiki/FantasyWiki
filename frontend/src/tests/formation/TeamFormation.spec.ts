@@ -3,7 +3,11 @@ import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import TeamFormation from "@/components/formation/TeamFormation.vue";
 import { mockFullFormation433 } from "@/mocks/formationMocks";
-import { createChemistryLinks } from "../../../../dto/formationDTO";
+import {
+  createChemistryLinks,
+  DraftFormationDTO,
+  FormationDTO,
+} from "../../../../dto/formationDTO";
 
 beforeAll(() => {
   if (!window.matchMedia) {
@@ -42,14 +46,12 @@ const stubs = {
 describe("TeamFormation.vue chemistry rendering", () => {
   it("renders the schema chemistry lines for a filled formation", async () => {
     const chemistry = createChemistryLinks("4-3-3").map((link) =>
-      link.from === "LW" && link.to === "ST"
-        ? { ...link, level: "good" }
-        : link
+      link.from === "LW" && link.to === "ST" ? { ...link, level: "good" } : link
     );
     const formation = { ...mockFullFormation433, chemistry };
 
     const wrapper = mount(TeamFormation, {
-      props: { formation: formation as any },
+      props: { formation: formation as FormationDTO },
       global: { stubs },
     });
 
@@ -61,9 +63,7 @@ describe("TeamFormation.vue chemistry rendering", () => {
 
   it("renders empty-level styling when a chemistry link has a missing slot", async () => {
     const chemistry = createChemistryLinks("4-3-3").map((link) =>
-      link.from === "LW" && link.to === "ST"
-        ? { ...link, level: "good" }
-        : link
+      link.from === "LW" && link.to === "ST" ? { ...link, level: "good" } : link
     );
     const formation = { ...mockFullFormation433.formation };
     delete formation.ST;
@@ -72,7 +72,7 @@ describe("TeamFormation.vue chemistry rendering", () => {
       schema: "4-3-3" as const,
       formation,
       chemistry,
-    } as any;
+    } as DraftFormationDTO<"4-3-3">;
 
     const wrapper = mount(TeamFormation, {
       props: { formation: draft },

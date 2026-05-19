@@ -8,7 +8,10 @@
  * Higher-level UI state derivation lives in the composable / store layer.
  */
 import type { TeamLineUp } from "@/types/team";
-import { createChemistryLinks, type FormationDTO } from "../../../dto/formationDTO";
+import {
+  createChemistryLinks,
+  type FormationDTO,
+} from "../../../dto/formationDTO";
 import type { ContractDTO } from "../../../dto/contractDTO";
 import { ContractDTO as ContractModel } from "../../../dto/contractDTO";
 import { Temporal } from "@js-temporal/polyfill";

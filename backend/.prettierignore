@@ -1,1 +1,3 @@
 coverage/
+worker-configuration.d.ts
+src/tests/cloudflare-env.d.ts

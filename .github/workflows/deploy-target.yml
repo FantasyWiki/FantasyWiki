@@ -1,0 +1,108 @@
+name: Deploy Target
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      backend_worker_name:
+        required: true
+        type: string
+      frontend_url:
+        required: true
+        type: string
+      vite_backend_url:
+        required: true
+        type: string
+      frontend_build_mode:
+        required: true
+        type: string
+      frontend_deploy_branch:
+        required: true
+        type: string
+      d1_database_name:
+        required: true
+        type: string
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+      CLOUDFLARE_D1_MIGRATION_RUNNER_SECRET:
+        required: true
+      GOOGLE_CLIENT_ID:
+        required: true
+      GOOGLE_CLIENT_SECRET:
+        required: true
+      JWT_SECRET:
+        required: true
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy Worker to Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          wranglerVersion: "4.80.0"
+          workingDirectory: "backend"
+          environment: ${{ inputs.environment }}
+          secrets: |
+            GOOGLE_CLIENT_ID
+            GOOGLE_CLIENT_SECRET
+            JWT_SECRET
+          command: deploy --name=${{ inputs.backend_worker_name }} --env=${{ inputs.environment }} --var FRONTEND_URL:${{ inputs.frontend_url }}
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: "frontend/package.json"
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend
+        run: ${{ inputs.frontend_build_mode == 'preview' && 'npm run build -- --mode preview' || 'npm run build' }}
+        working-directory: frontend
+        env:
+          VITE_MOCK: "false"
+          VITE_BACKEND_URL: ${{ inputs.vite_backend_url }}
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          wranglerVersion: "4.80.0"
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: "frontend"
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --branch=${{ inputs.frontend_deploy_branch }}
+
+  migrate-d1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply D1 migrations
+        uses: cloudflare/wrangler-action@v3
+        with:
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ secrets.CLOUDFLARE_D1_MIGRATION_RUNNER_SECRET }}
+          wranglerVersion: "4.80.0"
+          workingDirectory: "backend"
+          command: d1 migrations apply ${{ inputs.d1_database_name }} --env=${{ inputs.environment }} --remote
+

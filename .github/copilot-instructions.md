@@ -51,7 +51,7 @@ The backend currently has no standalone unit-test script in `package.json`; back
   - Backend signs JWT and stores it in `session_token` HTTP-only cookie.
   - `/api/*` routes are protected with Hono JWT middleware that reads that cookie.
   - Frontend calls APIs with `credentials: "include"` (`frontend/src/services/api.ts`) and gets session user info from `/api/session`.
-- Both frontend and backend support branch-aware URL resolution via `WORKERS_CI_BRANCH` / `VITE_WORKERS_CI_BRANCH` for preview environments.
+- Deployments target explicit `master` (prod) and `dev` (QA) environments with fixed backend/frontend URLs per environment.
 
 ## Key conventions
 

@@ -1,4 +1,4 @@
-name: CI/CD
+name: ci-cd
 on:
   push:
   pull_request:
@@ -13,14 +13,31 @@ jobs:
     runs-on: ubuntu-24.04
     if: >-
       github.event_name != 'pull_request'
-      || github.event.pull_request.head.repo.full_name != github.repository
+      || github.event.pull_request.head.repo.full_name == github.repository
       || startsWith(github.head_ref, 'dependabot/')
     steps:
       - run: 'true'
   ci-cd:
     needs:
       - dispatcher
-    uses: ./.github/workflows/build.yml
+    uses: ./.github/workflows/check.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+
+  coverage:
+    needs:
+      - dispatcher
+    uses: ./.github/workflows/backend-coverage.yml
+    secrets: inherit
+    permissions:
+      contents: write
+
+  deploy:
+    needs:
+      - ci-cd
+    uses: ./.github/workflows/deploy.yml
     secrets: inherit
     permissions:
       contents: write

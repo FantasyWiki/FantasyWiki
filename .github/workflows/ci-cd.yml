@@ -17,7 +17,7 @@ jobs:
       || startsWith(github.head_ref, 'dependabot/')
     steps:
       - run: 'true'
-  check:
+  ci-cd:
     needs:
       - dispatcher
     uses: ./.github/workflows/check.yml
@@ -36,7 +36,7 @@ jobs:
 
   deploy:
     needs:
-      - check
+      - ci-cd
     uses: ./.github/workflows/deploy.yml
     secrets: inherit
     permissions:

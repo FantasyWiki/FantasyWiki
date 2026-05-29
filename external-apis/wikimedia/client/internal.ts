@@ -119,3 +119,77 @@ export async function fetchJsonWithRetry<T>(
 
     throw lastError ?? new Error("Network request failed");
 }
+
+import { CacheLike } from "../client";
+
+/**
+ * Cache-aside helper for asynchronous functions.
+ *
+ * Behavior:
+ * - Attempts to read a JSON value from `cache` using `key`
+ * - If a valid (and non-expired) value is found, returns it
+ * - If no value exists, the JSON is invalid, or it is expired, calls `fetcher`, stores the result, and returns it
+ *
+ * TTL:
+ * - If `cache.ttlMs` is provided, entries older than that are considered expired
+ * - If `cache.ttlMs` is not set, entries do not expire automatically
+ *
+ * @typeParam T - The type of the value returned and stored in the cache
+ * @param cache - A `CacheLike` implementation (e.g. `localStorage`) or null
+ * @param key - Cache key used to identify the stored value
+ * @param fetcher - Async function that produces the value on cache miss or expiry
+ * @returns A value of type `T` from cache or computed by `fetcher`
+ */
+export async function withCache<T>(
+    cache: CacheLike | null | undefined,
+    key: string,
+    fetcher: () => Promise<T>,
+): Promise<T> {
+    const ttlMs = cache?.ttlMs;
+
+    try {
+        const raw = cache?.getItem(key) ?? null;
+
+        if (raw) {
+            const parsed = JSON.parse(raw) as { value?: T; cachedAt?: number };
+
+            const hasTtl = typeof ttlMs === "number" && ttlMs > 0;
+            const hasTimestamp = typeof parsed.cachedAt === "number";
+
+            if (!hasTtl || !hasTimestamp) {
+                if (typeof parsed.value !== "undefined") {
+                    return parsed.value;
+                }
+                return parsed as unknown as T;
+            }
+
+            const now = Date.now();
+            if (now - (parsed.cachedAt as number) < ttlMs) {
+                if (typeof parsed.value !== "undefined") {
+                    return parsed.value;
+                }
+                return parsed as unknown as T;
+            }
+
+            try {
+                cache?.removeItem(key);
+            } catch {
+            }
+        }
+    } catch {
+    }
+
+    const value = await fetcher();
+
+    const payload = {
+        value,
+        cachedAt: Date.now(),
+    };
+
+    try {
+        cache?.setItem(key, JSON.stringify(payload));
+    } catch {
+    }
+
+    return value;
+}

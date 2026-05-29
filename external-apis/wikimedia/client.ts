@@ -1,16 +1,21 @@
-import {ArticleSummary, createGetSummary } from "./client/getSummary";
-import { createGetTopReadList } from "./client/getTopReadList";
+import {ArticleSummary, createGetSummary} from "./client/getSummary";
+import {createGetTopReadList, TopReadListResult} from "./client/getTopReadList";
 import {Domain} from "../../dto/enums";
-import {TopReadListResult} from "./client/getTopReadList";
 import {createGetViewsByDomain, DomainResult} from "./client/getViewsByDomain";
 
+const DAY = 24 * 60 * 60 * 1000;
 /**
  * Minimal cache interface used by the shared client.
  *
- * Implementations can be browser `localStorage`, in-memory test doubles,
- * or any runtime-specific storage exposing these methods.
+ * Implementations can wrap browser `localStorage`, in-memory test doubles,
+ * or any runtime-specific storage.
+ *
+ * `ttlMs` is an optional default time-to-live, in milliseconds, applied
+ * to entries managed by this cache implementation.
  */
-export type CacheLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+export type CacheLike = Pick<Storage, "getItem" | "setItem" | "removeItem"> & {
+    ttlMs?: number;
+};
 
 /**
  * Transport adapter contract consumed by the shared client.
@@ -35,6 +40,18 @@ export type WikimediaClientOptions = {
     retryCount?: number;
     averageDays?: number;
 };
+
+export function setTtl(
+    cache: CacheLike | null | undefined,
+    ttlMs: number,
+): CacheLike | null {
+    if (!cache) return null;
+
+    return {
+        ...cache,
+        ttlMs,
+    };
+}
 
 /**
  * Creates the default HTTP adapter based on a Fetch implementation.
@@ -62,12 +79,22 @@ function createFetchHttp(fetchFn: typeof fetch): WikimediaHttp {
  * - non-browser runtimes return `null`
  * - storage access failures return `null`
  *
+ *
  * @returns `localStorage` when available and accessible, otherwise `null`.
+ * @param ttlMs - the ttl of the cache in milliseconds. If not provided, entries do not expire automatically.
  */
-export function getDefaultCache(): CacheLike | null {
+export function getDefaultCache(ttlMs?: number): CacheLike | null {
     if (typeof window === "undefined") return null;
+
     try {
-        return window.localStorage;
+        const storage = window.localStorage;
+
+        return {
+            getItem: storage.getItem.bind(storage),
+            setItem: storage.setItem.bind(storage),
+            removeItem: storage.removeItem.bind(storage),
+            ttlMs: ttlMs, // default 24h
+        };
     } catch {
         return null;
     }
@@ -118,13 +145,14 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}): Wik
 
     return {
         pageviews: {
-            getTopReadList: createGetTopReadList({
+            getTopReadList: createGetTopReadList(
                 http, cache, maxFallbackDays, retryCount, averageDays,
-            }),
-            getViewsByDomain: createGetViewsByDomain({ http, cache, maxFallbackDays, retryCount }),
+            ),
+            getViewsByDomain: createGetViewsByDomain( http, cache, maxFallbackDays, retryCount ),
         },
         article: {
-            getSummary: createGetSummary({ http, retryCount }),
+            getSummary: createGetSummary( http, setTtl(cache,7*DAY), retryCount ),
+            //getLinks: createGetLinks({http, cache, retryCount})
         },
     };
 }

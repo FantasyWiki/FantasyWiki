@@ -1,7 +1,7 @@
 import type { Domain } from "../../../dto/enums";
-import { fetchJsonWithRetry } from "./internal";
+import {fetchJsonWithRetry, withCache} from "./internal";
 import { wikipediaRestUrl} from "./internal";
-import {WikimediaHttp} from "../client";
+import {CacheLike, WikimediaHttp} from "../client";
 
 /**
  * Raw payload returned by Wikimedia page summary endpoint.
@@ -23,26 +23,28 @@ export type ArticleSummary = {
     thumbnailUrl?: string;
 };
 
-export type GetSummaryDeps = {
-    http: WikimediaHttp;
-    retryCount: number;
-};
-
-export function createGetSummary(deps: GetSummaryDeps) {
+export function createGetSummary(http: WikimediaHttp,
+cache: CacheLike | null,
+retryCount: number) {
     return async function getSummary(domain: Domain, title: string): Promise<ArticleSummary> {
         const encodedTitle = encodeURIComponent(title).replace(/%20/g, "_");
         const url = wikipediaRestUrl(domain,`/page/summary/${encodedTitle}`);
+        const cacheKey = `wikimedia:summary:${domain}.wikipedia:${encodedTitle}`;
 
-        const response = await fetchJsonWithRetry<ArticleSummaryResponse>(
-            deps.http,
-            url,
-            deps.retryCount,
-        );
+        return withCache(cache, cacheKey, async () => {
+            const response = await fetchJsonWithRetry<ArticleSummaryResponse>(
+                http,
+                url,
+                retryCount,
+            );
 
-        return {
-            title: response.title ?? title,
-            extract: response.extract ?? "",
-            thumbnailUrl: response.thumbnail?.source,
-        };
+            return {
+                title: response.title ?? title,
+                extract: response.extract ?? "",
+                thumbnailUrl: response.thumbnail?.source,
+            };
+        })
+
+
     };
 }

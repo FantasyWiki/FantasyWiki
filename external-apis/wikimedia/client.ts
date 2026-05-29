@@ -2,6 +2,7 @@ import {ArticleSummary, createGetSummary} from "./client/getSummary";
 import {createGetTopReadList, TopReadListResult} from "./client/getTopReadList";
 import {Domain} from "../../dto/enums";
 import {createGetViewsByDomain, DomainResult} from "./client/getViewsByDomain";
+import {createGetLinks} from "./client/getLinks";
 
 const DAY = 24 * 60 * 60 * 1000;
 /**
@@ -111,6 +112,7 @@ export type WikimediaClient = {
     };
     article: {
         getSummary(domain: Domain, title: string): Promise<ArticleSummary>;
+        getLinkedArticles(domain: Domain, title: string): Promise<string[]>;
     };
 };
 
@@ -152,7 +154,7 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}): Wik
         },
         article: {
             getSummary: createGetSummary( http, setTtl(cache,7*DAY), retryCount ),
-            //getLinks: createGetLinks({http, cache, retryCount})
+            getLinkedArticles: createGetLinks(http, retryCount)
         },
     };
 }

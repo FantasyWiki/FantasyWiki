@@ -4,6 +4,7 @@ import {WikimediaHttp} from "../client";
 export const PAGEVIEWS_BASE_URL =
     "https://wikimedia.org/api/rest_v1/metrics/pageviews";
 
+
 /**
  * Build the wikipedia REST API URL for a given domain and path.
  * @param domain - The Wikipedia domain (e.g., "en" for English Wikipedia).

@@ -1,5 +1,5 @@
 import type { WikimediaTopReadArticle } from "../wikimedia";
-import {DomainResult, GetViewsByDomainDeps} from "../client/getViewsByDomain";
+import {DomainResult} from "../client/getViewsByDomain";
 import {Domain} from "../../../dto/enums";
 
 export const defaultTopReadArticles: WikimediaTopReadArticle[] = [

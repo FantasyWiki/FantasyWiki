@@ -61,6 +61,7 @@ auth.get("/google", async (c) => {
   );
 
   if (!playerResult.ok) {
+    console.error(playerResult.error);
     return c.redirect(`${frontendUrl}/home?error=player_creation_failed`);
   }
 

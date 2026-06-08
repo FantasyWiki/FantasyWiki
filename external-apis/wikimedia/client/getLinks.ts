@@ -1,7 +1,6 @@
 import type { Domain } from "../../../dto/enums";
-import { WikimediaHttp } from "../client";
-import {fetchJsonWithRetry} from "./internal";
-import {ArticleSummaryResponse} from "./getSummary";
+import { CacheLike, WikimediaHttp } from "../client";
+import {fetchJsonWithRetry, withCache} from "./internal";
 
 type LinksResponse = {
     continue?: {
@@ -22,6 +21,11 @@ function buildActionApiBase(domain: Domain): string {
     return `https://${domain}.wikipedia.org/w/api.php`;
 }
 
+export type articleWithLinks = {
+    title: string;
+    linkedArticles: string[];
+}
+
 /**
  * Creates a function that fetches all internal linked article titles
  * from a given page using the MediaWiki Action API (action=query&prop=links).
@@ -30,53 +34,58 @@ function buildActionApiBase(domain: Domain): string {
  *   const getLinkedArticles = createGetLinks({ http });
  *   const linkedArticles = await getLinkedArticles("en", "Albert Einstein");
  */
-export function createGetLinks(http: WikimediaHttp, retryCount: number) {
+export function createGetLinks(http: WikimediaHttp, cache: CacheLike | null, retryCount: number) {
 
     return async function getLinkedArticles(
         domain: Domain,
         title: string,
-    ): Promise<string[]> {
-        const baseUrl = buildActionApiBase(domain);
-        const linkedArticles: string[] = [];
-        let plcontinue: string | undefined;
+    ): Promise<articleWithLinks> {
+        const encodedTitle = encodeURIComponent(title).replace(/%20/g, "_");
+        const cacheKey = `wikimedia:links:${domain}.wikipedia:${encodedTitle}`;
 
-        try {
-        do {
-            const params = new URLSearchParams({
-                action: "query",
-                titles: title,
-                prop: "links",
-                pllimit: "max",
-                format: "json",
-                formatversion: "2",
-            });
+        return withCache(cache, cacheKey, async () => {
+            const baseUrl = buildActionApiBase(domain);
+            const linkedArticles: string[] = [];
+            let plcontinue: string | undefined;
 
-            if (plcontinue) {
-                params.set("plcontinue", plcontinue);
+            try {
+                do {
+                    const params = new URLSearchParams({
+                        action: "query",
+                        titles: title,
+                        prop: "links",
+                        pllimit: "max",
+                        format: "json",
+                        formatversion: "2",
+                    });
+
+                    if (plcontinue) {
+                        params.set("plcontinue", plcontinue);
+                    }
+
+                    const url = `${baseUrl}?${params.toString()}`;
+                    const response = await fetchJsonWithRetry<LinksResponse>(
+                        http,
+                        url,
+                        retryCount,
+                    );
+
+                    const pages = response.query?.pages ?? [];
+                    const page = pages[0];
+
+                    if (page?.links?.length) {
+                        for (const link of page.links) {
+                            linkedArticles.push(link.title);
+                        }
+                    }
+
+                    plcontinue = response.continue?.plcontinue;
+                } while (plcontinue);
+            } catch (error) {
+                throw new Error(`Failed to fetch linked articles for ${title}: ${String(error)}`);
             }
 
-            const url = `${baseUrl}?${params.toString()}`;
-            const response = await fetchJsonWithRetry<LinksResponse>(
-                http,
-                url,
-                retryCount,
-            );
-
-            const pages = response.query?.pages ?? [];
-            const page = pages[0];
-
-            if (page?.links?.length) {
-                for (const link of page.links) {
-                    linkedArticles.push(link.title);
-                }
-            }
-
-            plcontinue = response.continue?.plcontinue;
-        } while (plcontinue);
-    } catch (error) {
-        throw new Error(`Failed to fetch linked articles for ${title}: ${String(error)}`);
-    }
-
-        return linkedArticles;
+            return { title, linkedArticles };
+        });
     };
 }

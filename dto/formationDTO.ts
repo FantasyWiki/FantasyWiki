@@ -12,14 +12,14 @@ export type Schema = EnumSchema;
 export type Position = EnumPosition;
 export type PositionsForSchema<S extends Schema> = EnumPositionsForSchema<S>;
 
-export const CHEMISTRY_LEVELS = [
-    "excellent",
-    "good",
-    "weak",
-    "empty",
-] as const;
+export const ChemistryLevel = {
+    EMPTY:     'empty',
+    WEAK:      'weak',
+    GOOD:      'good',
+    EXCELLENT: 'excellent',
+} as const;
 
-export type ChemistryLevel = (typeof CHEMISTRY_LEVELS)[number];
+export type ChemistryLevel = typeof ChemistryLevel[keyof typeof ChemistryLevel];
 
 export const CHEMISTRY_MULTIPLIER_BY_LEVEL = {
     excellent: 1.2,
@@ -164,7 +164,6 @@ export function validateChemistryLinks<S extends Schema>(
     const seen = new Set<string>();
 
     for (const link of chemistry) {
-        if (!CHEMISTRY_LEVELS.includes(link.level)) return false;
         const key = chemistryPairKey(link.from, link.to);
         if (!expectedSet.has(key) || seen.has(key)) return false;
         seen.add(key);
@@ -345,4 +344,28 @@ export function finalizeDraft<S extends Schema>(
 ): FormationDTO<S> | null {
     if (!validateDraftFormation(draft)) return null;
     return draft as FormationDTO<S>;
+}
+
+export function calculateChemistry(
+    article1: string | null | undefined,
+    links1: string[],
+    article2: string | null | undefined,
+    links2: string[]
+): ChemistryLevel {
+    if (!article1 || !article2) {
+        return ChemistryLevel.EMPTY;
+    }
+
+    const oneLinksToTwo = links1.includes(article2);
+    const twoLinksToOne = links2.includes(article1);
+
+    if (oneLinksToTwo && twoLinksToOne) {
+        return ChemistryLevel.EXCELLENT;
+    }
+
+    if (oneLinksToTwo || twoLinksToOne) {
+        return ChemistryLevel.GOOD;
+    }
+
+    return ChemistryLevel.WEAK;
 }

@@ -2,11 +2,13 @@ import { ref, computed, watch } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { useLeagueStore } from "@/stores/league";
 import { fetchTeam, saveTeamApi } from "@/services/teamService";
+import { createWikimediaClient } from "@/services/wikimediaClient";
 import {
   createDraftFormation,
   changeSchema,
   createChemistryLinks,
   isCompleteFormation,
+  calculateChemistry,
   type DraftFormationDTO,
   type FormationDTO,
   type Schema,
@@ -39,6 +41,71 @@ export function useTeamLineup() {
   const savedSnapshot = ref<string>("");
   // Tracks whether server data has been loaded into the draft at least once.
   const isInitialized = ref(false);
+
+  const wikimediaClient = createWikimediaClient();
+
+  // Extract the titles of all players currently placed in the formation.
+  const activeArticles = computed(() => {
+    const titles = new Set<string>();
+    for (const pos of Object.keys(draft.value.formation)) {
+      const contract = draft.value.formation[pos as Position];
+      if (contract) titles.add(contract.article.title);
+    }
+    return Array.from(titles);
+  });
+
+  const chemistryQueryKey = computed(() => [
+    "chemistry",
+    leagueStore.currentLeagueId,
+    draft.value.schema,
+    ...activeArticles.value.sort(),
+  ]);
+
+  useQuery({
+    queryKey: chemistryQueryKey,
+    queryFn: async () => {
+      const domain = leagueStore.currentLeague?.domain ?? "en";
+      const titles = activeArticles.value;
+
+      const results = await Promise.all(
+        titles.map((title) =>
+          wikimediaClient.article.getLinkedArticles(domain, title)
+        )
+      );
+
+      const linksMap = new Map<string, string[]>();
+      for (const res of results) {
+        linksMap.set(res.title, res.linkedArticles);
+      }
+
+      const newChemistry = createChemistryLinks(draft.value.schema).map(
+        (link) => {
+          const contract1 = draft.value.formation[link.from];
+          const contract2 = draft.value.formation[link.to];
+
+          const title1 = contract1?.article.title;
+          const title2 = contract2?.article.title;
+
+          const links1 = title1 ? (linksMap.get(title1) ?? []) : [];
+          const links2 = title2 ? (linksMap.get(title2) ?? []) : [];
+
+          const level = calculateChemistry(title1, links1, title2, links2);
+          return { ...link, level };
+        }
+      );
+
+      // Mutate the local draft directly. Because this runs on background threads
+      // governed by TanStack Query, duplicate executions will be deduped automatically.
+      draft.value = {
+        ...draft.value,
+        chemistry: newChemistry,
+      };
+
+      return newChemistry;
+    },
+    // Prevent fetching if no league is loaded
+    enabled: computed(() => !!leagueStore.currentLeagueId),
+  });
 
   // ── Dirty tracking ────────────────────────────────────────────────────────
   const isDirty = computed(() => {

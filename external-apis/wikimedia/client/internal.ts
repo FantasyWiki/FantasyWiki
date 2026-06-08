@@ -152,7 +152,13 @@ export async function withCache<T>(
         const raw = cache?.getItem(key) ?? null;
 
         if (raw) {
-            const parsed = JSON.parse(raw) as { value?: T; cachedAt?: number };
+            let parsed;
+            try {
+                parsed = JSON.parse(raw) as { value?: T; cachedAt?: number };
+            } catch {
+                cache?.removeItem(key);
+                throw new Error("Parse failed"); // Break out of main try block
+            }
 
             const hasTtl = typeof ttlMs === "number" && ttlMs > 0;
             const hasTimestamp = typeof parsed.cachedAt === "number";
@@ -174,10 +180,10 @@ export async function withCache<T>(
 
             try {
                 cache?.removeItem(key);
-            } catch {
-            }
+            } catch {}
         }
     } catch {
+        // Ignored
     }
 
     const value = await fetcher();

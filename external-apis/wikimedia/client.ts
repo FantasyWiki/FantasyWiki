@@ -2,7 +2,8 @@ import {ArticleSummary, createGetSummary} from "./client/getSummary";
 import {createGetTopReadList, TopReadListResult} from "./client/getTopReadList";
 import {Domain} from "../../dto/enums";
 import {createGetViewsByDomain, DomainResult} from "./client/getViewsByDomain";
-import {createGetLinks} from "./client/getLinks";
+import {createGetLinks, articleWithLinks} from "./client/getLinks";
+import {ChemistryLevel} from "../../dto/formationDTO";
 
 const DAY = 24 * 60 * 60 * 1000;
 /**
@@ -112,7 +113,7 @@ export type WikimediaClient = {
     };
     article: {
         getSummary(domain: Domain, title: string): Promise<ArticleSummary>;
-        getLinkedArticles(domain: Domain, title: string): Promise<string[]>;
+        getLinkedArticles(domain: Domain, title: string): Promise<articleWithLinks>;
     };
 };
 
@@ -154,7 +155,7 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}): Wik
         },
         article: {
             getSummary: createGetSummary( http, setTtl(cache,7*DAY), retryCount ),
-            getLinkedArticles: createGetLinks(http, retryCount)
+            getLinkedArticles: createGetLinks(http, setTtl(cache, 7*DAY), retryCount)
         },
     };
 }

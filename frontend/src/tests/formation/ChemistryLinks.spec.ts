@@ -1,11 +1,61 @@
 import { describe, it, expect } from "vitest";
 import {
   CHEMISTRY_LINKS,
+  ChemistryLevel,
   createChemistryLinks,
   validateChemistryLinks,
+  calculateChemistry,
 } from "../../../../dto/formationDTO";
 
 describe("chemistry link helpers", () => {
+  describe("calculateChemistry", () => {
+    it("returns EMPTY if either article is missing", () => {
+      expect(calculateChemistry(null, [], "Albert Einstein", [])).toBe(
+        ChemistryLevel.EMPTY
+      );
+      expect(calculateChemistry("Isaac Newton", [], undefined, [])).toBe(
+        ChemistryLevel.EMPTY
+      );
+      expect(calculateChemistry("", [], "Albert Einstein", [])).toBe(
+        ChemistryLevel.EMPTY
+      );
+    });
+
+    it("returns EXCELLENT if both articles link to each other", () => {
+      const a1 = "Albert Einstein";
+      const links1 = ["Physics", "Isaac Newton", "Switzerland"];
+      const a2 = "Isaac Newton";
+      const links2 = ["Calculus", "Albert Einstein", "Gravity"];
+
+      expect(calculateChemistry(a1, links1, a2, links2)).toBe(
+        ChemistryLevel.EXCELLENT
+      );
+    });
+
+    it("returns GOOD if only one article links to the other", () => {
+      const a1 = "Albert Einstein";
+      const a2 = "Isaac Newton";
+
+      // a1 links to a2, but a2 does not link to a1
+      expect(calculateChemistry(a1, ["Isaac Newton"], a2, [])).toBe(
+        ChemistryLevel.GOOD
+      );
+
+      // a2 links to a1, but a1 does not link to a2
+      expect(calculateChemistry(a1, [], a2, ["Albert Einstein"])).toBe(
+        ChemistryLevel.GOOD
+      );
+    });
+
+    it("returns WEAK if neither article links to the other", () => {
+      expect(
+        calculateChemistry("Albert Einstein", ["Physics"], "Isaac Newton", [
+          "Calculus",
+        ])
+      ).toBe(ChemistryLevel.WEAK);
+    });
+  });
+
   it("creates the schema link pairs with default empty level", () => {
     const links = createChemistryLinks("4-3-3");
     const expectedPairs = CHEMISTRY_LINKS["4-3-3"].map(

@@ -135,7 +135,7 @@ import {
   closeOutline,
 } from "ionicons/icons";
 import { POSITION_MAP, FORMATIONS } from "@/types/pitch";
-import type {
+import {
   ChemistryLevel,
   DraftFormationDTO,
   Position,
@@ -287,12 +287,9 @@ const chemistryLines = computed<RenderedChemistryLine[]>(() => {
       const to = anchorMap.value[link.to];
       if (!from || !to) return null;
 
-      const isActive = Boolean(slots[link.from] && slots[link.to]);
-      const level: ChemistryLevel = isActive ? link.level : "empty";
-
       return {
         key: `${link.from}-${link.to}`,
-        level,
+        level: link.level,
         x1: from.x,
         y1: from.y,
         x2: to.x,

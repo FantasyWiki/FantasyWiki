@@ -57,6 +57,7 @@ export function createGetLinks(http: WikimediaHttp, cache: CacheLike | null, ret
                         pllimit: "max",
                         format: "json",
                         formatversion: "2",
+                        origin: "*"
                     });
 
                     if (plcontinue) {

@@ -58,12 +58,18 @@ export function useTeamLineup() {
     "chemistry",
     leagueStore.currentLeagueId,
     draft.value.schema,
-    ...activeArticles.value.sort(),
+    ...Object.entries(draft.value.formation as Record<string, ContractDTO>)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([pos, contract]) => `${pos}:${contract.article.title}`),
   ]);
 
-  useQuery({
+  const { data: chemistryData } = useQuery({
     queryKey: chemistryQueryKey,
     queryFn: async () => {
+      // Snapshot schema and formation before the async wait so we can detect
+      // a stale result if the user changes the formation mid-fetch.
+      const capturedSchema = draft.value.schema;
+      const capturedFormation = draft.value.formation;
       const domain = leagueStore.currentLeague?.domain ?? "en";
       const titles = activeArticles.value;
 
@@ -73,39 +79,49 @@ export function useTeamLineup() {
         )
       );
 
+      // If the formation changed while we were awaiting Wikimedia, discard this
+      // result so a stale fetch cannot overwrite chemistry for the new formation.
+      if (
+        draft.value.schema !== capturedSchema ||
+        draft.value.formation !== capturedFormation
+      ) {
+        return null;
+      }
+
       const linksMap = new Map<string, string[]>();
       for (const res of results) {
         linksMap.set(res.title, res.linkedArticles);
       }
 
-      const newChemistry = createChemistryLinks(draft.value.schema).map(
-        (link) => {
-          const contract1 = draft.value.formation[link.from];
-          const contract2 = draft.value.formation[link.to];
-
-          const title1 = contract1?.article.title;
-          const title2 = contract2?.article.title;
-
-          const links1 = title1 ? (linksMap.get(title1) ?? []) : [];
-          const links2 = title2 ? (linksMap.get(title2) ?? []) : [];
-
-          const level = calculateChemistry(title1, links1, title2, links2);
-          return { ...link, level };
-        }
-      );
-
-      // Mutate the local draft directly. Because this runs on background threads
-      // governed by TanStack Query, duplicate executions will be deduped automatically.
-      draft.value = {
-        ...draft.value,
-        chemistry: newChemistry,
-      };
-
-      return newChemistry;
+      return createChemistryLinks(capturedSchema).map((link) => {
+        const contract1 = capturedFormation[link.from];
+        const contract2 = capturedFormation[link.to];
+        const title1 = contract1?.article.title;
+        const title2 = contract2?.article.title;
+        const links1 = title1 ? (linksMap.get(title1) ?? []) : [];
+        const links2 = title2 ? (linksMap.get(title2) ?? []) : [];
+        const level = calculateChemistry(title1, links1, title2, links2);
+        return { ...link, level };
+      });
     },
-    // Prevent fetching if no league is loaded
     enabled: computed(() => !!leagueStore.currentLeagueId),
+    // Keep chemistry fresh for 30 s so re-entering a cached Ionic view does not
+    // trigger an immediate background refetch (which would cause a grey flash).
+    staleTime: 30_000,
   });
+
+  // Apply chemistry to the draft as soon as TanStack Query has data — either
+  // from a fresh fetch or a cache hit. Because the dashboard and the team page
+  // share the same query client, the dashboard's fetch pre-populates the cache,
+  // so navigation to the team page resolves instantly from cache with no grey flash.
+  watch(
+    chemistryData,
+    (chemistry) => {
+      if (!chemistry || !Array.isArray(chemistry)) return;
+      draft.value = { ...draft.value, chemistry };
+    },
+    { immediate: true }
+  );
 
   // ── Dirty tracking ────────────────────────────────────────────────────────
   const isDirty = computed(() => {

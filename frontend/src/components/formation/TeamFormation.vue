@@ -128,7 +128,14 @@ import {
   watch,
   nextTick,
 } from "vue";
-import { IonButton, IonCard, IonChip, IonIcon, IonLabel } from "@ionic/vue";
+import {
+  IonButton,
+  IonCard,
+  IonChip,
+  IonIcon,
+  IonLabel,
+  onIonViewDidEnter,
+} from "@ionic/vue";
 import {
   swapHorizontalOutline,
   addCircleOutline,
@@ -198,6 +205,13 @@ onMounted(() => {
 onBeforeUnmount(() => {
   desktopMediaQuery?.removeEventListener("change", updateDesktopLayout);
   pitchObserver?.disconnect();
+});
+
+// Ionic caches views in ion-router-outlet, so onMounted only fires on the
+// first visit. Re-measure anchors every time the view becomes visible so
+// chemistry lines are drawn with the correct coordinates.
+onIonViewDidEnter(() => {
+  void nextTick(updateAnchors);
 });
 
 /** Positions required by the current schema */
@@ -280,7 +294,6 @@ watch(
 );
 
 const chemistryLines = computed<RenderedChemistryLine[]>(() => {
-  const slots = props.formation.formation;
   return props.formation.chemistry
     .map((link) => {
       const from = anchorMap.value[link.from];

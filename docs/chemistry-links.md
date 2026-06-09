@@ -84,3 +84,8 @@ keep links aligned:
   layout flips to the landscape grid.
 
 This ensures chemistry lines stay aligned with nodes across screen sizes.
+
+## Related documentation
+
+- For how contracts are placed, removed, swapped, and moved on the pitch (the
+  `DraftLineup` seam and pure mutations), see `docs/lineup-editing.md`.

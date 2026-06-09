@@ -5,7 +5,6 @@ import { fetchTeam, saveTeamApi } from "@/services/teamService";
 import { createWikimediaClient } from "@/services/wikimediaClient";
 import {
   createDraftFormation,
-  changeSchema,
   createChemistryLinks,
   isCompleteFormation,
   computeChemistryLinks,
@@ -14,6 +13,14 @@ import {
   type Schema,
   type Position,
 } from "../../../dto/formationDTO";
+import {
+  type DraftLineup,
+  assignToPosition as assignToPositionMutation,
+  removeFromPosition as removeFromPositionMutation,
+  swapSlots as swapSlotsMutation,
+  moveToEmpty as moveToEmptyMutation,
+  setSchema as setSchemaMutation,
+} from "../../../dto/lineupMutations";
 import type { TeamLineUp } from "@/types/team";
 import type { ContractDTO } from "../../../dto/contractDTO";
 
@@ -189,115 +196,35 @@ export function useTeamLineup() {
   );
 
   // ── Mutation helpers ──────────────────────────────────────────────────────
+  // Thin reactive shell over the pure mutations in dto/lineupMutations.ts:
+  // snapshot the live state, run the pure transform, write the result back.
+  function currentLineup(): DraftLineup {
+    return { formation: draft.value, bench: benchContracts.value };
+  }
+
+  function applyMutation(next: DraftLineup) {
+    draft.value = next.formation;
+    benchContracts.value = next.bench;
+  }
+
   function setSchema(nextSchema: Schema) {
-    draft.value = changeSchema(draft.value, nextSchema);
+    applyMutation(setSchemaMutation(currentLineup(), nextSchema));
   }
 
   function assignToPosition(position: Position, contract: ContractDTO) {
-    const displaced = draft.value.formation[position] ?? null;
-    draft.value = {
-      ...draft.value,
-      formation: { ...draft.value.formation, [position]: contract },
-    };
-    benchContracts.value = benchContracts.value.filter(
-      (c) => c.id !== contract.id
-    );
-    if (displaced && displaced.id !== contract.id) {
-      benchContracts.value = [...benchContracts.value, displaced];
-    }
+    applyMutation(assignToPositionMutation(currentLineup(), position, contract));
   }
 
   function removeFromPosition(position: Position) {
-    const contract = draft.value.formation[position];
-    if (!contract) return;
-    const newFormation = { ...draft.value.formation };
-    delete newFormation[position];
-    draft.value = { ...draft.value, formation: newFormation };
-    benchContracts.value = [...benchContracts.value, contract];
+    applyMutation(removeFromPositionMutation(currentLineup(), position));
   }
 
   function swapSlots(fromId: string, toPos: string, toId: string | null) {
-    const fromPos = (
-      Object.entries(draft.value.formation) as [Position, ContractDTO][]
-    ).find(([, c]) => c.id === fromId)?.[0];
-
-    const fromOnBench = benchContracts.value.some((c) => c.id === fromId);
-    const fromContract =
-      (fromPos ? draft.value.formation[fromPos] : null) ??
-      benchContracts.value.find((c) => c.id === fromId) ??
-      null;
-
-    if (!fromContract) return;
-
-    if (toPos === "bench") {
-      if (fromPos) {
-        const newFormation = { ...draft.value.formation };
-        if (toId) {
-          const toContract = benchContracts.value.find((c) => c.id === toId);
-          if (toContract) newFormation[fromPos] = toContract;
-          else delete newFormation[fromPos];
-        } else {
-          delete newFormation[fromPos];
-        }
-        draft.value = { ...draft.value, formation: newFormation };
-      }
-      if (!fromOnBench) {
-        benchContracts.value = [
-          ...benchContracts.value.filter((c) => c.id !== toId),
-          fromContract,
-        ];
-      } else if (fromOnBench && toId) {
-        const bench = [...benchContracts.value];
-        const a = bench.findIndex((c) => c.id === fromId);
-        const b = bench.findIndex((c) => c.id === toId);
-        if (a !== -1 && b !== -1) [bench[a], bench[b]] = [bench[b], bench[a]];
-        benchContracts.value = bench;
-      }
-    } else {
-      const targetPos = toPos as Position;
-      const toContract =
-        draft.value.formation[targetPos] ??
-        benchContracts.value.find((c) => c.id === toId) ??
-        null;
-      const newFormation = { ...draft.value.formation };
-      newFormation[targetPos] = fromContract;
-      if (fromPos) {
-        if (toContract) newFormation[fromPos] = toContract;
-        else delete newFormation[fromPos];
-      } else if (fromOnBench) {
-        benchContracts.value = benchContracts.value.filter(
-          (c) => c.id !== fromId
-        );
-        if (toContract) {
-          benchContracts.value = [...benchContracts.value, toContract];
-        }
-      }
-      draft.value = { ...draft.value, formation: newFormation };
-    }
+    applyMutation(swapSlotsMutation(currentLineup(), fromId, toPos, toId));
   }
 
   function moveToEmpty(fromId: string, targetPos: Position) {
-    const fromPos = (
-      Object.entries(draft.value.formation) as [Position, ContractDTO][]
-    ).find(([, c]) => c.id === fromId)?.[0];
-
-    const fromOnBench = benchContracts.value.some((c) => c.id === fromId);
-    const fromContract =
-      (fromPos ? draft.value.formation[fromPos] : null) ??
-      benchContracts.value.find((c) => c.id === fromId) ??
-      null;
-
-    if (!fromContract || draft.value.formation[targetPos]) return;
-
-    const newFormation = { ...draft.value.formation };
-    newFormation[targetPos] = fromContract;
-    if (fromPos) delete newFormation[fromPos];
-    else if (fromOnBench) {
-      benchContracts.value = benchContracts.value.filter(
-        (c) => c.id !== fromId
-      );
-    }
-    draft.value = { ...draft.value, formation: newFormation };
+    applyMutation(moveToEmptyMutation(currentLineup(), fromId, targetPos));
   }
 
   return {

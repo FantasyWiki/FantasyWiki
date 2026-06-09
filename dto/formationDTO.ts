@@ -346,6 +346,39 @@ export function finalizeDraft<S extends Schema>(
     return draft as FormationDTO<S>;
 }
 
+/**
+ * Composes the chemistry links for a formation from a map of article links.
+ *
+ * This is the single place that turns "a schema + the contracts placed on it +
+ * the Wikimedia links of each placed article" into a fully leveled list of
+ * {@link ChemistryLink}. For each schema-defined pair it looks up the two
+ * placed articles, resolves their linked-article lists from `linksMap`, and
+ * derives the level via {@link calculateChemistry} (EMPTY when a slot is empty).
+ *
+ * The fetching of linked articles and any staleness handling are the caller's
+ * responsibility (see `useTeamLineup`); this function is pure and synchronous.
+ *
+ * @typeParam S - The selected schema type.
+ * @param schema - The schema whose link topology drives the result.
+ * @param formation - The (possibly partial) mapping of positions to contracts.
+ * @param linksMap - Map from article title to the titles it links to.
+ * @returns The schema's chemistry links, each carrying a resolved level.
+ */
+export function computeChemistryLinks<S extends Schema>(
+    schema: S,
+    formation: Partial<Record<Position, ContractDTO>>,
+    linksMap: Map<string, string[]>,
+): ChemistryLinksForSchema<S> {
+    return createChemistryLinks(schema).map((link) => {
+        const title1 = formation[link.from]?.article.title;
+        const title2 = formation[link.to]?.article.title;
+        const links1 = title1 ? (linksMap.get(title1) ?? []) : [];
+        const links2 = title2 ? (linksMap.get(title2) ?? []) : [];
+        const level = calculateChemistry(title1, links1, title2, links2);
+        return { ...link, level };
+    });
+}
+
 export function calculateChemistry(
     article1: string | null | undefined,
     links1: string[],

@@ -8,7 +8,7 @@ import {
   changeSchema,
   createChemistryLinks,
   isCompleteFormation,
-  calculateChemistry,
+  computeChemistryLinks,
   type DraftFormationDTO,
   type FormationDTO,
   type Schema,
@@ -93,16 +93,7 @@ export function useTeamLineup() {
         linksMap.set(res.title, res.linkedArticles);
       }
 
-      return createChemistryLinks(capturedSchema).map((link) => {
-        const contract1 = capturedFormation[link.from];
-        const contract2 = capturedFormation[link.to];
-        const title1 = contract1?.article.title;
-        const title2 = contract2?.article.title;
-        const links1 = title1 ? (linksMap.get(title1) ?? []) : [];
-        const links2 = title2 ? (linksMap.get(title2) ?? []) : [];
-        const level = calculateChemistry(title1, links1, title2, links2);
-        return { ...link, level };
-      });
+      return computeChemistryLinks(capturedSchema, capturedFormation, linksMap);
     },
     enabled: computed(() => !!leagueStore.currentLeagueId),
     // Keep chemistry fresh for 30 s so re-entering a cached Ionic view does not

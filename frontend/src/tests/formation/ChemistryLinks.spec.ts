@@ -5,7 +5,26 @@ import {
   createChemistryLinks,
   validateChemistryLinks,
   calculateChemistry,
+  computeChemistryLinks,
 } from "../../../../dto/formationDTO";
+import { ContractDTO } from "../../../../dto/contractDTO";
+
+function contractWith(title: string): ContractDTO {
+  return ContractDTO.fromRaw({
+    id: `c-${title}`,
+    team: {
+      id: "t",
+      name: "T",
+      credits: 0,
+      player: { id: "p", name: "P" },
+      points: 0,
+    },
+    article: { id: `a-${title}`, title, domain: "en" },
+    startDate: "2026-01-01T00:00:00Z",
+    duration: "P7D",
+    purchasePrice: 0,
+  });
+}
 
 describe("chemistry link helpers", () => {
   describe("calculateChemistry", () => {
@@ -76,5 +95,58 @@ describe("chemistry link helpers", () => {
 
     const duplicate = [...valid, valid[0]];
     expect(validateChemistryLinks("4-3-3", duplicate)).toBe(false);
+  });
+
+  describe("computeChemistryLinks", () => {
+    it("assigns EXCELLENT for a mutually linked schema pair", () => {
+      const formation = {
+        LW: contractWith("Messi"),
+        ST: contractWith("Ronaldo"),
+      };
+      const linksMap = new Map<string, string[]>([
+        ["Messi", ["Ronaldo"]],
+        ["Ronaldo", ["Messi"]],
+      ]);
+
+      const links = computeChemistryLinks("4-3-3", formation, linksMap);
+      const lwSt = links.find((l) => l.from === "LW" && l.to === "ST");
+
+      expect(lwSt?.level).toBe(ChemistryLevel.EXCELLENT);
+    });
+
+    it("assigns GOOD for one-way links and WEAK for none", () => {
+      const formation = {
+        LW: contractWith("Messi"),
+        ST: contractWith("Ronaldo"),
+      };
+
+      const oneWay = computeChemistryLinks(
+        "4-3-3",
+        formation,
+        new Map([["Messi", ["Ronaldo"]]])
+      );
+      expect(oneWay.find((l) => l.from === "LW" && l.to === "ST")?.level).toBe(
+        ChemistryLevel.GOOD
+      );
+
+      const none = computeChemistryLinks("4-3-3", formation, new Map());
+      expect(none.find((l) => l.from === "LW" && l.to === "ST")?.level).toBe(
+        ChemistryLevel.WEAK
+      );
+    });
+
+    it("assigns EMPTY when a link has a missing slot and returns the full topology", () => {
+      const formation = { LW: contractWith("Messi") }; // ST empty
+      const links = computeChemistryLinks(
+        "4-3-3",
+        formation,
+        new Map([["Messi", ["Ronaldo"]]])
+      );
+
+      expect(links.find((l) => l.from === "LW" && l.to === "ST")?.level).toBe(
+        ChemistryLevel.EMPTY
+      );
+      expect(links).toHaveLength(CHEMISTRY_LINKS["4-3-3"].length);
+    });
   });
 });

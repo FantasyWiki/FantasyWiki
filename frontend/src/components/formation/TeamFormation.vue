@@ -300,9 +300,16 @@ const chemistryLines = computed<RenderedChemistryLine[]>(() => {
       const to = anchorMap.value[link.to];
       if (!from || !to) return null;
 
+      // A link only carries a real chemistry level when both of its endpoint
+      // positions are filled; if either slot is empty the line renders neutral
+      // (empty) regardless of any stale level still on the link.
+      const bothFilled =
+        !!props.formation.formation[link.from] &&
+        !!props.formation.formation[link.to];
+
       return {
         key: `${link.from}-${link.to}`,
-        level: link.level,
+        level: bothFilled ? link.level : ChemistryLevel.EMPTY,
         x1: from.x,
         y1: from.y,
         x2: to.x,

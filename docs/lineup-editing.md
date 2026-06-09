@@ -29,8 +29,10 @@ removing from an empty position or moving onto an occupied slot):
   contract currently at the target, if any.
 - `moveToEmpty(state, fromId, targetPos)` — move onto an empty position only.
 - `setSchema(state, nextSchema)` — remap placed contracts to the new schema via
-  `changeSchema`. The bench is left untouched; contracts that no longer fit the
-  new schema are dropped by `changeSchema` (existing behavior, preserved).
+  `changeSchema`. Any contract the remap cannot carry into the new schema is
+  appended to the bench rather than silently dropped, so no contract is ever
+  lost on a schema change. The bench reference is preserved when nothing is
+  dropped.
 
 Because the mutations are pure and Vue-free, the branchy slot/bench logic is
 unit-tested directly in `frontend/src/tests/formation/lineupMutations.spec.ts`.

@@ -160,12 +160,25 @@ export function moveToEmpty(
 
 /**
  * Switches the draft to a new schema, remapping placed contracts via
- * `changeSchema`. The bench is left untouched (contracts that no longer fit the
- * new schema are dropped by `changeSchema`, matching the existing UI behavior).
+ * `changeSchema`. Any contract that the remap cannot carry into the new schema
+ * is appended to the bench instead of being silently dropped, so no contract is
+ * ever lost on a schema change. The bench reference is preserved when nothing
+ * was dropped.
  */
 export function setSchema(state: DraftLineup, nextSchema: Schema): DraftLineup {
+    const nextFormation = changeSchema(state.formation, nextSchema);
+
+    const carriedIds = new Set(
+        Object.values(nextFormation.formation)
+            .filter((c): c is ContractDTO => !!c)
+            .map((c) => c.id),
+    );
+    const dropped = Object.values(state.formation.formation).filter(
+        (c): c is ContractDTO => !!c && !carriedIds.has(c.id),
+    );
+
     return {
-        formation: changeSchema(state.formation, nextSchema),
-        bench: state.bench,
+        formation: nextFormation,
+        bench: dropped.length ? [...state.bench, ...dropped] : state.bench,
     };
 }

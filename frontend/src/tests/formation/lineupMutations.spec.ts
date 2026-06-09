@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createDraftFormation, type Position } from "../../../../dto/formationDTO";
+import {
+  createDraftFormation,
+  type Position,
+} from "../../../../dto/formationDTO";
 import { ContractDTO } from "../../../../dto/contractDTO";
 import {
   type DraftLineup,
@@ -118,12 +121,25 @@ describe("lineup mutations", () => {
   });
 
   describe("setSchema", () => {
-    it("remaps the formation to the new schema and leaves the bench untouched", () => {
+    it("remaps the formation to the new schema, keeping the bench reference when nothing is dropped", () => {
       const a = contract("a");
       const bench = [contract("b")];
       const next = setSchema(lineup({ ST: a }, bench), "4-4-2");
       expect(next.formation.schema).toBe("4-4-2");
       expect(next.bench).toBe(bench);
+    });
+
+    it("benches contracts that cannot be carried into the new schema", () => {
+      const a = contract("a");
+      const b = contract("b");
+      // b sits on a position the source schema does not define, so the remap
+      // cannot carry it forward; it must land on the bench rather than vanish.
+      const next = setSchema(lineup({ ST: a, CDM: b }, []), "4-4-2");
+      const placedIds = Object.values(next.formation.formation)
+        .filter((c): c is ContractDTO => !!c)
+        .map((c) => c.id);
+      expect(placedIds).not.toContain("b");
+      expect(next.bench.map((c) => c.id)).toContain("b");
     });
   });
 });

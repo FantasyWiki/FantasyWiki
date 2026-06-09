@@ -34,6 +34,23 @@ chemistry: ChemistryLink[]
 `validateChemistryLinks` ensures the runtime list matches the schema topology
 and contains only valid levels.
 
+### Composing leveled links
+
+`computeChemistryLinks(schema, formation, linksMap)` (also in
+`dto/formationDTO.ts`) is the single, pure function that turns a schema plus the
+contracts placed on it plus each placed article's Wikimedia links into a fully
+leveled `ChemistryLink[]`. For every schema pair it resolves the two placed
+article titles, looks up their linked-article lists in `linksMap`
+(`Map<title, string[]>`), and derives the level via `calculateChemistry`
+(`empty` when a slot is unfilled).
+
+Fetching the linked articles and discarding stale results when the formation
+changes mid-fetch stays in `frontend/src/composables/useTeamLineup.ts`; the
+composable builds `linksMap` from the Wikimedia responses and then calls
+`computeChemistryLinks`. Keeping composition pure means it is unit-tested
+directly (see `frontend/src/tests/formation/ChemistryLinks.spec.ts`) without any
+Vue or network setup.
+
 ## Rendering in the formation view
 
 `frontend/src/components/formation/TeamFormation.vue` renders links using an
@@ -67,3 +84,8 @@ keep links aligned:
   layout flips to the landscape grid.
 
 This ensures chemistry lines stay aligned with nodes across screen sizes.
+
+## Related documentation
+
+- For how contracts are placed, removed, swapped, and moved on the pitch (the
+  `DraftLineup` seam and pure mutations), see `docs/lineup-editing.md`.

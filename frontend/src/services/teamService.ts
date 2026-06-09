@@ -12,20 +12,10 @@ import {
   createChemistryLinks,
   type FormationDTO,
 } from "../../../dto/formationDTO";
-import type { ContractDTO } from "../../../dto/contractDTO";
-import { ContractDTO as ContractModel } from "../../../dto/contractDTO";
+import { ContractDTO, type RawContract } from "../../../dto/contractDTO";
 import { Temporal } from "@js-temporal/polyfill";
 
 const BASE = import.meta.env.VITE_BACKEND_URL;
-
-type RawContract = {
-  id: string;
-  team: ContractDTO["team"];
-  article: ContractDTO["article"];
-  startDate: string;
-  duration: string | Record<string, unknown>;
-  purchasePrice: number;
-};
 
 type RawTeamLineUp = {
   formation: {
@@ -37,22 +27,11 @@ type RawTeamLineUp = {
   bench: RawContract[];
 };
 
-function deserializeContract(c: RawContract): ContractDTO {
-  return new ContractModel(
-    c.id,
-    c.team,
-    c.article,
-    Temporal.Instant.from(c.startDate),
-    Temporal.Duration.from(c.duration),
-    c.purchasePrice
-  );
-}
-
 function deserializeLineup(raw: RawTeamLineUp): TeamLineUp {
   const formation = Object.fromEntries(
     Object.entries(raw.formation.formation).map(([position, contract]) => [
       position,
-      deserializeContract(contract),
+      ContractDTO.fromRaw(contract),
     ])
   ) as FormationDTO["formation"];
   const chemistry =
@@ -65,7 +44,7 @@ function deserializeLineup(raw: RawTeamLineUp): TeamLineUp {
       formation,
       chemistry,
     } as FormationDTO,
-    bench: raw.bench.map(deserializeContract),
+    bench: raw.bench.map((c) => ContractDTO.fromRaw(c)),
   };
 }
 

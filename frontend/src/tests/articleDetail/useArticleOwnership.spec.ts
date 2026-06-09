@@ -56,21 +56,27 @@ function setupStore(state: StoreState = {}) {
 describe("useArticleOwnership", () => {
   it("reports loading while team context is loading and yields no detail", () => {
     setupStore({ currentTeam: null, isTeamLoading: true });
-    const { status, detail } = useArticleOwnership(ref(makeContract(otherTeam)));
+    const { status, detail } = useArticleOwnership(
+      ref(makeContract(otherTeam))
+    );
     expect(status.value).toBe("loading");
     expect(detail.value).toBeNull();
   });
 
   it("reports loading when there is no current team yet", () => {
     setupStore({ currentTeam: null });
-    const { status, detail } = useArticleOwnership(ref(makeContract(otherTeam)));
+    const { status, detail } = useArticleOwnership(
+      ref(makeContract(otherTeam))
+    );
     expect(status.value).toBe("loading");
     expect(detail.value).toBeNull();
   });
 
   it("reports error when team context failed", () => {
     setupStore({ currentTeam: null, teamError: "boom" });
-    const { status, detail } = useArticleOwnership(ref(makeContract(otherTeam)));
+    const { status, detail } = useArticleOwnership(
+      ref(makeContract(otherTeam))
+    );
     expect(status.value).toBe("error");
     expect(detail.value).toBeNull();
   });

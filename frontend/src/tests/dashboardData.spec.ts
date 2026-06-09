@@ -22,11 +22,7 @@ function makeDashboard(viewerTeamId: string, teams: TeamDTO[]): DashboardData {
 
 describe("DashboardData.rank", () => {
   it("ranks the viewer team by descending points (1-based)", () => {
-    const teams = [
-      makeTeam("a", 10),
-      makeTeam("b", 30),
-      makeTeam("c", 20),
-    ];
+    const teams = [makeTeam("a", 10), makeTeam("b", 30), makeTeam("c", 20)];
     expect(makeDashboard("b", teams).rank).toBe(1);
     expect(makeDashboard("c", teams).rank).toBe(2);
     expect(makeDashboard("a", teams).rank).toBe(3);

@@ -18,7 +18,9 @@ export type OwnershipStatus = "loading" | "ready" | "error";
  * @returns `status` (loading/ready/error), the built `detail` (null until
  *   ready), and `retry` to re-fetch the team context after an error.
  */
-export function useArticleOwnership(selectedContract: Ref<ContractDTO | null>): {
+export function useArticleOwnership(
+  selectedContract: Ref<ContractDTO | null>
+): {
   status: ComputedRef<OwnershipStatus>;
   detail: ComputedRef<ArticleDetail | null>;
   retry: () => void;

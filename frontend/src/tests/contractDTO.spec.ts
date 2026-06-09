@@ -34,7 +34,9 @@ describe("ContractDTO.fromRaw", () => {
     expect(contract).toBeInstanceOf(ContractDTO);
     expect(contract.startDate).toBeInstanceOf(Temporal.Instant);
     expect(contract.duration).toBeInstanceOf(Temporal.Duration);
-    expect(contract.startDate.equals(Temporal.Instant.from("2026-01-01T00:00:00Z"))).toBe(true);
+    expect(
+      contract.startDate.equals(Temporal.Instant.from("2026-01-01T00:00:00Z"))
+    ).toBe(true);
     expect(contract.duration.total({ unit: "days" })).toBe(7);
     expect(contract.id).toBe("contract-1");
     expect(contract.team).toBe(team);

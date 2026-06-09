@@ -212,7 +212,9 @@ export function useTeamLineup() {
   }
 
   function assignToPosition(position: Position, contract: ContractDTO) {
-    applyMutation(assignToPositionMutation(currentLineup(), position, contract));
+    applyMutation(
+      assignToPositionMutation(currentLineup(), position, contract)
+    );
   }
 
   function removeFromPosition(position: Position) {

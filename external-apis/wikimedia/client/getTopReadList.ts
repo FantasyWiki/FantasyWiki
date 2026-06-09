@@ -1,53 +1,40 @@
 import type { Domain } from "../../../dto/enums";
-import {normalizeTopReadEntries, TopReadEntry, WikimediaTopReadArticle,} from "../wikimedia";
+import {
+    normalizeTopReadEntries,
+    TopReadEntry,
+    WikimediaTopReadArticle,
+} from "../wikimedia";
 import {
     PAGEVIEWS_BASE_URL,
     fetchJsonWithRetry,
     shiftUtcDays,
     toDateParts,
     toYmd,
+    withCache,
 } from "./internal";
-import {CacheLike, WikimediaHttp} from "../client";
+import { CacheLike, WikimediaHttp } from "../client";
 
-/**
- * Raw payload returned by Wikimedia per-article pageviews endpoint.
- */
 export type PerArticleResponse = {
     items: Array<{ views: number }>;
 };
 
-
-/**
- * Raw payload returned by Wikimedia top-read endpoint.
- *
- * This type is intentionally internal: it models upstream response shape
- * before normalization into domain-friendly DTOs.
- */
 export type TopReadResponse = {
     items: Array<{
         articles: WikimediaTopReadArticle[];
     }>;
 };
 
-/**
- * Normalized result returned by `pageviews.getTopReadList`.
- */
 export type TopReadListResult = {
     domain: Domain;
     snapshotDate: string;
     entries: TopReadEntry[];
 };
 
-export type GetTopReadListDeps = {
-    http: WikimediaHttp;
-    cache: CacheLike | null;
-    maxFallbackDays: number;
-    retryCount: number;
-    averageDays: number;
-};
-
-export function createGetTopReadList(deps: GetTopReadListDeps) {
-    const { http, cache, maxFallbackDays, retryCount, averageDays } = deps;
+export function createGetTopReadList(http: WikimediaHttp,
+cache: CacheLike | null,
+maxFallbackDays: number,
+retryCount: number,
+averageDays: number,) {
 
     async function resolveAverageViews(
         domain: Domain,
@@ -70,53 +57,41 @@ export function createGetTopReadList(deps: GetTopReadListDeps) {
         }
     }
 
-    return async function getTopReadList(domain: Domain, limit: number): Promise<TopReadListResult> {const baseDate = new Date();
+    return async function getTopReadList(domain: Domain, limit: number): Promise<TopReadListResult> {
+        const baseDate = new Date();
 
         for (let offset = 1; offset <= maxFallbackDays; offset += 1) {
             const snapshotDate = shiftUtcDays(baseDate, -offset);
             const snapshotDateText = toYmd(snapshotDate);
             const cacheKey = `wikimedia:top-read:${domain}.wikipedia:${snapshotDateText}:limit:${limit}`;
 
-            let cached: string | null = null;
-            try {
-                cached = cache?.getItem(cacheKey) ?? null;
-            } catch {
-                cached = null;
-            }
-
-            if (cached) {
-                try {
-                    return JSON.parse(cached) as TopReadListResult;
-                } catch {
-                    try { cache?.removeItem(cacheKey); } catch { /* best-effort */ }
-                }
-            }
-
             const parts = toDateParts(snapshotDate);
             const url = `${PAGEVIEWS_BASE_URL}/top/${domain}.wikipedia/all-access/${parts.year}/${parts.month}/${parts.day}`;
 
             try {
-                const topRead = await fetchJsonWithRetry<TopReadResponse>(http, url, retryCount);
-                const articles = topRead.items?.[0]?.articles ?? [];
-                const entries = normalizeTopReadEntries(articles, limit, domain);
+                return await withCache(cache, cacheKey, async () => {
+                    const topRead = await fetchJsonWithRetry<TopReadResponse>(http, url, retryCount);
+                    const articles = topRead.items?.[0]?.articles ?? [];
+                    const entries = normalizeTopReadEntries(articles, limit, domain);
 
-                const entriesWithAverage = await Promise.all(
-                    entries.map(async (entry) => ({
-                        ...entry,
-                        averageViews30d: await resolveAverageViews(domain, entry.canonicalTitle, snapshotDate),
-                    })),
-                );
+                    const entriesWithAverage = await Promise.all(
+                        entries.map(async (entry) => ({
+                            ...entry,
+                            averageViews30d: await resolveAverageViews(
+                                domain,
+                                entry.canonicalTitle,
+                                snapshotDate,
+                            ),
+                        })),
+                    );
 
-                const result: TopReadListResult = {
-                    domain,
-                    snapshotDate: snapshotDateText,
-                    entries: entriesWithAverage,
-                };
-
-                try { cache?.setItem(cacheKey, JSON.stringify(result)); } catch { /* best-effort */ }
-                return result;
+                    return {
+                        domain,
+                        snapshotDate: snapshotDateText,
+                        entries: entriesWithAverage,
+                    };
+                });
             } catch {
-                // Fall back to the previous day's snapshot when this date is unavailable.
             }
         }
 

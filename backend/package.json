@@ -2,8 +2,8 @@
   "name": "backend",
   "type": "module",
   "engines": {
-    "node": "24.15.0",
-    "npm": "11.14.1"
+    "node": "24.16.0",
+    "npm": "11.16.0"
   },
   "scripts": {
     "dev": "wrangler dev",
@@ -28,7 +28,7 @@
     "hono": "^4.12.8"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.15.0",
+    "@cloudflare/vitest-pool-workers": "^0.16.0",
     "@cloudflare/workers-types": "^4.20260423.1",
     "@eslint/js": "^10.0.1",
     "@types/node": "^25.5.0",

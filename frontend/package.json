@@ -4,8 +4,8 @@
   "version": "0.0.1",
   "type": "module",
   "engines": {
-    "node": "24.15.0",
-    "npm": "11.14.1"
+    "node": "24.16.0",
+    "npm": "11.16.0"
   },
   "scripts": {
     "dev": "vite",
@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@capacitor/app": "8.1.0",
-    "@capacitor/core": "8.3.4",
+    "@capacitor/core": "8.4.0",
     "@capacitor/haptics": "8.0.2",
     "@capacitor/keyboard": "8.0.3",
     "@capacitor/status-bar": "8.0.2",

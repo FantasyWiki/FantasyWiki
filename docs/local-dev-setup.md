@@ -25,14 +25,17 @@ their respective tools at startup.
 Create the file at `FantasyWiki/backend/.dev.vars` with the following content:
 
 ```ini
+GOOGLE_CLIENT_ID=457796621894-7krpa8n09mekpj2cdd952jjkf1c3ookt.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=<ask a team member>
 JWT_SECRET=<any random string, at least 32 characters>
 FRONTEND_URL=localhost:5173
 ```
 
 **Notes:**
-- `GOOGLE_CLIENT_ID` and `FRONTEND_URL` are already in `wrangler.jsonc` for production.
-  The `.dev.vars` values override them locally.
+- `GOOGLE_CLIENT_ID` is the project's public Google OAuth client ID. In CI it is injected
+  per-environment as a secret (`GOOGLE_CLIENT_ID_PREVIEW` / `GOOGLE_CLIENT_ID_PRODUCTION`);
+  locally it must be set here in `.dev.vars` (it is no longer in `wrangler.jsonc`).
+- `FRONTEND_URL` is passed as a `--var` at deploy time; locally it must be set here too.
 - `JWT_SECRET` can be any random string. Generate one with:
   ```bash
   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"

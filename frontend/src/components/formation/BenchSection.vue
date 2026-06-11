@@ -3,10 +3,17 @@
     <!-- ── Header ──────────────────────────────────────────────────────── -->
     <ion-card-header class="bench-header">
       <div class="bench-header-row fm-center-row">
-        <ion-card-title class="bench-title">Bench</ion-card-title>
+        <ion-card-title class="bench-title">{{
+          $t("formation.bench.title")
+        }}</ion-card-title>
         <ion-note class="bench-count">
-          {{ articles.length }}
-          {{ articles.length === 1 ? "article" : "articles" }}
+          {{
+            $t(
+              "formation.bench.count",
+              { count: articles.length },
+              articles.length
+            )
+          }}
         </ion-note>
       </div>
     </ion-card-header>
@@ -16,9 +23,9 @@
       <!-- Empty state -->
       <div v-if="articles.length === 0" class="bench-empty fm-center-col">
         <ion-icon :icon="bookOutline" class="bench-empty-icon" />
-        <p class="bench-empty-title">No articles on the bench</p>
+        <p class="bench-empty-title">{{ $t("formation.bench.empty") }}</p>
         <p class="bench-empty-hint">
-          Purchase articles from the market to add them here
+          {{ $t("formation.bench.emptyHint") }}
         </p>
       </div>
 

@@ -4,6 +4,7 @@ import router from "./router";
 import { createPinia } from "pinia";
 import { IonicVue } from "@ionic/vue";
 import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
+import i18n from "./i18n";
 
 /* Core CSS required for Ionic components to work properly */
 import "@ionic/vue/css/core.css";
@@ -75,6 +76,7 @@ async function bootstrap() {
     .use(router)
     .use(IonicVue)
     .use(createPinia())
+    .use(i18n)
     .use(VueQueryPlugin, { queryClient });
 
   // Step 3 — wait for the router to resolve the initial route, then mount.

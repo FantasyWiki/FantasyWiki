@@ -3,7 +3,7 @@
     <div class="section-head">
       <h3 class="section-title">
         <ion-icon :icon="timeOutline" />
-        Contract Details
+        {{ $t("articleDetail.contract.title") }}
       </h3>
       <ion-chip
         class="urgency-chip"
@@ -21,7 +21,9 @@
         <ion-col size="6">
           <div class="info-box">
             <ion-text color="medium">
-              <p class="info-label ion-no-margin">Tier</p>
+              <p class="info-label ion-no-margin">
+                {{ $t("articleDetail.contract.tier") }}
+              </p>
             </ion-text>
             <p class="info-value ion-no-margin">
               {{ selectedContract.tier }}
@@ -31,7 +33,9 @@
         <ion-col size="6">
           <div class="info-box">
             <ion-text color="medium">
-              <p class="info-label ion-no-margin">Expires in</p>
+              <p class="info-label ion-no-margin">
+                {{ $t("articleDetail.contract.expiresIn") }}
+              </p>
             </ion-text>
             <p class="info-value ion-no-margin">
               {{ formatDuration(selectedContract.expiresIn) }}
@@ -45,6 +49,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { IonChip, IonCol, IonGrid, IonIcon, IonRow, IonText } from "@ionic/vue";
 import { timeOutline } from "ionicons/icons";
 import { ContractDTO } from "../../../../dto/contractDTO";
@@ -55,6 +60,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 
 const expiryDays = computed(() => {
   return Math.max(
@@ -64,9 +70,9 @@ const expiryDays = computed(() => {
 });
 
 const expiryLabel = computed(() => {
-  if (expiryDays.value <= 1) return "Urgent";
-  if (expiryDays.value <= 3) return "Renew soon";
-  return "Healthy";
+  if (expiryDays.value <= 1) return t("articleDetail.contract.urgent");
+  if (expiryDays.value <= 3) return t("articleDetail.contract.renewSoon");
+  return t("articleDetail.contract.healthy");
 });
 </script>
 

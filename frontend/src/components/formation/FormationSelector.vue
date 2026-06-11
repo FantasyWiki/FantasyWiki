@@ -1,6 +1,6 @@
 <template>
   <div class="formation-selector">
-    <p class="formation-label">Formation</p>
+    <p class="formation-label">{{ $t("formation.selector.label") }}</p>
 
     <ion-segment :value="currentSchema" scrollable @ionChange="onChange">
       <ion-segment-button

@@ -10,7 +10,9 @@
     <!-- Loading -->
     <div v-if="isLoading && !dashboardData" class="loading-container">
       <ion-spinner name="crescent" color="primary" />
-      <ion-text color="medium"><p>Loading dashboard…</p></ion-text>
+      <ion-text color="medium"
+        ><p>{{ t("views.teamDashboard.loading") }}</p></ion-text
+      >
     </div>
 
     <!-- Error -->
@@ -19,7 +21,9 @@
         <div class="error-row">
           <ion-icon :icon="alertCircleOutline" />
           <div>
-            <h3 class="ion-no-margin">Error loading dashboard</h3>
+            <h3 class="ion-no-margin">
+              {{ t("views.teamDashboard.errorTitle") }}
+            </h3>
             <p>{{ error?.message }}</p>
             <ion-button
               fill="outline"
@@ -28,7 +32,7 @@
               @click="refetch"
             >
               <ion-icon slot="start" :icon="refreshOutline" />
-              Retry
+              {{ t("views.teamDashboard.retry") }}
             </ion-button>
           </div>
         </div>
@@ -40,8 +44,8 @@
       <ion-card-content>
         <div class="empty-state">
           <ion-icon :icon="trophyOutline" color="medium" />
-          <h2>No League Selected</h2>
-          <p>Select a league from the header to view your dashboard.</p>
+          <h2>{{ t("views.teamDashboard.noLeagueTitle") }}</h2>
+          <p>{{ t("views.teamDashboard.noLeagueHint") }}</p>
         </div>
       </ion-card-content>
     </ion-card>
@@ -111,6 +115,7 @@ import { useDashboard } from "@/composables/useDashboard";
 import { useLeaguePerformances } from "@/composables/useLeaguePerformances";
 import { useTeamLineup } from "@/composables/useTeamLineup";
 import TeamManagement from "@/components/teamDashboard/TeamManagement.vue";
+import { useI18n } from "vue-i18n";
 
 const router = useRouter();
 const leagueStore = useLeagueStore();
@@ -129,6 +134,7 @@ const {
   leaderBoard,
 } = useDashboard();
 
+const { t } = useI18n();
 const urgentContracts = computed(() => {
   if (!contracts.value?.length) return [];
   else

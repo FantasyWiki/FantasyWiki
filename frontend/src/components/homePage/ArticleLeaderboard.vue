@@ -3,9 +3,9 @@
     <ion-card-header class="ion-no-padding ion-margin-bottom">
       <div class="ion-display-flex ion-justify-content-between">
         <ion-card-title class="ion-text-start">
-          🔥 Trending Today
+          {{ $t("home.articleLeaderboard.trendingToday") }}
         </ion-card-title>
-        <ion-text> Most viewed </ion-text>
+        <ion-text> {{ $t("home.articleLeaderboard.mostViewed") }} </ion-text>
       </div>
     </ion-card-header>
     <ion-card-content class="ion-text-center ion-no-padding">
@@ -22,7 +22,7 @@
           <ion-badge class="ion-margin ion-padding">
             <ion-icon
               :icon="trendingUpOutline"
-              aria-label="Going up"
+              :aria-label="$t('home.articleLeaderboard.goingUp')"
             ></ion-icon>
           </ion-badge>
           <ion-label class="ion-text-start ion-padding-horizontal">
@@ -42,10 +42,13 @@
                 aria-hidden="true"
                 class="eye-icon ion-margin-end"
               ></ion-icon>
-              Avg: {{ formatCompactViews(entry.averageViews30d)
-              }}<template v-if="entry.averageViews30d !== undefined"
-                >/day</template
-              >
+              {{
+                $t("home.articleLeaderboard.avg", {
+                  value: formatCompactViews(entry.averageViews30d),
+                })
+              }}<template v-if="entry.averageViews30d !== undefined">{{
+                $t("home.articleLeaderboard.perDay")
+              }}</template>
             </p>
           </ion-label>
           <ion-note slot="end" color="dark" class="ion-text-end">
@@ -56,11 +59,13 @@
         </ion-item>
       </ion-list>
       <div v-else-if="hasError" class="ion-padding unavailable-message">
-        Top article data unavailable right now.
+        {{ $t("home.articleLeaderboard.unavailable") }}
       </div>
     </ion-card-content>
   </ion-card>
-  <ion-chip class="top-right animate-float">📡 Live data</ion-chip>
+  <ion-chip class="top-right animate-float">{{
+    $t("home.articleLeaderboard.liveData")
+  }}</ion-chip>
   <ion-chip v-if="!isLoading" class="bottom-left animate-float"
     >📊 {{ todayVolumeLabel }}</ion-chip
   >
@@ -68,6 +73,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import {
   IonCard,
   IonCardHeader,
@@ -86,6 +92,8 @@ import {
 import { eyeOutline, trendingUpOutline } from "ionicons/icons";
 import { createWikimediaClient } from "@/services/wikimediaClient";
 import type { TopReadEntry } from "../../../../external-apis/wikimedia/wikimedia";
+
+const { t, locale } = useI18n();
 
 const entries = ref<TopReadEntry[]>([]);
 const views = ref<number>();
@@ -109,17 +117,17 @@ function formatCompactViews(value: number | undefined): string {
   return value.toFixed(0);
 }
 
-const compactVolumeFormatter = new Intl.NumberFormat("en", {
-  notation: "compact",
-  maximumFractionDigits: 1,
-});
-
 function formatTodayVolumeLabel(volume: number | undefined): string {
   if (volume === undefined) {
-    return "Total views not available right now";
-  } else {
-    return `Over ${compactVolumeFormatter.format(volume)} views today`;
+    return t("home.articleLeaderboard.viewsUnavailable");
   }
+  const compactVolumeFormatter = new Intl.NumberFormat(locale.value, {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  });
+  return t("home.articleLeaderboard.viewsToday", {
+    volume: compactVolumeFormatter.format(volume),
+  });
 }
 
 const todayVolumeLabel = computed(() => formatTodayVolumeLabel(views.value));

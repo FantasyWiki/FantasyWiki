@@ -7,7 +7,7 @@
       :disabled="model?.buyDisabled"
       @click="emit('buy')"
     >
-      Buy
+      {{ $t("articleDetail.actions.buy") }}
     </ion-button>
 
     <template v-if="model?.showContractActions && selectedContract">
@@ -18,7 +18,7 @@
         @click="emit('renew', selectedContract)"
       >
         <ion-icon slot="start" :icon="refreshOutline" class="action-icon" />
-        Renew Contract
+        {{ $t("articleDetail.actions.renewContract") }}
       </ion-button>
 
       <ion-button
@@ -32,7 +32,7 @@
           :icon="swapHorizontalOutline"
           class="action-icon"
         />
-        Swap Article
+        {{ $t("articleDetail.actions.swapArticle") }}
       </ion-button>
     </template>
 
@@ -42,7 +42,7 @@
       color="medium"
       @click="emit('close')"
     >
-      Close
+      {{ $t("common.close") }}
     </ion-button>
   </div>
 </template>

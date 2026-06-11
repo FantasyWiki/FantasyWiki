@@ -3,7 +3,7 @@
     <div class="section-head">
       <h3 class="section-title">
         <ion-icon :icon="statsChartOutline" />
-        Article Information
+        {{ $t("articleDetail.stats.title") }}
       </h3>
     </div>
 
@@ -12,17 +12,23 @@
         <ion-col size="6">
           <div class="info-box">
             <ion-text color="medium">
-              <p class="info-label ion-no-margin">Current Price</p>
+              <p class="info-label ion-no-margin">
+                {{ $t("articleDetail.stats.currentPrice") }}
+              </p>
             </ion-text>
             <p class="info-value ion-no-margin">
-              {{ model.currentPrice }} credits
+              {{
+                $t("articleDetail.stats.credits", { count: model.currentPrice })
+              }}
             </p>
           </div>
         </ion-col>
         <ion-col size="6">
           <div class="info-box">
             <ion-text color="medium">
-              <p class="info-label ion-no-margin">Availability</p>
+              <p class="info-label ion-no-margin">
+                {{ $t("articleDetail.stats.availability") }}
+              </p>
             </ion-text>
             <p class="info-value ion-no-margin">
               {{ availabilityValue }}
@@ -35,10 +41,16 @@
         <ion-col size="6">
           <div class="info-box">
             <ion-text color="medium">
-              <p class="info-label ion-no-margin">Purchase Price</p>
+              <p class="info-label ion-no-margin">
+                {{ $t("articleDetail.stats.purchasePrice") }}
+              </p>
             </ion-text>
             <p class="info-value ion-no-margin">
-              {{ model.purchasePrice }} credits
+              {{
+                $t("articleDetail.stats.credits", {
+                  count: model.purchasePrice,
+                })
+              }}
             </p>
           </div>
         </ion-col>
@@ -46,7 +58,7 @@
           <div class="info-box">
             <ion-text color="medium">
               <p class="info-label ion-no-margin">
-                Value Tracking
+                {{ $t("articleDetail.stats.valueTracking") }}
                 <ion-icon
                   :icon="
                     valueDelta >= 0 ? trendingUpOutline : trendingDownOutline
@@ -71,6 +83,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import {
   IonCol,
   IonGrid,
@@ -91,18 +104,19 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 
 const availabilityValue = computed(() => {
   switch (props.model.availability) {
     case "free-agent":
-      return "Free Agent";
+      return t("articleDetail.stats.freeAgent");
     case "owned-by-viewer":
     case "owned-by-other":
       return props.model.ownerTeamName
-        ? `Owned by ${props.model.ownerTeamName}`
-        : "Owned";
+        ? t("articleDetail.stats.ownedBy", { name: props.model.ownerTeamName })
+        : t("articleDetail.stats.owned");
     default:
-      return "Free Agent";
+      return t("articleDetail.stats.freeAgent");
   }
 });
 

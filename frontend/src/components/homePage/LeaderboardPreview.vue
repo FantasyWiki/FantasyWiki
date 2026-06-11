@@ -10,18 +10,22 @@
                 :icon="trophyOutline"
                 class="ion-padding-end ion-no-margin"
               ></ion-icon>
-              Weekly Tournament
+              {{ $t("home.leaderboardPreview.badge") }}
             </ion-chip>
           </div>
 
           <h2 class="ion-margin-bottom">
-            Compete for <ion-text color="wiki-gold">Glory</ion-text>
+            <i18n-t keypath="home.leaderboardPreview.title" tag="span">
+              <template #glory
+                ><ion-text color="wiki-gold">{{
+                  $t("home.leaderboardPreview.titleEmphasis")
+                }}</ion-text></template
+              >
+            </i18n-t>
           </h2>
 
           <p class="subtitle ion-margin-bottom">
-            Every week, all active players automatically enter a competitive
-            tournament. Climb the ranks, earn bonus points, and prove your
-            knowledge dominance.
+            {{ $t("home.leaderboardPreview.subtitle") }}
           </p>
 
           <div class="ion-margin-bottom">
@@ -51,7 +55,7 @@
             size="large"
             class="ion-text-capitalize ion-padding-horizontal"
           >
-            Join the Competition
+            {{ $t("home.leaderboardPreview.joinCompetition") }}
             <ion-icon :icon="trophyOutline" slot="end"></ion-icon>
           </ion-button>
         </ion-col>
@@ -63,8 +67,12 @@
               <div
                 class="header-content ion-display-flex ion-align-items-center ion-justify-content-between"
               >
-                <ion-card-title>🏆 Global Leaderboard</ion-card-title>
-                <span class="update-time">Updated daily</span>
+                <ion-card-title>{{
+                  $t("home.leaderboardPreview.globalLeaderboard")
+                }}</ion-card-title>
+                <span class="update-time">{{
+                  $t("home.leaderboardPreview.updatedDaily")
+                }}</span>
               </div>
             </ion-card-header>
 
@@ -109,7 +117,7 @@
 
             <ion-card-header class="leaderboard-footer">
               <div class="footer-content">
-                <span>Your Rank</span>
+                <span>{{ $t("home.leaderboardPreview.yourRank") }}</span>
                 <span class="your-rank ion-padding-end">#4,523</span>
               </div>
             </ion-card-header>
@@ -143,6 +151,10 @@ import {
   trendingDown,
   removeOutline,
 } from "ionicons/icons";
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 interface LeaderboardPlayer {
   rank: number;
@@ -163,26 +175,26 @@ const leaderboardData: LeaderboardPlayer[] = [
   { rank: 8, name: "KnowledgeKing", points: 2980, change: 2, trend: "up" },
 ];
 
-const rewards = [
+const rewards = computed(() => [
   {
-    rank: "Top 10",
+    rank: t("home.leaderboardPreview.top10.rank"),
     medal: "🥇",
-    description: "+20 bonus points/day in main game",
+    description: t("home.leaderboardPreview.top10.description"),
     badgeClass: "badge-gold",
   },
   {
-    rank: "Top 100",
+    rank: t("home.leaderboardPreview.top100.rank"),
     medal: "🥈",
-    description: "+10 bonus points/day in main game",
+    description: t("home.leaderboardPreview.top100.description"),
     badgeClass: "badge-silver",
   },
   {
-    rank: "Top 1000",
+    rank: t("home.leaderboardPreview.top1000.rank"),
     medal: "🥉",
-    description: "+5 bonus points/day in main game",
+    description: t("home.leaderboardPreview.top1000.description"),
     badgeClass: "badge-bronze",
   },
-];
+]);
 
 const getTrendIcon = (trend: string) => {
   switch (trend) {

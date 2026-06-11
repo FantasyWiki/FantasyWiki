@@ -53,15 +53,15 @@
           <p class="ownership-state__title ion-no-margin">
             {{
               ownershipContextStatus === "loading"
-                ? "Resolving ownership..."
-                : "Unable to determine ownership"
+                ? $t("articleDetail.ownership.resolving")
+                : $t("articleDetail.ownership.unableToDetermine")
             }}
           </p>
           <p class="ownership-state__subtitle ion-no-margin">
             {{
               ownershipContextStatus === "loading"
-                ? "Actions will appear when your team context is ready."
-                : "Please refresh and try again."
+                ? $t("articleDetail.ownership.resolvingSubtitle")
+                : $t("articleDetail.ownership.refreshTryAgain")
             }}
           </p>
         </ion-text>
@@ -71,7 +71,7 @@
           size="small"
           @click="retryOwnership()"
         >
-          Retry ownership check
+          {{ $t("articleDetail.ownership.retryCheck") }}
         </ion-button>
       </div>
     </ion-content>

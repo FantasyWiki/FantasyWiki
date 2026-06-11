@@ -9,25 +9,27 @@
           class="ion-display-inline-flex ion-justify-content-evenly"
         >
           <ion-icon :icon="flashOutline" aria-hidden="true"></ion-icon>
-          <div>Fantasy Sports meets Wikipedia</div>
+          <div>{{ $t("home.hero.badge") }}</div>
         </ion-chip>
         <h1 class="ion-text-center">
-          Build Your <strong>Knowledge Empire</strong>
+          <i18n-t keypath="home.hero.title">
+            <template #empire
+              ><strong>{{ $t("home.hero.titleEmphasis") }}</strong></template
+            >
+          </i18n-t>
         </h1>
         <p class="ion-padding-horizontal ion-text-center">
-          Draft Wikipedia articles, earn points from real search trends, and
-          compete in weekly tournaments. The ultimate fantasy game for the
-          curious mind.
+          {{ $t("home.hero.description") }}
         </p>
         <ion-button
           class="ion-text-capitalize ion-padding-horizontal"
           size="large"
         >
-          <ion-text>Get Started</ion-text>
+          <ion-text>{{ $t("home.hero.getStarted") }}</ion-text>
           <ion-icon slot="end" :icon="arrowForwardOutline"></ion-icon>
         </ion-button>
         <p class="ion-text-center">
-          Start with 1,000 credits • No credit card required
+          {{ $t("home.hero.creditsNote") }}
         </p>
         <app-stats></app-stats>
       </ion-col>

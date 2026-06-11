@@ -13,7 +13,7 @@
         target="_blank"
         rel="noopener noreferrer"
       >
-        Open on Wikipedia
+        {{ $t("articleDetail.description.openOnWikipedia") }}
       </a>
     </div>
   </div>
@@ -24,26 +24,26 @@
       v-if="hasSummaryRemainder && !isExpanded"
       class="summary-inline-toggle"
       type="button"
-      aria-label="Expand summary"
+      :aria-label="$t('articleDetail.description.expandSummary')"
       :aria-expanded="false"
       :aria-controls="summaryRemainderId"
-      title="Expand summary"
+      :title="$t('articleDetail.description.expandSummary')"
       @click="isExpanded = true"
     >
-      more...
+      {{ $t("articleDetail.description.more") }}
     </button>
     <template v-if="isExpanded && hasSummaryRemainder">
       <span :id="summaryRemainderId"> {{ summaryRemainder }}</span>
       <button
         class="summary-inline-toggle summary-inline-toggle--less"
         type="button"
-        aria-label="Collapse summary"
+        :aria-label="$t('articleDetail.description.collapseSummary')"
         :aria-expanded="true"
         :aria-controls="summaryRemainderId"
-        title="Collapse summary"
+        :title="$t('articleDetail.description.collapseSummary')"
         @click="isExpanded = false"
       >
-        less
+        {{ $t("articleDetail.description.less") }}
       </button>
     </template>
   </p>
@@ -51,6 +51,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import type { ArticleDetail } from "@/types/articleDetail";
 
 interface Props {
@@ -61,6 +62,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 const isExpanded = ref(false);
 
 const thumbnailUrl = computed(() => {
@@ -68,11 +70,12 @@ const thumbnailUrl = computed(() => {
 });
 
 const summaryText = computed(() => {
-  if (props.isLoadingSummary) return "Loading summary...";
+  if (props.isLoadingSummary)
+    return t("articleDetail.description.loadingSummary");
   if (props.summaryExtract && props.summaryExtract.trim().length > 0) {
     return props.summaryExtract;
   }
-  return "Summary unavailable.";
+  return t("articleDetail.description.summaryUnavailable");
 });
 
 const summarySplit = computed(() => {

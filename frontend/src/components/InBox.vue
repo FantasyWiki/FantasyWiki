@@ -10,7 +10,7 @@
           fill="outline"
           color="primary"
           class="bell-btn"
-          :aria-label="`Trade inbox – ${badgeCount} pending`"
+          :aria-label="$t('inbox.tradeInbox', { count: badgeCount })"
           @click="openInbox"
         >
           <ion-icon :icon="notificationsOutline" slot="icon-only" />
@@ -34,9 +34,9 @@
       <ion-content class="ion-no-padding">
         <!-- Header -->
         <ion-toolbar color="light" class="inbox-toolbar">
-          <ion-title slot="start" class="inbox-title"
-            >Notification Inbox</ion-title
-          >
+          <ion-title slot="start" class="inbox-title">{{
+            $t("inbox.title")
+          }}</ion-title>
 
           <div slot="end" class="ion-padding-end inbox-header-end">
             <ion-badge
@@ -76,7 +76,9 @@
         <div v-if="isLoading" class="ion-padding ion-text-center">
           <ion-spinner name="crescent" color="primary" />
           <ion-text color="medium">
-            <p class="ion-no-margin ion-padding-top">Loading notifications…</p>
+            <p class="ion-no-margin ion-padding-top">
+              {{ $t("inbox.loading") }}
+            </p>
           </ion-text>
         </div>
 
@@ -90,7 +92,7 @@
         >
           <ion-icon :icon="mailOpenOutline" color="medium" class="state-icon" />
           <ion-text color="medium">
-            <p class="ion-no-margin">No pending notifications</p>
+            <p class="ion-no-margin">{{ $t("inbox.empty") }}</p>
           </ion-text>
         </div>
 
@@ -113,9 +115,7 @@
 
                 <ion-text color="medium">
                   <p class="ion-no-margin notification-detail">
-                    {{
-                      notification.message || "No additional details provided."
-                    }}
+                    {{ notification.message || $t("inbox.noDetails") }}
                   </p>
                 </ion-text>
               </div>

@@ -5,15 +5,17 @@
         <template v-if="error">
           <ion-icon :icon="alertCircleOutline" class="callback-icon error" />
           <ion-text color="danger">
-            <h2>Sign-in failed</h2>
+            <h2>{{ $t("auth.callback.signInFailed") }}</h2>
             <p>{{ error }}</p>
           </ion-text>
-          <ion-button @click="router.push('/home')">Try again</ion-button>
+          <ion-button @click="router.push('/home')">
+            {{ $t("auth.callback.tryAgain") }}
+          </ion-button>
         </template>
         <template v-else>
           <ion-spinner name="crescent" class="callback-spinner" />
           <ion-text color="medium">
-            <p>Signing you in…</p>
+            <p>{{ $t("auth.callback.signingIn") }}</p>
           </ion-text>
         </template>
       </div>

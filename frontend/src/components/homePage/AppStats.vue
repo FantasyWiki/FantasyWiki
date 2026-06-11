@@ -17,12 +17,17 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { IonItemGroup, IonText } from "@ionic/vue";
-const stats = [
-  { title: "50K+", description: "Articles drafted" },
-  { title: "1M+", description: "Points earned" },
-  { title: "10K+", description: "Active users" },
-];
+
+const { t } = useI18n();
+
+const stats = computed(() => [
+  { title: "50K+", description: t("home.stats.articlesDrafted") },
+  { title: "1M+", description: t("home.stats.pointsEarned") },
+  { title: "10K+", description: t("home.stats.activeUsers") },
+]);
 </script>
 
 <style scoped>

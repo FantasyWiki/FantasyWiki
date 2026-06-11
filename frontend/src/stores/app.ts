@@ -2,6 +2,7 @@ import { sessionApi } from "@/services/api";
 import type { Session } from "@/types/models";
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
+import i18n, { isSupportedLocale, resolveInitialLocale } from "@/i18n";
 
 // Define language structure
 interface LanguageOption {
@@ -10,11 +11,13 @@ interface LanguageOption {
   fullName: string;
 }
 
-// Available languages configuration
+// Available languages configuration. Codes are lowercase to match the i18n
+// locales, the persisted `language` key, and the <html lang> attribute. Adding
+// a locale here (plus its catalog in src/i18n/locales and SUPPORTED_LOCALES)
+// is all that's needed to extend the switcher.
 const AVAILABLE_LANGUAGES: LanguageOption[] = [
-  { code: "EN", label: "🇬🇧", fullName: "English" },
-  { code: "IT", label: "🇮🇹", fullName: "Italiano" },
-  { code: "ES", label: "🇪🇸", fullName: "Español" },
+  { code: "en", label: "🇬🇧", fullName: "English" },
+  { code: "it", label: "🇮🇹", fullName: "Italiano" },
 ];
 
 /**
@@ -23,7 +26,8 @@ const AVAILABLE_LANGUAGES: LanguageOption[] = [
  */
 export const useAppStore = defineStore("app", () => {
   // ========== STATE ==========
-  const languageCode = ref<string>(localStorage.getItem("language") || "en");
+  // Same resolver the i18n instance booted with, so store and i18n agree.
+  const languageCode = ref<string>(resolveInitialLocale());
 
   const isDarkMode = ref<boolean>(localStorage.getItem("darkMode") === "true");
 
@@ -82,12 +86,14 @@ export const useAppStore = defineStore("app", () => {
     languageCode.value = code;
     localStorage.setItem("language", code);
 
+    // Switch the active translation catalog. This is what actually re-renders
+    // the UI text — everything else here is persistence/accessibility.
+    if (isSupportedLocale(code)) {
+      i18n.global.locale.value = code;
+    }
+
     // Update HTML lang attribute for accessibility
     document.documentElement.lang = code;
-
-    console.log(
-      `Language changed to: ${currentLanguage.value.fullName} (${code})`
-    );
   }
 
   /**

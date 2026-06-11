@@ -8,31 +8,30 @@
         <div class="cta-content ion-text-center">
           <ion-chip color="light">
             <ion-icon :icon="sparklesOutline" />
-            <ion-label>Start Playing Today</ion-label>
+            <ion-label>{{ $t("home.cta.badge") }}</ion-label>
           </ion-chip>
 
           <h2 class="cta-title ion-margin-top ion-margin-bottom">
             <ion-text color="light">
-              Ready to Build Your Knowledge Empire?
+              {{ $t("home.cta.title") }}
             </ion-text>
           </h2>
 
           <ion-text color="light" class="cta-description ion-margin-bottom">
             <p>
-              Join thousands of players already competing in the world's first
-              Wikipedia-based fantasy game. Start with 1,000 free credits.
+              {{ $t("home.cta.description") }}
             </p>
           </ion-text>
 
           <div class="ion-margin-bottom">
             <ion-button size="large" color="light">
-              Create Free Account
+              {{ $t("home.cta.createAccount") }}
               <ion-icon slot="end" :icon="arrowForward" />
             </ion-button>
           </div>
 
           <ion-text color="light" class="cta-footer">
-            <p>No credit card required • Free to play • Win real rewards</p>
+            <p>{{ $t("home.cta.footer") }}</p>
           </ion-text>
         </div>
       </div>

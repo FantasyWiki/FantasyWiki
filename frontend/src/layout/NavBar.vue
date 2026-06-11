@@ -132,7 +132,9 @@
             class="ion-hide-sm-down"
             @click="handleAuth"
           >
-            {{ appStore.isAuthenticated ? "Sign Out" : "Sign In with Google" }}
+            {{
+              appStore.isAuthenticated ? $t("nav.signOut") : $t("nav.signIn")
+            }}
           </ion-button>
         </div>
       </ion-toolbar>
@@ -176,8 +178,9 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import {
   IonModal,
   IonButton,
@@ -214,6 +217,7 @@ import { LeagueDTO } from "../../../dto/leagueDTO";
 
 const router = useRouter();
 const route = useRoute();
+const { t } = useI18n();
 const isLoginOpen = ref(false);
 
 // State
@@ -256,11 +260,11 @@ function selectLanguage(code: string) {
   langPopoverOpen.value = false;
 }
 
-const navLinks = [
-  { name: "Dashboard", href: "/dashboard", icon: gridOutline },
-  { name: "Leagues", href: "/leagues", icon: trophyOutline },
-  { name: "Market", href: "/market", icon: storefrontOutline },
-];
+const navLinks = computed(() => [
+  { name: t("nav.dashboard"), href: "/dashboard", icon: gridOutline },
+  { name: t("nav.leagues"), href: "/leagues", icon: trophyOutline },
+  { name: t("nav.market"), href: "/market", icon: storefrontOutline },
+]);
 
 const isActive = (href: string) => route.path === href;
 

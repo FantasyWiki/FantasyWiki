@@ -2,11 +2,12 @@
   <section id="how-it-works" class="ion-padding-vertical bg-secondary">
     <section class="ion-text-center ion-margin-bottom">
       <h2 class="title ion-margin-bottom">
-        How Fantasy<strong>Wiki</strong> Works
+        <i18n-t keypath="home.howItWorks.title" tag="span">
+          <template #brand>Fantasy<strong>Wiki</strong></template>
+        </i18n-t>
       </h2>
       <p class="ion-margin-bottom">
-        Join thousands of players competing in the ultimate knowledge-based
-        fantasy game.
+        {{ $t("home.howItWorks.subtitle") }}
       </p>
     </section>
 
@@ -48,6 +49,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import {
   IonGrid,
   IonRow,
@@ -58,36 +61,34 @@ import {
 } from "@ionic/vue";
 import { search, cart, trendingUp, trophy } from "ionicons/icons";
 
-const steps = [
+const { t } = useI18n();
+
+const steps = computed(() => [
   {
     icon: search,
-    title: "Search Articles",
-    description:
-      "Explore millions of Wikipedia articles. Find trending topics, hidden gems, or your favorite subjects.",
+    title: t("home.howItWorks.search.title"),
+    description: t("home.howItWorks.search.description"),
     colorClass: "bg-primary",
   },
   {
     icon: cart,
-    title: "Build Your Portfolio",
-    description:
-      "Buy articles with your 1,000 starting credits. Choose contract durations from 3 to 90 days.",
+    title: t("home.howItWorks.portfolio.title"),
+    description: t("home.howItWorks.portfolio.description"),
     colorClass: "bg-gold",
   },
   {
     icon: trendingUp,
-    title: "Earn Points Daily",
-    description:
-      "Score points based on real Wikipedia pageviews. Trending articles = more points!",
+    title: t("home.howItWorks.points.title"),
+    description: t("home.howItWorks.points.description"),
     colorClass: "bg-accent",
   },
   {
     icon: trophy,
-    title: "Compete & Win",
-    description:
-      "Climb the leaderboard, join weekly tournaments, and earn bonus rewards.",
+    title: t("home.howItWorks.compete.title"),
+    description: t("home.howItWorks.compete.description"),
     colorClass: "bg-primary",
   },
-];
+]);
 </script>
 
 <style scoped src="src/components/homePage/home-page.css"></style>

@@ -3,6 +3,7 @@ import { config } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
 import { server } from "@/mocks/server";
+import i18n from "@/i18n";
 
 // ── MSW ───────────────────────────────────────────────────────────────────────
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
@@ -37,6 +38,7 @@ beforeAll(() => {
   config.global.plugins = [
     pinia,
     [VueQueryPlugin, { queryClient: makeFreshQueryClient() }],
+    i18n,
   ];
 });
 
@@ -46,5 +48,6 @@ afterEach(() => {
   config.global.plugins = [
     createPinia(),
     [VueQueryPlugin, { queryClient: makeFreshQueryClient() }],
+    i18n,
   ];
 });

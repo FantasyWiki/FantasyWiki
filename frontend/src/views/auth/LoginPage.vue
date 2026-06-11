@@ -7,7 +7,7 @@
     <app-logo />
 
     <ion-text color="medium" class="login-subtitle">
-      <p>Sign in to manage your leagues and track your team.</p>
+      <p>{{ $t("auth.login.subtitle") }}</p>
     </ion-text>
 
     <div v-if="errorMessage" class="error-banner">
@@ -17,13 +17,19 @@
 
     <ion-button expand="block" class="google-btn" @click="signInWithGoogle">
       <ion-icon :icon="logoGoogle" slot="start" />
-      <ion-text>Sign in with Google</ion-text>
+      <ion-text>{{ $t("auth.login.signInGoogle") }}</ion-text>
     </ion-button>
 
     <ion-text color="medium" class="login-terms">
       <p>
-        By signing in you agree to our
-        <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+        <i18n-t keypath="auth.login.termsPrefix" tag="span">
+          <template #terms
+            ><a href="#">{{ $t("auth.login.terms") }}</a></template
+          >
+          <template #privacy
+            ><a href="#">{{ $t("auth.login.privacy") }}</a></template
+          >
+        </i18n-t>
       </p>
     </ion-text>
   </div>
@@ -32,16 +38,16 @@
 <script setup lang="ts">
 import { IonButton, IonText, IonIcon, modalController } from "@ionic/vue";
 import { useRoute } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { alertCircleOutline, closeOutline, logoGoogle } from "ionicons/icons";
 import { computed } from "vue";
 import AppLogo from "@/components/AppLogo.vue";
 
 const route = useRoute();
+const { t } = useI18n();
 
 const errorMessage = computed(() =>
-  route.query.error === "auth_failed"
-    ? "Authentication failed. Please try again."
-    : null
+  route.query.error === "auth_failed" ? t("auth.login.authFailed") : null
 );
 
 function dismiss() {

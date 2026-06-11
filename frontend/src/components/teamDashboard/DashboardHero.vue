@@ -24,7 +24,7 @@
                 class="season-badge"
               >
                 {{
-                  currentLeague.endDate.toLocaleString("default", {
+                  currentLeague.endDate.toLocaleString(locale, {
                     month: "short",
                   })
                 }}
@@ -34,10 +34,12 @@
             <!-- Greeting + team name -->
             <div class="hero-heading">
               <ion-text color="medium">
-                <p class="greeting-text ion-no-margin">Welcome back</p>
+                <p class="greeting-text ion-no-margin">
+                  {{ $t("dashboard.hero.welcomeBack") }}
+                </p>
               </ion-text>
               <h1 class="team-name ion-no-margin">
-                {{ data?.team?.name ?? "Your Team" }}
+                {{ data?.team?.name ?? $t("dashboard.hero.yourTeam") }}
               </h1>
             </div>
 
@@ -45,7 +47,9 @@
             <div class="rank-pill" v-if="data">
               <ion-icon :icon="trophyOutline" color="warning" />
               <span class="rank-value">#{{ data.rank }}</span>
-              <span class="rank-label">of {{ data.totalPlayers }}</span>
+              <span class="rank-label">{{
+                $t("dashboard.hero.rankOf", { count: data.totalPlayers })
+              }}</span>
             </div>
 
             <!-- Actions: Buy Articles + inbox bell -->
@@ -56,7 +60,7 @@
                 @click="router.push('/market')"
               >
                 <ion-icon slot="start" :icon="cartOutline" />
-                Buy Articles
+                {{ $t("dashboard.hero.buyArticles") }}
               </ion-button>
 
               <in-box />
@@ -128,7 +132,9 @@
                       :key="i"
                       class="dot"
                       :class="{ 'dot--active': activeIndex === i }"
-                      :aria-label="`Show stat ${i + 1}`"
+                      :aria-label="
+                        $t('dashboard.hero.showStat', { index: i + 1 })
+                      "
                       @click.stop="goTo(i)"
                     />
                   </div>
@@ -200,6 +206,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import {
   IonBadge,
   IonButton,
@@ -233,6 +240,7 @@ interface Props {
 
 const props = defineProps<Props>();
 const router = useRouter();
+const { t, locale } = useI18n();
 
 const leagueStore = useLeagueStore();
 const currentLeague = computed(() => leagueStore.currentLeague);
@@ -253,7 +261,7 @@ const allStats = computed<StatDef[]>(() => {
   if (!s) return [];
   return [
     {
-      label: "Yesterday's Points",
+      label: t("dashboard.hero.yesterdayPoints"),
       value: s.recentPoints.yesterdayPoints,
       sub: null,
       trend: s.recentPoints.pointsChange,
@@ -262,25 +270,27 @@ const allStats = computed<StatDef[]>(() => {
       iconColor: "var(--ion-color-primary)",
     },
     {
-      label: "Credits",
+      label: t("dashboard.hero.credits"),
       value: s.team.credits,
-      sub: `Portfolio: ${s.portfolioValue} Cr`,
+      sub: t("dashboard.hero.portfolio", { value: s.portfolioValue }),
       icon: cashOutline,
       iconBg: "rgba(var(--ion-color-primary-rgb), 0.12)",
       iconColor: "var(--ion-color-primary)",
     },
     {
-      label: "Contracts",
+      label: t("dashboard.hero.contracts"),
       value: `${s.activeContracts}/${s.maxContracts}`,
-      sub: `${s.maxContracts - s.activeContracts} slots free`,
+      sub: t("dashboard.hero.slotsFree", {
+        count: s.maxContracts - s.activeContracts,
+      }),
       icon: documentTextOutline,
       iconBg: "rgba(var(--ion-color-secondary-rgb), 0.25)",
       iconColor: "var(--ion-color-secondary-shade)",
     },
     {
-      label: "Standing",
+      label: t("dashboard.hero.standing"),
       value: `#${s.rank}`,
-      sub: `of ${s.totalPlayers} players`,
+      sub: t("dashboard.hero.standingSub", { count: s.totalPlayers }),
       icon: trophyOutline,
       iconBg: "rgba(var(--ion-color-warning-rgb), 0.15)",
       iconColor: "var(--ion-color-warning)",

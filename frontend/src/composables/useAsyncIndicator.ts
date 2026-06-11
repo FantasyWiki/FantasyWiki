@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
 interface AsyncIndicatorTask {
   id: number;
@@ -22,7 +23,9 @@ export const useAsyncIndicator = defineStore("asyncIndicator", () => {
     return tasks.value[tasks.value.length - 1];
   });
 
-  const label = computed(() => currentTask.value?.label ?? "Working...");
+  const label = computed(
+    () => currentTask.value?.label ?? useI18n().t("asyncIndicator.loading")
+  );
 
   // ========== ACTIONS ==========
   function startTask(labelText: string): number {

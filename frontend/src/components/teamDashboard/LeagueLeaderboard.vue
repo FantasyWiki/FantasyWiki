@@ -7,9 +7,9 @@
           <ion-icon :icon="trophyOutline" color="warning" />
         </div>
         <div class="header-text">
-          <ion-card-title class="td-card-title"
-            >League Standings</ion-card-title
-          >
+          <ion-card-title class="td-card-title">{{
+            $t("dashboard.leaderboard.title")
+          }}</ion-card-title>
           <ion-card-subtitle v-if="props.currentLeague">
             {{ props.currentLeague?.icon }} {{ props.currentLeague?.title }}
           </ion-card-subtitle>
@@ -34,7 +34,11 @@
           :disabled="true"
           style="opacity: 1"
         >
-          <ion-label>{{ props.currentLeague?.teams.length }} players</ion-label>
+          <ion-label>{{
+            $t("dashboard.leaderboard.players", {
+              count: props.currentLeague?.teams.length,
+            })
+          }}</ion-label>
         </ion-chip>
         <ion-chip
           class="meta-chip"
@@ -43,7 +47,11 @@
           :disabled="true"
           style="opacity: 1"
         >
-          <ion-label>Ends {{ props.currentLeague?.endDate }}</ion-label>
+          <ion-label>{{
+            $t("dashboard.leaderboard.ends", {
+              date: props.currentLeague?.endDate,
+            })
+          }}</ion-label>
         </ion-chip>
       </div>
     </ion-card-header>
@@ -99,12 +107,16 @@
                   color="primary"
                   class="you-badge"
                 >
-                  You
+                  {{ $t("dashboard.leaderboard.you") }}
                 </ion-badge>
               </div>
               <ion-text color="medium">
                 <p class="player-points ion-no-margin">
-                  {{ player.points.toLocaleString() }} pts
+                  {{
+                    $t("dashboard.leaderboard.points", {
+                      points: player.points.toLocaleString(),
+                    })
+                  }}
                 </p>
               </ion-text>
             </div>
@@ -132,7 +144,7 @@
           class="footer-btn"
           @click="router.push('/leagues')"
         >
-          View League Details
+          {{ $t("dashboard.leaderboard.viewDetails") }}
           <ion-icon slot="end" :icon="chevronForwardOutline" />
         </ion-button>
       </div>

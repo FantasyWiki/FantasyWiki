@@ -14,7 +14,7 @@
         <div v-if="swapMode && swapSource" class="swap-banner fm-center-row">
           <ion-icon :icon="swapHorizontalOutline" />
           <span>
-            Select a position to swap with
+            {{ $t("formation.pitch.swapInstruction") }}
             <strong>{{ swapSource.article.title }}</strong>
           </span>
           <ion-button
@@ -104,7 +104,7 @@
         role="listitem"
       >
         <span
-          class="chem-marker"
+          class="chem-marker ion-margin-end"
           :class="{
             'chem-marker--excellent': item.level === 'excellent',
             'chem-marker--good': item.level === 'good',
@@ -113,7 +113,7 @@
           }"
           aria-hidden="true"
         />
-        <ion-label>{{ item.label }}</ion-label>
+        <ion-label> {{ item.label }}</ion-label>
       </ion-chip>
     </div>
   </ion-card>
@@ -149,6 +149,7 @@ import {
 } from "../../../../dto/formationDTO";
 import type { ContractDTO } from "../../../../dto/contractDTO";
 import ArticleNode from "./ArticleNode.vue";
+import { useI18n } from "vue-i18n";
 
 const props = defineProps<{
   /** The current draft formation (may have missing slots) */
@@ -169,13 +170,17 @@ defineEmits<{
   /** User dismissed the swap banner */
   cancelSwap: [];
 }>();
+const { t } = useI18n();
 
-const chemistryLegendItems = [
-  { level: "excellent", label: "Excellent +20%" },
-  { level: "good", label: "Good +10%" },
-  { level: "weak", label: "Weak +5%" },
-  { level: "empty", label: "Empty 0%" },
-] as const;
+const chemistryLegendItems = computed(
+  () =>
+    [
+      { level: "excellent", label: t("formation.pitch.chemistry.excellent") },
+      { level: "good", label: t("formation.pitch.chemistry.good") },
+      { level: "weak", label: t("formation.pitch.chemistry.weak") },
+      { level: "empty", label: t("formation.pitch.chemistry.empty") },
+    ] as const
+);
 
 const DESKTOP_MEDIA_QUERY = "(min-width: 768px)";
 const isDesktop = ref(false);
@@ -381,10 +386,11 @@ const chemistryLines = computed<RenderedChemistryLine[]>(() => {
 }
 
 .chem-line--weak {
-  stroke: #d46a17;
+  stroke: #d42a17;
 }
 
 .chem-line--empty {
+  stroke-width: 2px;
   stroke: rgba(var(--ion-color-medium-rgb), 0.75);
 }
 
@@ -558,9 +564,9 @@ const chemistryLines = computed<RenderedChemistryLine[]>(() => {
 
 .chem-marker {
   display: inline-block;
-  width: 14px;
+  width: 28px;
   height: 4px;
-  border-radius: 999px;
+  border-radius: 700px;
 }
 
 .chem-marker--excellent {
@@ -572,7 +578,7 @@ const chemistryLines = computed<RenderedChemistryLine[]>(() => {
 }
 
 .chem-marker--weak {
-  background: #d46a17;
+  background: #d42a17;
 }
 
 .chem-marker--empty {

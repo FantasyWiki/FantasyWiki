@@ -1,9 +1,9 @@
 <template>
   <section class="ion-padding-vertical">
     <section class="ion-text-center ion-margin-bottom">
-      <h2 class="title ion-margin-bottom">Powerful Features</h2>
+      <h2 class="title ion-margin-bottom">{{ $t("home.features.title") }}</h2>
       <p class="subtitle ion-margin-bottom">
-        Everything you need for the ultimate fantasy knowledge experience.
+        {{ $t("home.features.subtitle") }}
       </p>
     </section>
 
@@ -40,6 +40,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import {
   IonGrid,
   IonRow,
@@ -59,49 +61,50 @@ import {
   calendarOutline,
 } from "ionicons/icons";
 
-const features = [
+const { t } = useI18n();
+
+const features = computed(() => [
   {
     icon: timeOutline,
-    title: "24/7 Live Markets",
-    description:
-      "Buy, sell, and trade articles anytime. The market never sleeps.",
+    title: t("home.features.liveMarkets.title"),
+    description: t("home.features.liveMarkets.description"),
   },
   {
     icon: flashOutline,
-    title: "Real-Time Scoring",
-    description: "Points calculated daily from actual Wikipedia pageview data.",
+    title: t("home.features.realTimeScoring.title"),
+    description: t("home.features.realTimeScoring.description"),
   },
   {
     icon: linkOutline,
-    title: "Chemistry Bonuses",
-    description: "Link related articles for bonus multipliers, FIFA-style.",
+    title: t("home.features.chemistry.title"),
+    description: t("home.features.chemistry.description"),
   },
   {
     icon: barChartOutline,
-    title: "Dynamic Pricing",
-    description: "Article prices adjust based on trending topics and demand.",
+    title: t("home.features.dynamicPricing.title"),
+    description: t("home.features.dynamicPricing.description"),
   },
   {
     icon: peopleOutline,
-    title: "Private Leagues",
-    description: "Create private leagues and compete with friends.",
+    title: t("home.features.privateLeagues.title"),
+    description: t("home.features.privateLeagues.description"),
   },
   {
     icon: calendarOutline,
-    title: "Weekly Tournaments",
-    description: "Join automatic weekly competitions for bonus rewards.",
+    title: t("home.features.weeklyTournaments.title"),
+    description: t("home.features.weeklyTournaments.description"),
   },
   {
     icon: trophyOutline,
-    title: "Power Tournaments",
-    description: "Monthly elite competitions for the top performers.",
+    title: t("home.features.powerTournaments.title"),
+    description: t("home.features.powerTournaments.description"),
   },
   {
     icon: shieldCheckmarkOutline,
-    title: "Fair Play",
-    description: "Transparent scoring system based on public data.",
+    title: t("home.features.fairPlay.title"),
+    description: t("home.features.fairPlay.description"),
   },
-];
+]);
 </script>
 
 <style scoped src="src/components/homePage/home-page.css"></style>

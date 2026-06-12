@@ -50,6 +50,11 @@ const routes: Array<RouteRecordRaw> = [
     name: "Team",
     component: TeamPage,
   },
+  {
+    path: "/team-creation",
+    name: "TeamCreation",
+    component: () => import("@/views/TeamCreationPage.vue"),
+  },
 ];
 
 const router = createRouter({

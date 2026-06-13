@@ -50,11 +50,7 @@ import { sparklesOutline, arrowForward } from "ionicons/icons";
 .cta-card {
   position: relative;
   border-radius: 1.5rem;
-  background: linear-gradient(
-    135deg,
-    var(--ion-color-primary),
-    var(--ion-color-primary-shade)
-  );
+  background: var(--gradient-hero);
   overflow: hidden;
   --ion-padding: 3rem;
 }

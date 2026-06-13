@@ -43,7 +43,7 @@ jobs:
     needs: migrate-d1
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Deploy Worker to Cloudflare
         uses: cloudflare/wrangler-action@v3
         with:
@@ -64,7 +64,7 @@ jobs:
   deploy-frontend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -97,7 +97,7 @@ jobs:
   migrate-d1:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Apply D1 migrations
         uses: cloudflare/wrangler-action@v3
         with:

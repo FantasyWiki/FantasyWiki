@@ -15,19 +15,17 @@
 
         <ion-card-content>
           <form @submit.prevent="handleSubmit">
+            <ion-label class="team-name-label">
+              <ion-icon :icon="shieldOutline" color="primary"></ion-icon>
+              Team Name
+            </ion-label>
+
             <ion-item
               class="team-input-item"
               lines="none"
               :color="error ? 'danger' : ''"
             >
-              <ion-icon
-                :icon="shieldOutline"
-                slot="start"
-                color="primary"
-              ></ion-icon>
               <ion-input
-                label="Team Name"
-                label-placement="floating"
                 placeholder="e.g. The Wiki Wizards"
                 v-model="teamName"
                 :maxlength="30"
@@ -80,6 +78,7 @@ import {
   IonInput,
   IonButton,
   IonIcon,
+  IonLabel,
   IonText,
   toastController,
 } from "@ionic/vue";
@@ -91,7 +90,7 @@ const router = useRouter();
 // Mock league context for now
 const league = ref({
   name: "Premier League",
-  icon: "⚽",
+  icon: "🌍",
 });
 
 const teamName = ref("");
@@ -161,6 +160,9 @@ const handleSubmit = async () => {
 .team-card {
   width: 100%;
   max-width: 450px;
+  box-shadow: none;
+  border: 1px solid var(--ion-border-color);
+  border-radius: 0.5rem;
 }
 
 .league-icon-container {
@@ -171,6 +173,7 @@ const handleSubmit = async () => {
   align-items: center;
   justify-content: center;
   margin: 0 auto 16px;
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
 }
 
 .league-icon {
@@ -188,11 +191,25 @@ ion-card-title {
   margin-top: 8px;
 }
 
+.team-name-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
 .team-input-item {
-  border: 1px solid var(--ion-color-light);
+  border: 1px solid var(--ion-border-color);
   border-radius: 8px;
   --padding-start: 16px;
   margin-bottom: 8px;
+}
+
+.team-input-item:focus-within {
+  border-color: var(--ion-color-primary);
+  box-shadow: 0 0 0 2px rgba(var(--ion-color-primary-rgb), 0.2);
 }
 
 .team-input-item[color="danger"] {

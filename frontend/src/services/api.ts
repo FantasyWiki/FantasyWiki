@@ -88,8 +88,17 @@ export const leaguesApi = {
     apiRequest<LeagueDTO[]>("/leagues").then((ls) => ls.map(deserializeLeague)),
   getById: (id: string) =>
     apiRequest<LeagueDTO>(`/leagues/${id}`).then(deserializeLeague),
+  /** The Global League, joinable by any player regardless of locale */
+  getGlobal: () =>
+    apiRequest<LeagueDTO>("/leagues/global").then(deserializeLeague),
   /** The current player's team inside this league (resolved from JWT on backend) */
-  getMyTeam: (id: string) => apiRequest<TeamDTO>(`/leagues/${id}/my-team`),
+  getMyTeam: (id: string) => apiRequest<TeamDTO>(`/leagues/${id}/team`),
+  /** Create the current player's team inside this league (resolved from JWT on backend) */
+  createMyTeam: (id: string, name: string) =>
+    apiRequest<TeamDTO>(`/leagues/${id}/team`, {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
   /** All contracts of the current player's team in this league */
   getMyContracts: (id: string) =>
     apiRequest<ContractDTO[]>(`/leagues/${id}/my-contracts`).then((cs) =>

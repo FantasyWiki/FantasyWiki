@@ -74,11 +74,35 @@ export const handlers = [
   // ── Leagues ─────────────────────────────────────────────────────────────────
   http.get("*/api/leagues", () => HttpResponse.json(leagues)),
 
+  http.get("*/api/leagues/global", () => {
+    const league = leagues.find((l) => l.id === "global");
+    if (!league)
+      return HttpResponse.json({ error: "League not found" }, { status: 404 });
+    return HttpResponse.json(league);
+  }),
+
   http.get("*/api/leagues/:leagueId", ({ params }) => {
     const league = leagues.find((l) => l.id === params.leagueId);
     if (!league)
       return HttpResponse.json({ error: "League not found" }, { status: 404 });
     return HttpResponse.json(league);
+  }),
+
+  http.post("*/api/leagues/:leagueId/team", async ({ request }) => {
+    const body = (await request.json()) as { name?: string };
+    if (!body.name || typeof body.name !== "string") {
+      return HttpResponse.json({ error: "name is required" }, { status: 400 });
+    }
+
+    const player = players.find((p) => p.id === currentPlayerId);
+    const team: TeamDTO = {
+      id: `team-${teams.length + 1}`,
+      name: body.name.trim(),
+      player: player!,
+      credits: 1000,
+      points: 0,
+    };
+    return HttpResponse.json(team, { status: 201 });
   }),
 
   http.get("*/api/leagues/:leagueId/team", ({ params }) => {

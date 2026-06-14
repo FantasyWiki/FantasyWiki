@@ -4,11 +4,11 @@
       <ion-card class="team-card">
         <ion-card-header class="ion-text-center">
           <div class="league-icon-container">
-            <span class="league-icon">{{ league.icon }}</span>
+            <span class="league-icon">{{ league?.icon }}</span>
           </div>
           <ion-card-title>Create Your Team</ion-card-title>
           <p class="subtitle">
-            You're joining <strong>{{ league.name }}</strong
+            You're joining <strong>{{ league?.title }}</strong
             >. Choose a unique name for your team.
           </p>
         </ion-card-header>
@@ -69,6 +69,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
+import { useQuery } from "@tanstack/vue-query";
 import {
   IonCard,
   IonCardHeader,
@@ -84,25 +85,21 @@ import {
 } from "@ionic/vue";
 import { shieldOutline, sparklesOutline } from "ionicons/icons";
 import NavBar from "@/layout/NavBar.vue";
+import api from "@/services/api";
 
 const router = useRouter();
 
-// Mock league context for now
-const league = ref({
-  name: "Premier League",
-  icon: "🌍",
+// New players aren't part of any league yet, so the league store (which only
+// holds leagues the player already has a team in) can't be used here. The
+// Global League is the league every new player joins on team creation.
+const { data: league } = useQuery({
+  queryKey: ["global-league"],
+  queryFn: () => api.leagues.getGlobal(),
 });
 
 const teamName = ref("");
 const isSubmitting = ref(false);
 const error = ref("");
-
-const existingTeamNames = [
-  "The Champions",
-  "Wiki Warriors",
-  "Page Turners",
-  "Edit Masters",
-];
 
 const handleSubmit = async () => {
   const trimmed = teamName.value.trim();
@@ -122,23 +119,21 @@ const handleSubmit = async () => {
     return;
   }
 
-  if (
-    existingTeamNames.some((n) => n.toLowerCase() === trimmed.toLowerCase())
-  ) {
-    error.value =
-      "This team name is already taken in this league. Please choose another.";
-    return;
-  }
-
   error.value = "";
   isSubmitting.value = true;
 
-  // Simulate network request
-  await new Promise((r) => setTimeout(r, 800));
+  try {
+    await api.leagues.createMyTeam(league.value?.id ?? "", trimmed);
+  } catch (err) {
+    isSubmitting.value = false;
+    error.value = err instanceof Error ? err.message : "Failed to create team.";
+    return;
+  }
+
   isSubmitting.value = false;
 
   const toast = await toastController.create({
-    message: `Team Created! 🎉 "${trimmed}" is ready to compete in ${league.value.name}.`,
+    message: `Team Created! 🎉 "${trimmed}" is ready to compete in ${league.value?.title}.`,
     duration: 3000,
     color: "success",
     position: "bottom",

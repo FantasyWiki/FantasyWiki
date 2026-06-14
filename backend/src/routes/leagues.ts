@@ -1,16 +1,77 @@
 import { Hono } from "hono";
+import { JWTPayload } from "hono/utils/jwt/types";
 import { getLeagues } from "../services/leagues";
+import { LeagueService } from "../services/league";
+import { TeamService } from "../services/team";
+import { PlayerService } from "../services/player";
 import { League } from "../../../model";
+import { TeamDTO } from "../../../dto/teamDTO";
 
-const leagues = new Hono();
+type Bindings = {
+  db: D1Database;
+};
+
+const leagues = new Hono<{ Bindings: Bindings }>();
 
 leagues.get("/", async (c) => {
   const allLeagues: League[] = getLeagues("DUMMY_ID");
   return c.json(allLeagues);
 });
 
-leagues.get("/:id/my-team", async (c) => {
+leagues.get("/global", async (c) => {
+  const leagueService = new LeagueService(c.env.db);
+  const result = await leagueService.getGlobalLeague();
+  if (!result.ok) {
+    return c.json({ error: result.error }, 404);
+  }
+  return c.json(result.value);
+});
+
+leagues.get("/:id/team", async (c) => {
   return c.json({ error: "Not implemented" }, 501);
+});
+
+leagues.post("/:id/team", async (c) => {
+  const leagueId = c.req.param("id");
+  const payload = c.get("jwtPayload") as JWTPayload;
+
+  const playerService = new PlayerService(c.env.db);
+  const playerResult = await playerService.getPlayerByGoogleAccountId(
+    payload.sub as string,
+  );
+  if (!playerResult.ok) {
+    return c.json({ error: playerResult.error }, 404);
+  }
+
+  const body = await c.req
+    .json<{ name?: string }>()
+    .catch(() => ({ name: undefined }));
+  if (!body.name || typeof body.name !== "string") {
+    return c.json({ error: "name is required" }, 400);
+  }
+
+  const teamService = new TeamService(c.env.db);
+  const teamResult = await teamService.createTeam(
+    playerResult.value.id,
+    leagueId,
+    body.name,
+  );
+  if (!teamResult.ok) {
+    return c.json({ error: teamResult.error }, 400);
+  }
+
+  const team = teamResult.value;
+  const teamDTO: TeamDTO = {
+    id: team.id,
+    name: team.name,
+    credits: team.credits,
+    player: {
+      id: playerResult.value.id,
+      name: playerResult.value.username,
+    },
+    points: 0,
+  };
+  return c.json(teamDTO, 201);
 });
 
 leagues.get("/:id/my-contracts", async (c) => {

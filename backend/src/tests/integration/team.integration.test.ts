@@ -153,5 +153,22 @@ describe("TeamService Integration Tests", () => {
       );
       expect(secondResult.ok).toBe(true);
     });
+
+    it("should fail when the player already has a team in this league", async () => {
+      const firstResult = await teamService.createTeam(
+        playerId,
+        leagueId,
+        "First Team",
+      );
+      expect(firstResult.ok).toBe(true);
+
+      const result = await teamService.createTeam(
+        playerId,
+        leagueId,
+        "Second Team",
+      );
+
+      expect(result.ok).toBe(false);
+    });
   });
 });

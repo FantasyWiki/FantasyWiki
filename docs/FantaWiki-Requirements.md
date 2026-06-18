@@ -1,4 +1,8 @@
-# Fantasy Word - Game Design Document v5.4
+# Fantasy Word - Game Design Document v5.5
+
+---
+
+> **Reconciliation note (2026-06-18):** the scoring (§2), portfolio/economy (§3, §6) and tournament (§4) sections have been reconciled to the locked design. The **canonical** scoring & economy spec is `docs/scoring-system.md` together with the ADRs (`docs/adr/0001`–`0004`) and the domain glossary in `CONTEXT.md`. Where this document disagrees with those, **the ADRs win**; superseded mechanics below are marked and point to their source.
 
 ---
 
@@ -137,9 +141,11 @@ When a user press es the theme switch button, the website switches between light
 
 ## 2. Scoring System
 
-### 2.1 Base Scoring (Tiered Model)
+### 2.1 Base Scoring
 
-Each article earns points based on its Wikipedia pageviews in the previous 24 hours using a **tiered model** to prevent viral articles from completely dominating and allow synergy to matter strategically.
+> **Superseded — canonical: ADR 0001/0002 + `docs/scoring-system.md`.** Base points are computed from **Normalized Views** (raw pageviews × the per-language **Language Scale Factor**; en.wp = 1.0) via a **log-binned** model — `log₂(views / 4000) + 1`, floored at 0, with a convex linear tail of **+1 point per 50,000 views** above a 150k kink — validated against real en.wp data. The 5k/20k three-tier model below is historical and retained only for context.
+
+Each article earns points based on its Wikipedia pageviews using a tiered model to prevent viral articles from completely dominating and allow synergy to matter strategically.
 
 ```
 TIERED_BASE_POINTS = Tier1 + Tier2 + Tier3
@@ -163,6 +169,8 @@ EXAMPLES:
 - **Encourages tactical diversity**: Building thematic clusters is now more valuable than hoarding viral pages
 
 ### 2.2 Synergy Bonus (Additive Chemistry)
+
+> **Superseded — canonical: `CONTEXT.md` (Chemistry Link / Chemistry Level) and the "Choose Team Formation" user story.** Chemistry is **not** computed over every owned pair. It is an **additive flat-point** bonus evaluated only between **schema-adjacent formation positions** (FUT-style), graded by the four-step Chemistry Level (Excellent / Good / Weak / Empty). The all-pairs Mutual/One-Way model below is historical.
 
 Articles in your portfolio earn **additive bonuses** based on direct Wikipedia links to other articles in the same team. Only articles with at least one link earn synergy—isolated articles get zero bonus.
 
@@ -260,22 +268,23 @@ This ensures variety and prevents players from gaming a single event type.
 
 ### 3.1 Portfolio Constraints
 
-- **Maximum 10 active contracts** per team (no fixed formation requirement)
+- **Maximum 11 active contracts** per team — one per formation position (resolved in `CONTEXT.md`; the earlier "10" contradicted the 11-slot formation)
 - **Budget**: Players start with 1,000 credits
-- **Flexible duration**: Contracts can range from 1 week to 24 months
-- **Price formula**:
+- **Duration**: short, code-aligned day/week durations (see `contractDTO` tiers); the earlier "1 week–24 months" range is superseded
+- **Economy (canonical: ADR 0003):** 15 credits/day **base stipend** · **8%** transaction fee on sales · **+10%** renewal premium per consecutive renewal · **3-day minimum hold** · soft **wealth ceiling** (~2,400 credits)
+- **Price formula** (see §6.1 / ADR 0003 for the canonical, Normalized-Views form):
   ```
   CONTRACT_PRICE = Base_Performance_Score × Contract_Duration_Weeks / 4
   ```
 
 ### 3.2 Daily Scoring Calculation
 
-**Triggered**: Every 24 hours at 00:00 UTC
+**Triggered**: once per day at **~05:00 UTC**, scoring the *previous* UTC day. (The 00:00-UTC target is superseded: the Wikimedia **Pageview Complete** daily dump for day *D* only publishes ~02:15–03:00 UTC on *D+1*. See ADR 0004.)
 
 **For each article in your portfolio**:
 
-1. Fetch Wikipedia pageviews for the last 24 hours
-2. Calculate Tiered Base Points (Tier 1, 2, 3 model)
+1. Read the previous day's pageviews from the **Pageview Complete** `-user` bulk dump (not the live API — see ADR 0004)
+2. Calculate Base Points (log-binned Normalized-Views model, §2.1 / ADR 0001-0002)
 3. Add Synergy Bonus (mutual + one-way links, capped at 3.0)
 4. Check if a weekly event applies → add event bonus
 5. Sum all articles for daily total
@@ -286,7 +295,7 @@ DAILY_SCORE = Σ(all articles)
 CUMULATIVE_SCORE = Previous_Total + Daily_Score
 ```
 
-**Update Frequency**: Real-time leaderboard updates every hour (fetching previous day's points).
+**Update Frequency**: standings are recomputed once per day, after the dump lands (~05:00 UTC); the leaderboard reflects the latest computed standings.
 
 ---
 
@@ -311,7 +320,7 @@ Main Leaderboard:
 
 ### 4.2 Weekly Tournament (Automatic, All Players)
 
-**Concept**: Every Monday, ALL active players automatically enter a 1-week tournament.
+**Concept**: Every Monday, all active players automatically enter a 1-week tournament (the public league naturally spans everyone; private leagues also get weekly standings). The Monday-snapshot model below is **retained** in the locked scope; scoring uses the canonical model (§2 corrections, ADR 0001/0002).
 
 #### 4.2.1 Timeline
 
@@ -447,7 +456,9 @@ EXAMPLE:
 
 ---
 
-### 4.3 Monthly Power Tournament (Elite Prestige)
+### 4.3 Monthly Power Tournament (Elite Prestige) — DEFERRED (post-MVP)
+
+> **Deferred:** not in the locked scope. To be added only if time permits; retained below as a design sketch.
 
 **Concept**: An invite-only, high-stakes tournament for top 100 players globally.
 
@@ -533,8 +544,10 @@ Key strategic decisions:
 
 ### 6.1 Contract Pricing
 
+> Priced on the **smoothed 30-day average** of **Normalized Views** (Language Scale Factor applied; en.wp = 1.0). Canonical: ADR 0003 / `CONTEXT.md`.
+
 ```
-BASE_PRICE = (Views_30Day_Avg / 1000) × Contract_Weeks
+BASE_PRICE = (Normalized_Views_30Day_Avg / 1000) × Contract_Weeks
 
 EXAMPLE:
 Article: Bitcoin
@@ -610,7 +623,17 @@ Each Monday (with tournament start):
 
 ---
 
-## 10. Summary of Changes (v5.4)
+## 10. Summary of Changes
+
+### v5.5 (2026-06-18 — reconciliation with locked design)
+✅ Base scoring reconciled to the **log-binned Normalized-Views** model (ADR 0001/0002), superseding the 5k/20k three-tier model
+✅ Chemistry reconciled to **additive flat points on schema-adjacent positions** (FUT-style), superseding all-pairs Mutual/One-Way synergy
+✅ Contract cap corrected **10 → 11** (one per formation position)
+✅ Economy parameters surfaced (stipend / fee / renewal premium / min-hold / wealth ceiling — ADR 0003)
+✅ Daily scoring moved to **~05:00 UTC on D+1**, sourced from **Pageview Complete dumps** (ADR 0004), superseding the 00:00-UTC live-API fetch
+✅ Monthly Power Tournament marked **deferred**; weekly tournament retained
+
+### v5.4 (historical)
 
 ✅ **Replaced linear base** with tiered scoring (addresses viral article over-dominance)
 ✅ **Simplified synergy** to additive bonus (mutual + one-way links only)

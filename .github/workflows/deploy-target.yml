@@ -12,9 +12,6 @@ on:
       frontend_url:
         required: true
         type: string
-      vite_backend_url:
-        required: true
-        type: string
       frontend_build_mode:
         required: true
         type: string
@@ -83,7 +80,6 @@ jobs:
         working-directory: frontend
         env:
           VITE_MOCK: "false"
-          VITE_BACKEND_URL: ${{ inputs.vite_backend_url }}
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3

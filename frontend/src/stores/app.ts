@@ -120,8 +120,7 @@ export const useAppStore = defineStore("app", () => {
   }
 
   function setUserFromData(userData: Session) {
-    // Token is in HTTP-only cookie, managed by browser
-    // We just store the user data in memory
+    // Token is in an HttpOnly cookie managed by the browser.
     currentUser.value = userData;
     isAuthenticated.value = true;
   }

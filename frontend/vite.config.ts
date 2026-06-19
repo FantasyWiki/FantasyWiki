@@ -7,6 +7,14 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   base: "/",
   plugins: [vue()],
+  server: {
+    proxy: {
+      // Mirror the Cloudflare Pages Functions proxy so local dev and deployed
+      // behave identically: all /api/* and /auth/* requests go to the backend.
+      "/api": { target: "http://127.0.0.1:8787", changeOrigin: true },
+      "/auth": { target: "http://127.0.0.1:8787", changeOrigin: true },
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

@@ -9,20 +9,7 @@ import { ArticleDTO } from "../../../dto/articleDTO";
 import { PerformanceDTO } from "../../../dto/performanceDTO";
 import { Temporal } from "@js-temporal/polyfill";
 
-export function resolveBackendUrl(): string {
-  const branch = import.meta.env.VITE_WORKERS_CI_BRANCH;
-  const backend = import.meta.env.VITE_BACKEND_URL;
-  let url = backend || "localhost:8787";
-  if (branch) {
-    url = branch + "." + backend;
-  }
-  if (!url.startsWith("http://") && !url.startsWith("https://")) {
-    url = "https://" + url;
-  }
-  return url;
-}
-
-const API_BASE_URL = resolveBackendUrl() + "/api";
+const API_BASE_URL = "/api";
 
 async function apiRequest<T>(
   endpoint: string,

@@ -45,11 +45,16 @@ const appStore = useAppStore();
 const error = ref<string | null>(null);
 
 onMounted(async () => {
-  const response = await sessionApi.get();
-  appStore.setUserFromData(response);
-
-  const isNewPlayer = route.query.new === "1";
-  router.replace(isNewPlayer ? "/team-creation" : "/home");
+  try {
+    const response = await sessionApi.get();
+    appStore.setUserFromData(response);
+    const isNewPlayer = route.query.new === "1";
+    router.replace(isNewPlayer ? "/team-creation" : "/home");
+  } catch {
+    error.value = route.query.error
+      ? String(route.query.error)
+      : "Failed to verify session";
+  }
 });
 </script>
 

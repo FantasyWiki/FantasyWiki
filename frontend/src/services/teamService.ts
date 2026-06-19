@@ -15,7 +15,7 @@ import {
 import { ContractDTO, type RawContract } from "../../../dto/contractDTO";
 import { Temporal } from "@js-temporal/polyfill";
 
-const BASE = import.meta.env.VITE_BACKEND_URL;
+const BASE = "";
 
 type RawTeamLineUp = {
   formation: {

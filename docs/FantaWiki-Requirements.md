@@ -143,7 +143,7 @@ When a user press es the theme switch button, the website switches between light
 
 ### 2.1 Base Scoring
 
-> **Superseded — canonical: ADR 0001/0002 + `docs/scoring-system.md`.** Base points are computed from **Normalized Views** (raw pageviews × the per-language **Language Scale Factor**; en.wp = 1.0) via a **log-binned** model — `log₂(views / 4000) + 1`, floored at 0, with a convex linear tail of **+1 point per 50,000 views** above a 150k kink — validated against real en.wp data. The 5k/20k three-tier model below is historical and retained only for context.
+> **Superseded — canonical: ADR 0001/0002 + `docs/scoring-system.md`.** Base points are computed from **Normalized Views** (raw pageviews × the per-language **Language Scale Factor**; en.wp = 1.0) via a **continuous geometric (log)** model — `max(0, log₂(views / 2000))` (decimal-valued, crosses zero at 2,000 views; the "+1 per doubling" rule is just the headline at the rungs), with a convex linear tail of **+1 point per 50,000 views** above a 150k kink — validated against real en.wp data. The 5k/20k three-tier model below is historical and retained only for context.
 
 Each article earns points based on its Wikipedia pageviews using a tiered model to prevent viral articles from completely dominating and allow synergy to matter strategically.
 

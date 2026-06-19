@@ -42,21 +42,30 @@ into one score bucket; flat synergy points become dominant). See ADR 0002.
 
 ## 3. Base Points (view-driven daily score)
 
-A **rule-based geometric (log-binned) model** with a convex top tail. One sentence
+A **rule-based geometric (continuous log) model** with a convex top tail. One sentence
 for players:
 
 > **"Every time an article's views double, it earns one more point — starting at
 > 1 point for 4,000 views. Above 150,000 views, each extra 50,000 views adds a point."**
 
 ```
-            ┌ log₂(NormalizedViews / 4000) + 1        if views ≤ 150,000   (floored at 0)
+            ┌ max(0,  log₂(NormalizedViews / 2000) )        if views ≤ 150,000
 BasePoints =┤
-            └ 6.23 + (NormalizedViews − 150,000)/50,000   if views > 150,000  (linear tail)
+            └ 6.23 + (NormalizedViews − 150,000)/50,000     if views > 150,000  (linear tail)
 ```
+
+`log₂(views / 2000)` is identical to the earlier `log₂(views / 4000) + 1` form — the
+`+1` is folded into halving the divisor. **It is a continuous function and returns
+decimals, not integer tiers**: the "+1 per doubling" sentence is only the headline at
+the doubling rungs. The `max(0, …)` clamp is a floor *at zero score*, not integer
+rounding, and it crosses zero at **2,000 views** (one doubling below the 4,000 anchor),
+so the 2,000–4,000 band earns fractional credit (e.g. 2,828 views → 0.5).
 
 | Doubling rung | Normalized views | Base points |
 |---|---|---|
-| floor | 4,000 | 1.0 |
+| zero | 2,000 | 0.0 |
+| (sub-anchor) | 2,828 | 0.5 |
+| anchor | 4,000 | 1.0 |
 | | 8,000 | 2.0 |
 | | 16,000 | 3.0 |
 | | 32,000 | 4.0 |
@@ -75,8 +84,9 @@ giants (80–130k) → 4.3–5.0, top-3 (243–476k) → 8.1–12.8. Top-to-bott
 - *Convex tail above 150k* — deliberately rewards the **volatile daily top ~10**
   (catching a breakout is a large point swing). This is the only place viral strength
   is reintroduced; it is contained by **price**, not by the curve (see §6).
-- *4,000 floor* — sub-snapshot long-tail articles score ~0 on base and live on synergy
-  (the niche archetype).
+- *2,000 zero point* — articles below 2,000 views score 0 on base and live on synergy
+  (the niche archetype); the 2,000–4,000 band earns a fractional 0–1 (continuous, not
+  a step), so a sub-4k article is not flatly zeroed.
 
 ---
 

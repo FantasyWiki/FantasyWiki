@@ -37,7 +37,7 @@ Raw pageviews multiplied by the **Language Scale Factor**. This is the input to 
 _Avoid_: adjusted views, weighted views
 
 **Base Points**:
-The view-driven score of one article for a day, computed from its **Normalized Views** by the universal tiered model: `log₂(views / 4000) + 1` (floored at 0) up to a 150k kink, then linear above at `+1 point per 50,000 views`. Concave (diminishing) in the mid-field, convex at the top so the volatile daily elite is rewarded. Excludes synergy and events.
+The view-driven score of one article for a day, computed from its **Normalized Views** by the universal geometric model: `max(0, log₂(views / 2000))` up to a 150k kink, then linear above at `+1 point per 50,000 views`. Continuous and decimal-valued (the "+1 per doubling" rule is just the headline at the rungs); crosses zero at 2,000 views. Concave (diminishing) in the mid-field, convex at the top so the volatile daily elite is rewarded. Excludes synergy and events.
 _Avoid_: raw points, pageview points
 
 **Content Article Candidate**:

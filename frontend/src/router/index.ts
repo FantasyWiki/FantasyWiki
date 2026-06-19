@@ -6,6 +6,7 @@ import HomePage from "@/views/HomePage.vue";
 import AuthCallbackPage from "@/views/auth/AuthCallbackPage.vue";
 import EnvInfoPage from "@/views/EnvInfoPage.vue";
 import TeamPage from "@/views/TeamPage.vue";
+import { useAppStore } from "@/stores/app";
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -34,11 +35,13 @@ const routes: Array<RouteRecordRaw> = [
     path: "/home",
     name: "Home",
     component: HomePage,
+    meta: { public: true },
   },
   {
     path: "/auth/callback",
     name: "AuthCallback",
     component: AuthCallbackPage,
+    meta: { public: true },
   },
   {
     path: "/env-info",
@@ -60,6 +63,12 @@ const routes: Array<RouteRecordRaw> = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL || "/"),
   routes,
+});
+
+router.beforeEach((to) => {
+  if (!to.meta.public && !useAppStore().isAuthenticated) {
+    return "/home";
+  }
 });
 
 export default router;

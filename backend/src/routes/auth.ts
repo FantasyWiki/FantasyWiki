@@ -65,6 +65,10 @@ auth.get("/google", async (c) => {
     return c.redirect(`${frontendUrl}/home?error=player_creation_failed`);
   }
 
+  const callbackUrl = playerResult.value.isNew
+    ? `${frontendUrl}/auth/callback?new=1`
+    : `${frontendUrl}/auth/callback`;
+
   const jwtPayload: JWTPayload = {
     sub: user.id!,
     email: user.email!,
@@ -80,7 +84,7 @@ auth.get("/google", async (c) => {
     sameSite: "None",
     path: "/",
   });
-  return c.redirect(`${frontendUrl}/auth/callback`);
+  return c.redirect(callbackUrl);
 });
 
 export default auth;

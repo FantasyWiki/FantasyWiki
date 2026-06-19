@@ -32,24 +32,24 @@ import {
   IonButton,
   IonIcon,
 } from "@ionic/vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { alertCircleOutline } from "ionicons/icons";
 import { ref, onMounted } from "vue";
 import { useAppStore } from "@/stores/app";
 import { sessionApi } from "@/services/api";
 
 const router = useRouter();
+const route = useRoute();
 const appStore = useAppStore();
 
 const error = ref<string | null>(null);
 
 onMounted(async () => {
   const response = await sessionApi.get();
-  console.log("User data from /api/session:", response);
-  // Store user data in the store (without the token, since it's in cookie)
   appStore.setUserFromData(response);
 
-  router.replace("/home");
+  const isNewPlayer = route.query.new === "1";
+  router.replace(isNewPlayer ? "/team-creation" : "/home");
 });
 </script>
 

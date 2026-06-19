@@ -150,7 +150,13 @@ describe("PlayerService Integration Tests", () => {
         .prepare(
           "INSERT INTO teams (id, name, playerId, leagueId, credits) VALUES (?, ?, ?, ?, ?)",
         )
-        .bind("team-leagues-1", "Member FC", created.value.id, GLOBAL_LEAGUE_ID, 1000)
+        .bind(
+          "team-leagues-1",
+          "Member FC",
+          created.value.id,
+          GLOBAL_LEAGUE_ID,
+          1000,
+        )
         .run();
 
       const result = await playerService.getLeaguesByPlayerId(created.value.id);

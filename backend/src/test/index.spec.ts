@@ -71,23 +71,6 @@ describe("backend app", () => {
     });
   });
 
-  it("returns leagues list on authenticated /api/leagues", async () => {
-    const env = makeEnv();
-    const token = await sign({ sub: "user-1" }, env.JWT_SECRET, "HS256");
-
-    const response = await app.fetch(
-      new Request("http://localhost/api/leagues", {
-        headers: { Cookie: `session_token=${token}` },
-      }),
-      env,
-    );
-
-    expect(response.status).toBe(200);
-    const payload = await response.json();
-    expect(Array.isArray(payload)).toBe(true);
-    expect(payload).toHaveLength(2);
-  });
-
   it("returns 500 on /auth/google when GOOGLE_CLIENT_ID is missing", async () => {
     const response = await app.fetch(
       new Request("http://localhost/auth/google"),

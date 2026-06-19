@@ -1,26 +1,21 @@
-import { Temporal } from "@js-temporal/polyfill";
+import { LeagueDTO } from "../../../dto/leagueDTO";
+import { Domain } from "../../../dto/enums";
 import { League } from "../../../model";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function getLeagues(user_id: string): League[] {
-  return [
-    {
-      id: "0",
-      name: "Global League",
-      icon: "🌍",
-      adminId: "0",
-      startDate: Temporal.Now.instant(),
-      endDate: Temporal.Now.instant().add({ hours: 24 }),
-      domain: "en",
-    },
-    {
-      id: "1",
-      name: "Italia League",
-      icon: "🌍",
-      adminId: "1",
-      startDate: Temporal.Now.instant().add({ hours: 24 }),
-      endDate: Temporal.Now.instant().add({ hours: 48 }),
-      domain: "it",
-    },
-  ];
+/**
+ * Map a domain League to the LeagueDTO shape returned by the API.
+ * The list endpoint only needs identity + presentation, so `description` is
+ * left empty and `teams` is populated by the team-scoped endpoints, not here.
+ */
+export function toLeagueDTO(league: League): LeagueDTO {
+  return {
+    id: league.id,
+    title: league.name,
+    description: "",
+    domain: league.domain as Domain,
+    icon: league.icon,
+    startDate: league.startDate,
+    endDate: league.endDate,
+    teams: [],
+  };
 }

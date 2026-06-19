@@ -1,10 +1,9 @@
 import { Hono } from "hono";
 import { JWTPayload } from "hono/utils/jwt/types";
-import { getLeagues } from "../services/leagues";
+import { toLeagueDTO } from "../services/leagues";
 import { LeagueService } from "../services/league";
 import { TeamService } from "../services/team";
 import { PlayerService } from "../services/player";
-import { League } from "../../../model";
 import { TeamDTO } from "../../../dto/teamDTO";
 
 type Bindings = {
@@ -14,8 +13,25 @@ type Bindings = {
 const leagues = new Hono<{ Bindings: Bindings }>();
 
 leagues.get("/", async (c) => {
-  const allLeagues: League[] = getLeagues("DUMMY_ID");
-  return c.json(allLeagues);
+  // The current player's leagues, resolved from the JWT (never from the client).
+  const payload = c.get("jwtPayload") as JWTPayload;
+
+  const playerService = new PlayerService(c.env.db);
+  const playerResult = await playerService.getPlayerByGoogleAccountId(
+    payload.sub as string,
+  );
+  if (!playerResult.ok) {
+    return c.json({ error: playerResult.error }, 404);
+  }
+
+  const leaguesResult = await playerService.getLeaguesByPlayerId(
+    playerResult.value.id,
+  );
+  if (!leaguesResult.ok) {
+    return c.json({ error: leaguesResult.error }, 500);
+  }
+
+  return c.json(leaguesResult.value.map(toLeagueDTO));
 });
 
 leagues.get("/global", async (c) => {

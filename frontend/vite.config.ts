@@ -10,9 +10,12 @@ export default defineConfig({
   server: {
     proxy: {
       // Mirror the Cloudflare Pages Functions proxy so local dev and deployed
-      // behave identically: all /api/* and /auth/* requests go to the backend.
+      // behave identically. Only backend routes are proxied: all of /api/*, but
+      // under /auth only /auth/google (the OAuth entry + Google's redirect
+      // target). /auth/callback is a frontend SPA route — proxying it sends it
+      // to the backend, which 404s, so the SPA never loads to finish login.
       "/api": { target: "http://127.0.0.1:8787", changeOrigin: true },
-      "/auth": { target: "http://127.0.0.1:8787", changeOrigin: true },
+      "/auth/google": { target: "http://127.0.0.1:8787", changeOrigin: true },
     },
   },
   resolve: {

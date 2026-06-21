@@ -42,12 +42,13 @@ const appStore = useAppStore();
 const error = ref<string | null>(null);
 
 onMounted(async () => {
-  const response = await sessionApi.get();
-  console.log("User data from /api/session:", response);
-  // Store user data in the store (without the token, since it's in cookie)
-  appStore.setUserFromData(response);
-
-  router.replace("/home");
+  try {
+    const response = await sessionApi.get();
+    appStore.setUserFromData(response);
+    router.replace("/home");
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Sign-in failed";
+  }
 });
 </script>
 

@@ -17,7 +17,9 @@
     "lintfix": "eslint --fix",
     "format": "prettier --check .",
     "formatfix": "prettier --write .",
-    "g:component": "plop component"
+    "g:component": "plop component",
+    "test:e2e": "cypress run",
+    "test:e2e:open": "cypress open"
   },
   "dependencies": {
     "@capacitor/app": "8.1.0",
@@ -44,6 +46,7 @@
     "@vitejs/plugin-vue": "^6.0.3",
     "@vue/eslint-config-typescript": "^14.0.0",
     "@vue/test-utils": "^2.3.0",
+    "cypress": "^13.17.0",
     "eslint": "^10.1.0",
     "eslint-plugin-vue": "^10.8.0",
     "globals": "^17.4.0",

@@ -6,9 +6,6 @@ on:
       environment:
         required: true
         type: string
-      backend_worker_name:
-        required: true
-        type: string
       frontend_url:
         required: true
         type: string
@@ -52,7 +49,7 @@ jobs:
             GOOGLE_CLIENT_ID
             GOOGLE_CLIENT_SECRET
             JWT_SECRET
-          command: deploy --name=${{ inputs.backend_worker_name }} --env=${{ inputs.environment }} --var FRONTEND_URL:${{ inputs.frontend_url }}
+          command: deploy --env=${{ inputs.environment }} --var FRONTEND_URL:${{ inputs.frontend_url }}
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}

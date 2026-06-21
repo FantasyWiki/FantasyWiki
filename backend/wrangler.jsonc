@@ -5,6 +5,7 @@
   "compatibility_date": "2026-03-17",
   "env": {
     "production": {
+      "name": "backend",
       "d1_databases": [
         {
           "binding": "db",
@@ -14,6 +15,7 @@
       ],
     },
     "preview": {
+      "name": "backend-preview",
       "d1_databases": [
         {
           "binding": "db",

@@ -7,9 +7,9 @@
             <ion-icon :icon="layersOutline" color="primary" />
           </div>
           <div>
-            <ion-card-title class="td-card-title"
-              >Team Formation</ion-card-title
-            >
+            <ion-card-title class="td-card-title">{{
+              $t("dashboard.teamManagement.title")
+            }}</ion-card-title>
             <ion-card-subtitle>
               <span>{{ props.formation.schema }}</span>
             </ion-card-subtitle>
@@ -22,7 +22,7 @@
           color="primary"
           router-link="/team"
         >
-          Manage
+          {{ $t("dashboard.teamManagement.manage") }}
           <ion-icon slot="end" :icon="arrowForwardOutline" />
         </ion-button>
       </div>

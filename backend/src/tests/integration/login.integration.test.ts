@@ -22,8 +22,9 @@ describe("LoginService Integration Tests", () => {
       expect(firstLogin.ok).toBe(true);
 
       if (firstLogin.ok) {
-        const firstPlayerId = firstLogin.value.id;
-        const firstUsername = firstLogin.value.username;
+        expect(firstLogin.value.isNew).toBe(true);
+        const firstPlayerId = firstLogin.value.player.id;
+        const firstUsername = firstLogin.value.player.username;
 
         // Second login - should return same player
         const secondLogin = await loginService.loginWithGoogleAccount(
@@ -33,8 +34,9 @@ describe("LoginService Integration Tests", () => {
         expect(secondLogin.ok).toBe(true);
 
         if (secondLogin.ok) {
-          expect(secondLogin.value.id).toBe(firstPlayerId);
-          expect(secondLogin.value.username).toBe(firstUsername);
+          expect(secondLogin.value.isNew).toBe(false);
+          expect(secondLogin.value.player.id).toBe(firstPlayerId);
+          expect(secondLogin.value.player.username).toBe(firstUsername);
         }
       }
     });
@@ -50,8 +52,9 @@ describe("LoginService Integration Tests", () => {
 
       expect(result.ok).toBe(true);
       if (result.ok) {
-        expect(result.value.id).toBeDefined();
-        expect(result.value.username).toBe("newuser");
+        expect(result.value.isNew).toBe(true);
+        expect(result.value.player.id).toBeDefined();
+        expect(result.value.player.username).toBe("newuser");
       }
     });
 
@@ -67,7 +70,7 @@ describe("LoginService Integration Tests", () => {
       expect(login1.ok).toBe(true);
 
       if (login1.ok) {
-        expect(login1.value.username).toBe("duplicate");
+        expect(login1.value.player.username).toBe("duplicate");
       }
 
       // Create second player with same local-part
@@ -79,7 +82,7 @@ describe("LoginService Integration Tests", () => {
       expect(login2.ok).toBe(true);
 
       if (login2.ok) {
-        expect(login2.value.username).toBe("duplicate1");
+        expect(login2.value.player.username).toBe("duplicate1");
       }
     });
 
@@ -98,7 +101,7 @@ describe("LoginService Integration Tests", () => {
 
         expect(result.ok).toBe(true);
         if (result.ok) {
-          expect(result.value.username).toBe(testCase.expectedUsername);
+          expect(result.value.player.username).toBe(testCase.expectedUsername);
         }
       }
     });
@@ -117,8 +120,10 @@ describe("LoginService Integration Tests", () => {
       expect(user2.ok).toBe(true);
 
       if (user1.ok && user2.ok) {
-        expect(user1.value.id).not.toBe(user2.value.id);
-        expect(user1.value.username).not.toBe(user2.value.username);
+        expect(user1.value.player.id).not.toBe(user2.value.player.id);
+        expect(user1.value.player.username).not.toBe(
+          user2.value.player.username,
+        );
       }
     });
 
@@ -130,7 +135,10 @@ describe("LoginService Integration Tests", () => {
           ({ ok: false, error: lookupError }) as const,
         createPlayer: async () => {
           createCalled = true;
-          return { ok: true, value: { id: "new-id", username: "newuser" } };
+          return {
+            ok: true as const,
+            value: { id: "new-id", username: "newuser" },
+          };
         },
       };
       const service = new LoginService(env.db, mockedService);

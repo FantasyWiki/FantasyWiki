@@ -7,6 +7,8 @@ type LoginPlayerService = Pick<
   "createPlayer" | "getPlayerByGoogleAccountId"
 >;
 
+export type LoginResult = { player: Player; isNew: boolean };
+
 const buildPlayerByAccountNotFoundError = (googleAccountId: string) =>
   `Player with account id ${googleAccountId} not found`;
 
@@ -22,16 +24,20 @@ export class LoginService {
    * If player exists for this Google account ID, return it.
    * Otherwise, create a new player with username derived from email local-part
    * (with numeric suffix if already taken) and return the new player.
+   * Returns isNew=true when the player account was just created.
    */
   async loginWithGoogleAccount(
     googleAccountId: string,
     email: string,
-  ): Promise<Result<Player>> {
+  ): Promise<Result<LoginResult>> {
     // Try to find existing player by Google account ID
     const existingResult =
       await this.playerService.getPlayerByGoogleAccountId(googleAccountId);
     if (existingResult.ok) {
-      return existingResult;
+      return {
+        ok: true,
+        value: { player: existingResult.value, isNew: false },
+      };
     }
     if (
       existingResult.error !==
@@ -48,7 +54,8 @@ export class LoginService {
       email,
       googleAccountId,
     );
-    return usernameResult;
+    if (!usernameResult.ok) return usernameResult;
+    return { ok: true, value: { player: usernameResult.value, isNew: true } };
   }
 
   /**

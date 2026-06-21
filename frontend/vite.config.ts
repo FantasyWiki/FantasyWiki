@@ -7,6 +7,17 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   base: "/",
   plugins: [vue()],
+  server: {
+    proxy: {
+      // Mirror the Cloudflare Pages Functions proxy so local dev and deployed
+      // behave identically. Only backend routes are proxied: all of /api/*, but
+      // under /auth only /auth/google (the OAuth entry + Google's redirect
+      // target). /auth/callback is a frontend SPA route — proxying it sends it
+      // to the backend, which 404s, so the SPA never loads to finish login.
+      "/api": { target: "http://127.0.0.1:8787", changeOrigin: true },
+      "/auth/google": { target: "http://127.0.0.1:8787", changeOrigin: true },
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

@@ -53,15 +53,15 @@
           <p class="ownership-state__title ion-no-margin">
             {{
               ownershipContextStatus === "loading"
-                ? "Resolving ownership..."
-                : "Unable to determine ownership"
+                ? $t("articleDetail.ownership.resolving")
+                : $t("articleDetail.ownership.unableToDetermine")
             }}
           </p>
           <p class="ownership-state__subtitle ion-no-margin">
             {{
               ownershipContextStatus === "loading"
-                ? "Actions will appear when your team context is ready."
-                : "Please refresh and try again."
+                ? $t("articleDetail.ownership.resolvingSubtitle")
+                : $t("articleDetail.ownership.refreshTryAgain")
             }}
           </p>
         </ion-text>
@@ -69,9 +69,9 @@
           v-if="ownershipContextStatus === 'error'"
           fill="outline"
           size="small"
-          @click="leagueStore.fetchCurrentTeamContext()"
+          @click="retryOwnership()"
         >
-          Retry ownership check
+          {{ $t("articleDetail.ownership.retryCheck") }}
         </ion-button>
       </div>
     </ion-content>
@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, toRef } from "vue";
 import {
   IonButton,
   IonButtons,
@@ -93,8 +93,7 @@ import {
 } from "@ionic/vue";
 import { closeOutline } from "ionicons/icons";
 import { ContractDTO } from "../../../dto/contractDTO";
-import { useLeagueStore } from "@/stores/league";
-import { buildArticleDetail } from "@/types/articleDetail";
+import { useArticleOwnership } from "@/composables/useArticleOwnership";
 import ArticleDescriptionBlock from "@/components/articleDetail/ArticleDescriptionBlock.vue";
 import ArticleStatsBlock from "@/components/articleDetail/ArticleStatsBlock.vue";
 import ContractDetailsBlock from "@/components/articleDetail/ContractDetailsBlock.vue";
@@ -115,31 +114,11 @@ const emit = defineEmits<{
   swap: [contract: ContractDTO];
 }>();
 
-const leagueStore = useLeagueStore();
-
-const ownershipContextStatus = computed<"loading" | "ready" | "error">(() => {
-  if (leagueStore.isTeamLoading) return "loading";
-  if (leagueStore.teamError) return "error";
-  if (!leagueStore.currentTeamId) return "loading";
-  return "ready";
-});
-
-const detailModel = computed(() => {
-  if (ownershipContextStatus.value !== "ready") return null;
-  const contract = props.selectedContract;
-  if (!contract) return null;
-  return buildArticleDetail({
-    article: contract.article,
-    currentPrice: contract.currentPrice,
-    purchasePrice: contract.purchasePrice,
-    expiresIn: contract.expiresIn,
-    tier: contract.tier,
-    ownerTeamId: contract.team.id,
-    ownerTeamName: contract.team.name,
-    viewerTeamId: leagueStore.currentTeamId ?? undefined,
-    viewerCredits: leagueStore.currentTeam?.credits,
-  });
-});
+const {
+  status: ownershipContextStatus,
+  detail: detailModel,
+  retry: retryOwnership,
+} = useArticleOwnership(toRef(props, "selectedContract"));
 
 const summarySource = computed(() => {
   const contract = props.selectedContract;

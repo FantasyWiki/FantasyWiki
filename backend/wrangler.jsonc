@@ -22,6 +22,23 @@
         },
       ],
     },
+    "local": {
+      "d1_databases": [
+        {
+          "binding": "db",
+          "database_name": "db",
+          "database_id": "640d7014-0bf9-44f6-8026-15bf2a18cdda",
+        },
+      ],
+      "vars": {
+        "frontend_url": "https://dev.fantasywiki.pages.dev",
+        "vite_backend_url": "https://backend-preview.luca0patrignani.workers.dev",
+        "frontend_build_mode": "preview",
+        "frontend_deploy_branch": "dev",
+        "d1_database_name": "db-preview",
+        "GOOGLE_CLIENT_ID": "457796621894-7krpa8n09mekpj2cdd952jjkf1c3ookt.apps.googleusercontent.com",
+      },
+    },
   },
   "observability": {
     "enabled": true,

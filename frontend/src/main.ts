@@ -1,9 +1,12 @@
 import { createApp } from "vue";
 import App from "./App.vue";
 import router from "./router";
-import { createPinia } from "pinia";
+import { createPinia, setActivePinia } from "pinia";
 import { IonicVue } from "@ionic/vue";
 import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
+import i18n from "./i18n";
+import { useAppStore } from "@/stores/app";
+import { sessionApi } from "@/services/api";
 
 /* Core CSS required for Ionic components to work properly */
 import "@ionic/vue/css/core.css";
@@ -70,14 +73,29 @@ async function bootstrap() {
     await worker.start({ onUnhandledRequest: "bypass" });
   }
 
-  // Step 2 — create and configure the app.
+  // Step 2 — activate Pinia and restore the session BEFORE installing the
+  // router. The router's beforeEach guard fires as a microtask during
+  // app.use(router), so auth state must be settled before that point.
+  const pinia = createPinia();
+  setActivePinia(pinia);
+
+  try {
+    const session = await sessionApi.get();
+    useAppStore().setUserFromData(session);
+  } catch {
+    // No valid session — user is not authenticated, that's fine.
+  }
+
+  // Step 3 — create and configure the app (router installed here, initial
+  // navigation fires with the correct isAuthenticated value already set).
   const app = createApp(App)
     .use(router)
     .use(IonicVue)
-    .use(createPinia())
+    .use(pinia)
+    .use(i18n)
     .use(VueQueryPlugin, { queryClient });
 
-  // Step 3 — wait for the router to resolve the initial route, then mount.
+  // Step 4 — wait for the router to resolve the initial route, then mount.
   await router.isReady();
   app.mount("#app");
 }

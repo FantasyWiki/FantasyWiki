@@ -21,6 +21,18 @@ vi.mock("@/composables/useArticleSummary", () => ({
   }),
 }));
 
+// IonModal teleports its slotted content into an overlay that is only mounted
+// once the modal is "presented" — which never happens in jsdom — so the modal
+// body renders empty. Replace just IonModal with a plain slot-passthrough; the
+// other Ionic components render their slots as light DOM and are left intact.
+vi.mock("@ionic/vue", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@ionic/vue")>();
+  return {
+    ...actual,
+    IonModal: { name: "IonModal", template: "<div><slot /></div>" },
+  };
+});
+
 const viewerTeam: TeamDTO = {
   id: "team-viewer",
   name: "Viewer FC",
@@ -85,11 +97,6 @@ function mountWithStores(contract: ContractDTO, options: MountOptions = {}) {
     },
     global: {
       plugins: [pinia],
-      stubs: {
-        IonModal: {
-          template: "<div><slot /></div>",
-        },
-      },
     },
   });
 }

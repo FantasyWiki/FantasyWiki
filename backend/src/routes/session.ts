@@ -19,13 +19,12 @@ session.get("/", async (c) => {
 });
 
 session.delete("/", async (c) => {
-  // Clear the HTTP-only cookie by setting it with expired date
   setCookie(c, "session_token", "", {
     httpOnly: true,
     secure: true,
     sameSite: "Lax",
     path: "/",
-    maxAge: 0, // Expire immediately
+    maxAge: 0,
   });
   return c.json({ success: true });
 });

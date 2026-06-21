@@ -1,4 +1,4 @@
-import { Player } from "../../../model";
+import { League, Player } from "../../../model";
 import { PlayerRepository } from "../repositories/playerRepository";
 import { PlayerRepositoryD1 } from "../repositories/d1/playerRepositoryD1";
 import { Result } from "../repositories/result";
@@ -28,5 +28,10 @@ export class PlayerService {
 
   async getPlayerByGoogleAccountId(accountId: string): Promise<Result<Player>> {
     return this.repository.getPlayerByAccountId(accountId);
+  }
+
+  /** The leagues the player participates in (i.e. has a team in). */
+  async getLeaguesByPlayerId(id: string): Promise<Result<League[]>> {
+    return this.repository.getLeaguesByPlayerId(id);
   }
 }

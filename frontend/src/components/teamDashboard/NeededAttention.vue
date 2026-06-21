@@ -7,17 +7,22 @@
             <ion-icon :icon="alertCircleOutline" color="warning" />
           </div>
           <div>
-            <ion-card-title class="td-card-title"
-              >Attention Needed</ion-card-title
-            >
+            <ion-card-title class="td-card-title">{{
+              $t("dashboard.neededAttention.title")
+            }}</ion-card-title>
             <ion-card-subtitle>
               <span v-if="props.urgentContract.length > 0">
-                {{ props.urgentContract.length }} contract{{
-                  props.urgentContract.length !== 1 ? "s" : ""
+                {{
+                  $t(
+                    "dashboard.neededAttention.requiringAction",
+                    { count: props.urgentContract.length },
+                    props.urgentContract.length
+                  )
                 }}
-                requiring action
               </span>
-              <span v-else>All contracts are healthy</span>
+              <span v-else>{{
+                $t("dashboard.neededAttention.allHealthy")
+              }}</span>
             </ion-card-subtitle>
           </div>
         </div>
@@ -30,7 +35,7 @@
           @click="props.onBuyArticles"
         >
           <ion-icon slot="start" :icon="addOutline" />
-          Buy More
+          {{ $t("dashboard.neededAttention.buyMore") }}
         </ion-button>
       </div>
     </ion-card-header>
@@ -44,7 +49,9 @@
           class="empty-icon"
         />
         <ion-text color="medium">
-          <p class="ion-no-margin">No contracts need attention right now</p>
+          <p class="ion-no-margin">
+            {{ $t("dashboard.neededAttention.noneNeedAttention") }}
+          </p>
         </ion-text>
       </div>
 
@@ -61,7 +68,7 @@
           <ion-item-options side="start">
             <ion-item-option color="primary" @click="onRenew(contract)">
               <ion-icon slot="top" :icon="refreshOutline" />
-              Renew
+              {{ $t("dashboard.neededAttention.renew") }}
             </ion-item-option>
           </ion-item-options>
 
@@ -88,7 +95,11 @@
               >
                 <ion-icon :icon="timeOutline" color="ligth" />
                 <ion-label>
-                  {{ formatDuration(contract.expiresIn) }} left
+                  {{
+                    $t("dashboard.neededAttention.left", {
+                      duration: formatDuration(contract.expiresIn),
+                    })
+                  }}
                 </ion-label>
               </ion-chip>
 
@@ -108,7 +119,7 @@
           <ion-item-options side="end">
             <ion-item-option color="danger" @click="onDismiss(/*contract*/)">
               <ion-icon slot="top" :icon="closeOutline" />
-              Dismiss
+              {{ $t("dashboard.neededAttention.dismiss") }}
             </ion-item-option>
           </ion-item-options>
         </ion-item-sliding>

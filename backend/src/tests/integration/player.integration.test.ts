@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
 import { PlayerService } from "../../services/player";
+import { GLOBAL_LEAGUE_ID } from "../../services/league";
 
 describe("PlayerService Integration Tests", () => {
   let playerService: PlayerService;
@@ -131,6 +132,57 @@ describe("PlayerService Integration Tests", () => {
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error).toContain("not found");
+      }
+    });
+  });
+
+  describe("getLeaguesByPlayerId", () => {
+    it("should return the leagues the player has a team in", async () => {
+      const created = await playerService.createPlayer(
+        "leaguemember",
+        "member@example.com",
+        "account-leagues-1",
+      );
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed");
+
+      await env.db
+        .prepare(
+          "INSERT INTO teams (id, name, playerId, leagueId, credits) VALUES (?, ?, ?, ?, ?)",
+        )
+        .bind(
+          "team-leagues-1",
+          "Member FC",
+          created.value.id,
+          GLOBAL_LEAGUE_ID,
+          1000,
+        )
+        .run();
+
+      const result = await playerService.getLeaguesByPlayerId(created.value.id);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value).toHaveLength(1);
+        expect(result.value[0].id).toBe(GLOBAL_LEAGUE_ID);
+        expect(result.value[0].name).toBe("Global League");
+      }
+    });
+
+    it("should return an empty list when the player has no teams", async () => {
+      const created = await playerService.createPlayer(
+        "loner",
+        "loner@example.com",
+        "account-leagues-2",
+      );
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed");
+
+      const result = await playerService.getLeaguesByPlayerId(created.value.id);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value).toEqual([]);
       }
     });
   });

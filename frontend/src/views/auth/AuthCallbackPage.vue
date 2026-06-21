@@ -5,15 +5,17 @@
         <template v-if="error">
           <ion-icon :icon="alertCircleOutline" class="callback-icon error" />
           <ion-text color="danger">
-            <h2>Sign-in failed</h2>
+            <h2>{{ $t("auth.callback.signInFailed") }}</h2>
             <p>{{ error }}</p>
           </ion-text>
-          <ion-button @click="router.push('/home')">Try again</ion-button>
+          <ion-button @click="router.push('/home')">
+            {{ $t("auth.callback.tryAgain") }}
+          </ion-button>
         </template>
         <template v-else>
           <ion-spinner name="crescent" class="callback-spinner" />
           <ion-text color="medium">
-            <p>Signing you in…</p>
+            <p>{{ $t("auth.callback.signingIn") }}</p>
           </ion-text>
         </template>
       </div>
@@ -30,24 +32,29 @@ import {
   IonButton,
   IonIcon,
 } from "@ionic/vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { alertCircleOutline } from "ionicons/icons";
 import { ref, onMounted } from "vue";
 import { useAppStore } from "@/stores/app";
 import { sessionApi } from "@/services/api";
 
 const router = useRouter();
+const route = useRoute();
 const appStore = useAppStore();
 
 const error = ref<string | null>(null);
 
 onMounted(async () => {
-  const response = await sessionApi.get();
-  console.log("User data from /api/session:", response);
-  // Store user data in the store (without the token, since it's in cookie)
-  appStore.setUserFromData(response);
-
-  router.replace("/home");
+  try {
+    const response = await sessionApi.get();
+    appStore.setUserFromData(response);
+    const isNewPlayer = route.query.new === "1";
+    router.replace(isNewPlayer ? "/team-creation" : "/home");
+  } catch {
+    error.value = route.query.error
+      ? String(route.query.error)
+      : "Failed to verify session";
+  }
 });
 </script>
 

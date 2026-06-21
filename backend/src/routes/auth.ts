@@ -36,16 +36,17 @@ auth.use("/google", async (c, next) => {
     client_id: c.env.GOOGLE_CLIENT_ID,
     client_secret: c.env.GOOGLE_CLIENT_SECRET,
     scope: ["openid", "email", "profile"],
+    redirect_uri: `${resolveFrontendUrl(c.env)}/auth/google`,
   });
   return handler(c, next);
 });
 
 auth.get("/google", async (c) => {
-  const token = c.get("token");
+  const oauthToken = c.get("token");
   const user = c.get("user-google");
 
   const frontendUrl = resolveFrontendUrl(c.env);
-  if (!token || !user) {
+  if (!oauthToken || !user) {
     return c.redirect(`${frontendUrl}/home?error=auth_failed`);
   }
 
@@ -73,14 +74,25 @@ auth.get("/google", async (c) => {
     exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 7 days
   };
 
-  const jwt = await sign(jwtPayload, c.env.JWT_SECRET, "HS256");
-  setCookie(c, "session_token", jwt, {
+  const token = await sign(jwtPayload, c.env.JWT_SECRET, "HS256");
+
+  // The proxy (Cloudflare Pages Function / Vite dev proxy) serves both the
+  // frontend and the backend under the same origin, so the cookie is
+  // first-party. SameSite=Lax is sufficient; Secure mirrors the frontend URL
+  // scheme so the cookie also works in local dev (http://localhost).
+  const secure = frontendUrl.startsWith("https://");
+  setCookie(c, "session_token", token, {
     httpOnly: true,
-    secure: true,
-    sameSite: "None",
+    secure,
+    sameSite: "Lax",
     path: "/",
+    maxAge: 60 * 60 * 24 * 7, // 7 days
   });
-  return c.redirect(`${frontendUrl}/auth/callback`);
+
+  const callbackUrl = playerResult.value.isNew
+    ? `${frontendUrl}/auth/callback?new=1`
+    : `${frontendUrl}/auth/callback`;
+  return c.redirect(callbackUrl);
 });
 
 export default auth;

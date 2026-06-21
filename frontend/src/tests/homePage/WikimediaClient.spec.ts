@@ -97,4 +97,40 @@ describe("external-apis/wikimedia/client", () => {
     expect(result.entries).toHaveLength(1);
     expect(result.entries[0].averageViews30d).toBeUndefined();
   });
+
+  it("returns cached links without calling fetch when cache hits", async () => {
+    const fetchFn = vi.fn<typeof fetch>();
+    const mockCache = {
+      getItem: vi.fn().mockReturnValue(
+        JSON.stringify({
+          value: {
+            title: "Albert Einstein",
+            linkedArticles: ["Isaac Newton", "Physics"],
+          },
+          expiresAt: Date.now() + 100000,
+        })
+      ),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    };
+
+    const client = createWikimediaClient({
+      fetchFn,
+      cache: mockCache,
+    });
+
+    const result = await client.article.getLinkedArticles(
+      "en",
+      "Albert Einstein"
+    );
+
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      title: "Albert Einstein",
+      linkedArticles: ["Isaac Newton", "Physics"],
+    });
+    expect(mockCache.getItem).toHaveBeenCalledWith(
+      "wikimedia:links:en.wikipedia:Albert_Einstein"
+    );
+  });
 });

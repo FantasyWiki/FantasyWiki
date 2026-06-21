@@ -41,7 +41,8 @@ CREATE TABLE IF NOT EXISTS teams (
   credits REAL NOT NULL,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (playerId) REFERENCES players(id) ON DELETE CASCADE,
-  FOREIGN KEY (leagueId) REFERENCES leagues(id) ON DELETE CASCADE
+  FOREIGN KEY (leagueId) REFERENCES leagues(id) ON DELETE CASCADE,
+  UNIQUE (playerId, leagueId)
 );
 
 -- Create contracts table

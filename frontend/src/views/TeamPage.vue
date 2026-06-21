@@ -18,7 +18,7 @@
         <div class="error-row">
           <ion-icon :icon="alertCircleOutline" />
           <div>
-            <p class="error-title">Failed to load team</p>
+            <p class="error-title">{{ t("views.teamPage.failedToLoad") }}</p>
             <p class="error-detail">{{ error?.message }}</p>
             <ion-button
               fill="outline"
@@ -27,7 +27,7 @@
               @click="refetch()"
             >
               <ion-icon slot="start" :icon="refreshOutline" />
-              Retry
+              {{ t("views.teamPage.retry") }}
             </ion-button>
           </div>
         </div>
@@ -39,7 +39,7 @@
       <!-- Page heading -->
       <div class="page-heading">
         <div class="heading-left">
-          <h2 class="page-title">Team Management</h2>
+          <h2 class="page-title">{{ t("views.teamPage.title") }}</h2>
           <ion-badge v-if="currentLeague" color="primary" class="league-badge">
             {{ currentLeague.icon }} {{ currentLeague.title }}
           </ion-badge>
@@ -51,7 +51,7 @@
             size="small"
             @click="saveTeam()"
           >
-            Save
+            {{ t("views.teamPage.save") }}
           </ion-button>
         </transition>
       </div>
@@ -92,7 +92,11 @@
         :class="{ 'save-indicator--saving': isSaving }"
       >
         <ion-spinner v-if="isSaving" name="crescent" class="save-spinner" />
-        <span>{{ isSaving ? "Saving…" : "Unsaved changes" }}</span>
+        <span>{{
+          isSaving
+            ? t("views.teamPage.saving")
+            : t("views.teamPage.unsavedChanges")
+        }}</span>
       </div>
     </transition>
 
@@ -134,6 +138,7 @@ import { useLeagueStore } from "@/stores/league";
 import { FORMATIONS } from "@/types/pitch";
 import type { Schema, Position } from "@/../../dto/formationDTO";
 import type { ContractDTO } from "@/../../dto/contractDTO";
+import { useI18n } from "vue-i18n";
 
 // ── Composable ────────────────────────────────────────────────────────────
 const {
@@ -155,7 +160,7 @@ const {
 const leagueStore = useLeagueStore();
 const currentLeague = computed(() => leagueStore.currentLeague);
 const formationIds = Object.keys(FORMATIONS) as Schema[];
-
+const { t } = useI18n();
 // Save on Ionic back-button / tab switch
 onIonViewWillLeave(() => {
   if (isDirty.value) saveTeam();

@@ -6,6 +6,7 @@ import HomePage from "@/views/HomePage.vue";
 import AuthCallbackPage from "@/views/auth/AuthCallbackPage.vue";
 import EnvInfoPage from "@/views/EnvInfoPage.vue";
 import TeamPage from "@/views/TeamPage.vue";
+import TeamCreationPage from "@/views/TeamCreationPage.vue";
 import { useAppStore } from "@/stores/app";
 
 const routes: Array<RouteRecordRaw> = [
@@ -56,7 +57,7 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: "/team-creation",
     name: "TeamCreation",
-    component: () => import("@/views/TeamCreationPage.vue"),
+    component: TeamCreationPage,
   },
 ];
 

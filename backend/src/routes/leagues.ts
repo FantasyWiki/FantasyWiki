@@ -43,11 +43,11 @@ leagues.get("/global", async (c) => {
   return c.json(result.value);
 });
 
-leagues.get("/:id/team", async (c) => {
+leagues.get("/:id/my-team", async (c) => {
   return c.json({ error: "Not implemented" }, 501);
 });
 
-leagues.post("/:id/team", async (c) => {
+leagues.post("/:id/my-team", async (c) => {
   const leagueId = c.req.param("id");
   const payload = c.get("jwtPayload") as JWTPayload;
 

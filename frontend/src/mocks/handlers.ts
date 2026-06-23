@@ -137,7 +137,7 @@ export const handlers = [
     return HttpResponse.json(league);
   }),
 
-  http.post("*/api/leagues/:leagueId/team", async ({ request }) => {
+  http.post("*/api/leagues/:leagueId/my-team", async ({ request }) => {
     const body = (await request.json()) as { name?: string };
     if (!body.name || typeof body.name !== "string") {
       return HttpResponse.json({ error: "name is required" }, { status: 400 });
@@ -154,7 +154,7 @@ export const handlers = [
     return HttpResponse.json(team, { status: 201 });
   }),
 
-  http.get("*/api/leagues/:leagueId/team", ({ params }) => {
+  http.get("*/api/leagues/:leagueId/my-team", ({ params }) => {
     const team = getMyTeam(params.leagueId as string);
     if (!team)
       return HttpResponse.json(
@@ -216,7 +216,7 @@ export const handlers = [
     return HttpResponse.json(contracts.filter((c) => c.team.id === team.id));
   }),
 
-  http.get("*/api/leagues/:leagueId/notifications", ({ params }) => {
+  http.get("*/api/leagues/:leagueId/my-notifications", ({ params }) => {
     const league = leagues.find((l) => l.id === params.leagueId);
     if (!league) return HttpResponse.json([]);
     const teamIdsInLeague = league.teams.map((t) => t.id);

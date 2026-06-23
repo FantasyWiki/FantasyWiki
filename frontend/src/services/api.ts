@@ -65,21 +65,21 @@ export const leaguesApi = {
   getGlobal: () =>
     apiRequest<LeagueDTO>("/leagues/global").then(deserializeLeague),
   /** The current player's team inside this league (resolved from JWT on backend) */
-  getMyTeam: (id: string) => apiRequest<TeamDTO>(`/leagues/${id}/team`),
+  getMyTeam: (id: string) => apiRequest<TeamDTO>(`/leagues/${id}/my-team`),
   /** Create the current player's team inside this league (resolved from JWT on backend) */
   createMyTeam: (id: string, name: string) =>
-    apiRequest<TeamDTO>(`/leagues/${id}/team`, {
+    apiRequest<TeamDTO>(`/leagues/${id}/my-team`, {
       method: "POST",
       body: JSON.stringify({ name }),
     }),
   /** All contracts of the current player's team in this league */
   getMyContracts: (id: string) =>
-    apiRequest<RawContract[]>(`/leagues/${id}/contracts`).then((cs) =>
+    apiRequest<RawContract[]>(`/leagues/${id}/my-contracts`).then((cs) =>
       cs.map((c) => ContractDTO.fromRaw(c))
     ),
   /** All notifications for the current player in this league */
   getMyNotifications: (id: string) =>
-    apiRequest<NotificationDTO[]>(`/leagues/${id}/notifications`),
+    apiRequest<NotificationDTO[]>(`/leagues/${id}/my-notifications`),
 
   // ── Performance ────────────────────────────────────────────────────────────
 

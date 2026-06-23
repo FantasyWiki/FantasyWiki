@@ -36,7 +36,7 @@ describe("TeamCreationPage.vue", () => {
 
   it("shows an error message and re-enables the form when team creation fails", async () => {
     server.use(
-      http.post("*/api/leagues/:leagueId/team", () =>
+      http.post("*/api/leagues/:leagueId/my-team", () =>
         HttpResponse.json(
           { error: "This team name is already taken in this league." },
           { status: 400 }

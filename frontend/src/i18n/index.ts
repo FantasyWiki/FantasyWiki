@@ -1,6 +1,6 @@
 import { createI18n } from "vue-i18n";
-import en from "./locales/en";
-import it from "./locales/it";
+import en from "./locales/en.json";
+import it from "./locales/it.json";
 
 // The locales the app can actually display. The language switcher in the
 // NavBar is built from this list (see stores/app.ts).

@@ -23,9 +23,12 @@ export const useAsyncIndicator = defineStore("asyncIndicator", () => {
     return tasks.value[tasks.value.length - 1];
   });
 
-  const label = computed(
-    () => currentTask.value?.label ?? useI18n().t("asyncIndicator.loading")
-  );
+  const label = computed(() => {
+    // useI18n() is resolved lazily here (not at store setup): the store can be
+    // instantiated outside a component context, where useI18n() would throw.
+    const { t } = useI18n();
+    return currentTask.value?.label ?? t("asyncIndicator.loading");
+  });
 
   // ========== ACTIONS ==========
   function startTask(labelText: string): number {

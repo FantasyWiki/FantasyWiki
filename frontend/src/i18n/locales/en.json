@@ -1,0 +1,265 @@
+{
+  "common": {
+    "close": "Close"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "leagues": "Leagues",
+    "market": "Market",
+    "signIn": "Sign In with Google",
+    "signOut": "Sign Out"
+  },
+  "home": {
+    "hero": {
+      "badge": "Fantasy Sports meets Wikipedia",
+      "title": "Build Your {empire}",
+      "titleEmphasis": "Knowledge Empire",
+      "description": "Draft Wikipedia articles, earn points from real search trends, and compete in weekly tournaments. The ultimate fantasy game for the curious mind.",
+      "getStarted": "Get Started",
+      "creditsNote": "Start with 1,000 credits • No credit card required"
+    },
+    "stats": {
+      "articlesDrafted": "Articles drafted",
+      "pointsEarned": "Points earned",
+      "activeUsers": "Active users"
+    },
+    "howItWorks": {
+      "title": "How {brand} Works",
+      "subtitle": "Join thousands of players competing in the ultimate knowledge-based fantasy game.",
+      "search": {
+        "title": "Search Articles",
+        "description": "Explore millions of Wikipedia articles. Find trending topics, hidden gems, or your favorite subjects."
+      },
+      "portfolio": {
+        "title": "Build Your Portfolio",
+        "description": "Buy articles with your 1,000 starting credits. Choose contract durations from 3 to 90 days."
+      },
+      "points": {
+        "title": "Earn Points Daily",
+        "description": "Score points based on real Wikipedia pageviews. Trending articles = more points!"
+      },
+      "compete": {
+        "title": "Compete & Win",
+        "description": "Climb the leaderboard, join weekly tournaments, and earn bonus rewards."
+      }
+    },
+    "features": {
+      "title": "Powerful Features",
+      "subtitle": "Everything you need for the ultimate fantasy knowledge experience.",
+      "liveMarkets": {
+        "title": "24/7 Live Markets",
+        "description": "Buy, sell, and trade articles anytime. The market never sleeps."
+      },
+      "realTimeScoring": {
+        "title": "Real-Time Scoring",
+        "description": "Points calculated daily from actual Wikipedia pageview data."
+      },
+      "chemistry": {
+        "title": "Chemistry Bonuses",
+        "description": "Link related articles for bonus points, FIFA-style."
+      },
+      "dynamicPricing": {
+        "title": "Dynamic Pricing",
+        "description": "Article prices adjust based on trending topics and demand."
+      },
+      "privateLeagues": {
+        "title": "Private Leagues",
+        "description": "Create private leagues and compete with friends."
+      },
+      "weeklyTournaments": {
+        "title": "Weekly Tournaments",
+        "description": "Join automatic weekly competitions for bonus rewards."
+      },
+      "powerTournaments": {
+        "title": "Power Tournaments",
+        "description": "Monthly elite competitions for the top performers."
+      },
+      "fairPlay": {
+        "title": "Fair Play",
+        "description": "Transparent scoring system based on public data."
+      }
+    },
+    "leaderboardPreview": {
+      "badge": "Weekly Tournament",
+      "title": "Compete for {glory}",
+      "titleEmphasis": "Glory",
+      "subtitle": "Every week, all active players automatically enter a competitive tournament. Climb the ranks, earn bonus points, and prove your knowledge dominance.",
+      "top10": {
+        "rank": "Top 10",
+        "description": "+20 bonus points/day in main game"
+      },
+      "top100": {
+        "rank": "Top 100",
+        "description": "+10 bonus points/day in main game"
+      },
+      "top1000": {
+        "rank": "Top 1000",
+        "description": "+5 bonus points/day in main game"
+      },
+      "joinCompetition": "Join the Competition",
+      "globalLeaderboard": "🏆 Global Leaderboard",
+      "updatedDaily": "Updated daily",
+      "yourRank": "Your Rank"
+    },
+    "articleLeaderboard": {
+      "trendingToday": "🔥 Trending Today",
+      "mostViewed": "Most viewed",
+      "goingUp": "Going up",
+      "avg": "Avg: {value}",
+      "perDay": "/day",
+      "unavailable": "Top article data unavailable right now.",
+      "liveData": "📡 Live data",
+      "viewsToday": "Over {volume} views today",
+      "viewsUnavailable": "Total views not available right now"
+    },
+    "cta": {
+      "badge": "Start Playing Today",
+      "title": "Ready to Build Your Knowledge Empire?",
+      "description": "Join thousands of players already competing in the world's first Wikipedia-based fantasy game. Start with 1,000 free credits.",
+      "createAccount": "Create Free Account",
+      "footer": "No credit card required • Free to play • Win real rewards"
+    }
+  },
+  "dashboard": {
+    "hero": {
+      "welcomeBack": "Welcome back",
+      "yourTeam": "Your Team",
+      "yesterdayPoints": "Yesterday's Points",
+      "credits": "Credits",
+      "contracts": "Contracts",
+      "standing": "Standing",
+      "portfolio": "Portfolio: {value} Cr",
+      "slotsFree": "{count} slots free",
+      "rankOf": "of {count}",
+      "standingSub": "of {count} players",
+      "buyArticles": "Buy Articles",
+      "showStat": "Show stat {index}"
+    },
+    "leaderboard": {
+      "title": "League Standings",
+      "players": "{count} players",
+      "ends": "Ends {date}",
+      "you": "You",
+      "points": "{points} pts",
+      "viewDetails": "View League Details"
+    },
+    "teamManagement": {
+      "title": "Team Formation",
+      "manage": "Manage"
+    },
+    "neededAttention": {
+      "title": "Attention Needed",
+      "requiringAction": "{count} contract requiring action | {count} contracts requiring action",
+      "allHealthy": "All contracts are healthy",
+      "buyMore": "Buy More",
+      "noneNeedAttention": "No contracts need attention right now",
+      "renew": "Renew",
+      "dismiss": "Dismiss",
+      "left": "{duration} left"
+    }
+  },
+  "formation": {
+    "selector": {
+      "label": "Formation"
+    },
+    "bench": {
+      "title": "Bench",
+      "count": "{count} article | {count} articles",
+      "empty": "No articles on the bench",
+      "emptyHint": "Purchase articles from the market to add them here"
+    },
+    "pitch": {
+      "swapInstruction": "Select a position to swap with",
+      "chemistry": {
+        "excellent": "excellent",
+        "good": "good",
+        "weak": "weak",
+        "empty": "empty"
+      }
+    }
+  },
+  "articleDetail": {
+    "actions": {
+      "buy": "Buy",
+      "renewContract": "Renew Contract",
+      "swapArticle": "Swap Article"
+    },
+    "contract": {
+      "title": "Contract Details",
+      "tier": "Tier",
+      "expiresIn": "Expires in",
+      "urgent": "Urgent",
+      "renewSoon": "Renew soon",
+      "healthy": "Healthy"
+    },
+    "stats": {
+      "title": "Article Information",
+      "currentPrice": "Current Price",
+      "availability": "Availability",
+      "purchasePrice": "Purchase Price",
+      "valueTracking": "Value Tracking",
+      "credits": "{count} credits",
+      "freeAgent": "Free Agent",
+      "ownedBy": "Owned by {name}",
+      "owned": "Owned"
+    },
+    "description": {
+      "openOnWikipedia": "Open on Wikipedia",
+      "loadingSummary": "Loading summary...",
+      "summaryUnavailable": "Summary unavailable.",
+      "more": "more...",
+      "less": "less",
+      "expandSummary": "Expand summary",
+      "collapseSummary": "Collapse summary"
+    },
+    "ownership": {
+      "resolving": "Resolving ownership...",
+      "unableToDetermine": "Unable to determine ownership",
+      "resolvingSubtitle": "Actions will appear when your team context is ready.",
+      "refreshTryAgain": "Please refresh and try again.",
+      "retryCheck": "Retry ownership check"
+    }
+  },
+  "inbox": {
+    "tradeInbox": "Trade inbox – {count} pending",
+    "title": "Notification Inbox",
+    "loading": "Loading notifications…",
+    "empty": "No pending notifications",
+    "noDetails": "No additional details provided."
+  },
+  "auth": {
+    "login": {
+      "subtitle": "Sign in to manage your leagues and track your team.",
+      "authFailed": "Authentication failed. Please try again.",
+      "signInGoogle": "Sign in with Google",
+      "termsPrefix": "By signing in you agree to our {terms} and {privacy}.",
+      "terms": "Terms of Service",
+      "privacy": "Privacy Policy"
+    },
+    "callback": {
+      "signInFailed": "Sign-in failed",
+      "tryAgain": "Try again",
+      "signingIn": "Signing you in…"
+    }
+  },
+  "views": {
+    "teamDashboard": {
+      "loading": "Loading dashboard…",
+      "errorTitle": "Error loading dashboard",
+      "retry": "Retry",
+      "noLeagueTitle": "No League Selected",
+      "noLeagueHint": "Select a league from the navbar to view your dashboard."
+    },
+    "teamPage": {
+      "title": "Team Management",
+      "failedToLoad": "Failed to load team",
+      "save": "Save",
+      "saving": "Saving…",
+      "unsavedChanges": "Unsaved changes",
+      "retry": "Retry"
+    }
+  },
+  "asyncIndicator": {
+    "loading": "Working..."
+  }
+}

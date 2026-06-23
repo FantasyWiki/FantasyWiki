@@ -210,7 +210,7 @@ export const handlers = [
     HttpResponse.json(mockWikimediaSearch)
   ),
 
-  http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {
+  http.get("*/api/leagues/:leagueId/my-contracts", ({ params }) => {
     const team = getMyTeam(params.leagueId as string);
     if (!team) return HttpResponse.json([]);
     return HttpResponse.json(contracts.filter((c) => c.team.id === team.id));

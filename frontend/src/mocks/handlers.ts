@@ -5,6 +5,7 @@ import {
   currentPlayerId,
   leagues,
   articles,
+  marketByLeague,
   notifications,
   players,
   teams,
@@ -146,6 +147,10 @@ export const handlers = [
 
     return HttpResponse.json(mockTeamResponses[key]);
   }),
+
+  http.get("*/api/leagues/:leagueId/market", ({ params }) =>
+    HttpResponse.json(marketByLeague[params.leagueId as string] ?? [])
+  ),
 
   http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {
     const team = getMyTeam(params.leagueId as string);

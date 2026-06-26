@@ -5,7 +5,6 @@ import {
   currentPlayerId,
   leagues,
   articles,
-  marketByLeague,
   notifications,
   players,
   teams,
@@ -34,6 +33,40 @@ const mockTeamResponses: Record<string, TeamLineUp> = {
   [teamResponseKey("global")]: mockTeamResponse,
   [teamResponseKey("europe")]: mockTeamResponse,
   [teamResponseKey("americas")]: mockTeamResponse,
+};
+
+// =============================================================================
+// WIKIMEDIA MOCK DATA
+// =============================================================================
+
+const mockWikimediaTopRead = {
+  items: [
+    {
+      project: "en.wikipedia",
+      access: "all-access",
+      year: "2026",
+      month: "06",
+      day: "25",
+      articles: [
+        { article: "Bitcoin", views: 48000, rank: 1 },
+        { article: "Artificial_Intelligence", views: 45000, rank: 2 },
+        { article: "Ethereum", views: 42000, rank: 3 },
+        { article: "Machine_learning", views: 38000, rank: 4 },
+        { article: "Blockchain", views: 35000, rank: 5 },
+        { article: "Cryptocurrency", views: 32000, rank: 6 },
+        { article: "Quantum_computing", views: 29000, rank: 7 },
+        { article: "Large_language_model", views: 26000, rank: 8 },
+        { article: "GPT-4", views: 23000, rank: 9 },
+        { article: "Neural_network", views: 20000, rank: 10 },
+        { article: "Deep_learning", views: 17000, rank: 11 },
+        { article: "Robotics", views: 14000, rank: 12 },
+      ],
+    },
+  ],
+};
+
+const mockWikimediaPerArticle = {
+  items: Array.from({ length: 365 }, () => ({ views: 100 })),
 };
 
 // =============================================================================
@@ -148,8 +181,13 @@ export const handlers = [
     return HttpResponse.json(mockTeamResponses[key]);
   }),
 
-  http.get("*/api/leagues/:leagueId/market", ({ params }) =>
-    HttpResponse.json(marketByLeague[params.leagueId as string] ?? [])
+  // Wikimedia pageviews API — top read list and per-article views
+  http.get("https://wikimedia.org/api/rest_v1/metrics/pageviews/top/*", () =>
+    HttpResponse.json(mockWikimediaTopRead)
+  ),
+  http.get(
+    "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/*",
+    () => HttpResponse.json(mockWikimediaPerArticle)
   ),
 
   http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {

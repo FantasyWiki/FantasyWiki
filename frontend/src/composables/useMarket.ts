@@ -20,14 +20,17 @@ const ITEMS_PER_PAGE = 10;
 export function useMarket() {
   const leagueStore = useLeagueStore();
 
-  const queryKey = computed(() => ["market", leagueStore.currentLeagueId]);
+  const queryKey = computed(() => [
+    "market",
+    leagueStore.currentLeague?.domain,
+  ]);
 
   const { data, isLoading, isError, error, refetch } = useQuery<
     MarketArticle[]
   >({
     queryKey,
-    queryFn: () => fetchMarket(leagueStore.currentLeagueId!),
-    enabled: computed(() => !!leagueStore.currentLeagueId),
+    queryFn: () => fetchMarket(leagueStore.currentLeague!.domain),
+    enabled: computed(() => !!leagueStore.currentLeague?.domain),
   });
 
   const searchQuery = ref("");

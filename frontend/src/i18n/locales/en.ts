@@ -284,6 +284,10 @@ const en = {
     colPrice: "Price",
     freeAgent: "Free Agent",
     noArticles: "No articles found",
+    noSearchResults: "No Wikipedia articles found for this search",
+    searching: "Searching Wikipedia…",
+    searchFallbackNote:
+      'Not in Top 50 — showing Wikipedia matches for "{query}"',
     loading: "Loading market…",
     errorTitle: "Failed to load market",
     retry: "Retry",

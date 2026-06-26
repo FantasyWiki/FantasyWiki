@@ -69,6 +69,21 @@ const mockWikimediaPerArticle = {
   items: Array.from({ length: 365 }, () => ({ views: 100 })),
 };
 
+const mockWikimediaSearch = {
+  pages: [
+    {
+      key: "Photosynthesis",
+      title: "Photosynthesis",
+      description: "Process that converts light to energy",
+    },
+    {
+      key: "Chlorophyll",
+      title: "Chlorophyll",
+      description: "Green pigment in plants",
+    },
+  ],
+};
+
 // =============================================================================
 // HANDLERS
 // =============================================================================
@@ -188,6 +203,11 @@ export const handlers = [
   http.get(
     "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/*",
     () => HttpResponse.json(mockWikimediaPerArticle)
+  ),
+
+  // Wikimedia REST search API
+  http.get("https://api.wikimedia.org/core/v1/wikipedia/*/search/page*", () =>
+    HttpResponse.json(mockWikimediaSearch)
   ),
 
   http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {

@@ -4,6 +4,9 @@ import {Domain} from "../../dto/enums";
 import {createGetViewsByDomain, DomainResult} from "./client/getViewsByDomain";
 import {createGetLinks, articleWithLinks} from "./client/getLinks";
 import {ChemistryLevel} from "../../dto/formationDTO";
+import {createResolveArticleViews} from "./client/articleViews";
+import {createSearchArticles} from "./client/searchArticles";
+import {TopReadEntry} from "./wikimedia";
 
 const DAY = 24 * 60 * 60 * 1000;
 /**
@@ -114,6 +117,7 @@ export type WikimediaClient = {
     article: {
         getSummary(domain: Domain, title: string): Promise<ArticleSummary>;
         getLinkedArticles(domain: Domain, title: string): Promise<articleWithLinks>;
+        search(domain: Domain, query: string, limit: number): Promise<TopReadEntry[]>;
     };
 };
 
@@ -146,16 +150,19 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}): Wik
 
     const http = options.http ?? createFetchHttp(fetchFn);
 
+    const resolveArticleViews = createResolveArticleViews(http, retryCount, averageDays);
+
     return {
         pageviews: {
             getTopReadList: createGetTopReadList(
-                http, cache, maxFallbackDays, retryCount, averageDays,
+                http, cache, maxFallbackDays, retryCount, averageDays, resolveArticleViews,
             ),
             getViewsByDomain: createGetViewsByDomain( http, cache, maxFallbackDays, retryCount ),
         },
         article: {
             getSummary: createGetSummary( http, setTtl(cache,7*DAY), retryCount ),
-            getLinkedArticles: createGetLinks(http, setTtl(cache, 7*DAY), retryCount)
+            getLinkedArticles: createGetLinks(http, setTtl(cache, 7*DAY), retryCount),
+            search: createSearchArticles(http, setTtl(cache, 7*DAY), retryCount, resolveArticleViews),
         },
     };
 }

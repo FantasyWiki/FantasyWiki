@@ -98,6 +98,41 @@ describe("external-apis/wikimedia/client", () => {
     expect(result.entries[0].averageViews30d).toBeUndefined();
   });
 
+  it("article.search returns entries filtered by isContentArticleTitle and enriched with views", async () => {
+    const searchPayload = {
+      pages: [
+        { key: "Photosynthesis", title: "Photosynthesis" },
+        { key: "Special:Random", title: "Special:Random" }, // should be filtered out
+        { key: "Chlorophyll", title: "Chlorophyll" },
+      ],
+    };
+    const perArticleViews = buildPerArticleViewsResponse(
+      Array.from({ length: 365 }, () => 200)
+    );
+
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse(searchPayload))
+      .mockResolvedValue(jsonResponse(perArticleViews));
+
+    const client = createWikimediaClient({ fetchFn, cache: null });
+    const results = await client.article.search("en", "photo", 5);
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "api.wikimedia.org/core/v1/wikipedia/en/search/page"
+      )
+    );
+    // Special:Random filtered out
+    expect(results.map((r) => r.canonicalTitle)).not.toContain(
+      "Special:Random"
+    );
+    expect(results.map((r) => r.canonicalTitle)).toContain("Photosynthesis");
+    expect(results.map((r) => r.canonicalTitle)).toContain("Chlorophyll");
+    // Views enriched
+    expect(results[0].weekViews).toBe(200 * 7);
+  });
+
   it("returns cached links without calling fetch when cache hits", async () => {
     const fetchFn = vi.fn<typeof fetch>();
     const mockCache = {

@@ -149,4 +149,33 @@ describe("useMarket composable", () => {
     expect(paginatedArticles.value.length).toBeLessThanOrEqual(10);
     expect(totalPages.value).toBeGreaterThan(1);
   });
+
+  it("falls back to Wikipedia search when query matches nothing in the Top 50", async () => {
+    const { plugins } = makePlugins();
+    const { filteredArticles, isSearchFallback, setSearch } = withSetup(
+      plugins,
+      useMarket
+    );
+    await flushPromises();
+
+    // "Photosynthesis" is not in the mock Top-50 articles
+    setSearch("Photosynthesis");
+    await flushPromises();
+
+    expect(isSearchFallback.value).toBe(true);
+    // MSW returns { pages: [{ key: "Photosynthesis", ... }, { key: "Chlorophyll", ... }] }
+    const titles = filteredArticles.value.map((a) => a.title);
+    expect(titles).toContain("Photosynthesis");
+  });
+
+  it("does not trigger fallback when query is shorter than MIN_SEARCH_CHARS", async () => {
+    const { plugins } = makePlugins();
+    const { isSearchFallback, setSearch } = withSetup(plugins, useMarket);
+    await flushPromises();
+
+    setSearch("Ph"); // 2 chars — below the threshold
+    await flushPromises();
+
+    expect(isSearchFallback.value).toBe(false);
+  });
 });

@@ -91,8 +91,24 @@
           </ion-segment>
         </div>
 
+        <!-- Search fallback note -->
+        <div v-if="isSearchFallback" class="fallback-note">
+          <ion-icon :icon="searchOutline" class="fallback-icon" />
+          <span>{{
+            t("market.searchFallbackNote", { query: searchQuery })
+          }}</span>
+        </div>
+
+        <!-- Searching spinner (fallback in progress) -->
+        <div v-if="isSearching" class="state-container">
+          <ion-spinner name="crescent" color="primary" />
+          <ion-text color="medium"
+            ><p>{{ t("market.searching") }}</p></ion-text
+          >
+        </div>
+
         <!-- Desktop table -->
-        <div class="table-wrapper ion-hide-md-down">
+        <div v-if="!isSearching" class="table-wrapper ion-hide-md-down">
           <table class="market-table">
             <thead>
               <tr>
@@ -188,9 +204,13 @@
                   {{ formatViews(article.weekViews) }} Cr
                 </td>
               </tr>
-              <tr v-if="filteredArticles.length === 0">
+              <tr v-if="filteredArticles.length === 0 && !isSearching">
                 <td colspan="7" class="empty-cell">
-                  {{ t("market.noArticles") }}
+                  {{
+                    isSearchFallback
+                      ? t("market.noSearchResults")
+                      : t("market.noArticles")
+                  }}
                 </td>
               </tr>
             </tbody>
@@ -198,7 +218,7 @@
         </div>
 
         <!-- Mobile cards -->
-        <div class="ion-hide-md-up">
+        <div v-if="!isSearching" class="ion-hide-md-up">
           <!-- Mobile sort chips -->
           <div class="mobile-sort-row">
             <span class="sort-label">{{ t("market.sortLabel") }}</span>
@@ -287,8 +307,15 @@
             </ion-card>
           </div>
 
-          <div v-if="filteredArticles.length === 0" class="empty-mobile">
-            {{ t("market.noArticles") }}
+          <div
+            v-if="filteredArticles.length === 0 && !isSearching"
+            class="empty-mobile"
+          >
+            {{
+              isSearchFallback
+                ? t("market.noSearchResults")
+                : t("market.noArticles")
+            }}
           </div>
         </div>
 
@@ -371,6 +398,7 @@ import {
   chevronForwardOutline,
   openOutline,
   refreshOutline,
+  searchOutline,
   swapVerticalOutline,
 } from "ionicons/icons";
 import { useI18n } from "vue-i18n";
@@ -408,6 +436,8 @@ const {
   toggleSort,
   setSearch,
   setStatusFilter,
+  isSearchFallback,
+  isSearching,
   ITEMS_PER_PAGE,
 } = useMarket();
 
@@ -838,5 +868,19 @@ async function handleRefresh(event: CustomEvent) {
   padding: 0 4px;
   color: var(--ion-color-medium);
   font-size: 14px;
+}
+
+.fallback-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ion-color-medium);
+  padding: 6px 4px 10px;
+}
+
+.fallback-icon {
+  font-size: 15px;
+  flex-shrink: 0;
 }
 </style>

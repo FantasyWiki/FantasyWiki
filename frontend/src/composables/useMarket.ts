@@ -1,7 +1,7 @@
 import { ref, computed } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { useLeagueStore } from "@/stores/league";
-import { fetchMarket } from "@/services/marketService";
+import { fetchMarket, searchMarket } from "@/services/marketService";
 import type { MarketArticle } from "@/types/market";
 
 export type SortKey =
@@ -16,6 +16,7 @@ export type SortDir = "asc" | "desc";
 export type StatusFilter = "all" | "free" | "owned";
 
 const ITEMS_PER_PAGE = 10;
+const MIN_SEARCH_CHARS = 3;
 
 export function useMarket() {
   const leagueStore = useLeagueStore();
@@ -59,14 +60,8 @@ export function useMarket() {
     currentPage.value = 1;
   }
 
-  const filteredArticles = computed<MarketArticle[]>(() => {
-    const articles = data.value ?? [];
+  function applyStatusAndSort(articles: MarketArticle[]): MarketArticle[] {
     let filtered = [...articles];
-
-    if (searchQuery.value.trim()) {
-      const q = searchQuery.value.toLowerCase();
-      filtered = filtered.filter((a) => a.title.toLowerCase().includes(q));
-    }
 
     if (statusFilter.value === "free") {
       filtered = filtered.filter((a) => !a.owner);
@@ -103,6 +98,48 @@ export function useMarket() {
     });
 
     return filtered;
+  }
+
+  const topFiltered = computed<MarketArticle[]>(() => {
+    const articles = data.value ?? [];
+    let filtered = [...articles];
+
+    if (searchQuery.value.trim()) {
+      const q = searchQuery.value.toLowerCase();
+      filtered = filtered.filter((a) => a.title.toLowerCase().includes(q));
+    }
+
+    return applyStatusAndSort(filtered);
+  });
+
+  const isSearchFallback = computed(
+    () =>
+      searchQuery.value.trim().length >= MIN_SEARCH_CHARS &&
+      topFiltered.value.length === 0
+  );
+
+  const {
+    data: searchData,
+    isLoading: isSearching,
+    isError: isSearchError,
+  } = useQuery<MarketArticle[]>({
+    queryKey: computed(() => [
+      "market-search",
+      leagueStore.currentLeague?.domain,
+      searchQuery.value.trim(),
+    ]),
+    queryFn: () =>
+      searchMarket(leagueStore.currentLeague!.domain, searchQuery.value.trim()),
+    enabled: computed(
+      () => isSearchFallback.value && !!leagueStore.currentLeague?.domain
+    ),
+  });
+
+  const filteredArticles = computed<MarketArticle[]>(() => {
+    if (isSearchFallback.value) {
+      return applyStatusAndSort(searchData.value ?? []);
+    }
+    return topFiltered.value;
   });
 
   const totalPages = computed(() =>
@@ -135,6 +172,9 @@ export function useMarket() {
     toggleSort,
     setSearch,
     setStatusFilter,
+    isSearchFallback,
+    isSearching,
+    isSearchError,
     ITEMS_PER_PAGE,
   };
 }

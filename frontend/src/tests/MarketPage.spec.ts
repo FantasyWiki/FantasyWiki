@@ -115,12 +115,13 @@ describe("useMarket composable", () => {
     expect(filteredArticles.value.length).toBe(0);
   });
 
-  it("filters by search query", async () => {
+  it("filters top-50 locally for short queries (< 3 chars)", async () => {
     const { plugins } = makePlugins();
     const { filteredArticles, setSearch } = withSetup(plugins, useMarket);
     await flushPromises();
 
-    setSearch("bitcoin");
+    // "bi" is 2 chars — stays in local Top-50 filter mode
+    setSearch("bi");
     expect(filteredArticles.value.length).toBe(1);
     expect(filteredArticles.value[0].title).toBe("Bitcoin");
   });
@@ -150,7 +151,7 @@ describe("useMarket composable", () => {
     expect(totalPages.value).toBeGreaterThan(1);
   });
 
-  it("falls back to Wikipedia search when query matches nothing in the Top 50", async () => {
+  it("switches to Wikipedia search for any query of 3+ chars, including Top-50 matches", async () => {
     const { plugins } = makePlugins();
     const { filteredArticles, isSearchFallback, setSearch } = withSetup(
       plugins,
@@ -158,7 +159,7 @@ describe("useMarket composable", () => {
     );
     await flushPromises();
 
-    // "Photosynthesis" is not in the mock Top-50 articles
+    // "Photosynthesis" is not in the mock Top-50 but Wikipedia search is always used
     setSearch("Photosynthesis");
     await flushPromises();
 
@@ -168,7 +169,19 @@ describe("useMarket composable", () => {
     expect(titles).toContain("Photosynthesis");
   });
 
-  it("does not trigger fallback when query is shorter than MIN_SEARCH_CHARS", async () => {
+  it("also uses Wikipedia search when query matches something in the Top 50", async () => {
+    const { plugins } = makePlugins();
+    const { isSearchFallback, setSearch } = withSetup(plugins, useMarket);
+    await flushPromises();
+
+    // "Bitcoin" IS in the mock Top-50, but Wikipedia search should still fire
+    setSearch("Bitcoin");
+    await flushPromises();
+
+    expect(isSearchFallback.value).toBe(true);
+  });
+
+  it("does not trigger Wikipedia search when query is shorter than 3 chars", async () => {
     const { plugins } = makePlugins();
     const { isSearchFallback, setSearch } = withSetup(plugins, useMarket);
     await flushPromises();

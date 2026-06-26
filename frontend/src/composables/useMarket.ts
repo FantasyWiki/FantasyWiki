@@ -113,9 +113,7 @@ export function useMarket() {
   });
 
   const isSearchFallback = computed(
-    () =>
-      searchQuery.value.trim().length >= MIN_SEARCH_CHARS &&
-      topFiltered.value.length === 0
+    () => searchQuery.value.trim().length >= MIN_SEARCH_CHARS
   );
 
   const {

@@ -292,7 +292,7 @@ const it: MessageSchema = {
     noArticles: "Nessun articolo trovato",
     noSearchResults: "Nessun articolo Wikipedia trovato per questa ricerca",
     searching: "Ricerca su Wikipedia…",
-    searchFallbackNote: 'Non nella Top 50 — risultati Wikipedia per "{query}"',
+    searchFallbackNote: 'Risultati Wikipedia per "{query}"',
     loading: "Caricamento mercato…",
     errorTitle: "Caricamento mercato non riuscito",
     retry: "Riprova",

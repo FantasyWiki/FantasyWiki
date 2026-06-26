@@ -14,6 +14,9 @@ export type TopReadEntry = {
   dailyViews: number;
   articleUrl: string;
   averageViews30d?: number;
+  weekViews?: number;
+  monthViews?: number;
+  yearViews?: number;
 };
 
 const EXCLUDED_PREFIXES = [
@@ -45,16 +48,15 @@ export function toDisplayTitle(title: string): string {
 }
 
 function buildArticleUrl(domain: Domain, title: string): string {
-  return `https://${domain}.wikipedia.org/wiki/${encodeURIComponent(title).replace(
-    /%20/g,
-    "_"
-  )}`;
+  return `https://${domain}.wikipedia.org/wiki/${encodeURIComponent(
+    title,
+  ).replace(/%20/g, "_")}`;
 }
 
 export function normalizeTopReadEntries(
   articles: WikimediaTopReadArticle[],
   limit: number,
-  domain: Domain = "en"
+  domain: Domain = "en",
 ): TopReadEntry[] {
   let filteredRank = 0;
 

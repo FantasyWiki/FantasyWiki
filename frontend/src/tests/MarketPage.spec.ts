@@ -48,11 +48,10 @@ describe("MarketPage.vue", () => {
     await router.isReady();
   });
 
-  it("mounts and renders article rows from the mock market endpoint", async () => {
+  it("mounts and renders article rows from the wikimedia top-read list", async () => {
     const { plugins } = makePlugins();
     const wrapper = mount(MarketPage, { global: { plugins } });
     await flushPromises();
-    // Page 1 is sorted by price (weekViews) desc; Artificial Intelligence tops the global list
     expect(wrapper.text()).toContain("Artificial Intelligence");
     expect(wrapper.text()).toContain("Bitcoin");
   });
@@ -72,11 +71,11 @@ describe("MarketPage.vue", () => {
     expect(wrapper.text()).toContain("Free Agent");
   });
 
-  it("displays owner name for owned articles", async () => {
+  it("shows every article as a free agent", async () => {
     const { plugins } = makePlugins();
     const wrapper = mount(MarketPage, { global: { plugins } });
     await flushPromises();
-    expect(wrapper.text()).toContain("CryptoKing42");
+    expect(wrapper.text()).not.toContain("CryptoKing42");
   });
 });
 
@@ -107,15 +106,13 @@ describe("useMarket composable", () => {
     expect(filteredArticles.value.length).toBeGreaterThan(0);
   });
 
-  it("filters to owned articles only", async () => {
+  it("filters to owned articles only returns empty (all are free agents)", async () => {
     const { plugins } = makePlugins();
     const { filteredArticles, setStatusFilter } = withSetup(plugins, useMarket);
     await flushPromises();
 
     setStatusFilter("owned");
-    const free = filteredArticles.value.filter((a) => a.owner === null);
-    expect(free.length).toBe(0);
-    expect(filteredArticles.value.length).toBeGreaterThan(0);
+    expect(filteredArticles.value.length).toBe(0);
   });
 
   it("filters by search query", async () => {

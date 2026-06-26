@@ -574,6 +574,7 @@ async function handleRefresh(event: CustomEvent) {
 
 .search-bar {
   --border-radius: 8px;
+  --color: var(--ion-text-color);
   --placeholder-color: var(--ion-color-medium);
   --placeholder-opacity: 1;
   --icon-color: var(--ion-color-medium);

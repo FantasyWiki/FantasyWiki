@@ -163,6 +163,13 @@ h2 {
   font-size: 1.125rem;
 }
 
+/* Body copy matches the muted subtitle tone used across the home page
+   (see LeaderboardPreview .subtitle). --ion-color-medium is a direct value in
+   both light and dark palettes, so it stays legible in either mode. */
+p {
+  color: var(--ion-color-medium);
+}
+
 ion-card {
   --ion-padding: 1.5rem;
   height: 100%;

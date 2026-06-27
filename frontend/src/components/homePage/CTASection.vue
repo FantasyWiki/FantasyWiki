@@ -18,9 +18,7 @@
           </h2>
 
           <ion-text color="light" class="cta-description ion-margin-bottom">
-            <p>
-              {{ $t("home.cta.description") }}
-            </p>
+            {{ $t("home.cta.description") }}
           </ion-text>
 
           <div class="ion-margin-bottom">
@@ -31,7 +29,7 @@
           </div>
 
           <ion-text color="light" class="cta-footer">
-            <p>{{ $t("home.cta.footer") }}</p>
+            {{ $t("home.cta.footer") }}
           </ion-text>
         </div>
       </div>

@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { JWTPayload } from "hono/utils/jwt/types";
 import { toLeagueDTO } from "../services/leagues";
 import { LeagueService } from "../services/league";
+import { LeaderboardService } from "../services/leaderboard";
+import { PerformanceService } from "../services/performance";
 import { TeamService } from "../services/team";
 import { PlayerService } from "../services/player";
 import { ArticleMarketService } from "../services/articleMarket";
@@ -44,8 +46,78 @@ leagues.get("/global", async (c) => {
   return c.json(result.value);
 });
 
+leagues.get("/:id/leaderboard", async (c) => {
+  const leagueId = c.req.param("id");
+  const leaderboardService = new LeaderboardService(c.env.db);
+  const result = await leaderboardService.getLeaderboard(leagueId);
+  if (!result.ok) {
+    return c.json({ error: result.error }, 500);
+  }
+  return c.json(result.value);
+});
+
 leagues.get("/:id/my-team", async (c) => {
-  return c.json({ error: "Not implemented" }, 501);
+  const leagueId = c.req.param("id");
+  const payload = c.get("jwtPayload") as JWTPayload;
+
+  const playerService = new PlayerService(c.env.db);
+  const playerResult = await playerService.getPlayerByGoogleAccountId(
+    payload.sub as string,
+  );
+  if (!playerResult.ok) {
+    return c.json({ error: playerResult.error }, 404);
+  }
+
+  const teamService = new TeamService(c.env.db);
+  const teamResult = await teamService.getMyTeam(
+    playerResult.value.id,
+    leagueId,
+    playerResult.value.username,
+  );
+  if (!teamResult.ok) {
+    return c.json({ error: teamResult.error }, 500);
+  }
+  if (teamResult.value === null) {
+    return c.json({ error: "No team found for this league" }, 404);
+  }
+  return c.json(teamResult.value);
+});
+
+leagues.get("/:id/my-performances", async (c) => {
+  const leagueId = c.req.param("id");
+  const limit = Math.max(1, parseInt(c.req.query("limit") ?? "2", 10) || 2);
+  const payload = c.get("jwtPayload") as JWTPayload;
+
+  const playerService = new PlayerService(c.env.db);
+  const playerResult = await playerService.getPlayerByGoogleAccountId(
+    payload.sub as string,
+  );
+  if (!playerResult.ok) {
+    return c.json({ error: playerResult.error }, 404);
+  }
+
+  const teamService = new TeamService(c.env.db);
+  const teamResult = await teamService.getMyTeam(
+    playerResult.value.id,
+    leagueId,
+    playerResult.value.username,
+  );
+  if (!teamResult.ok) {
+    return c.json({ error: teamResult.error }, 500);
+  }
+  if (teamResult.value === null) {
+    return c.json({ error: "No team found for this league" }, 404);
+  }
+
+  const performanceService = new PerformanceService(c.env.db);
+  const perfResult = await performanceService.getRecentForTeam(
+    teamResult.value.id,
+    limit,
+  );
+  if (!perfResult.ok) {
+    return c.json({ error: perfResult.error }, 500);
+  }
+  return c.json(perfResult.value);
 });
 
 leagues.post("/:id/my-team", async (c) => {
@@ -86,7 +158,6 @@ leagues.post("/:id/my-team", async (c) => {
       id: playerResult.value.id,
       name: playerResult.value.username,
     },
-    points: 0,
   };
   return c.json(teamDTO, 201);
 });
@@ -102,11 +173,11 @@ leagues.get("/:id/market", async (c) => {
 });
 
 leagues.get("/:id/my-contracts", async (c) => {
-  return c.json({ error: "Not implemented" }, 501);
+  return c.json([]);
 });
 
 leagues.get("/:id/my-notifications", async (c) => {
-  return c.json({ error: "Not implemented" }, 501);
+  return c.json([]);
 });
 
 export default leagues;

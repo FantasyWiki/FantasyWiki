@@ -4,6 +4,7 @@
 const RESET_STATEMENTS = [
   "DELETE FROM notifications",
   "DELETE FROM contracts",
+  "DELETE FROM performances",
   "DELETE FROM teams",
   "DELETE FROM leagues WHERE id != 'global'",
   "DELETE FROM players WHERE id != 'system'",

@@ -12,7 +12,6 @@ const viewerTeam: TeamDTO = {
   name: "Viewer FC",
   credits: 1200,
   player: { id: "viewer-player", name: "Viewer" },
-  points: 0,
 };
 
 const otherTeam: TeamDTO = {
@@ -20,7 +19,6 @@ const otherTeam: TeamDTO = {
   name: "Other FC",
   credits: 1200,
   player: { id: "other-player", name: "Other" },
-  points: 0,
 };
 
 function makeContract(team: TeamDTO): ContractDTO {

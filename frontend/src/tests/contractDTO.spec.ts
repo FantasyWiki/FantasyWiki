@@ -9,7 +9,6 @@ const team: TeamDTO = {
   name: "Viewer FC",
   credits: 500,
   player: { id: "player-1", name: "Viewer" },
-  points: 0,
 };
 
 const article: ArticleDTO = {

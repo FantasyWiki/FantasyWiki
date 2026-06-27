@@ -1,6 +1,7 @@
 import { computed } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { useLeagueStore } from "@/stores/league";
+import { useLeaderboard } from "@/composables/useLeaderboard";
 import api from "@/services/api";
 import type { DashboardData } from "@/types/models";
 
@@ -12,6 +13,7 @@ import type { DashboardData } from "@/types/models";
  */
 export function useDashboard() {
   const leagueStore = useLeagueStore();
+  const { leaderboard: leaderBoard } = useLeaderboard();
 
   const {
     data: dashboardData,
@@ -43,10 +45,6 @@ export function useDashboard() {
   );
   const maxContracts = computed(() => dashboardData.value?.maxContracts ?? 0);
   const totalPlayers = computed(() => dashboardData.value?.totalPlayers ?? 0);
-  const leaderBoard = computed(
-    () =>
-      [...(league.value?.teams ?? [])].sort((a, b) => b.points - a.points) ?? []
-  );
 
   return {
     dashboardData,

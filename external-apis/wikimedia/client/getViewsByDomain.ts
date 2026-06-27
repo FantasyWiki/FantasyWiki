@@ -1,4 +1,4 @@
-import type { Domain } from "../../../dto/enums";
+import type { Domain } from "../../../model/enums";
 import {
     PAGEVIEWS_BASE_URL,
     fetchJsonWithRetry,

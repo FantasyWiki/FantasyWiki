@@ -493,6 +493,7 @@ const chemistryLines = computed<RenderedChemistryLine[]>(() => {
   border-radius: 8px;
   width: min(100%, var(--node-size-mobile));
   min-height: var(--node-size-mobile);
+  background: var(--ion-background-color);
   transition:
     border-color 180ms ease,
     background 180ms ease;

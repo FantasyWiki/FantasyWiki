@@ -1,6 +1,6 @@
 import { League } from "../../../model";
 import { LeagueDTO } from "../../../dto/leagueDTO";
-import { Domain } from "../../../dto/enums";
+import { Domain } from "../../../model/enums";
 import { LeagueRepository } from "../repositories/leagueRepository";
 import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
 import { Result, success } from "../repositories/result";

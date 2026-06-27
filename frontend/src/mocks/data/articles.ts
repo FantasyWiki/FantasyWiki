@@ -1,4 +1,4 @@
-import { Domain } from "../../../../dto/enums";
+import { Domain } from "../../../../model/enums";
 
 const domainIt: Domain = "it";
 const domainEn: Domain = "en";

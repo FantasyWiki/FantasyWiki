@@ -1,7 +1,8 @@
 import { Team } from "../../../model";
+import { TeamDTO } from "../../../dto/teamDTO";
 import { TeamRepository } from "../repositories/teamRepository";
 import { TeamRepositoryD1 } from "../repositories/d1/teamRepositoryD1";
-import { Result, failure } from "../repositories/result";
+import { Result, failure, success } from "../repositories/result";
 
 export const STARTING_CREDITS = 1000;
 
@@ -45,6 +46,30 @@ export class TeamService {
       playerId,
       leagueId,
       credits: STARTING_CREDITS,
+    });
+  }
+
+  async getMyTeam(
+    playerId: string,
+    leagueId: string,
+    playerName: string,
+  ): Promise<Result<TeamDTO | null>> {
+    const result = await this.repository.getByPlayerAndLeague(
+      playerId,
+      leagueId,
+    );
+    if (!result.ok) {
+      return result;
+    }
+    if (result.value === null) {
+      return success(null);
+    }
+    const team: Team = result.value;
+    return success({
+      id: team.id,
+      name: team.name,
+      credits: team.credits,
+      player: { id: playerId, name: playerName },
     });
   }
 }

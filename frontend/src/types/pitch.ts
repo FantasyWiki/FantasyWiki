@@ -1,6 +1,6 @@
-import { Position } from "../../../dto/enums";
+import { Position } from "../../../model/enums";
 
-export { FORMATIONS } from "../../../dto/enums";
+export { FORMATIONS } from "../../../model/enums";
 
 export const PITCH_GRID = { rows: 6, cols: 5 } as const;
 

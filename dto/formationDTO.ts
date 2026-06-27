@@ -1,42 +1,20 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { ContractDTO } from "./contractDTO";
 import {
-    CHEMISTRY_LINKS,
+    Schema,
+    Position,
+    PositionsForSchema,
     FORMATIONS,
-    type Position as EnumPosition,
-    type PositionsForSchema as EnumPositionsForSchema,
-    type Schema as EnumSchema,
-} from "./enums";
+    CHEMISTRY_LINKS,
+    ChemistryLevel,
+    CHEMISTRY_MULTIPLIER_BY_LEVEL,
+    ChemistryLink,
+    ChemistryLinksForSchema,
+} from "../model/enums";
 
-export type Schema = EnumSchema;
-export type Position = EnumPosition;
-export type PositionsForSchema<S extends Schema> = EnumPositionsForSchema<S>;
-
-export const ChemistryLevel = {
-    EMPTY:     'empty',
-    WEAK:      'weak',
-    GOOD:      'good',
-    EXCELLENT: 'excellent',
-} as const;
-
-export type ChemistryLevel = typeof ChemistryLevel[keyof typeof ChemistryLevel];
-
-export const CHEMISTRY_MULTIPLIER_BY_LEVEL = {
-    excellent: 1.2,
-    good: 1.1,
-    weak: 1.05,
-    empty: 1.0,
-} as const satisfies Record<ChemistryLevel, number>;
-
-export type ChemistryLink<S extends Schema = Schema> = {
-    from: PositionsForSchema<S>;
-    to: PositionsForSchema<S>;
-    level: ChemistryLevel;
-};
-
-export type ChemistryLinksForSchema<S extends Schema = Schema> = ChemistryLink<S>[];
-
-export { CHEMISTRY_LINKS } from "./enums";
+// Re-export domain types for consumers that import them from this file.
+export type { Schema, Position, PositionsForSchema, ChemistryLink, ChemistryLinksForSchema };
+export { CHEMISTRY_LINKS, CHEMISTRY_MULTIPLIER_BY_LEVEL, FORMATIONS, ChemistryLevel };
 
 /**
  * Editable formation used while the user is composing or modifying a lineup.

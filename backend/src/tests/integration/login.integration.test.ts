@@ -127,6 +127,89 @@ describe("LoginService Integration Tests", () => {
       }
     });
 
+    const notFoundError = (googleAccountId: string) =>
+      `Player with account id ${googleAccountId} not found`;
+
+    it("should surface a non-conflict creation error on the base username", async () => {
+      const googleAccountId = "google-create-error";
+      const mockedService = {
+        getPlayerByGoogleAccountId: async () =>
+          ({ ok: false, error: notFoundError(googleAccountId) }) as const,
+        createPlayer: async () =>
+          ({ ok: false, error: "Error saving player: disk full" }) as const,
+      };
+      const service = new LoginService(env.db, mockedService);
+
+      const result = await service.loginWithGoogleAccount(
+        googleAccountId,
+        "boom@example.com",
+      );
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toBe("Error saving player: disk full");
+      }
+    });
+
+    it("should surface a non-conflict error encountered while trying a suffixed username", async () => {
+      const googleAccountId = "google-suffix-error";
+      let attempt = 0;
+      const mockedService = {
+        getPlayerByGoogleAccountId: async () =>
+          ({ ok: false, error: notFoundError(googleAccountId) }) as const,
+        createPlayer: async () => {
+          attempt += 1;
+          // base username conflicts, the first suffixed attempt hits a hard error
+          if (attempt === 1) {
+            return {
+              ok: false,
+              error: "UNIQUE constraint failed: players.username",
+            } as const;
+          }
+          return {
+            ok: false,
+            error: "Error saving player: disk full",
+          } as const;
+        },
+      };
+      const service = new LoginService(env.db, mockedService);
+
+      const result = await service.loginWithGoogleAccount(
+        googleAccountId,
+        "clash@example.com",
+      );
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toBe("Error saving player: disk full");
+      }
+      expect(attempt).toBe(2);
+    });
+
+    it("should fail after exhausting all username suffix attempts", async () => {
+      const googleAccountId = "google-exhausted";
+      const mockedService = {
+        getPlayerByGoogleAccountId: async () =>
+          ({ ok: false, error: notFoundError(googleAccountId) }) as const,
+        createPlayer: async () =>
+          ({
+            ok: false,
+            error: "UNIQUE constraint failed: players.username",
+          }) as const,
+      };
+      const service = new LoginService(env.db, mockedService);
+
+      const result = await service.loginWithGoogleAccount(
+        googleAccountId,
+        "taken@example.com",
+      );
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toContain("after 1000 attempts");
+      }
+    });
+
     it("should return lookup errors that are not not-found without creating a user", async () => {
       let createCalled = false;
       const lookupError = "Error retrieving player: database unavailable";

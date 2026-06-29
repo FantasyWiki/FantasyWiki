@@ -2,12 +2,38 @@ import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
 import { PlayerService } from "../../services/player";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
+import { PlayerRepository } from "../../repositories/playerRepository";
+import { success } from "../../repositories/result";
 
 describe("PlayerService Integration Tests", () => {
   let playerService: PlayerService;
 
   beforeEach(() => {
     playerService = new PlayerService(env.db);
+  });
+
+  it("should use an injected repository when one is provided", async () => {
+    const player = {
+      id: "injected-1",
+      username: "injected",
+      email: "injected@example.com",
+      accountId: "injected-account",
+    };
+    const repository: PlayerRepository = {
+      save: async () => success(player),
+      getById: async () => success(player),
+      getLeaguesByPlayerId: async () => success([]),
+      getPlayerByAccountId: async () => success(player),
+    };
+    const service = new PlayerService(repository);
+
+    const result = await service.createPlayer(
+      "injected",
+      "injected@example.com",
+      "injected-account",
+    );
+
+    expect(result).toEqual(success(player));
   });
 
   describe("createPlayer", () => {

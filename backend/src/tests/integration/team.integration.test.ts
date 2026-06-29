@@ -2,6 +2,8 @@ import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
 import { TeamService } from "../../services/team";
 import { PlayerService } from "../../services/player";
+import { TeamRepository } from "../../repositories/teamRepository";
+import { failure } from "../../repositories/result";
 
 describe("TeamService Integration Tests", () => {
   let teamService: TeamService;
@@ -169,6 +171,20 @@ describe("TeamService Integration Tests", () => {
       );
 
       expect(result.ok).toBe(false);
+    });
+
+    it("should propagate a failure from the name-uniqueness check", async () => {
+      const failingRepository: TeamRepository = {
+        existsByNameInLeague: async () => failure("D1 unavailable"),
+        create: async () => {
+          throw new Error("create should not be called");
+        },
+      };
+      const service = new TeamService(failingRepository);
+
+      const result = await service.createTeam(playerId, leagueId, "Valid Name");
+
+      expect(result).toEqual(failure("D1 unavailable"));
     });
   });
 });

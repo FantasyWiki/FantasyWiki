@@ -259,6 +259,31 @@
       "retry": "Riprova"
     }
   },
+  "market": {
+    "loading": "Caricamento mercato…",
+    "errorTitle": "Errore nel caricamento del mercato",
+    "retry": "Riprova",
+    "title": "Mercato",
+    "balance": "Saldo",
+    "searchPlaceholder": "Cerca articoli…",
+    "filterAll": "Tutti",
+    "filterFree": "Liberi",
+    "filterOwned": "Posseduti",
+    "searchFallbackNote": "Risultati estesi per \"{query}\"",
+    "searching": "Ricerca in corso…",
+    "colArticle": "Articolo",
+    "colStatus": "Stato",
+    "colYesterday": "Ieri",
+    "colWeek": "Settimana",
+    "colMonth": "Mese",
+    "colYear": "Anno",
+    "colPrice": "Prezzo",
+    "freeAgent": "Svincolato",
+    "noSearchResults": "Nessun risultato trovato",
+    "noArticles": "Nessun articolo disponibile",
+    "sortLabel": "Ordina:",
+    "paginationInfo": "{from}–{to} di {total}"
+  },
   "asyncIndicator": {
     "loading": "Caricando..."
   }

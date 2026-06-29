@@ -452,12 +452,12 @@ function sortIcon(key: SortKey) {
   return sortDir.value === "asc" ? arrowUpOutline : arrowDownOutline;
 }
 
-const mobileSortOptions: { key: SortKey; label: string }[] = [
-  { key: "price", label: "Price" },
-  { key: "yesterdayViews", label: "Yesterday" },
-  { key: "weekViews", label: "Week" },
-  { key: "monthViews", label: "Month" },
-];
+const mobileSortOptions = computed<{ key: SortKey; label: string }[]>(() => [
+  { key: "price", label: t("market.colPrice") },
+  { key: "yesterdayViews", label: t("market.colYesterday") },
+  { key: "weekViews", label: t("market.colWeek") },
+  { key: "monthViews", label: t("market.colMonth") },
+]);
 
 const pageItems = computed<(number | "ellipsis")[]>(() => {
   const pages = Array.from({ length: totalPages.value }, (_, i) => i + 1);

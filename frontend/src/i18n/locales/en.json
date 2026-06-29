@@ -259,6 +259,31 @@
       "retry": "Retry"
     }
   },
+  "market": {
+    "loading": "Loading market…",
+    "errorTitle": "Error loading market",
+    "retry": "Retry",
+    "title": "Market",
+    "balance": "Balance",
+    "searchPlaceholder": "Search articles…",
+    "filterAll": "All",
+    "filterFree": "Free",
+    "filterOwned": "Owned",
+    "searchFallbackNote": "Showing extended search results for \"{query}\"",
+    "searching": "Searching…",
+    "colArticle": "Article",
+    "colStatus": "Status",
+    "colYesterday": "Yesterday",
+    "colWeek": "Week",
+    "colMonth": "Month",
+    "colYear": "Year",
+    "colPrice": "Price",
+    "freeAgent": "Free Agent",
+    "noSearchResults": "No results found",
+    "noArticles": "No articles available",
+    "sortLabel": "Sort:",
+    "paginationInfo": "{from}–{to} of {total}"
+  },
   "asyncIndicator": {
     "loading": "Working..."
   }

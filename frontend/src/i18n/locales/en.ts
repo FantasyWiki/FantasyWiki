@@ -267,6 +267,33 @@ const en = {
     },
   },
 
+  market: {
+    title: "Article Market",
+    subtitle: "Search and purchase Wikipedia articles",
+    balance: "Balance",
+    searchPlaceholder: "Search articles…",
+    filterAll: "All",
+    filterFree: "Free Agents",
+    filterOwned: "Owned",
+    colArticle: "Article",
+    colStatus: "Status",
+    colYesterday: "Yesterday",
+    colWeek: "Week",
+    colMonth: "Month",
+    colYear: "Year",
+    colPrice: "Price",
+    freeAgent: "Free Agent",
+    noArticles: "No articles found",
+    noSearchResults: "No Wikipedia articles found for this search",
+    searching: "Searching Wikipedia…",
+    searchFallbackNote: 'Showing Wikipedia results for "{query}"',
+    loading: "Loading market…",
+    errorTitle: "Failed to load market",
+    retry: "Retry",
+    paginationInfo: "Showing {from}–{to} of {total}",
+    sortLabel: "Sort:",
+  },
+
   views: {
     teamDashboard: {
       loading: "Loading dashboard…",

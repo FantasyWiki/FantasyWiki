@@ -36,6 +36,55 @@ const mockTeamResponses: Record<string, TeamLineUp> = {
 };
 
 // =============================================================================
+// WIKIMEDIA MOCK DATA
+// =============================================================================
+
+const mockWikimediaTopRead = {
+  items: [
+    {
+      project: "en.wikipedia",
+      access: "all-access",
+      year: "2026",
+      month: "06",
+      day: "25",
+      articles: [
+        { article: "Bitcoin", views: 48000, rank: 1 },
+        { article: "Artificial_Intelligence", views: 45000, rank: 2 },
+        { article: "Ethereum", views: 42000, rank: 3 },
+        { article: "Machine_learning", views: 38000, rank: 4 },
+        { article: "Blockchain", views: 35000, rank: 5 },
+        { article: "Cryptocurrency", views: 32000, rank: 6 },
+        { article: "Quantum_computing", views: 29000, rank: 7 },
+        { article: "Large_language_model", views: 26000, rank: 8 },
+        { article: "GPT-4", views: 23000, rank: 9 },
+        { article: "Neural_network", views: 20000, rank: 10 },
+        { article: "Deep_learning", views: 17000, rank: 11 },
+        { article: "Robotics", views: 14000, rank: 12 },
+      ],
+    },
+  ],
+};
+
+const mockWikimediaPerArticle = {
+  items: Array.from({ length: 365 }, () => ({ views: 100 })),
+};
+
+const mockWikimediaSearch = {
+  pages: [
+    {
+      key: "Photosynthesis",
+      title: "Photosynthesis",
+      description: "Process that converts light to energy",
+    },
+    {
+      key: "Chlorophyll",
+      title: "Chlorophyll",
+      description: "Green pigment in plants",
+    },
+  ],
+};
+
+// =============================================================================
 // HANDLERS
 // =============================================================================
 
@@ -88,7 +137,7 @@ export const handlers = [
     return HttpResponse.json(league);
   }),
 
-  http.post("*/api/leagues/:leagueId/team", async ({ request }) => {
+  http.post("*/api/leagues/:leagueId/my-team", async ({ request }) => {
     const body = (await request.json()) as { name?: string };
     if (!body.name || typeof body.name !== "string") {
       return HttpResponse.json({ error: "name is required" }, { status: 400 });
@@ -105,7 +154,7 @@ export const handlers = [
     return HttpResponse.json(team, { status: 201 });
   }),
 
-  http.get("*/api/leagues/:leagueId/team", ({ params }) => {
+  http.get("*/api/leagues/:leagueId/my-team", ({ params }) => {
     const team = getMyTeam(params.leagueId as string);
     if (!team)
       return HttpResponse.json(
@@ -147,13 +196,27 @@ export const handlers = [
     return HttpResponse.json(mockTeamResponses[key]);
   }),
 
+  // Wikimedia pageviews API — top read list and per-article views
+  http.get("https://wikimedia.org/api/rest_v1/metrics/pageviews/top/*", () =>
+    HttpResponse.json(mockWikimediaTopRead)
+  ),
+  http.get(
+    "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/*",
+    () => HttpResponse.json(mockWikimediaPerArticle)
+  ),
+
+  // Wikimedia REST search API
+  http.get("https://api.wikimedia.org/core/v1/wikipedia/*/search/page*", () =>
+    HttpResponse.json(mockWikimediaSearch)
+  ),
+
   http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {
     const team = getMyTeam(params.leagueId as string);
     if (!team) return HttpResponse.json([]);
     return HttpResponse.json(contracts.filter((c) => c.team.id === team.id));
   }),
 
-  http.get("*/api/leagues/:leagueId/notifications", ({ params }) => {
+  http.get("*/api/leagues/:leagueId/my-notifications", ({ params }) => {
     const league = leagues.find((l) => l.id === params.leagueId);
     if (!league) return HttpResponse.json([]);
     const teamIdsInLeague = league.teams.map((t) => t.id);

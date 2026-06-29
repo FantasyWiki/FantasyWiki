@@ -273,6 +273,33 @@ const it: MessageSchema = {
     },
   },
 
+  market: {
+    title: "Mercato articoli",
+    subtitle: "Cerca e acquista articoli di Wikipedia",
+    balance: "Saldo",
+    searchPlaceholder: "Cerca articoli…",
+    filterAll: "Tutti",
+    filterFree: "Svincolati",
+    filterOwned: "Acquistati",
+    colArticle: "Articolo",
+    colStatus: "Stato",
+    colYesterday: "Ieri",
+    colWeek: "Settimana",
+    colMonth: "Mese",
+    colYear: "Anno",
+    colPrice: "Prezzo",
+    freeAgent: "Svincolato",
+    noArticles: "Nessun articolo trovato",
+    noSearchResults: "Nessun articolo Wikipedia trovato per questa ricerca",
+    searching: "Ricerca su Wikipedia…",
+    searchFallbackNote: 'Risultati Wikipedia per "{query}"',
+    loading: "Caricamento mercato…",
+    errorTitle: "Caricamento mercato non riuscito",
+    retry: "Riprova",
+    paginationInfo: "Mostrando {from}–{to} di {total}",
+    sortLabel: "Ordina:",
+  },
+
   views: {
     teamDashboard: {
       loading: "Caricamento dashboard…",

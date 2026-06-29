@@ -4,6 +4,7 @@ import { toLeagueDTO } from "../services/leagues";
 import { LeagueService } from "../services/league";
 import { TeamService } from "../services/team";
 import { PlayerService } from "../services/player";
+import { ArticleMarketService } from "../services/articleMarket";
 import { TeamDTO } from "../../../dto/teamDTO";
 
 type Bindings = {
@@ -43,11 +44,11 @@ leagues.get("/global", async (c) => {
   return c.json(result.value);
 });
 
-leagues.get("/:id/team", async (c) => {
+leagues.get("/:id/my-team", async (c) => {
   return c.json({ error: "Not implemented" }, 501);
 });
 
-leagues.post("/:id/team", async (c) => {
+leagues.post("/:id/my-team", async (c) => {
   const leagueId = c.req.param("id");
   const payload = c.get("jwtPayload") as JWTPayload;
 
@@ -88,6 +89,16 @@ leagues.post("/:id/team", async (c) => {
     points: 0,
   };
   return c.json(teamDTO, 201);
+});
+
+leagues.get("/:id/market", async (c) => {
+  const leagueId = c.req.param("id");
+  const service = new ArticleMarketService(c.env.db);
+  const result = await service.getMarket(leagueId);
+  if (!result.ok) {
+    return c.json({ error: result.error }, 404);
+  }
+  return c.json(result.value);
 });
 
 leagues.get("/:id/my-contracts", async (c) => {

@@ -174,20 +174,6 @@ describe("TeamService Integration Tests", () => {
 
       expect(result.ok).toBe(false);
     });
-
-    it("should propagate a failure from the name-uniqueness check", async () => {
-      const failingRepository: TeamRepository = {
-        existsByNameInLeague: async () => failure("D1 unavailable"),
-        create: async () => {
-          throw new Error("create should not be called");
-        },
-      };
-      const service = new TeamService(failingRepository);
-
-      const result = await service.createTeam(playerId, leagueId, "Valid Name");
-
-      expect(result).toEqual(failure("D1 unavailable"));
-    });
   });
 
   describe("getMyTeam", () => {

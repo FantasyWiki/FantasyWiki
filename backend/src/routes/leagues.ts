@@ -7,7 +7,14 @@ import { PerformanceService } from "../services/performance";
 import { TeamService } from "../services/team";
 import { PlayerService } from "../services/player";
 import { ArticleMarketService } from "../services/articleMarket";
+import {
+  LineupService,
+  RawTeamLineUp,
+  LINEUP_ERRORS,
+} from "../services/lineup";
+import { NotificationService } from "../services/notification";
 import { TeamDTO } from "../../../dto/teamDTO";
+import { resolveCurrentPlayer } from "./helpers";
 
 type Bindings = {
   db: D1Database;
@@ -16,9 +23,7 @@ type Bindings = {
 const leagues = new Hono<{ Bindings: Bindings }>();
 
 leagues.get("/", async (c) => {
-  // The current player's leagues, resolved from the JWT (never from the client).
   const payload = c.get("jwtPayload") as JWTPayload;
-
   const playerService = new PlayerService(c.env.db);
   const playerResult = await playerService.getPlayerByGoogleAccountId(
     payload.sub as string,
@@ -26,14 +31,12 @@ leagues.get("/", async (c) => {
   if (!playerResult.ok) {
     return c.json({ error: playerResult.error }, 404);
   }
-
   const leaguesResult = await playerService.getLeaguesByPlayerId(
     playerResult.value.id,
   );
   if (!leaguesResult.ok) {
     return c.json({ error: leaguesResult.error }, 500);
   }
-
   return c.json(leaguesResult.value.map(toLeagueDTO));
 });
 
@@ -58,12 +61,7 @@ leagues.get("/:id/leaderboard", async (c) => {
 
 leagues.get("/:id/my-team", async (c) => {
   const leagueId = c.req.param("id");
-  const payload = c.get("jwtPayload") as JWTPayload;
-
-  const playerService = new PlayerService(c.env.db);
-  const playerResult = await playerService.getPlayerByGoogleAccountId(
-    payload.sub as string,
-  );
+  const playerResult = await resolveCurrentPlayer(c);
   if (!playerResult.ok) {
     return c.json({ error: playerResult.error }, 404);
   }
@@ -85,13 +83,9 @@ leagues.get("/:id/my-team", async (c) => {
 
 leagues.get("/:id/my-performances", async (c) => {
   const leagueId = c.req.param("id");
-  const limit = Math.max(1, parseInt(c.req.query("limit") ?? "2", 10) || 2);
-  const payload = c.get("jwtPayload") as JWTPayload;
-
-  const playerService = new PlayerService(c.env.db);
-  const playerResult = await playerService.getPlayerByGoogleAccountId(
-    payload.sub as string,
-  );
+  const rawLimit = parseInt(c.req.query("limit") ?? "2", 10);
+  const limit = Math.max(1, Number.isNaN(rawLimit) ? 2 : rawLimit);
+  const playerResult = await resolveCurrentPlayer(c);
   if (!playerResult.ok) {
     return c.json({ error: playerResult.error }, 404);
   }
@@ -122,12 +116,7 @@ leagues.get("/:id/my-performances", async (c) => {
 
 leagues.post("/:id/my-team", async (c) => {
   const leagueId = c.req.param("id");
-  const payload = c.get("jwtPayload") as JWTPayload;
-
-  const playerService = new PlayerService(c.env.db);
-  const playerResult = await playerService.getPlayerByGoogleAccountId(
-    payload.sub as string,
-  );
+  const playerResult = await resolveCurrentPlayer(c);
   if (!playerResult.ok) {
     return c.json({ error: playerResult.error }, 404);
   }
@@ -176,8 +165,64 @@ leagues.get("/:id/my-contracts", async (c) => {
   return c.json([]);
 });
 
+leagues.get("/:id/lineup", async (c) => {
+  const leagueId = c.req.param("id");
+  const playerResult = await resolveCurrentPlayer(c);
+  if (!playerResult.ok) {
+    return c.json({ error: playerResult.error }, 404);
+  }
+
+  const lineupService = new LineupService(c.env.db);
+  const result = await lineupService.getLineup(playerResult.value.id, leagueId);
+  if (!result.ok) {
+    return c.json(
+      { error: result.error },
+      result.error === LINEUP_ERRORS.NO_TEAM ? 404 : 500,
+    );
+  }
+  return c.json(result.value);
+});
+
+leagues.put("/:id/lineup", async (c) => {
+  const leagueId = c.req.param("id");
+  const playerResult = await resolveCurrentPlayer(c);
+  if (!playerResult.ok) {
+    return c.json({ error: playerResult.error }, 404);
+  }
+
+  const body = await c.req.json<RawTeamLineUp>().catch(() => null);
+  if (body === null) {
+    return c.json({ error: "Invalid lineup payload" }, 400);
+  }
+
+  const lineupService = new LineupService(c.env.db);
+  const result = await lineupService.saveLineup(
+    playerResult.value.id,
+    leagueId,
+    body,
+  );
+  if (!result.ok) {
+    return c.json({ error: result.error }, 400);
+  }
+  return c.json({ success: true });
+});
+
 leagues.get("/:id/my-notifications", async (c) => {
-  return c.json([]);
+  const leagueId = c.req.param("id");
+  const playerResult = await resolveCurrentPlayer(c);
+  if (!playerResult.ok) {
+    return c.json({ error: playerResult.error }, 404);
+  }
+
+  const notificationService = new NotificationService(c.env.db);
+  const result = await notificationService.getMyNotifications(
+    playerResult.value.id,
+    leagueId,
+  );
+  if (!result.ok) {
+    return c.json({ error: result.error }, 500);
+  }
+  return c.json(result.value);
 });
 
 export default leagues;

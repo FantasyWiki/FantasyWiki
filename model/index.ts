@@ -2,6 +2,7 @@ export * from "./contract";
 export * from "./enums";
 export * from "./googleAccount";
 export * from "./league";
+export * from "./lineup";
 export * from "./notification";
 export * from "./performances";
 export * from "./player";

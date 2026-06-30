@@ -9,7 +9,8 @@
  */
 import type { TeamLineUp } from "@/types/team";
 import {
-  createChemistryLinks,
+  normalizeChemistryLinks,
+  type DraftFormationDTO,
   type FormationDTO,
 } from "../../../dto/formationDTO";
 import { ContractDTO, type RawContract } from "../../../dto/contractDTO";
@@ -34,8 +35,10 @@ function deserializeLineup(raw: RawTeamLineUp): TeamLineUp {
       ContractDTO.fromRaw(contract),
     ])
   ) as FormationDTO["formation"];
-  const chemistry =
-    raw.formation.chemistry ?? createChemistryLinks(raw.formation.schema);
+  const chemistry = normalizeChemistryLinks(
+    raw.formation.schema,
+    raw.formation.chemistry
+  );
 
   return {
     formation: {
@@ -69,7 +72,7 @@ export async function fetchTeam(leagueId: string): Promise<TeamLineUp> {
 export async function saveTeamApi(
   leagueId: string,
   payload: {
-    formation: FormationDTO;
+    formation: DraftFormationDTO;
     bench: ContractDTO[];
   }
 ): Promise<void> {

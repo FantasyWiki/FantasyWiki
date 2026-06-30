@@ -25,7 +25,7 @@
           :disabled="true"
           style="opacity: 1"
         >
-          <ion-label>{{ props.currentLeague?.domain }}</ion-label>
+          <ion-label>{{ props.currentLeague?.domain.toUpperCase() }}</ion-label>
         </ion-chip>
         <ion-chip
           class="meta-chip"
@@ -36,7 +36,7 @@
         >
           <ion-label>{{
             $t("dashboard.leaderboard.players", {
-              count: props.currentLeague?.teams.length,
+              count: props.leaderboard.length,
             })
           }}</ion-label>
         </ion-chip>
@@ -49,7 +49,11 @@
         >
           <ion-label>{{
             $t("dashboard.leaderboard.ends", {
-              date: props.currentLeague?.endDate,
+              date: props.currentLeague?.endDate.toLocaleString(locale, {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              }),
             })
           }}</ion-label>
         </ion-chip>
@@ -179,6 +183,8 @@ import { LeagueDTO } from "../../../../dto/leagueDTO";
 import { LeaderboardEntryDTO } from "../../../../dto/leaderboardDTO";
 import { computed } from "vue";
 
+import { useI18n } from "vue-i18n";
+
 interface Props {
   leaderboard: LeaderboardEntryDTO[];
   currentLeague: LeagueDTO | null;
@@ -188,6 +194,8 @@ interface Props {
 
 const props = defineProps<Props>();
 const router = useRouter();
+
+const { locale } = useI18n();
 
 function isCurrentUser(entry: LeaderboardEntryDTO): boolean {
   return entry.team.id === props.currentTeam?.id;

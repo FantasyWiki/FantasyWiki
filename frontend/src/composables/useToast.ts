@@ -32,7 +32,9 @@ export function useToast() {
       position: "bottom",
     });
     void toast.present();
-    return async () => { await toast.dismiss(); };
+    return async () => {
+      await toast.dismiss();
+    };
   }
 
   return {

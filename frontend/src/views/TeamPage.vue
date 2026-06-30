@@ -181,7 +181,10 @@ watchEffect((onCleanup) => {
   let stale = false;
 
   showPersistent(message, color).then((fn) => {
-    if (stale) { void fn(); return; }
+    if (stale) {
+      void fn();
+      return;
+    }
     dismiss = fn;
   });
 
@@ -342,5 +345,4 @@ function handleMoveToEmpty(posKey: string) {
   margin: 0 0 8px;
   opacity: 0.85;
 }
-
 </style>

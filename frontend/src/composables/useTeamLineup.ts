@@ -1,12 +1,15 @@
 import { ref, computed, watch } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
+import { useI18n } from "vue-i18n";
+import { useToast } from "@/composables/useToast";
 import { useLeagueStore } from "@/stores/league";
 import { fetchTeam, saveTeamApi } from "@/services/teamService";
 import { createWikimediaClient } from "@/services/wikimediaClient";
 import {
   createDraftFormation,
-  createChemistryLinks,
+  normalizeChemistryLinks,
   isCompleteFormation,
+  isValidFormation,
   computeChemistryLinks,
   type DraftFormationDTO,
   type FormationDTO,
@@ -27,6 +30,8 @@ import type { ContractDTO } from "../../../dto/contractDTO";
 export function useTeamLineup() {
   const leagueStore = useLeagueStore();
   const queryClient = useQueryClient();
+  const { t } = useI18n();
+  const { showSuccess, showError } = useToast();
 
   const queryKey = computed(() => ["team-lineup", leagueStore.currentLeagueId]);
 
@@ -138,9 +143,10 @@ export function useTeamLineup() {
     (lineup) => {
       if (!lineup) return;
       if (isInitialized.value && isDirty.value) return;
-      const chemistry =
-        lineup.formation.chemistry ??
-        createChemistryLinks(lineup.formation.schema);
+      const chemistry = normalizeChemistryLinks(
+        lineup.formation.schema,
+        lineup.formation.chemistry
+      );
       draft.value = {
         date: lineup.formation.date,
         schema: lineup.formation.schema,
@@ -169,13 +175,15 @@ export function useTeamLineup() {
   );
 
   // ── Save mutation ─────────────────────────────────────────────────────────
-  const { mutateAsync: saveTeam, isPending: isSaving } = useMutation({
+  const { mutate: saveTeam, isPending: isSaving } = useMutation({
     mutationFn: () => {
-      if (!isCompleteFormation(draft.value)) {
-        throw new Error("Formation is incomplete.");
+      // A partial lineup is a legitimate save — the scorer simply awards no
+      // points for empty slots. Only block structurally invalid drafts.
+      if (!isValidFormation(draft.value)) {
+        throw new Error("Lineup is not valid for the selected schema.");
       }
       return saveTeamApi(leagueStore.currentLeagueId!, {
-        formation: draft.value as FormationDTO,
+        formation: draft.value,
         bench: benchContracts.value,
       });
     },
@@ -185,6 +193,10 @@ export function useTeamLineup() {
         bench: benchContracts.value.map((c) => c.id),
       });
       queryClient.invalidateQueries({ queryKey: queryKey.value });
+      showSuccess(t("views.teamPage.saveSuccess"));
+    },
+    onError: () => {
+      showError(t("views.teamPage.saveFailed"));
     },
   });
 

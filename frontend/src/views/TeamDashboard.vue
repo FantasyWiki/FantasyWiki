@@ -72,7 +72,6 @@
               :leaderboard="leaderBoard"
               :current-league="currentLeague"
               :current-team="team"
-              :past-leaderboard="pastLeaderboard"
               :slice="LEADERBOARD_SLICE"
             />
           </ion-col>
@@ -112,7 +111,6 @@ import LeagueLeaderboard from "@/components/teamDashboard/LeagueLeaderboard.vue"
 
 import { useLeagueStore } from "@/stores/league";
 import { useDashboard } from "@/composables/useDashboard";
-import { useLeaguePerformances } from "@/composables/useLeaguePerformances";
 import { useTeamLineup } from "@/composables/useTeamLineup";
 import TeamManagement from "@/components/teamDashboard/TeamManagement.vue";
 import { useI18n } from "vue-i18n";
@@ -144,7 +142,6 @@ const urgentContracts = computed(() => {
 });
 
 const LEADERBOARD_SLICE = 5;
-const { pastLeaderboard } = useLeaguePerformances();
 
 async function handleRefresh(event: CustomEvent) {
   await refetchTeamLineup();

@@ -24,8 +24,9 @@
                 class="season-badge"
               >
                 {{
-                  currentLeague.endDate.toLocaleString(locale, {
+                  currentLeague.startDate.toLocaleString(locale, {
                     month: "short",
+                    year: "numeric",
                   })
                 }}
               </ion-badge>

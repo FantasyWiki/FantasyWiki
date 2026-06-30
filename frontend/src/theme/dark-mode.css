@@ -139,5 +139,15 @@
       hsl(150 40% 25%) 50%,
       hsl(145 70% 15%) 100%
     );
+
+    h1,
+    h2,
+    ion-card-title,
+    ion-card h3,
+    ion-card h4,
+    ion-card h5,
+    ion-card h6 {
+      color: var(--ion-color-dark);
+    }
   }
 }

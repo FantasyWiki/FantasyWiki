@@ -2,8 +2,10 @@ import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
 import { TeamService } from "../../services/team";
 import { PlayerService } from "../../services/player";
-import { TeamRepository } from "../../repositories/teamRepository";
-import { failure } from "../../repositories/result";
+import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
+import type { TeamRepository } from "../../repositories/teamRepository";
+import { success, failure } from "../../repositories/result";
+import type { Team } from "../../../../model";
 
 describe("TeamService Integration Tests", () => {
   let teamService: TeamService;
@@ -172,19 +174,126 @@ describe("TeamService Integration Tests", () => {
 
       expect(result.ok).toBe(false);
     });
+  });
 
-    it("should propagate a failure from the name-uniqueness check", async () => {
-      const failingRepository: TeamRepository = {
-        existsByNameInLeague: async () => failure("D1 unavailable"),
-        create: async () => {
-          throw new Error("create should not be called");
-        },
-      };
-      const service = new TeamService(failingRepository);
+  describe("getMyTeam", () => {
+    it("should return null when the player has no team in the league", async () => {
+      const result = await teamService.getMyTeam(playerId, leagueId, "Alice");
 
-      const result = await service.createTeam(playerId, leagueId, "Valid Name");
-
-      expect(result).toEqual(failure("D1 unavailable"));
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value).toBeNull();
+      }
     });
+
+    it("should return the team DTO when the player has a team", async () => {
+      await teamService.createTeam(playerId, leagueId, "Wiki Warriors");
+
+      const result = await teamService.getMyTeam(playerId, leagueId, "Alice");
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value).not.toBeNull();
+        expect(result.value?.name).toBe("Wiki Warriors");
+        expect(result.value?.credits).toBe(1000);
+        expect(result.value?.player).toEqual({ id: playerId, name: "Alice" });
+      }
+    });
+
+    it("should propagate a failure from an injected repository", async () => {
+      const failingRepository: TeamRepository = {
+        create: async () => failure("boom"),
+        existsByNameInLeague: async () => failure("boom"),
+        getByPlayerAndLeague: async () => failure("db error"),
+      };
+      const service = new TeamService({
+        teamRepository: failingRepository,
+        lineupRepository: {
+          getByTeamId: async () => failure("unused"),
+          upsert: async () => failure("unused"),
+        },
+      });
+
+      const result = await service.getMyTeam(playerId, leagueId, "Alice");
+
+      expect(result).toEqual(failure("db error"));
+    });
+
+    it("should map team fields correctly from an injected repository", async () => {
+      const team: Team = {
+        id: "team-42",
+        name: "Injected Squad",
+        playerId,
+        leagueId,
+        credits: 750,
+      };
+      const repository: TeamRepository = {
+        create: async () => failure("unused"),
+        existsByNameInLeague: async () => failure("unused"),
+        getByPlayerAndLeague: async () => success(team),
+      };
+      const service = new TeamService({
+        teamRepository: repository,
+        lineupRepository: {
+          getByTeamId: async () => failure("unused"),
+          upsert: async () => failure("unused"),
+        },
+      });
+
+      const result = await service.getMyTeam(playerId, leagueId, "Bob");
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value).toEqual({
+          id: "team-42",
+          name: "Injected Squad",
+          credits: 750,
+          player: { id: playerId, name: "Bob" },
+        });
+      }
+    });
+  });
+});
+
+describe("TeamRepositoryD1 error handling", () => {
+  const throwingDb = {
+    prepare: () => {
+      throw new Error("D1 unavailable");
+    },
+  } as unknown as D1Database;
+
+  it("should return a failure from create when D1 throws", async () => {
+    const repository = new TeamRepositoryD1(throwingDb);
+    const result = await repository.create({
+      name: "Test",
+      playerId: "p1",
+      leagueId: "l1",
+      credits: 1000,
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain("D1 unavailable");
+    }
+  });
+
+  it("should return a failure from existsByNameInLeague when D1 throws", async () => {
+    const repository = new TeamRepositoryD1(throwingDb);
+    const result = await repository.existsByNameInLeague("Test", "l1");
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain("D1 unavailable");
+    }
+  });
+
+  it("should return a failure from getByPlayerAndLeague when D1 throws", async () => {
+    const repository = new TeamRepositoryD1(throwingDb);
+    const result = await repository.getByPlayerAndLeague("p1", "l1");
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain("D1 unavailable");
+    }
   });
 });

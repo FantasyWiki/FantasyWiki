@@ -2,11 +2,15 @@
 import { DashboardData, Session, TeamPointsData } from "@/types/models";
 import { PlayerDTO } from "../../../dto/playerDTO";
 import { LeagueDTO } from "../../../dto/leagueDTO";
-import { NotificationDTO } from "../../../dto/notificationDTO";
+import {
+  RawNotification,
+  deserializeNotification,
+} from "../../../dto/notificationDTO";
 import { TeamDTO } from "../../../dto/teamDTO";
 import { ContractDTO, type RawContract } from "../../../dto/contractDTO";
 import { ArticleDTO } from "../../../dto/articleDTO";
 import { PerformanceDTO } from "../../../dto/performanceDTO";
+import { LeaderboardEntryDTO } from "../../../dto/leaderboardDTO";
 import { Temporal } from "@js-temporal/polyfill";
 
 const API_BASE_URL = "/api";
@@ -50,7 +54,9 @@ export const playerApi = {
   getCurrent: () => apiRequest<PlayerDTO>("/player"),
   getTeams: () => apiRequest<TeamDTO[]>("/player/teams"),
   getNotifications: () =>
-    apiRequest<NotificationDTO[]>("/player/notifications"),
+    apiRequest<RawNotification[]>("/player/notifications").then((ns) =>
+      ns.map(deserializeNotification)
+    ),
 };
 
 // ── Leagues ───────────────────────────────────────────────────────────────────
@@ -79,20 +85,29 @@ export const leaguesApi = {
     ),
   /** All notifications for the current player in this league */
   getMyNotifications: (id: string) =>
-    apiRequest<NotificationDTO[]>(`/leagues/${id}/my-notifications`),
+    apiRequest<RawNotification[]>(`/leagues/${id}/my-notifications`).then(
+      (ns) => ns.map(deserializeNotification)
+    ),
+
+  // ── Leaderboard ────────────────────────────────────────────────────────────
+
+  getLeaderboard: (id: string) =>
+    apiRequest<LeaderboardEntryDTO[]>(`/leagues/${id}/leaderboard`),
 
   // ── Performance ────────────────────────────────────────────────────────────
 
-  getPerformances: (id: string, limit = 2) =>
-    apiRequest<PerformanceDTO[]>(`/leagues/${id}/performances?limit=${limit}`),
-
   async getRecentPoints(id: string): Promise<TeamPointsData> {
-    const [yesterday, twoDaysAgo] = await apiRequest<PerformanceDTO[]>(
-      `/leagues/${id}/performances?limit=2`
+    const [latest, previous] = await apiRequest<PerformanceDTO[]>(
+      `/leagues/${id}/my-performances?limit=2`
     );
+    const latestPts = latest?.points ?? 0;
+    const previousPts = previous?.points ?? 0;
     return {
-      yesterdayPoints: yesterday?.points ?? 0,
-      pointsChange: (yesterday?.points ?? 0) - (twoDaysAgo?.points ?? 0),
+      yesterdayPoints: latestPts,
+      pointsChange:
+        previousPts > 0
+          ? Math.round(((latestPts - previousPts) / previousPts) * 100)
+          : 0,
     };
   },
 };
@@ -105,8 +120,6 @@ export const teamsApi = {
     apiRequest<RawContract[]>(`/teams/${id}/contracts`).then((cs) =>
       cs.map((c) => ContractDTO.fromRaw(c))
     ),
-  getNotifications: (id: string) =>
-    apiRequest<NotificationDTO[]>(`/teams/${id}/notifications`),
   createContract: (
     teamId: string,
     data: {
@@ -140,9 +153,12 @@ export const contractsApi = {
 // ── Notifications ─────────────────────────────────────────────────────────────
 
 export const notificationsApi = {
-  getAll: () => apiRequest<NotificationDTO[]>("/notifications"),
+  getAll: () =>
+    apiRequest<RawNotification[]>("/notifications").then((ns) =>
+      ns.map(deserializeNotification)
+    ),
   markAsRead: (id: string) =>
-    apiRequest<NotificationDTO>(`/notifications/${id}/read`, {
+    apiRequest<{ success: boolean }>(`/notifications/${id}/read`, {
       method: "PATCH",
     }),
 };
@@ -158,20 +174,26 @@ export const articlesApi = {
 
 export const dashboardApi = {
   async getDashboardData(league: LeagueDTO): Promise<DashboardData> {
-    const [team, contracts, notifications, recentPoints] = await Promise.all([
-      leaguesApi.getMyTeam(league.id),
-      leaguesApi.getMyContracts(league.id),
-      leaguesApi.getMyNotifications(league.id),
-      leaguesApi.getRecentPoints(league.id),
-    ]);
+    const [team, contracts, notifications, recentPoints, leaderboard] =
+      await Promise.all([
+        leaguesApi.getMyTeam(league.id),
+        leaguesApi.getMyContracts(league.id),
+        leaguesApi.getMyNotifications(league.id),
+        leaguesApi.getRecentPoints(league.id),
+        leaguesApi.getLeaderboard(league.id),
+      ]);
 
-    // Shape the resolved values into DashboardData
+    const rank = leaderboard.find((e) => e.team.id === team.id)?.rank ?? 0;
+    const totalPlayers = leaderboard.length;
+
     return new DashboardData(
       team,
       league,
       contracts,
       notifications,
-      recentPoints
+      recentPoints,
+      rank,
+      totalPlayers
     );
   },
 };

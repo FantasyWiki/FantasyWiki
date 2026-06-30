@@ -21,7 +21,6 @@ function contract(id: string): ContractDTO {
       name: "T",
       credits: 0,
       player: { id: "p", name: "P" },
-      points: 0,
     },
     article: { id: `a-${id}`, title: id, domain: "en" },
     startDate: "2026-01-01T00:00:00Z",

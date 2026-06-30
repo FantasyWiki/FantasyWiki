@@ -39,6 +39,14 @@
       <!-- Page heading -->
       <div class="page-heading">
         <div class="heading-left">
+          <ion-button
+            fill="clear"
+            size="small"
+            class="back-btn"
+            @click="router.back()"
+          >
+            <ion-icon slot="icon-only" :icon="arrowBackOutline" />
+          </ion-button>
           <h2 class="page-title">{{ t("views.teamPage.title") }}</h2>
           <ion-badge v-if="currentLeague" color="primary" class="league-badge">
             {{ currentLeague.icon }} {{ currentLeague.title }}
@@ -84,22 +92,6 @@
       />
     </template>
 
-    <!-- ── Floating save indicator ────────────────────────────────────── -->
-    <transition name="fade-up">
-      <div
-        v-if="isDirty || isSaving"
-        class="save-indicator"
-        :class="{ 'save-indicator--saving': isSaving }"
-      >
-        <ion-spinner v-if="isSaving" name="crescent" class="save-spinner" />
-        <span>{{
-          isSaving
-            ? t("views.teamPage.saving")
-            : t("views.teamPage.unsavedChanges")
-        }}</span>
-      </div>
-    </transition>
-
     <!-- ── Article detail modal ──────────────────────────────────────── -->
     <ArticleDetail
       v-if="selectedContract"
@@ -112,7 +104,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watchEffect } from "vue";
+import { useRouter } from "vue-router";
 import { onIonViewWillLeave } from "@ionic/vue";
 import {
   IonBadge,
@@ -123,9 +116,12 @@ import {
   IonRefresher,
   IonRefresherContent,
   IonSkeletonText,
-  IonSpinner,
 } from "@ionic/vue";
-import { alertCircleOutline, refreshOutline } from "ionicons/icons";
+import {
+  alertCircleOutline,
+  arrowBackOutline,
+  refreshOutline,
+} from "ionicons/icons";
 
 import NavBar from "@/layout/NavBar.vue";
 import FormationSelector from "@/components/formation/FormationSelector.vue";
@@ -135,10 +131,13 @@ import ArticleDetail from "@/components/ArticleDetail.vue";
 
 import { useTeamLineup } from "@/composables/useTeamLineup";
 import { useLeagueStore } from "@/stores/league";
+import { useToast } from "@/composables/useToast";
 import { FORMATIONS } from "@/types/pitch";
 import type { Schema, Position } from "@/../../dto/formationDTO";
 import type { ContractDTO } from "@/../../dto/contractDTO";
 import { useI18n } from "vue-i18n";
+
+const router = useRouter();
 
 // ── Composable ────────────────────────────────────────────────────────────
 const {
@@ -161,6 +160,40 @@ const leagueStore = useLeagueStore();
 const currentLeague = computed(() => leagueStore.currentLeague);
 const formationIds = Object.keys(FORMATIONS) as Schema[];
 const { t } = useI18n();
+const { showPersistent } = useToast();
+
+// ── Persistent save-state indicator ──────────────────────────────────────
+// watchEffect re-runs whenever isDirty/isSaving change and calls onCleanup
+// before each re-run and on unmount — this avoids the async-watcher race
+// where a new invocation fires before the previous showPersistent resolves.
+watchEffect((onCleanup) => {
+  const dirty = isDirty.value;
+  const saving = isSaving.value;
+
+  if (!dirty && !saving) return;
+
+  const message = saving
+    ? t("views.teamPage.saving")
+    : t("views.teamPage.unsavedChanges");
+  const color: "primary" | "medium" = saving ? "primary" : "medium";
+
+  let dismiss: (() => Promise<void>) | null = null;
+  let stale = false;
+
+  showPersistent(message, color).then((fn) => {
+    if (stale) {
+      void fn();
+      return;
+    }
+    dismiss = fn;
+  });
+
+  onCleanup(() => {
+    stale = true;
+    void dismiss?.();
+  });
+});
+
 // Save on Ionic back-button / tab switch
 onIonViewWillLeave(() => {
   if (isDirty.value) saveTeam();
@@ -232,6 +265,12 @@ function handleMoveToEmpty(posKey: string) {
 </script>
 
 <style scoped>
+.back-btn {
+  --padding-start: 0;
+  --padding-end: 4px;
+  margin-inline-end: 4px;
+}
+
 .page-heading {
   display: flex;
   align-items: center;
@@ -305,32 +344,5 @@ function handleMoveToEmpty(posKey: string) {
   color: var(--ion-color-light);
   margin: 0 0 8px;
   opacity: 0.85;
-}
-
-.save-indicator {
-  position: fixed;
-  bottom: calc(64px + var(--ion-safe-area-bottom, 0px) + 8px);
-  right: 16px;
-  background: var(--ion-color-dark);
-  color: var(--ion-color-dark-contrast);
-  padding: 6px 14px;
-  border-radius: 999px;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  opacity: 0.88;
-  pointer-events: none;
-  z-index: 200;
-}
-
-.save-indicator--saving {
-  background: var(--ion-color-primary);
-  opacity: 1;
-}
-
-.save-spinner {
-  width: 14px;
-  height: 14px;
 }
 </style>

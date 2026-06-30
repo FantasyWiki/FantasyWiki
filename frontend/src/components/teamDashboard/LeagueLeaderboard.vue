@@ -25,7 +25,7 @@
           :disabled="true"
           style="opacity: 1"
         >
-          <ion-label>{{ props.currentLeague?.domain }}</ion-label>
+          <ion-label>{{ props.currentLeague?.domain.toUpperCase() }}</ion-label>
         </ion-chip>
         <ion-chip
           class="meta-chip"
@@ -36,7 +36,7 @@
         >
           <ion-label>{{
             $t("dashboard.leaderboard.players", {
-              count: props.currentLeague?.teams.length,
+              count: props.leaderboard.length,
             })
           }}</ion-label>
         </ion-chip>
@@ -49,7 +49,11 @@
         >
           <ion-label>{{
             $t("dashboard.leaderboard.ends", {
-              date: props.currentLeague?.endDate,
+              date: props.currentLeague?.endDate.toLocaleString(locale, {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              }),
             })
           }}</ion-label>
         </ion-chip>
@@ -72,10 +76,10 @@
 
       <ion-list v-else lines="none" class="player-list">
         <ion-item
-          v-for="(player, rank) in props.leaderboard"
+          v-for="(entry, rank) in props.leaderboard"
           :key="rank"
           class="player-item"
-          :class="{ 'player-item--me': isCurrentUser(player) }"
+          :class="{ 'player-item--me': isCurrentUser(entry) }"
           :detail="false"
         >
           <div
@@ -98,12 +102,12 @@
               <div class="player-name-row">
                 <span
                   class="player-name"
-                  :class="{ 'player-name--me': isCurrentUser(player) }"
+                  :class="{ 'player-name--me': isCurrentUser(entry) }"
                 >
-                  {{ player.name }}
+                  {{ entry.team.name }}
                 </span>
                 <ion-badge
-                  v-if="isCurrentUser(player)"
+                  v-if="isCurrentUser(entry)"
                   color="primary"
                   class="you-badge"
                 >
@@ -114,7 +118,7 @@
                 <p class="player-points ion-no-margin">
                   {{
                     $t("dashboard.leaderboard.points", {
-                      points: player.points.toLocaleString(),
+                      points: entry.cumulativePoints.toLocaleString(),
                     })
                   }}
                 </p>
@@ -122,15 +126,12 @@
             </div>
 
             <!-- Change indicator -->
-            <div
-              class="player-change"
-              :class="getRankChange(player.id).cssClass"
-            >
+            <div class="player-change" :class="getRankChange(entry).cssClass">
               <ion-icon
                 class="player-change-icon"
-                :icon="getRankChange(player.id).icon"
+                :icon="getRankChange(entry).icon"
               />
-              <span>{{ getRankChange(player.id).label }}</span>
+              <span>{{ getRankChange(entry).label }}</span>
             </div>
           </div>
         </ion-item>
@@ -179,81 +180,43 @@ import {
 } from "ionicons/icons";
 import { TeamDTO } from "../../../../dto/teamDTO";
 import { LeagueDTO } from "../../../../dto/leagueDTO";
+import { LeaderboardEntryDTO } from "../../../../dto/leaderboardDTO";
 import { computed } from "vue";
-import { PerformanceDTO } from "../../../../dto/performanceDTO";
+
+import { useI18n } from "vue-i18n";
 
 interface Props {
-  leaderboard: TeamDTO[];
+  leaderboard: LeaderboardEntryDTO[];
   currentLeague: LeagueDTO | null;
   currentTeam: TeamDTO | null;
-  pastLeaderboard: PerformanceDTO[] | null;
   slice: number;
 }
 
 const props = defineProps<Props>();
 const router = useRouter();
 
-function isCurrentUser(t: TeamDTO): boolean {
-  return t.id === props.currentTeam?.id;
+const { locale } = useI18n();
+
+function isCurrentUser(entry: LeaderboardEntryDTO): boolean {
+  return entry.team.id === props.currentTeam?.id;
 }
 
 const sliceAroundUser = computed<[number, number]>(() => {
   const entries = props.leaderboard || [];
-  const idx = entries.findIndex((e) => e.id === props.currentTeam?.id);
+  const idx = entries.findIndex((e) => e.team.id === props.currentTeam?.id);
   if (idx === -1) return [0, props.slice]; // user not found, default to top slice
   const start = Math.max(0, idx - props.slice / 2);
   const end = Math.min(entries.length, idx + props.slice / 2 + 1);
   return [start, end];
 });
 
-const previousRanks = computed(() => {
-  const raw = props.pastLeaderboard ?? [];
-
-  const grouped = raw.reduce((map, p) => {
-    const group = map.get(p.teamId) ?? [];
-    group.push(p);
-    map.set(p.teamId, group);
-    return map;
-  }, new Map<string, PerformanceDTO[]>());
-
-  const twoDaysAgoPoints = [...grouped.entries()]
-    .map(([teamId, perfs]) => ({
-      teamId,
-      points: perfs[1]?.points ?? 0,
-    }))
-    .sort((a, b) => b.points - a.points);
-
-  const previousRanks = new Map(
-    twoDaysAgoPoints.map((entry, idx) => [entry.teamId, idx + 1])
-  );
-
-  return [...grouped.entries()]
-    .map(([teamId, perfs]) => ({
-      teamId,
-      points: perfs[0]?.points ?? 0,
-      previousRank: previousRanks.get(teamId) ?? null,
-    }))
-    .sort((a, b) => b.points - a.points)
-    .map((entry, idx) => ({
-      ...entry,
-      rankChange:
-        entry.previousRank !== null ? entry.previousRank - (idx + 1) : null,
-    }));
-});
-
-function rankChangeById(id: string) {
-  return (
-    previousRanks.value.find((entry) => entry.teamId === id)?.rankChange ?? 0
-  );
-}
-
-function getRankChange(teamId: string): {
+function getRankChange(entry: LeaderboardEntryDTO): {
   icon: string;
   cssClass: string;
   label: string;
 } {
-  const change = rankChangeById(teamId);
-  if (change === null)
+  const change = entry.rankDelta;
+  if (change == null)
     return { icon: removeOutline, cssClass: "player-change--new", label: "—" };
   if (change === 0)
     return {

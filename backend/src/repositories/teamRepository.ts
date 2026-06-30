@@ -12,4 +12,8 @@ export interface TeamRepository {
     name: string,
     leagueId: string,
   ): Promise<Result<boolean>>;
+  getByPlayerAndLeague(
+    playerId: string,
+    leagueId: string,
+  ): Promise<Result<Team | null>>;
 }

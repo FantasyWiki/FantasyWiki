@@ -3,7 +3,10 @@ import {
   CHEMISTRY_LINKS,
   ChemistryLevel,
   createChemistryLinks,
+  createDraftFormation,
+  normalizeChemistryLinks,
   validateChemistryLinks,
+  isValidFormation,
   calculateChemistry,
   computeChemistryLinks,
 } from "../../../../dto/formationDTO";
@@ -17,7 +20,6 @@ function contractWith(title: string): ContractDTO {
       name: "T",
       credits: 0,
       player: { id: "p", name: "P" },
-      points: 0,
     },
     article: { id: `a-${title}`, title, domain: "en" },
     startDate: "2026-01-01T00:00:00Z",
@@ -95,6 +97,67 @@ describe("chemistry link helpers", () => {
 
     const duplicate = [...valid, valid[0]];
     expect(validateChemistryLinks("4-3-3", duplicate)).toBe(false);
+  });
+
+  it("rejects raw [from,to] tuples and non-array/malformed input", () => {
+    // The exact malformed shape the backend used to send.
+    expect(validateChemistryLinks("4-3-3", CHEMISTRY_LINKS["4-3-3"])).toBe(
+      false
+    );
+    expect(validateChemistryLinks("4-3-3", null)).toBe(false);
+    expect(validateChemistryLinks("4-3-3", undefined)).toBe(false);
+    expect(validateChemistryLinks("4-3-3", "nope")).toBe(false);
+    expect(validateChemistryLinks("4-3-3", [{ from: "GK" }])).toBe(false);
+  });
+
+  describe("normalizeChemistryLinks", () => {
+    it("returns well-formed links unchanged", () => {
+      const valid = createChemistryLinks("4-3-3");
+      expect(normalizeChemistryLinks("4-3-3", valid)).toBe(valid);
+    });
+
+    it("rebuilds empty links when input is malformed (e.g. raw tuples)", () => {
+      const result = normalizeChemistryLinks("4-3-3", CHEMISTRY_LINKS["4-3-3"]);
+      expect(validateChemistryLinks("4-3-3", result)).toBe(true);
+      expect(result.every((link) => link.level === ChemistryLevel.EMPTY)).toBe(
+        true
+      );
+    });
+
+    it("rebuilds for the requested schema when input is null", () => {
+      const result = normalizeChemistryLinks("4-4-2", null);
+      expect(result).toHaveLength(CHEMISTRY_LINKS["4-4-2"].length);
+      expect(validateChemistryLinks("4-4-2", result)).toBe(true);
+    });
+  });
+
+  describe("isValidFormation", () => {
+    it("accepts a partial lineup (empty slots are allowed)", () => {
+      const draft = createDraftFormation("4-3-3", {
+        LW: contractWith("Messi"),
+      });
+      expect(isValidFormation(draft)).toBe(true);
+    });
+
+    it("accepts a fully empty lineup", () => {
+      expect(isValidFormation(createDraftFormation("4-3-3"))).toBe(true);
+    });
+
+    it("rejects a position that does not belong to the schema", () => {
+      const draft = createDraftFormation("4-3-3", {
+        // CB is not a 4-3-3 position (it uses CLB/CRB).
+        CB: contractWith("Maldini"),
+      });
+      expect(isValidFormation(draft)).toBe(false);
+    });
+
+    it("rejects when chemistry does not match the schema", () => {
+      const draft = {
+        ...createDraftFormation("4-3-3", { LW: contractWith("Messi") }),
+        chemistry: createChemistryLinks("4-4-2"),
+      };
+      expect(isValidFormation(draft)).toBe(false);
+    });
   });
 
   describe("computeChemistryLinks", () => {

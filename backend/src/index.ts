@@ -4,6 +4,8 @@ import { jwt } from "hono/jwt";
 import auth, { resolveFrontendUrl } from "./routes/auth";
 import session from "./routes/session";
 import leagues from "./routes/leagues";
+import notifications from "./routes/notifications";
+import player from "./routes/player";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -48,5 +50,11 @@ app.route("/api/session", session);
 
 // Mount leagues routes
 app.route("/api/leagues", leagues);
+
+// Mount notifications routes
+app.route("/api/notifications", notifications);
+
+// Mount player routes
+app.route("/api/player", player);
 
 export default app;

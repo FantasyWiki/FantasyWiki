@@ -35,27 +35,27 @@ export class DashboardData {
   contracts: ContractDTO[];
   notifications: NotificationDTO[];
   recentPoints: TeamPointsData;
-  // Rank is derived from the full league standings, which are fixed for the
-  // lifetime of a DashboardData instance (it is rebuilt on every fetch), so we
-  // compute it once here instead of re-sorting the teams on every getter access.
+  // Both rank and totalPlayers are pre-computed from the leaderboard response
+  // and passed in by the caller — league.teams is always empty from the backend.
   private readonly _rank: number;
+  private readonly _totalPlayers: number;
 
   constructor(
     team: TeamDTO,
     league: LeagueDTO,
     contracts: ContractDTO[],
     notifications: NotificationDTO[],
-    recentPoints: TeamPointsData
+    recentPoints: TeamPointsData,
+    rank: number,
+    totalPlayers: number
   ) {
     this.team = team;
     this.league = league;
     this.contracts = contracts;
     this.notifications = notifications;
     this.recentPoints = recentPoints;
-    this._rank =
-      [...league.teams]
-        .sort((a, b) => b.points - a.points)
-        .findIndex((t) => t.id === team.id) + 1;
+    this._rank = rank;
+    this._totalPlayers = totalPlayers;
   }
 
   //TODO: to change with the current price that i still don't know how to get it
@@ -67,7 +67,7 @@ export class DashboardData {
   }
 
   get totalPlayers(): number {
-    return this.league.teams.length;
+    return this._totalPlayers;
   }
 
   get activeContracts(): number {

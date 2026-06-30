@@ -243,6 +243,9 @@
     }
   },
   "views": {
+    "teamCreation": {
+      "created": "Squadra creata! 🎉 \"{name}\" è pronta a competere in {league}."
+    },
     "teamDashboard": {
       "loading": "Caricamento dashboard…",
       "errorTitle": "Errore nel caricamento della dashboard",
@@ -256,6 +259,8 @@
       "save": "Salva",
       "saving": "Salvataggio…",
       "unsavedChanges": "Modifiche non salvate",
+      "saveSuccess": "Formazione salvata!",
+      "saveFailed": "Impossibile salvare la formazione. Riprova.",
       "retry": "Riprova"
     }
   },
@@ -283,8 +288,5 @@
     "noArticles": "Nessun articolo disponibile",
     "sortLabel": "Ordina:",
     "paginationInfo": "{from}–{to} di {total}"
-  },
-  "asyncIndicator": {
-    "loading": "Caricando..."
   }
 }

@@ -1,9 +1,8 @@
 import {ArticleSummary, createGetSummary} from "./client/getSummary";
 import {createGetTopReadList, TopReadListResult} from "./client/getTopReadList";
-import {Domain} from "../../dto/enums";
+import {Domain} from "../../model/enums";
 import {createGetViewsByDomain, DomainResult} from "./client/getViewsByDomain";
 import {createGetLinks, articleWithLinks} from "./client/getLinks";
-import {ChemistryLevel} from "../../dto/formationDTO";
 import {createResolveArticleViews} from "./client/articleViews";
 import {createSearchArticles} from "./client/searchArticles";
 import {TopReadEntry} from "./wikimedia";

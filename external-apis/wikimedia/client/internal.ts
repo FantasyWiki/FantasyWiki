@@ -1,4 +1,4 @@
-import {Domain} from "../../../dto/enums";
+import {Domain} from "../../../model/enums";
 import {WikimediaHttp} from "../client";
 
 export const PAGEVIEWS_BASE_URL =

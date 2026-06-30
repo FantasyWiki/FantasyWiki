@@ -1,4 +1,4 @@
-import type { Domain } from "../../../dto/enums";
+import type { Domain } from "../../../model/enums";
 import {fetchJsonWithRetry, withCache} from "./internal";
 import { wikipediaRestUrl} from "./internal";
 import {CacheLike, WikimediaHttp} from "../client";

@@ -1,6 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { TeamDTO } from "./teamDTO";
-import { Domain } from "./enums";
+import { Domain } from "../model/enums";
 
 export interface LeagueDTO {
   id: string;

@@ -248,7 +248,7 @@
               <ion-card-content>
                 <div class="card-header-row">
                   <div class="card-title-block">
-                    <p class="card-title">{{ article.title }}</p>
+                    <h4 class="card-title">{{ article.title }}</h4>
                     <a
                       :href="`https://en.wikipedia.org/wiki/${article.slug}`"
                       target="_blank"
@@ -280,27 +280,27 @@
                 <div class="card-stats-grid">
                   <div class="stat-cell">
                     <p class="stat-label">{{ t("market.colYesterday") }}</p>
-                    <p class="stat-value">
+                    <h6 class="stat-value">
                       {{ formatViews(article.yesterdayViews) }}
-                    </p>
+                    </h6>
                   </div>
                   <div class="stat-cell">
                     <p class="stat-label">{{ t("market.colWeek") }}</p>
-                    <p class="stat-value">
+                    <h6 class="stat-value">
                       {{ formatViews(article.weekViews) }}
-                    </p>
+                    </h6>
                   </div>
                   <div class="stat-cell">
                     <p class="stat-label">{{ t("market.colMonth") }}</p>
-                    <p class="stat-value">
+                    <h6 class="stat-value">
                       {{ formatViews(article.monthViews) }}
-                    </p>
+                    </h6>
                   </div>
                   <div class="stat-cell">
                     <p class="stat-label">{{ t("market.colYear") }}</p>
-                    <p class="stat-value">
+                    <h6 class="stat-value">
                       {{ formatViews(article.yearViews) }}
-                    </p>
+                    </h6>
                   </div>
                 </div>
               </ion-card-content>

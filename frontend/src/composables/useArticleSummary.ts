@@ -1,5 +1,5 @@
 import { ref, watch, type Ref } from "vue";
-import type { Domain } from "../../../dto/enums";
+import type { Domain } from "../../../model/enums";
 import { createWikimediaClient } from "@/services/wikimediaClient";
 import type { ArticleSummary } from "../../../external-apis/wikimedia/client/getSummary";
 

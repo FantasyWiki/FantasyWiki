@@ -6,11 +6,13 @@ import {
   leagues,
   articles,
   notifications,
+  performancesByLeague,
   players,
   teams,
 } from "./data";
 import { ContractDTO } from "../../../dto/contractDTO";
 import type { TeamDTO } from "../../../dto/teamDTO";
+import type { LeaderboardEntryDTO } from "../../../dto/leaderboardDTO";
 import type { TeamLineUp } from "@/types/team";
 import { mockTeamResponse } from "@/mocks/formationMocks";
 import Instant = Temporal.Instant;
@@ -149,7 +151,6 @@ export const handlers = [
       name: body.name.trim(),
       player: player!,
       credits: 1000,
-      points: 0,
     };
     return HttpResponse.json(team, { status: 201 });
   }),
@@ -210,7 +211,7 @@ export const handlers = [
     HttpResponse.json(mockWikimediaSearch)
   ),
 
-  http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {
+  http.get("*/api/leagues/:leagueId/my-contracts", ({ params }) => {
     const team = getMyTeam(params.leagueId as string);
     if (!team) return HttpResponse.json([]);
     return HttpResponse.json(contracts.filter((c) => c.team.id === team.id));
@@ -353,12 +354,67 @@ export const handlers = [
     return HttpResponse.json(article);
   }),
 
-  // ── Performances ──────────────────────────────────────────────────────────────
-  http.get("*/api/leagues/:leagueId/performances", () => {
-    const performances = [
-      { id: "perf-1", date: Temporal.PlainDate.from("2024-02-01"), points: 12 },
-      { id: "perf-2", date: Temporal.PlainDate.from("2024-02-02"), points: 15 },
-    ];
-    return HttpResponse.json(performances);
+  // ── Leaderboard ────────────────────────────────────────────────────────────────
+  http.get("*/api/leagues/:leagueId/leaderboard", ({ params }) => {
+    const leagueId = params.leagueId as string;
+    const league = leagues.find((l) => l.id === leagueId);
+    if (!league) return HttpResponse.json([]);
+
+    const perfs = performancesByLeague[leagueId] ?? [];
+
+    // Cumulative points per team = SUM of that team's performance entries.
+    const cumulativeByTeam = new Map<string, number>();
+    // Today's daily contribution per team (latest snapshot) — used to derive
+    // each team's standing "yesterday" for the rankDelta indicator.
+    const todayByTeam = new Map<string, number>();
+    for (const p of perfs) {
+      cumulativeByTeam.set(
+        p.teamId,
+        (cumulativeByTeam.get(p.teamId) ?? 0) + p.points
+      );
+      if (!todayByTeam.has(p.teamId)) todayByTeam.set(p.teamId, p.points);
+    }
+
+    // Current standings: teams sorted by cumulative points desc.
+    const ranked = [...league.teams]
+      .map((team) => ({
+        team,
+        cumulativePoints: cumulativeByTeam.get(team.id) ?? 0,
+      }))
+      .sort((a, b) => b.cumulativePoints - a.cumulativePoints);
+
+    // Yesterday's standings: cumulative minus today's daily contribution.
+    const yesterdayRank = new Map(
+      [...ranked]
+        .map((e) => ({
+          id: e.team.id,
+          points: e.cumulativePoints - (todayByTeam.get(e.team.id) ?? 0),
+        }))
+        .sort((a, b) => b.points - a.points)
+        .map((e, idx) => [e.id, idx + 1] as const)
+    );
+
+    const entries: LeaderboardEntryDTO[] = ranked.map((e, idx) => {
+      const rank = idx + 1;
+      const rankDelta = todayByTeam.has(e.team.id)
+        ? yesterdayRank.get(e.team.id)! - rank
+        : null;
+      return {
+        team: e.team,
+        cumulativePoints: e.cumulativePoints,
+        rank,
+        rankDelta,
+      };
+    });
+
+    return HttpResponse.json(entries);
+  }),
+
+  http.get("*/api/leagues/:leagueId/my-performances", ({ params }) => {
+    const leagueId = params.leagueId as string;
+    const myTeam = getMyTeam(leagueId);
+    if (!myTeam) return HttpResponse.json([]);
+    const all = performancesByLeague[leagueId] ?? [];
+    return HttpResponse.json(all.filter((p) => p.teamId === myTeam.id));
   }),
 ];

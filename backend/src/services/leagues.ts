@@ -1,5 +1,5 @@
 import { LeagueDTO } from "../../../dto/leagueDTO";
-import { Domain } from "../../../dto/enums";
+import { Domain } from "../../../model/enums";
 import { League } from "../../../model";
 
 /**

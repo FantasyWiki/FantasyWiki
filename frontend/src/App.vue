@@ -1,14 +1,12 @@
 <template>
   <ion-app>
     <ion-router-outlet id="router-outlet"></ion-router-outlet>
-    <async-floating-indicator />
   </ion-app>
 </template>
 
 <script setup lang="ts">
 import { onMounted, provide, ref } from "vue";
 import { IonApp, IonRouterOutlet } from "@ionic/vue";
-import AsyncFloatingIndicator from "@/components/common/AsyncFloatingIndicator.vue";
 
 // Global state that can be accessed by all components
 const isDark = ref(false);

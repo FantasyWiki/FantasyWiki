@@ -3,7 +3,7 @@ import { FormationDTO } from "./formationDTO";
 
 export interface PerformanceDTO {
   teamId: string;
-  date: Temporal.Instant;
+  date: Temporal.PlainDate;
   formation: FormationDTO;
   points: number;
 }

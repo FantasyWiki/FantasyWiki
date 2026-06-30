@@ -66,4 +66,24 @@ export class TeamRepositoryD1 implements TeamRepository {
       );
     }
   }
+
+  async getByPlayerAndLeague(
+    playerId: string,
+    leagueId: string,
+  ): Promise<Result<Team | null>> {
+    try {
+      const result = await this.db
+        .prepare(
+          "SELECT * FROM teams WHERE playerId = ? AND leagueId = ? LIMIT 1",
+        )
+        .bind(playerId, leagueId)
+        .first<Team>();
+
+      return success(result ?? null);
+    } catch (error) {
+      return failure(
+        `Error fetching team: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
 }

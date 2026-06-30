@@ -1,42 +1,20 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { ContractDTO } from "./contractDTO";
 import {
-    CHEMISTRY_LINKS,
+    Schema,
+    Position,
+    PositionsForSchema,
     FORMATIONS,
-    type Position as EnumPosition,
-    type PositionsForSchema as EnumPositionsForSchema,
-    type Schema as EnumSchema,
-} from "./enums";
+    CHEMISTRY_LINKS,
+    ChemistryLevel,
+    CHEMISTRY_MULTIPLIER_BY_LEVEL,
+    ChemistryLink,
+    ChemistryLinksForSchema,
+} from "../model/enums";
 
-export type Schema = EnumSchema;
-export type Position = EnumPosition;
-export type PositionsForSchema<S extends Schema> = EnumPositionsForSchema<S>;
-
-export const ChemistryLevel = {
-    EMPTY:     'empty',
-    WEAK:      'weak',
-    GOOD:      'good',
-    EXCELLENT: 'excellent',
-} as const;
-
-export type ChemistryLevel = typeof ChemistryLevel[keyof typeof ChemistryLevel];
-
-export const CHEMISTRY_MULTIPLIER_BY_LEVEL = {
-    excellent: 1.2,
-    good: 1.1,
-    weak: 1.05,
-    empty: 1.0,
-} as const satisfies Record<ChemistryLevel, number>;
-
-export type ChemistryLink<S extends Schema = Schema> = {
-    from: PositionsForSchema<S>;
-    to: PositionsForSchema<S>;
-    level: ChemistryLevel;
-};
-
-export type ChemistryLinksForSchema<S extends Schema = Schema> = ChemistryLink<S>[];
-
-export { CHEMISTRY_LINKS } from "./enums";
+// Re-export domain types for consumers that import them from this file.
+export type { Schema, Position, PositionsForSchema, ChemistryLink, ChemistryLinksForSchema };
+export { CHEMISTRY_LINKS, CHEMISTRY_MULTIPLIER_BY_LEVEL, FORMATIONS, ChemistryLevel };
 
 /**
  * Editable formation used while the user is composing or modifying a lineup.
@@ -147,14 +125,25 @@ export function createChemistryLinks<S extends Schema>(
     }));
 }
 
-function chemistryPairKey(from: Position, to: Position): string {
+function chemistryPairKey(from: string, to: string): string {
     return [from, to].sort().join("-");
 }
 
-export function validateChemistryLinks<S extends Schema>(
-    schema: S,
-    chemistry: ChemistryLinksForSchema<S>,
+/**
+ * Validates a chemistry-link list against the canonical set of links for the
+ * given schema.
+ *
+ * The input is treated as untrusted: a non-array, entries that are not
+ * `{ from, to }` objects (e.g. raw `[from, to]` tuples), missing pairs,
+ * duplicates, or pairs outside the schema all fail. It succeeds only when the
+ * list is exactly the schema's link topology, each pair present once.
+ */
+export function validateChemistryLinks(
+    schema: Schema,
+    chemistry: unknown,
 ): boolean {
+    if (!Array.isArray(chemistry)) return false;
+
     const expectedPairs = CHEMISTRY_LINKS[schema];
     if (chemistry.length !== expectedPairs.length) return false;
 
@@ -164,12 +153,40 @@ export function validateChemistryLinks<S extends Schema>(
     const seen = new Set<string>();
 
     for (const link of chemistry) {
-        const key = chemistryPairKey(link.from, link.to);
+        if (
+            typeof link !== "object" ||
+            link === null ||
+            typeof (link as ChemistryLink).from !== "string" ||
+            typeof (link as ChemistryLink).to !== "string"
+        ) {
+            return false;
+        }
+        const { from, to } = link as ChemistryLink;
+        const key = chemistryPairKey(from, to);
         if (!expectedSet.has(key) || seen.has(key)) return false;
         seen.add(key);
     }
 
     return seen.size === expectedSet.size;
+}
+
+/**
+ * Returns the given chemistry links when they are well-formed for the schema,
+ * otherwise rebuilds them from scratch with empty levels.
+ *
+ * This is the safety net for data crossing a trust boundary (e.g. an API
+ * response): anything that does not pass {@link validateChemistryLinks} — a
+ * non-array, raw `[from, to]` tuples, or links that do not match the schema's
+ * topology — is replaced, so downstream rendering and validation always receive
+ * a coherent {@link ChemistryLink} list.
+ */
+export function normalizeChemistryLinks<S extends Schema>(
+    schema: S,
+    chemistry: unknown,
+): ChemistryLinksForSchema<S> {
+    return validateChemistryLinks(schema, chemistry)
+        ? (chemistry as ChemistryLinksForSchema<S>)
+        : createChemistryLinks(schema);
 }
 
 /**
@@ -210,13 +227,14 @@ export function validateDraftFormation<S extends Schema>(
 
 /**
  * Type guard that tells TypeScript whether a draft formation can be treated
- * as a complete final formation.
+ * as a complete final formation (i.e. every schema position is filled).
  *
  * Internally this uses `validateDraftFormation`. If it returns `true`, the draft
  * is narrowed from `DraftFormationDTO<S>` to `FormationDTO<S>`.
  *
- * This is useful when you want both runtime validation and compile-time narrowing
- * in the same `if` block.
+ * Note: completeness is NOT a precondition for saving — a partial lineup is a
+ * valid thing to persist (see {@link isValidFormation}). Use this only when a
+ * call site genuinely requires every slot to be filled.
  *
  * @typeParam S - The selected schema type.
  * @param draft - The draft formation to check.
@@ -226,6 +244,34 @@ export function isCompleteFormation<S extends Schema>(
     draft: DraftFormationDTO<S>,
 ): draft is FormationDTO<S> {
     return validateDraftFormation(draft);
+}
+
+/**
+ * Checks whether a draft formation is structurally valid for persistence.
+ *
+ * Unlike {@link isCompleteFormation}, this does NOT require every schema position
+ * to be filled — a partial lineup is a legitimate save. The scorer simply awards
+ * no points for an empty slot, so there is no reason to block a player from
+ * saving a half-built formation.
+ *
+ * Validation succeeds when:
+ * - every occupied position belongs to the selected schema,
+ * - no occupied position holds a null/undefined contract,
+ * - the chemistry links match the schema.
+ *
+ * @typeParam S - The selected schema type.
+ * @param draft - The draft formation to validate.
+ * @returns `true` if the draft can be safely persisted, otherwise `false`.
+ */
+export function isValidFormation<S extends Schema>(
+    draft: DraftFormationDTO<S>,
+): boolean {
+    const validPositions = new Set<Position>(FORMATIONS[draft.schema]);
+    for (const [position, contract] of Object.entries(draft.formation)) {
+        if (!validPositions.has(position as Position)) return false;
+        if (contract == null) return false;
+    }
+    return validateChemistryLinks(draft.schema, draft.chemistry);
 }
 
 /**

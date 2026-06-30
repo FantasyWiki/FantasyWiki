@@ -1,6 +1,6 @@
 # Setup QA Deploy
 
-Quick guide to enable automatic QA deployment on branch `dev` with a dedicated QA D1 database.
+Quick guide to enable automatic QA deployment on push to `master` with a dedicated QA D1 database. Production deploys are triggered separately by pushing a `v*` tag (see `dev-branch-deployment.md` and `deploy-strategy.md`).
 
 ---
 
@@ -60,11 +60,10 @@ If any are missing, add them with the same process as Step 2.
 
 ---
 
-## Step 5: Create Branch `dev`
+## Step 5: Push to `master`
 
 ```bash
-git checkout -b dev
-git push origin dev
+git push origin master
 ```
 
 GitHub Actions will automatically run the `deploy.yml` workflow.
@@ -77,11 +76,11 @@ Go to: https://github.com/luca0patrignani/FantasyWiki/actions
 
 Find the "Deploy" workflow. The following jobs should pass:
 - ✅ check
-- ✅ deploy-backend (matrix: dev)
-- ✅ deploy-frontend (matrix: dev)
-- ✅ migrate-d1 (matrix: dev)
+- ✅ deploy-backend (preview)
+- ✅ deploy-frontend (preview)
+- ✅ migrate-d1 (preview)
 
-If `migrate-d1` fails on `dev`, ensure:
+If `migrate-d1` fails on `master`, ensure:
 1. `D1_QA_DATABASE_ID` is configured (Step 2)
 2. The QA database exists on Cloudflare (`wrangler d1 list --remote`)
 
@@ -93,7 +92,7 @@ If you need to deploy QA without a push:
 
 1. Open: https://github.com/luca0patrignani/FantasyWiki/actions/workflows/deploy.yml
 2. Click "Run workflow"
-3. Select branch: `dev`
+3. Select branch: `master`
 4. Click "Run workflow"
 
 ---
@@ -104,7 +103,7 @@ If QA is broken:
 
 ```bash
 git revert <commit-hash>
-git push origin dev
+git push origin master
 ```
 
 The workflow will redeploy with the reverted code.
@@ -148,4 +147,4 @@ If build or runtime fails due to backend URL:
 
 1. [Read the full deploy strategy](deploy-strategy.md)
 2. [Configure D1 migrations (optional)](../backend/README.md#type-generation)
-3. Validate on `dev` before opening a PR to `master`
+3. Validate on `master` (QA) before pushing a `v*` tag for production

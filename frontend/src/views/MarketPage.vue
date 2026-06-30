@@ -55,7 +55,12 @@
             <span class="balance-label ion-hide-sm-down"
               >{{ t("market.balance") }}:</span
             >
-            <span class="balance-value">{{ PLACEHOLDER_BALANCE }} Cr</span>
+            <ion-spinner
+              v-if="isBalanceLoading"
+              name="dots"
+              class="balance-spinner"
+            />
+            <span v-else class="balance-value">{{ balanceLabel }} Cr</span>
           </div>
         </div>
 
@@ -410,14 +415,17 @@ import {
   type SortKey,
   type StatusFilter,
 } from "@/composables/useMarket";
+import { useTeamBalance } from "@/composables/useTeamBalance";
 import type { MarketArticle } from "@/types/market";
-
-// TODO: replace with real player balance from API when backend is ready
-const PLACEHOLDER_BALANCE = 550;
 
 const { t } = useI18n();
 const leagueStore = useLeagueStore();
 const currentLeague = computed(() => leagueStore.currentLeague);
+
+const { credits, isLoading: isBalanceLoading } = useTeamBalance();
+const balanceLabel = computed(() =>
+  credits.value === null ? "—" : credits.value.toLocaleString()
+);
 
 const {
   isLoading,
@@ -591,6 +599,12 @@ async function handleRefresh(event: CustomEvent) {
 .balance-value {
   font-size: 1rem;
   font-weight: 700;
+  color: var(--ion-color-primary);
+}
+
+.balance-spinner {
+  width: 20px;
+  height: 20px;
   color: var(--ion-color-primary);
 }
 

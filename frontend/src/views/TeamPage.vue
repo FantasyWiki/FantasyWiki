@@ -39,6 +39,14 @@
       <!-- Page heading -->
       <div class="page-heading">
         <div class="heading-left">
+          <ion-button
+            fill="clear"
+            size="small"
+            class="back-btn"
+            @click="router.back()"
+          >
+            <ion-icon slot="icon-only" :icon="arrowBackOutline" />
+          </ion-button>
           <h2 class="page-title">{{ t("views.teamPage.title") }}</h2>
           <ion-badge v-if="currentLeague" color="primary" class="league-badge">
             {{ currentLeague.icon }} {{ currentLeague.title }}
@@ -113,6 +121,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
 import { onIonViewWillLeave } from "@ionic/vue";
 import {
   IonBadge,
@@ -125,7 +134,11 @@ import {
   IonSkeletonText,
   IonSpinner,
 } from "@ionic/vue";
-import { alertCircleOutline, refreshOutline } from "ionicons/icons";
+import {
+  alertCircleOutline,
+  arrowBackOutline,
+  refreshOutline,
+} from "ionicons/icons";
 
 import NavBar from "@/layout/NavBar.vue";
 import FormationSelector from "@/components/formation/FormationSelector.vue";
@@ -139,6 +152,8 @@ import { FORMATIONS } from "@/types/pitch";
 import type { Schema, Position } from "@/../../dto/formationDTO";
 import type { ContractDTO } from "@/../../dto/contractDTO";
 import { useI18n } from "vue-i18n";
+
+const router = useRouter();
 
 // ── Composable ────────────────────────────────────────────────────────────
 const {
@@ -232,6 +247,12 @@ function handleMoveToEmpty(posKey: string) {
 </script>
 
 <style scoped>
+.back-btn {
+  --padding-start: 0;
+  --padding-end: 4px;
+  margin-inline-end: 4px;
+}
+
 .page-heading {
   display: flex;
   align-items: center;

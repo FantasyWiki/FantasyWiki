@@ -2,7 +2,10 @@
 import { DashboardData, Session, TeamPointsData } from "@/types/models";
 import { PlayerDTO } from "../../../dto/playerDTO";
 import { LeagueDTO } from "../../../dto/leagueDTO";
-import { NotificationDTO } from "../../../dto/notificationDTO";
+import {
+  RawNotification,
+  deserializeNotification,
+} from "../../../dto/notificationDTO";
 import { TeamDTO } from "../../../dto/teamDTO";
 import { ContractDTO, type RawContract } from "../../../dto/contractDTO";
 import { ArticleDTO } from "../../../dto/articleDTO";
@@ -51,7 +54,9 @@ export const playerApi = {
   getCurrent: () => apiRequest<PlayerDTO>("/player"),
   getTeams: () => apiRequest<TeamDTO[]>("/player/teams"),
   getNotifications: () =>
-    apiRequest<NotificationDTO[]>("/player/notifications"),
+    apiRequest<RawNotification[]>("/player/notifications").then((ns) =>
+      ns.map(deserializeNotification)
+    ),
 };
 
 // ── Leagues ───────────────────────────────────────────────────────────────────
@@ -80,7 +85,9 @@ export const leaguesApi = {
     ),
   /** All notifications for the current player in this league */
   getMyNotifications: (id: string) =>
-    apiRequest<NotificationDTO[]>(`/leagues/${id}/my-notifications`),
+    apiRequest<RawNotification[]>(`/leagues/${id}/my-notifications`).then(
+      (ns) => ns.map(deserializeNotification)
+    ),
 
   // ── Leaderboard ────────────────────────────────────────────────────────────
 
@@ -113,8 +120,6 @@ export const teamsApi = {
     apiRequest<RawContract[]>(`/teams/${id}/contracts`).then((cs) =>
       cs.map((c) => ContractDTO.fromRaw(c))
     ),
-  getNotifications: (id: string) =>
-    apiRequest<NotificationDTO[]>(`/teams/${id}/notifications`),
   createContract: (
     teamId: string,
     data: {
@@ -148,9 +153,12 @@ export const contractsApi = {
 // ── Notifications ─────────────────────────────────────────────────────────────
 
 export const notificationsApi = {
-  getAll: () => apiRequest<NotificationDTO[]>("/notifications"),
+  getAll: () =>
+    apiRequest<RawNotification[]>("/notifications").then((ns) =>
+      ns.map(deserializeNotification)
+    ),
   markAsRead: (id: string) =>
-    apiRequest<NotificationDTO>(`/notifications/${id}/read`, {
+    apiRequest<{ success: boolean }>(`/notifications/${id}/read`, {
       method: "PATCH",
     }),
 };

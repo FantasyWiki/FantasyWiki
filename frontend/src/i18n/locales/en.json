@@ -243,6 +243,9 @@
     }
   },
   "views": {
+    "teamCreation": {
+      "created": "Team Created! 🎉 \"{name}\" is ready to compete in {league}."
+    },
     "teamDashboard": {
       "loading": "Loading dashboard…",
       "errorTitle": "Error loading dashboard",
@@ -256,6 +259,7 @@
       "save": "Save",
       "saving": "Saving…",
       "unsavedChanges": "Unsaved changes",
+      "saveSuccess": "Lineup saved!",
       "saveFailed": "Couldn't save your lineup. Please try again.",
       "retry": "Retry"
     }
@@ -284,8 +288,5 @@
     "noArticles": "No articles available",
     "sortLabel": "Sort:",
     "paginationInfo": "{from}–{to} of {total}"
-  },
-  "asyncIndicator": {
-    "loading": "Working..."
   }
 }

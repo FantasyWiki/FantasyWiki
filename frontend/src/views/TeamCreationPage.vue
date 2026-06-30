@@ -81,13 +81,16 @@ import {
   IonIcon,
   IonLabel,
   IonText,
-  toastController,
 } from "@ionic/vue";
 import { shieldOutline, sparklesOutline } from "ionicons/icons";
+import { useI18n } from "vue-i18n";
 import NavBar from "@/layout/NavBar.vue";
 import api from "@/services/api";
+import { useToast } from "@/composables/useToast";
 
 const router = useRouter();
+const { t } = useI18n();
+const { showSuccess } = useToast();
 
 // New players aren't part of any league yet, so the league store (which only
 // holds leagues the player already has a team in) can't be used here. The
@@ -132,13 +135,12 @@ const handleSubmit = async () => {
 
   isSubmitting.value = false;
 
-  const toast = await toastController.create({
-    message: `Team Created! 🎉 "${trimmed}" is ready to compete in ${league.value?.title}.`,
-    duration: 3000,
-    color: "success",
-    position: "bottom",
-  });
-  await toast.present();
+  await showSuccess(
+    t("views.teamCreation.created", {
+      name: trimmed,
+      league: league.value?.title,
+    })
+  );
 
   router.push("/dashboard");
 };

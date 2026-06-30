@@ -1,7 +1,7 @@
 import { ref, computed, watch } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { toastController } from "@ionic/vue";
 import { useI18n } from "vue-i18n";
+import { useToast } from "@/composables/useToast";
 import { useLeagueStore } from "@/stores/league";
 import { fetchTeam, saveTeamApi } from "@/services/teamService";
 import { createWikimediaClient } from "@/services/wikimediaClient";
@@ -31,6 +31,7 @@ export function useTeamLineup() {
   const leagueStore = useLeagueStore();
   const queryClient = useQueryClient();
   const { t } = useI18n();
+  const { showSuccess, showError } = useToast();
 
   const queryKey = computed(() => ["team-lineup", leagueStore.currentLeagueId]);
 
@@ -192,15 +193,10 @@ export function useTeamLineup() {
         bench: benchContracts.value.map((c) => c.id),
       });
       queryClient.invalidateQueries({ queryKey: queryKey.value });
+      showSuccess(t("views.teamPage.saveSuccess"));
     },
-    onError: async () => {
-      const toast = await toastController.create({
-        message: t("views.teamPage.saveFailed"),
-        duration: 3000,
-        color: "danger",
-        position: "bottom",
-      });
-      await toast.present();
+    onError: () => {
+      showError(t("views.teamPage.saveFailed"));
     },
   });
 

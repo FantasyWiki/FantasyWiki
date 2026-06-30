@@ -284,7 +284,13 @@ describe("TeamService Integration Tests", () => {
         existsByNameInLeague: async () => failure("boom"),
         getByPlayerAndLeague: async () => failure("db error"),
       };
-      const service = new TeamService(failingRepository);
+      const service = new TeamService({
+        teamRepository: failingRepository,
+        lineupRepository: {
+          getByTeamId: async () => failure("unused"),
+          upsert: async () => failure("unused"),
+        },
+      });
 
       const result = await service.getMyTeam(playerId, leagueId, "Alice");
 
@@ -304,7 +310,13 @@ describe("TeamService Integration Tests", () => {
         existsByNameInLeague: async () => failure("unused"),
         getByPlayerAndLeague: async () => success(team),
       };
-      const service = new TeamService(repository);
+      const service = new TeamService({
+        teamRepository: repository,
+        lineupRepository: {
+          getByTeamId: async () => failure("unused"),
+          upsert: async () => failure("unused"),
+        },
+      });
 
       const result = await service.getMyTeam(playerId, leagueId, "Bob");
 

@@ -6,7 +6,7 @@ on:
 
 jobs:
   deploy-production:
-    if: github.ref_name == 'master'
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
     uses: ./.github/workflows/deploy-target.yml
     with:
       environment: production
@@ -23,7 +23,7 @@ jobs:
       JWT_SECRET: ${{ secrets.JWT_SECRET_PRODUCTION }}
 
   deploy-preview:
-    if: github.ref_name == 'dev'
+    if: github.ref_type == 'branch' && github.ref_name == 'master'
     uses: ./.github/workflows/deploy-target.yml
     with:
       environment: preview

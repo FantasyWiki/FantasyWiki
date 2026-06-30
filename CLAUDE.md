@@ -114,10 +114,12 @@ With `VITE_MOCK=true`, MSW intercepts all `/api/*` calls except `/api/session` a
 
 ## Deployment
 
-Branch-based deploys to Cloudflare (see `docs/deploy-strategy.md`):
+Branch/tag-based deploys to Cloudflare (see `docs/deploy-strategy.md`):
 
-- `master` → production Worker `backend`, Pages project `frontend`, D1 `db`
-- `dev` → QA Worker `backend-preview`, Pages `frontend` (dev branch), D1 `db-preview`
+- `master` (branch push) → QA Worker `backend-preview`, Pages `frontend` (dev branch), D1 `db-preview` (`dev.fantasywiki.pages.dev`)
+- `v*` (tag push) → production Worker `backend`, Pages project `frontend`, D1 `db` (`fantasywiki.pages.dev`)
 - `feature/*` and `renovate/*` → CI only (`./gradlew check`), no deploy
 
-The `dispatcher.yml` workflow routes to `build.yml` (CI, all branches) and `deploy.yml` (deploy on `master`/`dev`).
+Every commit on `master` deploys to QA. Once a feature is verified there, push a `v*` tag pointing at that `master` commit to deploy it to production.
+
+The `ci-cd.yml` workflow calls `check.yml` (CI, all branches/tags) and `deploy.yml` (deploy on `master` branch pushes and `v*` tag pushes).

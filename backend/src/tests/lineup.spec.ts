@@ -94,6 +94,9 @@ function makeContractRepo(contracts: Contract[]): ContractRepository {
       return success(found);
     },
     getByLeagueId: async () => success([]),
+    create: async () => {
+      throw new Error("not implemented in stub");
+    },
   };
 }
 

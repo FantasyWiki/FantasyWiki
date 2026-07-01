@@ -228,6 +228,16 @@ leagues.get("/:id/contracts", async (c) => {
   return c.json(result.value);
 });
 
+leagues.get("/:id/contracts", async (c) => {
+  const leagueId = c.req.param("id");
+  const service = new ContractService(c.env.db);
+  const result = await service.getLeagueContracts(leagueId);
+  if (!result.ok) {
+    return c.json({ error: result.error }, 404);
+  }
+  return c.json(result.value);
+});
+
 leagues.get("/:id/lineup", async (c) => {
   const leagueId = c.req.param("id");
   const playerResult = await resolveCurrentPlayer(c);

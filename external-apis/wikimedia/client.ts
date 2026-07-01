@@ -6,6 +6,7 @@ import {createGetLinks, articleWithLinks} from "./client/getLinks";
 import {ArticleViews, createResolveArticleViews, createResolveArticleViewsWithFallback} from "./client/articleViews";
 import {createSearchArticles} from "./client/searchArticles";
 import {TopReadEntry} from "./wikimedia";
+import {shiftUtcDays} from "./client/internal";
 
 const DAY = 24 * 60 * 60 * 1000;
 /**

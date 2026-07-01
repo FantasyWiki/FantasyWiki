@@ -15,7 +15,10 @@ const SEARCH_LIMIT = 8;
 
 function toMarketArticle(entry: TopReadEntry, domain: Domain): MarketArticle {
   const averageViews30d = entry.averageViews30d ?? 0;
-  const normalized = normalizedViews(averageViews30d, resolveLanguageScale(domain));
+  const normalized = normalizedViews(
+    averageViews30d,
+    resolveLanguageScale(domain)
+  );
   return {
     id: entry.canonicalTitle,
     title: entry.displayTitle,

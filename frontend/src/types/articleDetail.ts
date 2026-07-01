@@ -68,13 +68,26 @@ export type ArticleDetailInput = {
 };
 
 /** ContractPrice (ADR 0005) at `days` — for owned contracts this must be the contract's own held tier, not a fixed tier, or the value-delta vs purchasePrice is spurious. */
-function computeCurrentPrice(averageViews30d: number, domain: ArticleDTO["domain"], days: number): number {
-  const normalized = normalizedViews(averageViews30d, resolveLanguageScale(domain));
+function computeCurrentPrice(
+  averageViews30d: number,
+  domain: ArticleDTO["domain"],
+  days: number
+): number {
+  const normalized = normalizedViews(
+    averageViews30d,
+    resolveLanguageScale(domain)
+  );
   return computeContractPrice(normalized, days);
 }
 
-function computeTierOptions(averageViews30d: number, domain: ArticleDTO["domain"]): TierPriceOption[] {
-  const normalized = normalizedViews(averageViews30d, resolveLanguageScale(domain));
+function computeTierOptions(
+  averageViews30d: number,
+  domain: ArticleDTO["domain"]
+): TierPriceOption[] {
+  const normalized = normalizedViews(
+    averageViews30d,
+    resolveLanguageScale(domain)
+  );
   return (Object.keys(TIER_DAYS) as ContractTier[]).map((tier) => ({
     tier,
     price: computeContractPrice(normalized, TIER_DAYS[tier]),
@@ -82,20 +95,29 @@ function computeTierOptions(averageViews30d: number, domain: ArticleDTO["domain"
 }
 
 export function buildArticleDetail(input: ArticleDetailInput): ArticleDetail {
-  const { article, contract, viewerTeamId, viewerCredits, averageViews30d } = input;
+  const { article, contract, viewerTeamId, viewerCredits, averageViews30d } =
+    input;
 
   if (!contract) {
     return {
       availability: "free-agent",
       article,
-      currentPrice: computeCurrentPrice(averageViews30d, article.domain, TIER_DAYS.MEDIUM),
+      currentPrice: computeCurrentPrice(
+        averageViews30d,
+        article.domain,
+        TIER_DAYS.MEDIUM
+      ),
       tierOptions: computeTierOptions(averageViews30d, article.domain),
       viewerCredits,
     };
   }
 
   const tier = contract.tier as ContractTier;
-  const currentPrice = computeCurrentPrice(averageViews30d, article.domain, TIER_DAYS[tier]);
+  const currentPrice = computeCurrentPrice(
+    averageViews30d,
+    article.domain,
+    TIER_DAYS[tier]
+  );
   const ownerTeamName = contract.team.name;
 
   if (viewerTeamId && contract.team.id === viewerTeamId) {

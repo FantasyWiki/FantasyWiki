@@ -4,7 +4,12 @@ import { ContractDTO } from "../../../../dto/contractDTO";
 import type { TeamDTO } from "../../../../dto/teamDTO";
 import type { ArticleDTO } from "../../../../dto/articleDTO";
 import { buildArticleDetail } from "@/types/articleDetail";
-import { LANGUAGE_SCALE, TIER_DAYS, computeContractPrice, normalizedViews } from "../../../../model/pricing";
+import {
+  LANGUAGE_SCALE,
+  TIER_DAYS,
+  computeContractPrice,
+  normalizedViews,
+} from "../../../../model/pricing";
 
 const averageViews30d = 9000;
 const expectedCurrentPrice = computeContractPrice(

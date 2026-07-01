@@ -185,7 +185,6 @@ const ownedByOther = computed(() =>
     ? detailModel.value
     : null
 );
-
 </script>
 
 <style scoped>

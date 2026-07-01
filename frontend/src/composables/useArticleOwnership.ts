@@ -1,6 +1,7 @@
 import { computed, type ComputedRef, type Ref } from "vue";
 import { useLeagueStore } from "@/stores/league";
 import { buildArticleDetail, type ArticleDetail } from "@/types/articleDetail";
+import type { ArticleDTO } from "../../../dto/articleDTO";
 import type { ContractDTO } from "../../../dto/contractDTO";
 
 export type OwnershipStatus = "loading" | "ready" | "error";
@@ -14,12 +15,15 @@ export type OwnershipStatus = "loading" | "ready" | "error";
  * builds the {@link ArticleDetail} once the context is `ready`, so the
  * component can stay pure presentation.
  *
- * @param selectedContract - The contract whose ownership is being resolved.
+ * @param article - The article being viewed.
+ * @param contract - The contract on that article within the current league,
+ *   or `null` if it's a free agent.
  * @returns `status` (loading/ready/error), the built `detail` (null until
  *   ready), and `retry` to re-fetch the team context after an error.
  */
 export function useArticleOwnership(
-  selectedContract: Ref<ContractDTO | null>
+  article: Ref<ArticleDTO | null>,
+  contract: Ref<ContractDTO | null>
 ): {
   status: ComputedRef<OwnershipStatus>;
   detail: ComputedRef<ArticleDetail | null>;
@@ -36,18 +40,12 @@ export function useArticleOwnership(
 
   const detail = computed<ArticleDetail | null>(() => {
     if (status.value !== "ready") return null;
-    const contract = selectedContract.value;
-    if (!contract) return null;
+    if (!article.value) return null;
     return buildArticleDetail({
-      article: contract.article,
-      currentPrice: contract.currentPrice,
-      purchasePrice: contract.purchasePrice,
-      expiresIn: contract.expiresIn,
-      tier: contract.tier,
-      ownerTeamId: contract.team.id,
-      ownerTeamName: contract.team.name,
+      article: article.value,
+      contract: contract.value,
       viewerTeamId: leagueStore.currentTeamId ?? undefined,
-      viewerCredits: leagueStore.currentTeam?.credits,
+      viewerCredits: leagueStore.currentTeam?.credits ?? 0,
     });
   });
 

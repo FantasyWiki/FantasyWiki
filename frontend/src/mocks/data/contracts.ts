@@ -131,4 +131,32 @@ export const contracts: ContractDTO[] = [
     Temporal.Duration.from({ days: 30 }),
     220
   ),
+  // Held by teams other than player-1's own teams (team-6 in the "global"
+  // league, team-7 in "europe"), on articles matching the mocked Wikimedia
+  // top-read list — so the Market view has real "owned by another team" rows
+  // for the default dev session, not just free agents or my own contracts.
+  new ContractDTO(
+    "ctr-16",
+    teams[5],
+    articles[12],
+    instantDaysFromNow(-2),
+    Temporal.Duration.from({ days: 14 }),
+    240
+  ),
+  new ContractDTO(
+    "ctr-17",
+    teams[5],
+    articles[13],
+    instantDaysFromNow(-5),
+    Temporal.Duration.from({ days: 7 }),
+    190
+  ),
+  new ContractDTO(
+    "ctr-18",
+    teams[6],
+    articles[14],
+    instantDaysFromNow(-3),
+    Temporal.Duration.from({ days: 21 }),
+    260
+  ),
 ];

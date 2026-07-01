@@ -8,6 +8,7 @@ import { ContractDTO } from "../../../../dto/contractDTO";
 import { useLeagueStore } from "@/stores/league";
 import type { TeamDTO } from "../../../../dto/teamDTO";
 import type { LeagueDTO } from "../../../../dto/leagueDTO";
+import type { ArticleDTO } from "../../../../dto/articleDTO";
 
 vi.mock("@/composables/useArticleSummary", () => ({
   useArticleSummary: () => ({
@@ -58,6 +59,8 @@ const league: LeagueDTO = {
   teams: [viewerTeam, otherTeam],
 };
 
+const article: ArticleDTO = { id: "article-1", title: "ChatGPT", domain: "en" };
+
 function makeContract(team: TeamDTO, purchasePrice = 800): ContractDTO {
   const startDate = Temporal.Now.zonedDateTimeISO("UTC")
     .subtract({ days: 1 })
@@ -65,7 +68,7 @@ function makeContract(team: TeamDTO, purchasePrice = 800): ContractDTO {
   return new ContractDTO(
     `contract-${team.id}`,
     team,
-    { id: "article-1", title: "ChatGPT", domain: "en" },
+    article,
     startDate,
     Temporal.Duration.from({ days: 7 }),
     purchasePrice
@@ -78,7 +81,10 @@ interface MountOptions {
   teamError?: string | null;
 }
 
-function mountWithStores(contract: ContractDTO, options: MountOptions = {}) {
+function mountWithStores(
+  contract: ContractDTO | null,
+  options: MountOptions = {}
+) {
   const pinia = createPinia();
   setActivePinia(pinia);
 
@@ -90,7 +96,8 @@ function mountWithStores(contract: ContractDTO, options: MountOptions = {}) {
 
   return mount(ArticleDetail, {
     props: {
-      selectedContract: contract,
+      article,
+      contract,
       isOpen: true,
     },
     global: {
@@ -100,13 +107,15 @@ function mountWithStores(contract: ContractDTO, options: MountOptions = {}) {
 }
 
 describe("ArticleDetail.vue", () => {
-  it("shows renew and swap actions for viewer-owned contract", () => {
+  it("shows renew, swap and sell actions for a viewer-owned contract", () => {
     const wrapper = mountWithStores(makeContract(viewerTeam), {
       currentTeam: viewerTeam,
     });
 
     expect(wrapper.text()).toContain("Renew Contract");
     expect(wrapper.text()).toContain("Swap Article");
+    expect(wrapper.text()).toContain("Sell Contract");
+    expect(wrapper.text()).not.toContain("Request Trade");
     expect(wrapper.text()).not.toContain("Buy");
     expect(wrapper.text()).toContain("Availability");
     const wikipediaLink = wrapper.find(".summary-link");
@@ -114,6 +123,35 @@ describe("ArticleDetail.vue", () => {
     expect(wikipediaLink.attributes("href")).toContain(
       "https://en.wikipedia.org/wiki/ChatGPT"
     );
+  });
+
+  it("shows a tier picker and buy action for a free-agent article", () => {
+    const wrapper = mountWithStores(null, { currentTeam: viewerTeam });
+
+    expect(wrapper.text()).toContain("Buy Contract");
+    expect(wrapper.text()).toContain("Buy");
+    expect(wrapper.text()).not.toContain("Renew Contract");
+    expect(wrapper.text()).not.toContain("Swap Article");
+    expect(wrapper.text()).not.toContain("Sell Contract");
+    expect(wrapper.text()).not.toContain("Request Trade");
+    // Current price is shown for every scenario, including free agents.
+    expect(wrapper.text()).toContain("Current Price");
+  });
+
+  it("shows the lock box and request-trade action for another team's contract", () => {
+    const wrapper = mountWithStores(makeContract(otherTeam), {
+      currentTeam: viewerTeam,
+    });
+
+    expect(wrapper.text()).toContain("Locked");
+    expect(wrapper.text()).toContain("Request Trade");
+    expect(wrapper.text()).toContain("Other FC");
+    expect(wrapper.text()).not.toContain("Renew Contract");
+    expect(wrapper.text()).not.toContain("Sell Contract");
+    // Current price is shown even when the viewer doesn't own the contract;
+    // only the owner's purchase price stays private.
+    expect(wrapper.text()).toContain("Current Price");
+    expect(wrapper.text()).not.toContain("Purchase Price");
   });
 
   it("delays actions while ownership context is loading", () => {
@@ -126,9 +164,8 @@ describe("ArticleDetail.vue", () => {
     expect(wrapper.text()).toContain(
       "Actions will appear when your team context is ready."
     );
-    expect(wrapper.text()).not.toContain("Buy");
     expect(wrapper.text()).not.toContain("Renew Contract");
-    expect(wrapper.text()).not.toContain("Swap Article");
+    expect(wrapper.text()).not.toContain("Request Trade");
   });
 
   it("shows ownership-unavailable state when team context fails", () => {
@@ -139,8 +176,7 @@ describe("ArticleDetail.vue", () => {
 
     expect(wrapper.text()).toContain("Unable to determine ownership");
     expect(wrapper.text()).toContain("Retry ownership check");
-    expect(wrapper.text()).not.toContain("Buy");
     expect(wrapper.text()).not.toContain("Renew Contract");
-    expect(wrapper.text()).not.toContain("Swap Article");
+    expect(wrapper.text()).not.toContain("Request Trade");
   });
 });

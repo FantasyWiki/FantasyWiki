@@ -13,6 +13,7 @@ export type ArticleViews = {
     latestDayViews: number | undefined;
     averageViews30d: number | undefined;
     weekViews: number | undefined;
+    previousWeekViews: number | undefined;
     monthViews: number | undefined;
     yearViews: number | undefined;
 };
@@ -49,6 +50,7 @@ export function createResolveArticleViews(
                     latestDayViews: undefined,
                     averageViews30d: undefined,
                     weekViews: undefined,
+                    previousWeekViews: undefined,
                     monthViews: undefined,
                     yearViews: undefined,
                 };
@@ -58,6 +60,7 @@ export function createResolveArticleViews(
                 slice.reduce((acc, item) => acc + item.views, 0);
 
             const trailing7 = items.slice(-7);
+            const previous7 = items.slice(-14, -7);
             const trailing30 = items.slice(-30);
             const trailingAvg = items.slice(-averageDays);
 
@@ -65,6 +68,7 @@ export function createResolveArticleViews(
                 latestDayViews: items[items.length - 1]?.views,
                 averageViews30d: sum(trailingAvg) / trailingAvg.length,
                 weekViews: sum(trailing7),
+                previousWeekViews: previous7.length > 0 ? sum(previous7) : undefined,
                 monthViews: sum(trailing30),
                 yearViews: sum(items),
             };
@@ -73,6 +77,7 @@ export function createResolveArticleViews(
                 latestDayViews: undefined,
                 averageViews30d: undefined,
                 weekViews: undefined,
+                previousWeekViews: undefined,
                 monthViews: undefined,
                 yearViews: undefined,
             };

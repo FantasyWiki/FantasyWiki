@@ -217,6 +217,15 @@ export const handlers = [
     return HttpResponse.json(contracts.filter((c) => c.team.id === team.id));
   }),
 
+  http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {
+    const league = leagues.find((l) => l.id === params.leagueId);
+    if (!league) return HttpResponse.json([]);
+    const teamIds = league.teams.map((t) => t.id);
+    return HttpResponse.json(
+      contracts.filter((c) => teamIds.includes(c.team.id))
+    );
+  }),
+
   http.get("*/api/leagues/:leagueId/my-notifications", ({ params }) => {
     const league = leagues.find((l) => l.id === params.leagueId);
     if (!league) return HttpResponse.json([]);

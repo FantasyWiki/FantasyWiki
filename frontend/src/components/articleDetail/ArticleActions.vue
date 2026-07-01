@@ -88,6 +88,8 @@ interface Props {
   model: ArticleDetail | null;
   contract: ContractDTO | null;
   selectedTier: ContractTier;
+  /** True while the live views fetch is in flight — price is floored/wrong until it resolves. */
+  isLoadingViews?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -102,6 +104,7 @@ const emit = defineEmits<{
 }>();
 
 const buyDisabled = computed(() => {
+  if (props.isLoadingViews) return true;
   if (props.model?.availability !== "free-agent") return true;
   const option = props.model.tierOptions.find(
     (o) => o.tier === props.selectedTier

@@ -67,9 +67,4 @@ export class ContractDTO {
     if (range <= 7) return "MEDIUM"
     return "LONG"
   }
-
-  get currentPrice(): number {
-    //TODO: Call something to get that values
-    return this.purchasePrice + 100;
-  }
 }

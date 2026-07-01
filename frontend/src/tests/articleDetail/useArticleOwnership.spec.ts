@@ -59,7 +59,8 @@ describe("useArticleOwnership", () => {
     setupStore({ currentTeam: null, isTeamLoading: true });
     const { status, detail } = useArticleOwnership(
       ref(article),
-      ref(makeContract(otherTeam))
+      ref(makeContract(otherTeam)),
+      ref(9000)
     );
     expect(status.value).toBe("loading");
     expect(detail.value).toBeNull();
@@ -69,7 +70,8 @@ describe("useArticleOwnership", () => {
     setupStore({ currentTeam: null });
     const { status, detail } = useArticleOwnership(
       ref(article),
-      ref(makeContract(otherTeam))
+      ref(makeContract(otherTeam)),
+      ref(9000)
     );
     expect(status.value).toBe("loading");
     expect(detail.value).toBeNull();
@@ -79,7 +81,8 @@ describe("useArticleOwnership", () => {
     setupStore({ currentTeam: null, teamError: "boom" });
     const { status, detail } = useArticleOwnership(
       ref(article),
-      ref(makeContract(otherTeam))
+      ref(makeContract(otherTeam)),
+      ref(9000)
     );
     expect(status.value).toBe("error");
     expect(detail.value).toBeNull();
@@ -89,7 +92,8 @@ describe("useArticleOwnership", () => {
     setupStore({ currentTeam: viewerTeam });
     const { status, detail } = useArticleOwnership(
       ref(article),
-      ref(makeContract(viewerTeam))
+      ref(makeContract(viewerTeam)),
+      ref(9000)
     );
     expect(status.value).toBe("ready");
     expect(detail.value?.availability).toBe("owned-by-viewer");
@@ -99,7 +103,8 @@ describe("useArticleOwnership", () => {
     setupStore({ currentTeam: viewerTeam });
     const { detail } = useArticleOwnership(
       ref(article),
-      ref(makeContract(otherTeam))
+      ref(makeContract(otherTeam)),
+      ref(9000)
     );
     expect(detail.value?.availability).toBe("owned-by-other");
     expect(detail.value?.ownerTeamName).toBe("Other FC");
@@ -107,7 +112,7 @@ describe("useArticleOwnership", () => {
 
   it("builds a free-agent detail model when there is no contract", () => {
     setupStore({ currentTeam: viewerTeam });
-    const { detail } = useArticleOwnership(ref(article), ref(null));
+    const { detail } = useArticleOwnership(ref(article), ref(null), ref(9000));
     expect(detail.value?.availability).toBe("free-agent");
   });
 });

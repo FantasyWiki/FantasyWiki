@@ -3,10 +3,9 @@ import {createGetTopReadList, TopReadListResult} from "./client/getTopReadList";
 import {Domain} from "../../model/enums";
 import {createGetViewsByDomain, DomainResult} from "./client/getViewsByDomain";
 import {createGetLinks, articleWithLinks} from "./client/getLinks";
-import {ArticleViews, createResolveArticleViews} from "./client/articleViews";
+import {ArticleViews, createResolveArticleViews, createResolveArticleViewsWithFallback} from "./client/articleViews";
 import {createSearchArticles} from "./client/searchArticles";
 import {TopReadEntry} from "./wikimedia";
-import {shiftUtcDays} from "./client/internal";
 
 const DAY = 24 * 60 * 60 * 1000;
 /**
@@ -153,6 +152,9 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}): Wik
     const http = options.http ?? createFetchHttp(fetchFn);
 
     const resolveArticleViews = createResolveArticleViews(http, retryCount, averageDays);
+    const resolveLatestArticleViews = createResolveArticleViewsWithFallback(
+        http, retryCount, averageDays, maxFallbackDays, resolveArticleViews,
+    );
 
     return {
         pageviews: {
@@ -160,8 +162,7 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}): Wik
                 http, cache, maxFallbackDays, retryCount, averageDays, resolveArticleViews,
             ),
             getViewsByDomain: createGetViewsByDomain( http, cache, maxFallbackDays, retryCount ),
-            getArticleViews: (domain, title) =>
-                resolveArticleViews(domain, title, shiftUtcDays(new Date(), -1)),
+            getArticleViews: resolveLatestArticleViews,
         },
         article: {
             getSummary: createGetSummary( http, setTtl(cache,7*DAY), retryCount ),

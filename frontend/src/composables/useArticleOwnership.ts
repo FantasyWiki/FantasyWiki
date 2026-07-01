@@ -23,7 +23,8 @@ export type OwnershipStatus = "loading" | "ready" | "error";
  */
 export function useArticleOwnership(
   article: Ref<ArticleDTO | null>,
-  contract: Ref<ContractDTO | null>
+  contract: Ref<ContractDTO | null>,
+  averageViews30d: Ref<number>
 ): {
   status: ComputedRef<OwnershipStatus>;
   detail: ComputedRef<ArticleDetail | null>;
@@ -46,6 +47,7 @@ export function useArticleOwnership(
       contract: contract.value,
       viewerTeamId: leagueStore.currentTeamId ?? undefined,
       viewerCredits: leagueStore.currentTeam?.credits ?? 0,
+      averageViews30d: averageViews30d.value,
     });
   });
 

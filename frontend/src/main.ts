@@ -56,6 +56,26 @@ function clearWikimediaTopReadCacheInDev(): void {
   }
 }
 
+/**
+ * MSW registers a real Service Worker (`mockServiceWorker.js`) that keeps
+ * intercepting requests on every future page load regardless of whether the
+ * current session calls `worker.start()` again — it only stops once
+ * unregistered. Without this, a prior `devMock` run leaves mock responses
+ * silently active during a later `dev` (VITE_MOCK=false) run.
+ */
+async function unregisterMockServiceWorkerInDev(): Promise<void> {
+  if (
+    !import.meta.env.DEV ||
+    typeof navigator === "undefined" ||
+    !("serviceWorker" in navigator)
+  ) {
+    return;
+  }
+
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  await Promise.all(registrations.map((registration) => registration.unregister()));
+}
+
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 // Order matters:
 //   1. MSW must be fully active before any component mounts and fires a fetch.
@@ -71,6 +91,10 @@ async function bootstrap() {
     // worker.start() resolves when the service worker is both registered
     // and activated — safe to mount immediately after.
     await worker.start({ onUnhandledRequest: "bypass" });
+  } else {
+    // Not running mock this session — make sure a Service Worker left
+    // registered by a previous devMock run isn't still intercepting.
+    await unregisterMockServiceWorkerInDev();
   }
 
   // Step 2 — activate Pinia and restore the session BEFORE installing the

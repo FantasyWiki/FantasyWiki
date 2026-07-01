@@ -270,9 +270,9 @@ This ensures variety and prevents players from gaming a single event type.
 
 - **Maximum 11 active contracts** per team — one per formation position (resolved in `CONTEXT.md`; the earlier "10" contradicted the 11-slot formation)
 - **Budget**: Players start with 1,000 credits
-- **Duration**: short, code-aligned day/week durations (see `contractDTO` tiers); the earlier "1 week–24 months" range is superseded
-- **Economy (canonical: ADR 0003):** 15 credits/day **base stipend** · **8%** transaction fee on sales · **+10%** renewal premium per consecutive renewal · **3-day minimum hold** · soft **wealth ceiling** (~2,400 credits)
-- **Price formula** (see §6.1 / ADR 0003 for the canonical, Normalized-Views form):
+- **Duration**: locked tiers **SHORT = 3 days, MEDIUM = 7 days, LONG = 14 days** (ADR 0005); the earlier "1 week–24 months" range is superseded
+- **Economy (canonical: ADR 0003, pricing formula superseded by ADR 0005):** 15 credits/day **base stipend** · **8%** transaction fee on sales · **+10%** renewal premium per consecutive renewal · **3-day minimum hold** · soft **wealth ceiling** (pending re-simulation under the new pricing formula)
+- **Price formula** (see §6.1 / **ADR 0005** for the canonical, convex Normalized-Views form — this §3.1 form and ADR 0003's earlier linear form are both superseded):
   ```
   CONTRACT_PRICE = Base_Performance_Score × Contract_Duration_Weeks / 4
   ```
@@ -544,12 +544,17 @@ Key strategic decisions:
 
 ### 6.1 Contract Pricing
 
-> Priced on the **smoothed 30-day average** of **Normalized Views** (Language Scale Factor applied; en.wp = 1.0). Canonical: ADR 0003 / `CONTEXT.md`.
+> Priced on the **smoothed 30-day average** of **Normalized Views** (Language Scale Factor applied; en.wp = 1.0). Canonical: **ADR 0005** (supersedes ADR 0003's linear formula) / `CONTEXT.md`.
+
+**Superseded — kept for history.** The linear formula and worked example below used a
+weeks-based multiplier and made a top-tier team affordable on day one; ADR 0005
+replaces it with a convex-in-views, days-based formula and locks the SHORT/MEDIUM/LONG
+tiers at 3/7/14 days.
 
 ```
 BASE_PRICE = (Normalized_Views_30Day_Avg / 1000) × Contract_Weeks
 
-EXAMPLE:
+EXAMPLE (historical, superseded):
 Article: Bitcoin
 Views (30-day avg): 50,000 views/day
 Contract Duration: 8 weeks

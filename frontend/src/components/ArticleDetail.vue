@@ -43,6 +43,7 @@
         :options="freeAgent.tierOptions"
         :selected-tier="selectedTier"
         :viewer-credits="freeAgent.viewerCredits"
+        :is-loading-views="isLoadingViews"
         @update:selected-tier="selectedTier = $event"
       />
       <ContractDetailsBlock
@@ -64,6 +65,7 @@
         :model="detailModel"
         :contract="contract"
         :selected-tier="selectedTier"
+        :is-loading-views="isLoadingViews"
         @buy="(tier) => emit('buy', tier)"
         @sell="(contractId) => emit('sell', contractId)"
         @request-trade="(contractId) => emit('requestTrade', contractId)"
@@ -147,11 +149,28 @@ const emit = defineEmits<{
 
 const selectedTier = ref<ContractTier>("MEDIUM");
 
+const summarySource = computed(() => ({
+  title: props.article.title,
+  domain: props.article.domain,
+}));
+
+const { summary, isLoading: isLoadingSummary } =
+  useArticleSummary(summarySource);
+const { views, isLoading: isLoadingViews } = useArticleViews(summarySource);
+
+// Neither ArticleDTO nor ContractDTO carry pageview data (see useArticleViews),
+// so the same live 30-day average feeding the stats block also feeds pricing.
+const averageViews30d = computed(() => views.value?.averageViews30d ?? 0);
+
 const {
   status: ownershipContextStatus,
   detail: detailModel,
   retry: retryOwnership,
-} = useArticleOwnership(toRef(props, "article"), toRef(props, "contract"));
+} = useArticleOwnership(
+  toRef(props, "article"),
+  toRef(props, "contract"),
+  averageViews30d
+);
 
 const freeAgent = computed(() =>
   detailModel.value?.availability === "free-agent" ? detailModel.value : null
@@ -167,14 +186,6 @@ const ownedByOther = computed(() =>
     : null
 );
 
-const summarySource = computed(() => ({
-  title: props.article.title,
-  domain: props.article.domain,
-}));
-
-const { summary, isLoading: isLoadingSummary } =
-  useArticleSummary(summarySource);
-const { views, isLoading: isLoadingViews } = useArticleViews(summarySource);
 </script>
 
 <style scoped>

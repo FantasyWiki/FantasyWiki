@@ -7,6 +7,40 @@ import {
 } from "./internal";
 import type { WikimediaHttp } from "../client";
 
+/**
+ * Wraps `resolveArticleViews` with the same day-fallback walk used by
+ * `getTopReadList`/`getViewsByDomain` (offset 1..maxFallbackDays), instead of
+ * hardcoding "yesterday". Without this, a standalone views lookup (e.g. to
+ * re-derive a price) could resolve a different snapshot date than a market
+ * listing that had to fall back — producing a different 30-day average, and
+ * silently charging a different price than what was displayed.
+ */
+export function createResolveArticleViewsWithFallback(
+    http: WikimediaHttp,
+    retryCount: number,
+    averageDays: number,
+    maxFallbackDays: number,
+    resolveArticleViews = createResolveArticleViews(http, retryCount, averageDays),
+) {
+    return async function resolveLatestArticleViews(
+        domain: Domain,
+        title: string,
+    ): Promise<ArticleViews> {
+        const baseDate = new Date();
+        let lastResult: ArticleViews | undefined;
+
+        for (let offset = 1; offset <= maxFallbackDays; offset += 1) {
+            const snapshotDate = shiftUtcDays(baseDate, -offset);
+            lastResult = await resolveArticleViews(domain, title, snapshotDate);
+            if (lastResult.latestDayViews !== undefined) {
+                return lastResult;
+            }
+        }
+
+        return lastResult!;
+    };
+}
+
 const HISTORY_DAYS = 365;
 
 export type ArticleViews = {

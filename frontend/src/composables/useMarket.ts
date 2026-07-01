@@ -150,7 +150,7 @@ export function useMarket() {
           cmp = a.yearViews - b.yearViews;
           break;
         case "price":
-          cmp = a.weekViews - b.weekViews;
+          cmp = a.price - b.price;
           break;
       }
       return sortDir.value === "asc" ? cmp : -cmp;

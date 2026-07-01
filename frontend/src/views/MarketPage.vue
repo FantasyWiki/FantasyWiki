@@ -199,7 +199,7 @@
                   {{ formatViews(article.yearViews) }}
                 </td>
                 <td class="col-num price">
-                  {{ formatViews(article.weekViews) }} Cr
+                  {{ formatPrice(article.price) }} Cr
                 </td>
               </tr>
               <tr v-if="filteredArticles.length === 0 && !isSearching">
@@ -260,7 +260,7 @@
                   </div>
                   <div class="card-right">
                     <p class="card-price">
-                      {{ formatViews(article.weekViews) }} Cr
+                      {{ formatPrice(article.price) }} Cr
                     </p>
                     <ion-chip
                       :color="statusChipColor(article)"
@@ -420,7 +420,7 @@ import type { MarketArticle } from "@/types/market";
 import type { ArticleDTO } from "../../../dto/articleDTO";
 import type { ContractDTO } from "../../../dto/contractDTO";
 import type { ContractTier } from "@/types/articleDetail";
-import { formatViews } from "@/types/models";
+import { formatViews, formatPrice } from "@/types/models";
 
 // TODO: replace with real player balance from API when backend is ready
 const PLACEHOLDER_BALANCE = 550;

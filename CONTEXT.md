@@ -98,8 +98,8 @@ A four-step rating (Excellent/Good/Weak/Empty) assigned to a **Chemistry Link** 
 _Avoid_: color tier, synergy multiplier, all-pairs synergy
 
 **Contract Price**:
-The credits required to hold an article, `Normalized 30-day-average Views / 1000 × contract_weeks`. Priced on the **smoothed 30-day average**, never daily views — this is the deliberate decoupling that makes daily spikes cheap-but-fleeting and sustained popularity expensive.
-_Avoid_: daily-view price, spot price
+The credits required to hold an article, `C × Normalized_30-day-average_Views^1.5 × contract_days` (ADR 0005 — convex in views, days-based; supersedes the earlier linear `/1000 × weeks` form). Priced on the **smoothed 30-day average**, never daily views — this is the deliberate decoupling that makes daily spikes cheap-but-fleeting and sustained popularity expensive. Convexity means giants/top-tier articles cost progressively more per marginal view than mid-tier ones, gating a top-tier team behind grinding rather than day-one budget.
+_Avoid_: daily-view price, spot price, linear-in-views price
 
 **Purchase Price / Current Price**:
 **Purchase Price** is the **Contract Price** locked at signing; **Current Price** is the live market value (tracks the article's current 30-day average) used for resale.

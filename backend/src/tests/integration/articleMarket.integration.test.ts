@@ -87,6 +87,9 @@ describe("ArticleMarketService.getMarket", () => {
           weekViews: 7000,
           monthViews: 30000,
           yearViews: 365000,
+          averageViews30d: 0,
+          // ADR 0005: floored at 1, never 0, even for zero/missing views.
+          price: 1,
           owner: null,
         },
       ]);
@@ -120,6 +123,29 @@ describe("ArticleMarketService.getMarket", () => {
         monthViews: 0,
         yearViews: 0,
       });
+    }
+  });
+
+  it("computes price from averageViews30d via the ADR 0005 convex formula", async () => {
+    const wikimedia = wikimediaClientWithTopRead(async () => ({
+      domain: "en",
+      snapshotDate: "2026-06-29",
+      entries: [topReadEntry({ averageViews30d: 9000 })],
+    }));
+    const service = new ArticleMarketService(
+      env.db,
+      wikimedia,
+      leagueRepoReturning(sampleLeague),
+    );
+
+    const result = await service.getMarket("global");
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value[0].averageViews30d).toBe(9000);
+      // 9,000 views is the ADR 0005 anchor point (pre-scale rate == 9),
+      // and the whole economy is scaled x10 (CREDIT_SCALE in model/pricing.ts).
+      expect(result.value[0].price).toBe(90);
     }
   });
 

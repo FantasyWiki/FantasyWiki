@@ -1,13 +1,20 @@
 import { Temporal } from "@js-temporal/polyfill";
 import type { ArticleDTO } from "../../../dto/articleDTO";
 import type { ContractDTO } from "../../../dto/contractDTO";
+import {
+  TIER_DAYS,
+  computeContractPrice,
+  normalizedViews,
+  resolveLanguageScale,
+  type ContractTier,
+} from "../../../model/pricing";
+
+export type { ContractTier };
 
 export type ArticleAvailability =
   | "free-agent"
   | "owned-by-viewer"
   | "owned-by-other";
-
-export type ContractTier = "SHORT" | "MEDIUM" | "LONG";
 
 export type TierPriceOption = {
   tier: ContractTier;
@@ -56,44 +63,39 @@ export type ArticleDetailInput = {
   contract: ContractDTO | null;
   viewerTeamId?: string;
   viewerCredits: number;
+  /** Raw (not normalized) 30-day average views — input to ContractPrice (ADR 0005). */
+  averageViews30d: number;
 };
 
-/**
- * STUB: real per-tier pricing (docs/scoring-system.md:
- * ContractPrice = Normalized_30dAvg_Views / 1000 × contract_weeks) is
- * deferred to a later change. Only the {tier, price} shape is final.
- */
-export function buildStubTierOptions(): TierPriceOption[] {
-  return [
-    { tier: "SHORT", price: 100 },
-    { tier: "MEDIUM", price: 200 },
-    { tier: "LONG", price: 350 },
-  ];
+/** ContractPrice (ADR 0005) at `days` — for owned contracts this must be the contract's own held tier, not a fixed tier, or the value-delta vs purchasePrice is spurious. */
+function computeCurrentPrice(averageViews30d: number, domain: ArticleDTO["domain"], days: number): number {
+  const normalized = normalizedViews(averageViews30d, resolveLanguageScale(domain));
+  return computeContractPrice(normalized, days);
 }
 
-/**
- * STUB: a free/other article has no contract to read a price from yet, so
- * this stands in for "current market value" until the real price calculator
- * lands — deliberately reuses the MEDIUM tier stub so the two stay in sync.
- */
-export function buildStubCurrentPrice(): number {
-  return buildStubTierOptions().find((o) => o.tier === "MEDIUM")!.price;
+function computeTierOptions(averageViews30d: number, domain: ArticleDTO["domain"]): TierPriceOption[] {
+  const normalized = normalizedViews(averageViews30d, resolveLanguageScale(domain));
+  return (Object.keys(TIER_DAYS) as ContractTier[]).map((tier) => ({
+    tier,
+    price: computeContractPrice(normalized, TIER_DAYS[tier]),
+  }));
 }
 
 export function buildArticleDetail(input: ArticleDetailInput): ArticleDetail {
-  const { article, contract, viewerTeamId, viewerCredits } = input;
+  const { article, contract, viewerTeamId, viewerCredits, averageViews30d } = input;
 
   if (!contract) {
     return {
       availability: "free-agent",
       article,
-      currentPrice: buildStubCurrentPrice(),
-      tierOptions: buildStubTierOptions(),
+      currentPrice: computeCurrentPrice(averageViews30d, article.domain, TIER_DAYS.MEDIUM),
+      tierOptions: computeTierOptions(averageViews30d, article.domain),
       viewerCredits,
     };
   }
 
   const tier = contract.tier as ContractTier;
+  const currentPrice = computeCurrentPrice(averageViews30d, article.domain, TIER_DAYS[tier]);
   const ownerTeamName = contract.team.name;
 
   if (viewerTeamId && contract.team.id === viewerTeamId) {
@@ -104,7 +106,7 @@ export function buildArticleDetail(input: ArticleDetailInput): ArticleDetail {
       tier,
       expiresIn: contract.expiresIn,
       ownerTeamName,
-      currentPrice: contract.currentPrice,
+      currentPrice,
       purchasePrice: contract.purchasePrice,
     };
   }
@@ -116,6 +118,6 @@ export function buildArticleDetail(input: ArticleDetailInput): ArticleDetail {
     tier,
     unlockIn: contract.expiresIn,
     ownerTeamName,
-    currentPrice: buildStubCurrentPrice(),
+    currentPrice,
   };
 }

@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
-import { TeamService } from "../../services/team";
+import { TeamService, STARTING_CREDITS } from "../../services/team";
 import { PlayerService } from "../../services/player";
 import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
 import type { TeamRepository } from "../../repositories/teamRepository";
@@ -58,7 +58,7 @@ describe("TeamService Integration Tests", () => {
         expect(result.value.name).toBe("The Wiki Wizards");
         expect(result.value.playerId).toBe(playerId);
         expect(result.value.leagueId).toBe(leagueId);
-        expect(result.value.credits).toBe(1000);
+        expect(result.value.credits).toBe(STARTING_CREDITS);
       }
     });
 
@@ -195,7 +195,7 @@ describe("TeamService Integration Tests", () => {
       if (result.ok) {
         expect(result.value).not.toBeNull();
         expect(result.value?.name).toBe("Wiki Warriors");
-        expect(result.value?.credits).toBe(1000);
+        expect(result.value?.credits).toBe(STARTING_CREDITS);
         expect(result.value?.player).toEqual({ id: playerId, name: "Alice" });
       }
     });

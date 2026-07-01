@@ -6,7 +6,9 @@ import { LineupRepository } from "../repositories/lineupRepository";
 import { LineupRepositoryD1 } from "../repositories/d1/lineupRepositoryD1";
 import { Result, failure, success } from "../repositories/result";
 
-export const STARTING_CREDITS = 1000;
+// ADR 0005: scaled x10 alongside contract pricing (CREDIT_SCALE in model/pricing.ts)
+// so integer-rounded prices keep resolution at the low end.
+export const STARTING_CREDITS = 10000;
 
 export type TeamServiceDeps = {
   teamRepository: TeamRepository;

@@ -38,10 +38,11 @@
           {{ $t("articleDetail.buy.price") }}
         </p>
       </ion-text>
-      <p class="info-value ion-no-margin">
+      <ion-spinner v-if="isLoadingViews" name="dots" />
+      <p v-else class="info-value ion-no-margin">
         {{ $t("articleDetail.stats.credits", { count: selectedPrice ?? 0 }) }}
       </p>
-      <ion-text v-if="notEnoughCredits" color="danger">
+      <ion-text v-if="!isLoadingViews && notEnoughCredits" color="danger">
         <p class="not-enough ion-no-margin">
           {{ $t("articleDetail.buy.notEnoughCredits") }}
         </p>
@@ -58,6 +59,7 @@ import {
   IonLabel,
   IonSegment,
   IonSegmentButton,
+  IonSpinner,
   IonText,
 } from "@ionic/vue";
 import { cartOutline } from "ionicons/icons";
@@ -67,6 +69,8 @@ interface Props {
   options: TierPriceOption[];
   selectedTier: ContractTier;
   viewerCredits: number;
+  /** True while the live views fetch is in flight — options are floor-priced/wrong until it resolves. */
+  isLoadingViews?: boolean;
 }
 
 const props = defineProps<Props>();

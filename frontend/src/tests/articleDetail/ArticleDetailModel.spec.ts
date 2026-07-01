@@ -4,6 +4,13 @@ import { ContractDTO } from "../../../../dto/contractDTO";
 import type { TeamDTO } from "../../../../dto/teamDTO";
 import type { ArticleDTO } from "../../../../dto/articleDTO";
 import { buildArticleDetail } from "@/types/articleDetail";
+import { LANGUAGE_SCALE, TIER_DAYS, computeContractPrice, normalizedViews } from "../../../../model/pricing";
+
+const averageViews30d = 9000;
+const expectedCurrentPrice = computeContractPrice(
+  normalizedViews(averageViews30d, LANGUAGE_SCALE.en),
+  TIER_DAYS.MEDIUM
+);
 
 const viewerTeam: TeamDTO = {
   id: "team-viewer",
@@ -48,6 +55,7 @@ describe("articleDetailModel", () => {
       contract,
       viewerTeamId: viewerTeam.id,
       viewerCredits: viewerTeam.credits,
+      averageViews30d,
     });
 
     expect(model.availability).toBe("owned-by-viewer");
@@ -56,7 +64,7 @@ describe("articleDetailModel", () => {
     expect(model.contractId).toBe(contract.id);
     expect(model.tier).toBe(contract.tier);
     expect(model.ownerTeamName).toBe("Viewer FC");
-    expect(model.currentPrice).toBe(contract.currentPrice);
+    expect(model.currentPrice).toBe(expectedCurrentPrice);
     expect(model.purchasePrice).toBe(800);
   });
 
@@ -68,6 +76,7 @@ describe("articleDetailModel", () => {
       contract,
       viewerTeamId: viewerTeam.id,
       viewerCredits: viewerTeam.credits,
+      averageViews30d,
     });
 
     expect(model.availability).toBe("owned-by-other");
@@ -77,16 +86,17 @@ describe("articleDetailModel", () => {
     expect(model.unlockIn).toBeInstanceOf(Temporal.Duration);
     // Current price (the article's live market value) is shown to everyone;
     // only the owner's purchase price stays private.
-    expect(model.currentPrice).toBeGreaterThan(0);
+    expect(model.currentPrice).toBe(expectedCurrentPrice);
     expect((model as { purchasePrice?: number }).purchasePrice).toBeUndefined();
   });
 
-  it("marks a free agent with no contract, a stub current price, and stub tier options", () => {
+  it("marks a free agent with no contract, computing current price and tier options from views", () => {
     const model = buildArticleDetail({
       article,
       contract: null,
       viewerTeamId: viewerTeam.id,
       viewerCredits: 700,
+      averageViews30d,
     });
 
     expect(model.availability).toBe("free-agent");
@@ -97,7 +107,10 @@ describe("articleDetailModel", () => {
       "MEDIUM",
       "LONG",
     ]);
+    expect(model.tierOptions.find((o) => o.tier === "MEDIUM")?.price).toBe(
+      expectedCurrentPrice
+    );
     expect(model.viewerCredits).toBe(700);
-    expect(model.currentPrice).toBeGreaterThan(0);
+    expect(model.currentPrice).toBe(expectedCurrentPrice);
   });
 });

@@ -1,4 +1,10 @@
 import type { MarketArticle, MarketArticleOwner } from "@/types/market";
+import {
+  LANGUAGE_SCALE,
+  TIER_DAYS,
+  computeContractPrice,
+  normalizedViews,
+} from "../../../../model/pricing";
 
 const free = { owner: null };
 
@@ -6,7 +12,22 @@ function owned(name: string, teamName: string): { owner: MarketArticleOwner } {
   return { owner: { name, teamName } };
 }
 
-const globalMarket: MarketArticle[] = [
+type RawMarketArticle = Omit<MarketArticle, "averageViews30d" | "price">;
+
+/** monthViews/30 stands in for a real 30-day daily-average fixture. */
+function withPricing(entries: RawMarketArticle[]): MarketArticle[] {
+  return entries.map((entry) => {
+    const averageViews30d = entry.monthViews / 30;
+    const normalized = normalizedViews(averageViews30d, LANGUAGE_SCALE.en);
+    return {
+      ...entry,
+      averageViews30d,
+      price: computeContractPrice(normalized, TIER_DAYS.MEDIUM),
+    };
+  });
+}
+
+const globalMarket: RawMarketArticle[] = [
   {
     id: "mkt-g-1",
     title: "Bitcoin",
@@ -289,7 +310,7 @@ const globalMarket: MarketArticle[] = [
   },
 ];
 
-const europeMarket: MarketArticle[] = [
+const europeMarket: RawMarketArticle[] = [
   {
     id: "mkt-e-1",
     title: "European Union",
@@ -412,7 +433,7 @@ const europeMarket: MarketArticle[] = [
   },
 ];
 
-const italyMarket: MarketArticle[] = [
+const italyMarket: RawMarketArticle[] = [
   {
     id: "mkt-i-1",
     title: "Roma",
@@ -515,7 +536,7 @@ const italyMarket: MarketArticle[] = [
   },
 ];
 
-const americasMarket: MarketArticle[] = [
+const americasMarket: RawMarketArticle[] = [
   {
     id: "mkt-a-1",
     title: "United States",
@@ -619,8 +640,8 @@ const americasMarket: MarketArticle[] = [
 ];
 
 export const marketByLeague: Record<string, MarketArticle[]> = {
-  global: globalMarket,
-  europe: europeMarket,
-  italy: italyMarket,
-  americas: americasMarket,
+  global: withPricing(globalMarket),
+  europe: withPricing(europeMarket),
+  italy: withPricing(italyMarket),
+  americas: withPricing(americasMarket),
 };

@@ -3,9 +3,10 @@ import {createGetTopReadList, TopReadListResult} from "./client/getTopReadList";
 import {Domain} from "../../model/enums";
 import {createGetViewsByDomain, DomainResult} from "./client/getViewsByDomain";
 import {createGetLinks, articleWithLinks} from "./client/getLinks";
-import {createResolveArticleViews} from "./client/articleViews";
+import {ArticleViews, createResolveArticleViews} from "./client/articleViews";
 import {createSearchArticles} from "./client/searchArticles";
 import {TopReadEntry} from "./wikimedia";
+import {shiftUtcDays} from "./client/internal";
 
 const DAY = 24 * 60 * 60 * 1000;
 /**
@@ -111,6 +112,8 @@ export type WikimediaClient = {
     pageviews: {
         getTopReadList(domain: Domain, limit: number): Promise<TopReadListResult>,
         getViewsByDomain(domain: Domain): Promise<DomainResult>;
+        /** Latest views/trend for a single article, independent of the top-read list. */
+        getArticleViews(domain: Domain, title: string): Promise<ArticleViews>;
 
     };
     article: {
@@ -157,6 +160,8 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}): Wik
                 http, cache, maxFallbackDays, retryCount, averageDays, resolveArticleViews,
             ),
             getViewsByDomain: createGetViewsByDomain( http, cache, maxFallbackDays, retryCount ),
+            getArticleViews: (domain, title) =>
+                resolveArticleViews(domain, title, shiftUtcDays(new Date(), -1)),
         },
         article: {
             getSummary: createGetSummary( http, setTtl(cache,7*DAY), retryCount ),

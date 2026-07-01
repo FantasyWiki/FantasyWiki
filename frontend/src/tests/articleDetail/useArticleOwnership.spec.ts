@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { Temporal } from "@js-temporal/polyfill";
 import { ContractDTO } from "../../../../dto/contractDTO";
+import type { ArticleDTO } from "../../../../dto/articleDTO";
 import type { TeamDTO } from "../../../../dto/teamDTO";
 import { useLeagueStore } from "@/stores/league";
 import { useArticleOwnership } from "@/composables/useArticleOwnership";
@@ -21,6 +22,8 @@ const otherTeam: TeamDTO = {
   player: { id: "other-player", name: "Other" },
 };
 
+const article: ArticleDTO = { id: "article-1", title: "ChatGPT", domain: "en" };
+
 function makeContract(team: TeamDTO): ContractDTO {
   const startDate = Temporal.Now.zonedDateTimeISO("UTC")
     .subtract({ days: 1 })
@@ -28,7 +31,7 @@ function makeContract(team: TeamDTO): ContractDTO {
   return new ContractDTO(
     `contract-${team.id}`,
     team,
-    { id: "article-1", title: "ChatGPT", domain: "en" },
+    article,
     startDate,
     Temporal.Duration.from({ days: 7 }),
     800
@@ -55,6 +58,7 @@ describe("useArticleOwnership", () => {
   it("reports loading while team context is loading and yields no detail", () => {
     setupStore({ currentTeam: null, isTeamLoading: true });
     const { status, detail } = useArticleOwnership(
+      ref(article),
       ref(makeContract(otherTeam))
     );
     expect(status.value).toBe("loading");
@@ -64,6 +68,7 @@ describe("useArticleOwnership", () => {
   it("reports loading when there is no current team yet", () => {
     setupStore({ currentTeam: null });
     const { status, detail } = useArticleOwnership(
+      ref(article),
       ref(makeContract(otherTeam))
     );
     expect(status.value).toBe("loading");
@@ -73,6 +78,7 @@ describe("useArticleOwnership", () => {
   it("reports error when team context failed", () => {
     setupStore({ currentTeam: null, teamError: "boom" });
     const { status, detail } = useArticleOwnership(
+      ref(article),
       ref(makeContract(otherTeam))
     );
     expect(status.value).toBe("error");
@@ -82,19 +88,26 @@ describe("useArticleOwnership", () => {
   it("builds the detail model for a viewer-owned contract when ready", () => {
     setupStore({ currentTeam: viewerTeam });
     const { status, detail } = useArticleOwnership(
+      ref(article),
       ref(makeContract(viewerTeam))
     );
     expect(status.value).toBe("ready");
     expect(detail.value?.availability).toBe("owned-by-viewer");
-    expect(detail.value?.showBuy).toBe(false);
-    expect(detail.value?.showContractActions).toBe(true);
   });
 
-  it("marks an article owned by another team as buy-disabled when ready", () => {
+  it("marks an article owned by another team when ready", () => {
     setupStore({ currentTeam: viewerTeam });
-    const { detail } = useArticleOwnership(ref(makeContract(otherTeam)));
+    const { detail } = useArticleOwnership(
+      ref(article),
+      ref(makeContract(otherTeam))
+    );
     expect(detail.value?.availability).toBe("owned-by-other");
-    expect(detail.value?.buyDisabled).toBe(true);
     expect(detail.value?.ownerTeamName).toBe("Other FC");
+  });
+
+  it("builds a free-agent detail model when there is no contract", () => {
+    setupStore({ currentTeam: viewerTeam });
+    const { detail } = useArticleOwnership(ref(article), ref(null));
+    expect(detail.value?.availability).toBe("free-agent");
   });
 });

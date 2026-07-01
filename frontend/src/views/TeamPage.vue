@@ -95,7 +95,8 @@
     <!-- ── Article detail modal ──────────────────────────────────────── -->
     <ArticleDetail
       v-if="selectedContract"
-      :selected-contract="selectedContract"
+      :contract="selectedContract"
+      :article="selectedContract.article"
       :is-open="isDetailOpen"
       @close="closeDetail"
       @swap="enterSwapMode"

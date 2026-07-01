@@ -129,7 +129,8 @@
 
   <ArticleDetail
     v-if="selectedContract"
-    :selectedContract="selectedContract"
+    :contract="selectedContract"
+    :article="selectedContract.article"
     :isOpen="isModalOpen"
     @close="closeDetail"
   />

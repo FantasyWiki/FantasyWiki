@@ -182,7 +182,23 @@
     "actions": {
       "buy": "Acquista",
       "renewContract": "Rinnova contratto",
-      "swapArticle": "Scambia articolo"
+      "swapArticle": "Scambia articolo",
+      "sell": "Vendi contratto",
+      "requestTrade": "Proponi scambio"
+    },
+    "buy": {
+      "title": "Acquista contratto",
+      "selectTier": "Seleziona periodo",
+      "tierShort": "Breve",
+      "tierMedium": "Medio",
+      "tierLong": "Lungo",
+      "price": "Prezzo",
+      "notEnoughCredits": "Crediti insufficienti"
+    },
+    "locked": {
+      "title": "Bloccato",
+      "unlocksIn": "Si sblocca tra",
+      "heldBy": "Detenuto da {name}"
     },
     "contract": {
       "title": "Dettagli contratto",
@@ -198,6 +214,9 @@
       "availability": "Disponibilità",
       "purchasePrice": "Prezzo di acquisto",
       "valueTracking": "Andamento valore",
+      "weeklyViews": "Visualizzazioni settimanali",
+      "trend": "Tendenza",
+      "loadingViews": "…",
       "credits": "{count} crediti",
       "freeAgent": "Svincolato",
       "ownedBy": "Di proprietà di {name}",
@@ -287,6 +306,8 @@
     "noSearchResults": "Nessun risultato trovato",
     "noArticles": "Nessun articolo disponibile",
     "sortLabel": "Ordina:",
-    "paginationInfo": "{from}–{to} di {total}"
+    "paginationInfo": "{from}–{to} di {total}",
+    "ownershipLoading": "Verifica…",
+    "yourTeam": "La tua squadra"
   }
 }

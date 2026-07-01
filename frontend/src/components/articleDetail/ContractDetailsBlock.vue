@@ -26,7 +26,7 @@
               </p>
             </ion-text>
             <p class="info-value ion-no-margin">
-              {{ selectedContract.tier }}
+              {{ tier }}
             </p>
           </div>
         </ion-col>
@@ -38,7 +38,7 @@
               </p>
             </ion-text>
             <p class="info-value ion-no-margin">
-              {{ formatDuration(selectedContract.expiresIn) }}
+              {{ formatDuration(expiresIn) }}
             </p>
           </div>
         </ion-col>
@@ -50,23 +50,21 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { Temporal } from "@js-temporal/polyfill";
 import { IonChip, IonCol, IonGrid, IonIcon, IonRow, IonText } from "@ionic/vue";
 import { timeOutline } from "ionicons/icons";
-import { ContractDTO } from "../../../../dto/contractDTO";
 import { formatDuration } from "@/types/models";
 
 interface Props {
-  selectedContract: ContractDTO;
+  tier: string;
+  expiresIn: Temporal.Duration;
 }
 
 const props = defineProps<Props>();
 const { t } = useI18n();
 
 const expiryDays = computed(() => {
-  return Math.max(
-    0,
-    Math.floor(props.selectedContract.expiresIn.total("days"))
-  );
+  return Math.max(0, Math.floor(props.expiresIn.total("days")));
 });
 
 const expiryLabel = computed(() => {

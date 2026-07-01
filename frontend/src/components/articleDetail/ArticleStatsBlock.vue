@@ -37,6 +37,55 @@
         </ion-col>
       </ion-row>
 
+      <ion-row>
+        <ion-col size="6">
+          <div class="info-box">
+            <ion-text color="medium">
+              <p class="info-label ion-no-margin">
+                {{ $t("articleDetail.stats.weeklyViews") }}
+              </p>
+            </ion-text>
+            <p class="info-value ion-no-margin">
+              <template v-if="isLoadingViews">{{
+                $t("articleDetail.stats.loadingViews")
+              }}</template>
+              <template v-else-if="weekViews !== undefined">{{
+                formatViews(weekViews)
+              }}</template>
+              <template v-else>—</template>
+            </p>
+          </div>
+        </ion-col>
+        <ion-col size="6">
+          <div class="info-box">
+            <ion-text color="medium">
+              <p class="info-label ion-no-margin">
+                {{ $t("articleDetail.stats.trend") }}
+                <ion-icon
+                  v-if="trendPercent !== null"
+                  :icon="
+                    trendPercent >= 0 ? trendingUpOutline : trendingDownOutline
+                  "
+                  :color="trendPercent >= 0 ? 'success' : 'danger'"
+                ></ion-icon>
+              </p>
+            </ion-text>
+            <p class="info-value ion-no-margin">
+              <template v-if="isLoadingViews">{{
+                $t("articleDetail.stats.loadingViews")
+              }}</template>
+              <ion-label
+                v-else-if="trendPercent !== null"
+                :color="trendPercent >= 0 ? 'success' : 'danger'"
+                >{{ trendPercent >= 0 ? "+ " : ""
+                }}{{ trendPercent.toFixed(1) }} %
+              </ion-label>
+              <template v-else>—</template>
+            </p>
+          </div>
+        </ion-col>
+      </ion-row>
+
       <ion-row v-if="model.purchasePrice !== undefined">
         <ion-col size="6">
           <div class="info-box">
@@ -98,9 +147,13 @@ import {
   trendingUpOutline,
 } from "ionicons/icons";
 import type { ArticleDetail } from "@/types/articleDetail";
+import { formatViews } from "@/types/models";
 
 interface Props {
   model: ArticleDetail;
+  weekViews?: number;
+  previousWeekViews?: number;
+  isLoadingViews: boolean;
 }
 
 const props = defineProps<Props>();
@@ -118,6 +171,14 @@ const availabilityValue = computed(() => {
     default:
       return t("articleDetail.stats.freeAgent");
   }
+});
+
+const trendPercent = computed<number | null>(() => {
+  if (props.weekViews === undefined || !props.previousWeekViews) return null;
+  return (
+    ((props.weekViews - props.previousWeekViews) / props.previousWeekViews) *
+    100
+  );
 });
 
 const valueDelta = computed(() => {

@@ -7,6 +7,7 @@ import { PerformanceService } from "../services/performance";
 import { TeamService } from "../services/team";
 import { PlayerService } from "../services/player";
 import { ArticleMarketService } from "../services/articleMarket";
+import { ContractService } from "../services/contract";
 import {
   LineupService,
   RawTeamLineUp,
@@ -163,6 +164,16 @@ leagues.get("/:id/market", async (c) => {
 
 leagues.get("/:id/my-contracts", async (c) => {
   return c.json([]);
+});
+
+leagues.get("/:id/contracts", async (c) => {
+  const leagueId = c.req.param("id");
+  const service = new ContractService(c.env.db);
+  const result = await service.getLeagueContracts(leagueId);
+  if (!result.ok) {
+    return c.json({ error: result.error }, 404);
+  }
+  return c.json(result.value);
 });
 
 leagues.get("/:id/lineup", async (c) => {

@@ -10,6 +10,9 @@ interface ContractRow {
   purchaseDate: string;
   expireDate: string;
   purchasePrice: number;
+  settled: number;
+  renewalCount: number;
+  renewalElected: number;
 }
 
 interface LeagueContractQueryRow extends ContractRow {
@@ -27,6 +30,9 @@ function toContract(row: ContractRow): Contract {
     purchaseDate: Temporal.PlainDate.from(row.purchaseDate),
     expireDate: Temporal.PlainDate.from(row.expireDate),
     purchasePrice: row.purchasePrice,
+    settled: row.settled === 1,
+    renewalCount: row.renewalCount,
+    renewalElected: row.renewalElected === 1,
   };
 }
 

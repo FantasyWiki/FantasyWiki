@@ -7,4 +7,7 @@ export interface Contract {
   purchaseDate: Temporal.PlainDate;
   expireDate: Temporal.PlainDate;
   purchasePrice: number;
+  settled: boolean;
+  renewalCount: number;
+  renewalElected: boolean;
 }

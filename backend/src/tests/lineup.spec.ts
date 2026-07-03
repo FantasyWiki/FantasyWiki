@@ -46,6 +46,9 @@ function makeContract(id: string, articleId: string): Contract {
     purchaseDate: Temporal.PlainDate.from("2026-01-01"),
     expireDate: Temporal.PlainDate.from("2026-01-08"),
     purchasePrice: 50,
+    settled: false,
+    renewalCount: 0,
+    renewalElected: false,
   };
 }
 
@@ -90,6 +93,7 @@ function makeContractRepo(contracts: Contract[]): ContractRepository {
       const found = contracts.find((c) => c.id === id) ?? null;
       return success(found);
     },
+    getByLeagueId: async () => success([]),
   };
 }
 

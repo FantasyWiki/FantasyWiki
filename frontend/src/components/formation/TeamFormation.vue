@@ -71,11 +71,16 @@
             v-else
             class="pitch-slot-empty fm-center-col"
             :style="gridStyle(posKey)"
-            :class="{ 'pitch-slot-empty--swap': swapMode, 'pitch-slot-empty--dragover': dragOverPos === posKey }"
+            :class="{
+              'pitch-slot-empty--swap': swapMode,
+              'pitch-slot-empty--dragover': dragOverPos === posKey,
+            }"
             :aria-label="`Empty position ${posKey}`"
             :data-position="posKey"
             @click="
-              swapMode && swapSource ? emit('moveToEmpty', swapSource.id, posKey) : undefined
+              swapMode && swapSource
+                ? emit('moveToEmpty', swapSource.id, posKey)
+                : undefined
             "
             @dragover.prevent="dragOverPos = posKey"
             @dragleave="dragOverPos = null"

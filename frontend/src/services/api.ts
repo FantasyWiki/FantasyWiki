@@ -83,6 +83,11 @@ export const leaguesApi = {
     apiRequest<RawContract[]>(`/leagues/${id}/my-contracts`).then((cs) =>
       cs.map((c) => ContractDTO.fromRaw(c))
     ),
+  /** All contracts held by any team in this league (used by the Market view) */
+  getContracts: (id: string) =>
+    apiRequest<RawContract[]>(`/leagues/${id}/contracts`).then((cs) =>
+      cs.map((c) => ContractDTO.fromRaw(c))
+    ),
   /** All notifications for the current player in this league */
   getMyNotifications: (id: string) =>
     apiRequest<RawNotification[]>(`/leagues/${id}/my-notifications`).then(

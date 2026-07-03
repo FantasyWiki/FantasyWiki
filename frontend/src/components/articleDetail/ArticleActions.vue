@@ -1,21 +1,21 @@
 <template>
   <div class="detail-section actions-section">
     <ion-button
-      v-if="model?.showBuy"
+      v-if="model?.availability === 'free-agent'"
       expand="block"
       color="primary"
-      :disabled="model?.buyDisabled"
-      @click="emit('buy')"
+      :disabled="buyDisabled"
+      @click="emit('buy', selectedTier)"
     >
       {{ $t("articleDetail.actions.buy") }}
     </ion-button>
 
-    <template v-if="model?.showContractActions && selectedContract">
+    <template v-if="model?.availability === 'owned-by-viewer' && contract">
       <ion-button
         expand="block"
         color="primary"
         class="action-primary"
-        @click="emit('renew', selectedContract)"
+        @click="emit('renew', contract)"
       >
         <ion-icon slot="start" :icon="refreshOutline" class="action-icon" />
         {{ $t("articleDetail.actions.renewContract") }}
@@ -25,7 +25,7 @@
         expand="block"
         fill="outline"
         class="action-secondary"
-        @click="emit('swap', selectedContract)"
+        @click="emit('swap', contract)"
       >
         <ion-icon
           slot="start"
@@ -34,7 +34,33 @@
         />
         {{ $t("articleDetail.actions.swapArticle") }}
       </ion-button>
+
+      <ion-button
+        expand="block"
+        fill="outline"
+        color="danger"
+        class="action-secondary"
+        @click="emit('sell', model.contractId)"
+      >
+        <ion-icon slot="start" :icon="cashOutline" class="action-icon" />
+        {{ $t("articleDetail.actions.sell") }}
+      </ion-button>
     </template>
+
+    <ion-button
+      v-if="model?.availability === 'owned-by-other'"
+      expand="block"
+      color="primary"
+      class="action-primary"
+      @click="emit('requestTrade', model.contractId)"
+    >
+      <ion-icon
+        slot="start"
+        :icon="swapHorizontalOutline"
+        class="action-icon"
+      />
+      {{ $t("articleDetail.actions.requestTrade") }}
+    </ion-button>
 
     <ion-button
       expand="block"
@@ -48,24 +74,43 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { IonButton, IonIcon } from "@ionic/vue";
-import { refreshOutline, swapHorizontalOutline } from "ionicons/icons";
+import {
+  cashOutline,
+  refreshOutline,
+  swapHorizontalOutline,
+} from "ionicons/icons";
 import type { ContractDTO } from "../../../../dto/contractDTO";
-import type { ArticleDetail } from "@/types/articleDetail";
+import type { ArticleDetail, ContractTier } from "@/types/articleDetail";
 
 interface Props {
   model: ArticleDetail | null;
-  selectedContract: ContractDTO | null;
+  contract: ContractDTO | null;
+  selectedTier: ContractTier;
+  /** True while the live views fetch is in flight — price is floored/wrong until it resolves. */
+  isLoadingViews?: boolean;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const emit = defineEmits<{
   close: [];
-  buy: [];
+  buy: [tier: ContractTier];
+  sell: [contractId: string];
+  requestTrade: [contractId: string];
   renew: [contract: ContractDTO];
   swap: [contract: ContractDTO];
 }>();
+
+const buyDisabled = computed(() => {
+  if (props.isLoadingViews) return true;
+  if (props.model?.availability !== "free-agent") return true;
+  const option = props.model.tierOptions.find(
+    (o) => o.tier === props.selectedTier
+  );
+  return !option || option.price > props.model.viewerCredits;
+});
 </script>
 
 <style scoped>

@@ -7,12 +7,47 @@ import {
 } from "./internal";
 import type { WikimediaHttp } from "../client";
 
+/**
+ * Wraps `resolveArticleViews` with the same day-fallback walk used by
+ * `getTopReadList`/`getViewsByDomain` (offset 1..maxFallbackDays), instead of
+ * hardcoding "yesterday". Without this, a standalone views lookup (e.g. to
+ * re-derive a price) could resolve a different snapshot date than a market
+ * listing that had to fall back — producing a different 30-day average, and
+ * silently charging a different price than what was displayed.
+ */
+export function createResolveArticleViewsWithFallback(
+    http: WikimediaHttp,
+    retryCount: number,
+    averageDays: number,
+    maxFallbackDays: number,
+    resolveArticleViews = createResolveArticleViews(http, retryCount, averageDays),
+) {
+    return async function resolveLatestArticleViews(
+        domain: Domain,
+        title: string,
+    ): Promise<ArticleViews> {
+        const baseDate = new Date();
+        let lastResult: ArticleViews | undefined;
+
+        for (let offset = 1; offset <= maxFallbackDays; offset += 1) {
+            const snapshotDate = shiftUtcDays(baseDate, -offset);
+            lastResult = await resolveArticleViews(domain, title, snapshotDate);
+            if (lastResult.latestDayViews !== undefined) {
+                return lastResult;
+            }
+        }
+
+        return lastResult!;
+    };
+}
+
 const HISTORY_DAYS = 365;
 
 export type ArticleViews = {
     latestDayViews: number | undefined;
     averageViews30d: number | undefined;
     weekViews: number | undefined;
+    previousWeekViews: number | undefined;
     monthViews: number | undefined;
     yearViews: number | undefined;
 };
@@ -49,6 +84,7 @@ export function createResolveArticleViews(
                     latestDayViews: undefined,
                     averageViews30d: undefined,
                     weekViews: undefined,
+                    previousWeekViews: undefined,
                     monthViews: undefined,
                     yearViews: undefined,
                 };
@@ -58,6 +94,7 @@ export function createResolveArticleViews(
                 slice.reduce((acc, item) => acc + item.views, 0);
 
             const trailing7 = items.slice(-7);
+            const previous7 = items.slice(-14, -7);
             const trailing30 = items.slice(-30);
             const trailingAvg = items.slice(-averageDays);
 
@@ -65,6 +102,7 @@ export function createResolveArticleViews(
                 latestDayViews: items[items.length - 1]?.views,
                 averageViews30d: sum(trailingAvg) / trailingAvg.length,
                 weekViews: sum(trailing7),
+                previousWeekViews: previous7.length > 0 ? sum(previous7) : undefined,
                 monthViews: sum(trailing30),
                 yearViews: sum(items),
             };
@@ -73,6 +111,7 @@ export function createResolveArticleViews(
                 latestDayViews: undefined,
                 averageViews30d: undefined,
                 weekViews: undefined,
+                previousWeekViews: undefined,
                 monthViews: undefined,
                 yearViews: undefined,
             };

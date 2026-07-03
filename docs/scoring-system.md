@@ -8,7 +8,7 @@ validating every number against real Wikipedia pageview data
 Rationale for the load-bearing choices lives in:
 - ADR 0001 — base scoring model
 - ADR 0002 — language scale factor
-- ADR 0003 — trading economy with income floor
+- ADR 0003 — closed trading economy (mark-to-market settlement, no income floor, no fee)
 
 ---
 
@@ -142,52 +142,90 @@ Cumulative        = previous cumulative + TeamScore(day)
 
 ## 6. Contract economy
 
-A **closed trading economy with an income floor** (ADR 0003). Players build wealth by
-trading; a flat stipend guarantees no death spiral; each league resets.
+A **closed trading economy with mark-to-market settlement** (ADR 0003). Players build wealth by
+trading — holding a contract to its full committed term settles as a real gain or loss against
+what they paid, not just a spend. There is no flat income floor; a broke player's comeback path is
+always-available free (0-credit) articles, not a guaranteed stipend. Each league resets.
 
 ### 6.1 Pricing
+
+**Canonical: ADR 0005** (single consolidated ADR — supersedes both the original `/1000 × weeks`
+linear formula and an intermediate convex-in-raw-views formula that was tried and replaced after
+live data showed it over-concentrated price differentiation at the extreme head of the
+distribution):
 ```
-ContractPrice = Normalized_30dAvg_Views / 1000 × contract_weeks
+ContractPrice = D × BasePoints(Normalized_30dAvg_Views)^k × contract_days
 ```
+`BasePoints` here is the *exact same curve* as §3 above (log-compressed, same 2000 zero-point and
+150k kink), just fed the 30-day average instead of daily views — one curve, one place to tune the
+shape. `k` (locked at 1.7) and `D` are pricing-only constants, derived from a full-11-giant-team
+budget target rather than from a legacy low-band anchor (see ADR 0005 for why anchoring at the
+low end no longer works once price is points-based). Price is convex in *points*, not in raw
+views — giants and top-tier articles still cost progressively more per marginal point than
+mid-tier articles do, which is what stops a day-one player from affording a top-tier team, but
+without the price curve diverging from the value it buys the way a views-based exponent did.
+
 - Priced on the **30-day average**, never daily views — the anti-jackpot guard. A
   1-day spike barely moves the 30-day average, so you cannot buy-at-10k / sell-at-400k
   overnight; trades only pay off on *sustained* multi-week momentum.
 - `purchasePrice` is locked at signing; `currentPrice` floats with the live 30-day
-  average and is used for resale.
+  average, evaluated at the contract's original tier duration. It's the basis for both exit
+  paths — prorated for an early sell, or a full mark-to-market settlement against `purchasePrice`
+  at natural expiry (§6.3, ADR 0003).
+- **Contract duration tiers are locked in days** (ADR 0005): **SHORT = 3 days,
+  MEDIUM = 7 days, LONG = 14 days**. These are the actual purchasable durations — the
+  `contractDTO.tier` getter derives the *display* tier from an existing contract's
+  duration; this is the forward (tier → days) mapping the buy flow uses.
 
 ### 6.2 Budget, slots, and the wealth ceiling
 - **Starting budget:** 1,000 credits. **Max 11 contracts** (one per formation position;
   overrides §3.1's "10").
-- **Wealth ceiling ≈ 2,400 credits** — the cost of fielding the literal top-11 team for
-  one week. Beyond it, extra credits buy only longer **tenure** (locking the best
-  articles, denying rivals) and cosmetic prestige — never more points/day. The 11-slot
-  cap + scarcity of high-view articles is the structural anti-snowball.
+- **Wealth ceiling** — previously ~2,400 credits (cost of the top-11 team for one week) under the
+  old income-floor economy. **Stale, pending re-derivation (ADR 0003):** under mark-to-market
+  settlement, wealth isn't just credits spent so far — it includes unrealized settlement
+  gains/losses on every held contract, so the ceiling has to be redefined in terms of position
+  value, not spend. Not yet re-derived.
 
 ### 6.3 Income, sinks, and frictions
 
+**Canonical: ADR 0003** (single consolidated ADR — supersedes the original income-floor model:
+flat stipend, 8% transaction fee, and an expiry with no defined payout are all removed/replaced).
+
 | Lever | Value | Role |
 |---|---|---|
-| Base stipend | **15 credits/day** | income floor + engagement grind; flat ⇒ anti-snowball |
-| Transaction fee | **8% of sale proceeds** | churn / spike-arbitrage throttle (sink) |
 | Renewal premium | **+10% per consecutive renewal** (resets after dropping ≥1 cycle) | anti-hoard (sink) |
-| Minimum hold | **3 days** | blocks daily spike-churn |
-| Early sell | `currentPrice × remaining_weeks − fee` | natural loss if the article fell = the deterrent |
+| Minimum hold | **3 days** | blocks daily spike-churn (the primary anti-churn lever now that the fee is gone) |
+| Early sell | `currentPrice(liveViews, originalTierDays) × (remainingDays / originalTierDays)` | pays only for unused time at today's rate — closes the "buy LONG, sell after minimum hold, full refund plus free days" exploit |
+| Expiry settlement ("sold to system") | `currentPrice(liveViews, originalTierDays) − purchasePrice`, credited or debited | full-term mark-to-market result; only triggers by holding the *entire* committed term |
 | Renewal priority | 24h right-of-first-refusal at expiry, then free-agent pool | no midnight sniping, but no permanent lock |
+| Broke-player recovery | free (0-credit) sub-2,000-view articles always available | skill-based comeback (scout undervalued content), not a guaranteed stipend |
 
-**Self-balancing properties (validated):**
-- Even view-budget allocation beats viral concentration (Jensen): at 1,000 credits a
-  spread of "giants" (~60 base) ≥ one elite + filler (~60 base). Pricing, not the
-  scoring curve, contains viral.
-- The system is always its own counterparty (infinite free agents), so the economy
-  closes with as few as 3 players. **Player-to-player offers are deferred post-MVP.**
-- Weekly flow for an average mid player: +105 stipend − ~20 sinks = **+85/week**; over an
-  ~8-week league, passive players drift 1,000 → ~1,680, skilled traders reach ~2,300,
-  unlucky players are floored by the stipend and never broke. Supply roughly doubles
-  per league, then resets.
+**Removed vs. the original model:**
+- **Base stipend (was 15 credits/day):** removed — a flat income floor is passive and
+  patience-rewarding, at odds with pricing built entirely around active-trading skill (ADR 0005's
+  k=1.7). Recovery now comes from the pricing curve's own zero floor instead. Trades a
+  *guaranteed* no-death-spiral floor for a *probabilistic* one — an explicitly acknowledged,
+  not-yet-fully-mitigated risk (see ADR 0003's "Open risk").
+- **Transaction fee (was 8% of sale proceeds):** removed — redundant with the 30-day-average
+  smoothing and the 3-day minimum hold, which already do the anti-churn/anti-spike-arbitrage work
+  the fee existed for; kept alongside a removed stipend it would've been the one guaranteed drain
+  in the economy.
 
-**Live-tuning levers:** ceiling reached too fast → lower stipend / raise fee+renewal;
-players stuck broke → raise stipend or add a means-tested floor top-up; spike-churn
-appears → raise fee or lengthen minimum hold; giants hoarded → steepen renewal escalation.
+**Self-balancing properties:**
+- Even view-budget allocation beats viral concentration (Jensen): pricing convex in *points*, not
+  raw views (ADR 0005) — giants and top-tier articles are progressively less credit-efficient per
+  point than mid-tier ones, so spreading budget is always favored over concentrating it.
+- The system is always its own counterparty (infinite free agents), so the economy closes with as
+  few as 3 players. **Player-to-player offers are deferred post-MVP.**
+- **Superseded pending re-simulation (ADR 0003 + ADR 0005):** the day-one optimal team, the
+  "~60 base points" / "~42.5 base points" comparisons, and the "+85/week, 1,680 passive / 2,300
+  skilled-trader over 8 weeks" flow figures were all calibrated against the old linear-then-
+  views-convex pricing *and* the now-removed stipend/fee. None of these numbers are current —
+  re-simulate once the mark-to-market economy is implemented.
+
+**Live-tuning levers:** players stuck broke too often → revisit the no-guaranteed-floor
+trade-off (ADR 0003's "Open risk"); spike-churn appears → lengthen minimum hold (now the only
+direct lever, since the fee is gone); giants hoarded → steepen renewal escalation.
 
 ---
 
@@ -220,7 +258,7 @@ when they are picked back up:
 | Synergy mechanic | additive over *all* owned pairs (0.75/0.25, cap 3.0) **and** a position multiplier in the user story (contradictory) | additive flat points on **schema-adjacency**; excellent +1.5 / good +0.5; weak & empty 0 |
 | Base scoring | 3 fixed tiers, knees 5k/20k | log-binned "+1 per doubling" from 4k, convex tail above 150k |
 | Per-language | none | single **Language Scale Factor** on views (en = 1.0) |
-| Contract pricing | two contradictory formulas (§3.1 vs §6.1) | `Normalized 30dAvg / 1000 × weeks` (§6.1 wins, on normalized smoothed views) |
+| Contract pricing | two contradictory formulas (§3.1 vs §6.1) | `C × Normalized_30dAvg^1.5 × days` (§6.1, ADR 0005 — convex, days-based, supersedes the earlier linear-weeks form) |
 | Economy | implicit/undefined | closed **trading economy** + flat stipend floor + fee/renewal sinks + reset |
 | Max contracts | 10 (but formations need 11) | **11** |
 | Income | none | 15/day stipend; 8% fee; +10%/renewal; 3-day min hold |
@@ -234,6 +272,10 @@ when they are picked back up:
   spike-arbitrage edge cases — the broad guard (30-day-avg pricing + fee + min hold)
   is locked; fine balance is a live-tuning item.
 - Player-to-player transfer market (offers, time-bounds) — post-MVP.
-- Exact `L` values per language and the recalibration procedure.
-- Contract duration bounds: code buckets in days (`SHORT ≤3`, `MEDIUM ≤7`, `LONG >7`);
-  requirements said weeks–24 months. Leaning to the shorter, code-aligned range.
+- Exact `L` values per language and the recalibration procedure — now also needs to
+  account for `L` entering the price formula superlinearly, `(rawViews × L)^1.5`
+  (ADR 0005), not just as a linear view-volume scale.
+- ~~Contract duration bounds~~ — **resolved (ADR 0005):** SHORT = 3 days,
+  MEDIUM = 7 days, LONG = 14 days, locked.
+- Re-simulate §6.3's economy flow (passive/skilled-trader credit trajectories) under
+  the new convex pricing formula — the old linear-formula figures are stale (ADR 0005).

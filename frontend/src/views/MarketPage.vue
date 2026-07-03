@@ -179,13 +179,11 @@
                 </td>
                 <td>
                   <ion-chip
-                    :color="article.owner ? 'medium' : 'primary'"
+                    :color="statusChipColor(article)"
                     outline
                     class="status-chip"
                   >
-                    {{
-                      article.owner ? article.owner.name : t("market.freeAgent")
-                    }}
+                    {{ statusChipLabel(article) }}
                   </ion-chip>
                 </td>
                 <td class="col-num muted">
@@ -201,7 +199,7 @@
                   {{ formatViews(article.yearViews) }}
                 </td>
                 <td class="col-num price">
-                  {{ formatViews(article.weekViews) }} Cr
+                  {{ formatPrice(article.price) }} Cr
                 </td>
               </tr>
               <tr v-if="filteredArticles.length === 0 && !isSearching">
@@ -262,18 +260,14 @@
                   </div>
                   <div class="card-right">
                     <p class="card-price">
-                      {{ formatViews(article.weekViews) }} Cr
+                      {{ formatPrice(article.price) }} Cr
                     </p>
                     <ion-chip
-                      :color="article.owner ? 'medium' : 'primary'"
+                      :color="statusChipColor(article)"
                       outline
                       class="status-chip-sm"
                     >
-                      {{
-                        article.owner
-                          ? article.owner.name
-                          : t("market.freeAgent")
-                      }}
+                      {{ statusChipLabel(article) }}
                     </ion-chip>
                   </div>
                 </div>
@@ -369,11 +363,22 @@
       </template>
     </div>
     <!-- /page-container -->
+
+    <ArticleDetail
+      v-if="selectedArticle"
+      :article="selectedArticle"
+      :contract="selectedContract"
+      :is-open="isDetailOpen"
+      @close="closeDetail"
+      @buy="onBuy"
+      @sell="onSell"
+      @request-trade="onRequestTrade"
+    />
   </nav-bar>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import {
   IonBadge,
   IonButton,
@@ -404,6 +409,7 @@ import {
 import { useI18n } from "vue-i18n";
 
 import NavBar from "@/layout/NavBar.vue";
+import ArticleDetail from "@/components/ArticleDetail.vue";
 import { useLeagueStore } from "@/stores/league";
 import {
   useMarket,
@@ -411,6 +417,10 @@ import {
   type StatusFilter,
 } from "@/composables/useMarket";
 import type { MarketArticle } from "@/types/market";
+import type { ArticleDTO } from "../../../dto/articleDTO";
+import type { ContractDTO } from "../../../dto/contractDTO";
+import type { ContractTier } from "@/types/articleDetail";
+import { formatViews, formatPrice } from "@/types/models";
 
 // TODO: replace with real player balance from API when backend is ready
 const PLACEHOLDER_BALANCE = 550;
@@ -438,13 +448,24 @@ const {
   setStatusFilter,
   isSearchFallback,
   isSearching,
+  isOwnershipLoading,
   ITEMS_PER_PAGE,
 } = useMarket();
 
-function formatViews(views: number): string {
-  if (views >= 1_000_000) return `${(views / 1_000_000).toFixed(1)}M`;
-  if (views >= 1_000) return `${(views / 1_000).toFixed(1)}K`;
-  return views.toString();
+function statusChipColor(article: MarketArticle): string {
+  if (!article.owner && isOwnershipLoading.value) return "medium";
+  return article.owner ? "medium" : "primary";
+}
+
+function statusChipLabel(article: MarketArticle): string {
+  if (!article.owner && isOwnershipLoading.value) {
+    return t("market.ownershipLoading");
+  }
+  if (!article.owner) return t("market.freeAgent");
+  if (article.ownerTeamId === leagueStore.currentTeamId) {
+    return t("market.yourTeam");
+  }
+  return article.owner.name;
 }
 
 function sortIcon(key: SortKey) {
@@ -473,10 +494,37 @@ const pageItems = computed<(number | "ellipsis")[]>(() => {
   }, []);
 });
 
-// TODO: open detail / purchase flow when backend market endpoint is ready
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function handleArticleClick(_article: MarketArticle) {
-  // no-op for now
+const selectedArticle = ref<ArticleDTO | null>(null);
+const selectedContract = ref<ContractDTO | null>(null);
+const isDetailOpen = ref(false);
+
+function handleArticleClick(article: MarketArticle) {
+  selectedArticle.value = article.contract?.article ?? {
+    id: article.id,
+    title: article.title,
+    domain: currentLeague.value!.domain,
+  };
+  selectedContract.value = article.contract ?? null;
+  isDetailOpen.value = true;
+}
+
+function closeDetail() {
+  isDetailOpen.value = false;
+}
+
+// TODO: wire to teamsApi.createContract once the purchase flow is ready.
+function onBuy(tier: ContractTier) {
+  console.log("Buy", selectedArticle.value?.id, tier);
+}
+
+// TODO: wire to contractsApi.delete once the sell flow is ready.
+function onSell(contractId: string) {
+  console.log("Sell", contractId);
+}
+
+// TODO: implement trade-request flow once a trade API exists.
+function onRequestTrade(contractId: string) {
+  console.log("Request trade", contractId);
 }
 
 async function handleRefresh(event: CustomEvent) {

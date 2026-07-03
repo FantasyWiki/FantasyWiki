@@ -1,70 +1,145 @@
 import { Temporal } from "@js-temporal/polyfill";
 import type { ArticleDTO } from "../../../dto/articleDTO";
+import type { ContractDTO } from "../../../dto/contractDTO";
+import {
+  TIER_DAYS,
+  computeContractPrice,
+  normalizedViews,
+  resolveLanguageScale,
+  type ContractTier,
+} from "../../../model/pricing";
+
+export type { ContractTier };
 
 export type ArticleAvailability =
   | "free-agent"
   | "owned-by-viewer"
   | "owned-by-other";
 
-export type ArticleDetailInput = {
-  article: ArticleDTO;
-  currentPrice: number;
-  purchasePrice?: number;
-  expiresIn?: Temporal.Duration;
-  tier?: string;
-  ownerTeamId?: string;
-  ownerTeamName?: string;
-  viewerTeamId?: string;
-  viewerCredits?: number;
+export type TierPriceOption = {
+  tier: ContractTier;
+  price: number;
 };
 
-export type ArticleDetail = {
+interface ArticleDetailBase {
   article: ArticleDTO;
-  currentPrice: number;
-  purchasePrice?: number;
-  expiresIn?: Temporal.Duration;
-  tier?: string;
-  availability: ArticleAvailability;
   ownerTeamName?: string;
-  showBuy: boolean;
-  buyDisabled: boolean;
-  buyDisabledReason?: string;
-  showContractActions: boolean;
-};
-
-export function buildArticleDetail(input: ArticleDetailInput): ArticleDetail {
-  const availability = resolveAvailability(
-    input.ownerTeamId,
-    input.viewerTeamId
-  );
-  const hasEnoughCredits = (input.viewerCredits ?? 0) >= input.currentPrice;
-  const buyDisabledReason =
-    availability !== "free-agent"
-      ? "Already owned"
-      : hasEnoughCredits
-        ? undefined
-        : "Not enough credits";
-
-  return {
-    article: input.article,
-    currentPrice: input.currentPrice,
-    purchasePrice: input.purchasePrice,
-    expiresIn: input.expiresIn,
-    tier: input.tier,
-    availability,
-    ownerTeamName: input.ownerTeamName,
-    showBuy: availability !== "owned-by-viewer",
-    buyDisabled: buyDisabledReason !== undefined,
-    buyDisabledReason,
-    showContractActions: availability === "owned-by-viewer",
-  };
+  /** Always present — the article's live market value, shown regardless of ownership. */
+  currentPrice: number;
+  /** Only present for owned-by-viewer: what that team actually paid. */
+  purchasePrice?: number;
 }
 
-function resolveAvailability(
-  ownerTeamId?: string,
-  viewerTeamId?: string
-): ArticleAvailability {
-  if (!ownerTeamId) return "free-agent";
-  if (viewerTeamId && ownerTeamId === viewerTeamId) return "owned-by-viewer";
-  return "owned-by-other";
+export interface FreeAgentDetail extends ArticleDetailBase {
+  availability: "free-agent";
+  tierOptions: TierPriceOption[];
+  viewerCredits: number;
+}
+
+export interface OwnedByViewerDetail extends ArticleDetailBase {
+  availability: "owned-by-viewer";
+  contractId: string;
+  tier: ContractTier;
+  expiresIn: Temporal.Duration;
+  ownerTeamName: string;
+  purchasePrice: number;
+}
+
+export interface OwnedByOtherDetail extends ArticleDetailBase {
+  availability: "owned-by-other";
+  contractId: string;
+  tier: ContractTier;
+  unlockIn: Temporal.Duration;
+  ownerTeamName: string;
+}
+
+export type ArticleDetail =
+  | FreeAgentDetail
+  | OwnedByViewerDetail
+  | OwnedByOtherDetail;
+
+export type ArticleDetailInput = {
+  article: ArticleDTO;
+  contract: ContractDTO | null;
+  viewerTeamId?: string;
+  viewerCredits: number;
+  /** Raw (not normalized) 30-day average views — input to ContractPrice (ADR 0005). */
+  averageViews30d: number;
+};
+
+/** ContractPrice (ADR 0005) at `days` — for owned contracts this must be the contract's own held tier, not a fixed tier, or the value-delta vs purchasePrice is spurious. */
+function computeCurrentPrice(
+  averageViews30d: number,
+  domain: ArticleDTO["domain"],
+  days: number
+): number {
+  const normalized = normalizedViews(
+    averageViews30d,
+    resolveLanguageScale(domain)
+  );
+  return computeContractPrice(normalized, days);
+}
+
+function computeTierOptions(
+  averageViews30d: number,
+  domain: ArticleDTO["domain"]
+): TierPriceOption[] {
+  const normalized = normalizedViews(
+    averageViews30d,
+    resolveLanguageScale(domain)
+  );
+  return (Object.keys(TIER_DAYS) as ContractTier[]).map((tier) => ({
+    tier,
+    price: computeContractPrice(normalized, TIER_DAYS[tier]),
+  }));
+}
+
+export function buildArticleDetail(input: ArticleDetailInput): ArticleDetail {
+  const { article, contract, viewerTeamId, viewerCredits, averageViews30d } =
+    input;
+
+  if (!contract) {
+    return {
+      availability: "free-agent",
+      article,
+      currentPrice: computeCurrentPrice(
+        averageViews30d,
+        article.domain,
+        TIER_DAYS.MEDIUM
+      ),
+      tierOptions: computeTierOptions(averageViews30d, article.domain),
+      viewerCredits,
+    };
+  }
+
+  const tier = contract.tier as ContractTier;
+  const currentPrice = computeCurrentPrice(
+    averageViews30d,
+    article.domain,
+    TIER_DAYS[tier]
+  );
+  const ownerTeamName = contract.team.name;
+
+  if (viewerTeamId && contract.team.id === viewerTeamId) {
+    return {
+      availability: "owned-by-viewer",
+      article,
+      contractId: contract.id,
+      tier,
+      expiresIn: contract.expiresIn,
+      ownerTeamName,
+      currentPrice,
+      purchasePrice: contract.purchasePrice,
+    };
+  }
+
+  return {
+    availability: "owned-by-other",
+    article,
+    contractId: contract.id,
+    tier,
+    unlockIn: contract.expiresIn,
+    ownerTeamName,
+    currentPrice,
+  };
 }

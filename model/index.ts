@@ -6,4 +6,5 @@ export * from "./lineup";
 export * from "./notification";
 export * from "./performances";
 export * from "./player";
+export * from "./pricing";
 export * from "./team";

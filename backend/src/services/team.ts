@@ -6,6 +6,8 @@ import { LineupRepository } from "../repositories/lineupRepository";
 import { LineupRepositoryD1 } from "../repositories/d1/lineupRepositoryD1";
 import { Result, failure, success } from "../repositories/result";
 
+// ADR 0003/0005: 1,000 credits — no scale factor needed, points-based pricing
+// doesn't reproduce the rounding-to-zero issue the old views^1.5 formula had.
 export const STARTING_CREDITS = 1000;
 
 export type TeamServiceDeps = {

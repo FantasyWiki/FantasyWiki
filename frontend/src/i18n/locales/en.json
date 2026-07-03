@@ -182,7 +182,23 @@
     "actions": {
       "buy": "Buy",
       "renewContract": "Renew Contract",
-      "swapArticle": "Swap Article"
+      "swapArticle": "Swap Article",
+      "sell": "Sell Contract",
+      "requestTrade": "Request Trade"
+    },
+    "buy": {
+      "title": "Buy Contract",
+      "selectTier": "Select contract period",
+      "tierShort": "Short",
+      "tierMedium": "Medium",
+      "tierLong": "Long",
+      "price": "Price",
+      "notEnoughCredits": "Not enough credits"
+    },
+    "locked": {
+      "title": "Locked",
+      "unlocksIn": "Unlocks in",
+      "heldBy": "Held by {name}"
     },
     "contract": {
       "title": "Contract Details",
@@ -198,6 +214,9 @@
       "availability": "Availability",
       "purchasePrice": "Purchase Price",
       "valueTracking": "Value Tracking",
+      "weeklyViews": "Weekly Views",
+      "trend": "Trend",
+      "loadingViews": "…",
       "credits": "{count} credits",
       "freeAgent": "Free Agent",
       "ownedBy": "Owned by {name}",
@@ -287,6 +306,8 @@
     "noSearchResults": "No results found",
     "noArticles": "No articles available",
     "sortLabel": "Sort:",
-    "paginationInfo": "{from}–{to} of {total}"
+    "paginationInfo": "{from}–{to} of {total}",
+    "ownershipLoading": "Checking…",
+    "yourTeam": "Your team"
   }
 }

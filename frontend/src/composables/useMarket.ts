@@ -2,6 +2,8 @@ import { ref, computed } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { useLeagueStore } from "@/stores/league";
 import { fetchMarket, searchMarket } from "@/services/marketService";
+import { api } from "@/services/api";
+import type { ContractDTO } from "../../../dto/contractDTO";
 import type { MarketArticle } from "@/types/market";
 
 export type SortKey =
@@ -18,6 +20,11 @@ export type StatusFilter = "all" | "free" | "owned";
 const ITEMS_PER_PAGE = 10;
 const MIN_SEARCH_CHARS = 3;
 
+/** Normalizes a canonical Wikipedia title for matching across the two data sources. */
+function normKey(title: string): string {
+  return title.trim().toLowerCase().replace(/[ _]+/g, "_");
+}
+
 export function useMarket() {
   const leagueStore = useLeagueStore();
 
@@ -33,6 +40,58 @@ export function useMarket() {
     queryFn: () => fetchMarket(leagueStore.currentLeague!.domain),
     enabled: computed(() => !!leagueStore.currentLeague?.domain),
   });
+
+  // Ownership is resolved from a separate, league-scoped contracts fetch that
+  // runs independently of (and in parallel with) the Wikimedia-backed article
+  // list/search above. The two never block each other: the table renders as
+  // soon as the article list resolves, and owner badges upgrade reactively
+  // once this query resolves too.
+  const {
+    data: leagueContractsData,
+    isLoading: isOwnershipLoading,
+    isError: isOwnershipError,
+  } = useQuery<ContractDTO[]>({
+    queryKey: computed(() => ["league-contracts", leagueStore.currentLeagueId]),
+    queryFn: () => api.leagues.getContracts(leagueStore.currentLeagueId!),
+    enabled: computed(() => !!leagueStore.currentLeagueId),
+  });
+
+  // Matched on title, not id: article identity is the canonical Wikipedia
+  // title (+ league domain, which is already fixed per league), but a
+  // contract's `article.id`/`article.title` both carry that same title —
+  // whereas MarketArticle.id is Wikimedia's canonicalTitle (underscored) and
+  // its title is the display form (spaced). normKey() folds both to the
+  // same key.
+  const contractByKey = computed(() => {
+    const map = new Map<string, ContractDTO>();
+    for (const contract of leagueContractsData.value ?? []) {
+      map.set(normKey(contract.article.title), contract);
+    }
+    return map;
+  });
+
+  function mergeOwnership(articles: MarketArticle[]): MarketArticle[] {
+    return articles.map((article) => {
+      const contract = contractByKey.value.get(normKey(article.title)) ?? null;
+      if (!contract) {
+        return {
+          ...article,
+          owner: null,
+          ownerTeamId: undefined,
+          contract: null,
+        };
+      }
+      return {
+        ...article,
+        contract,
+        ownerTeamId: contract.team.id,
+        owner: {
+          name: contract.team.player.name,
+          teamName: contract.team.name,
+        },
+      };
+    });
+  }
 
   const searchQuery = ref("");
   const statusFilter = ref<StatusFilter>("all");
@@ -91,7 +150,7 @@ export function useMarket() {
           cmp = a.yearViews - b.yearViews;
           break;
         case "price":
-          cmp = a.weekViews - b.weekViews;
+          cmp = a.price - b.price;
           break;
       }
       return sortDir.value === "asc" ? cmp : -cmp;
@@ -101,7 +160,7 @@ export function useMarket() {
   }
 
   const topFiltered = computed<MarketArticle[]>(() => {
-    const articles = data.value ?? [];
+    const articles = mergeOwnership(data.value ?? []);
     let filtered = [...articles];
 
     if (searchQuery.value.trim()) {
@@ -135,7 +194,7 @@ export function useMarket() {
 
   const filteredArticles = computed<MarketArticle[]>(() => {
     if (isSearchFallback.value) {
-      return applyStatusAndSort(searchData.value ?? []);
+      return applyStatusAndSort(mergeOwnership(searchData.value ?? []));
     }
     return topFiltered.value;
   });
@@ -173,6 +232,8 @@ export function useMarket() {
     isSearchFallback,
     isSearching,
     isSearchError,
+    isOwnershipLoading,
+    isOwnershipError,
     ITEMS_PER_PAGE,
   };
 }

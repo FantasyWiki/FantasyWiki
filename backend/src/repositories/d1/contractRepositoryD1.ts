@@ -1,6 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { Contract } from "../../../../model";
-import { ContractRepository } from "../contractRepository";
+import { ContractRepository, LeagueContractRow } from "../contractRepository";
 import { Result, success, failure } from "../result";
 
 interface ContractRow {
@@ -12,6 +12,13 @@ interface ContractRow {
   purchasePrice: number;
 }
 
+interface LeagueContractQueryRow extends ContractRow {
+  teamName: string;
+  teamCredits: number;
+  playerId: string;
+  playerName: string;
+}
+
 function toContract(row: ContractRow): Contract {
   return {
     id: row.id,
@@ -20,6 +27,16 @@ function toContract(row: ContractRow): Contract {
     purchaseDate: Temporal.PlainDate.from(row.purchaseDate),
     expireDate: Temporal.PlainDate.from(row.expireDate),
     purchasePrice: row.purchasePrice,
+  };
+}
+
+function toLeagueContractRow(row: LeagueContractQueryRow): LeagueContractRow {
+  return {
+    ...toContract(row),
+    teamName: row.teamName,
+    teamCredits: row.teamCredits,
+    playerId: row.playerId,
+    playerName: row.playerName,
   };
 }
 
@@ -56,6 +73,28 @@ export class ContractRepositoryD1 implements ContractRepository {
     } catch (error) {
       return failure(
         `Error fetching contract: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  async getByLeagueId(leagueId: string): Promise<Result<LeagueContractRow[]>> {
+    try {
+      const result = await this.db
+        .prepare(
+          `SELECT c.*, t.name AS teamName, t.credits AS teamCredits,
+                  p.id AS playerId, p.username AS playerName
+           FROM contracts c
+           JOIN teams t ON c.teamId = t.id
+           JOIN players p ON t.playerId = p.id
+           WHERE t.leagueId = ?`,
+        )
+        .bind(leagueId)
+        .all<LeagueContractQueryRow>();
+
+      return success(result.results.map(toLeagueContractRow));
+    } catch (error) {
+      return failure(
+        `Error fetching league contracts: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
   }

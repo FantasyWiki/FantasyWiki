@@ -12,6 +12,7 @@ import { ArticleDTO } from "../../../dto/articleDTO";
 import { PerformanceDTO } from "../../../dto/performanceDTO";
 import { LeaderboardEntryDTO } from "../../../dto/leaderboardDTO";
 import { Temporal } from "@js-temporal/polyfill";
+import type { ContractTier } from "../../../model/pricing";
 
 const API_BASE_URL = "/api";
 
@@ -115,6 +116,13 @@ export const leaguesApi = {
           : 0,
     };
   },
+
+  /** Buy a contract for the current player's team in this league */
+  buyMyContract: (leagueId: string, articleId: string, tier: ContractTier) =>
+    apiRequest<RawContract>(`/leagues/${leagueId}/my-contracts`, {
+      method: "POST",
+      body: JSON.stringify({ articleId, tier }),
+    }).then((c) => ContractDTO.fromRaw(c)),
 };
 
 // ── Teams ─────────────────────────────────────────────────────────────────────
@@ -125,20 +133,6 @@ export const teamsApi = {
     apiRequest<RawContract[]>(`/teams/${id}/contracts`).then((cs) =>
       cs.map((c) => ContractDTO.fromRaw(c))
     ),
-  createContract: (
-    teamId: string,
-    data: {
-      teamID: string;
-      articleID: string;
-      startDate: Temporal.Instant;
-      duration: Temporal.Duration;
-      purchasePrice: number;
-    }
-  ) =>
-    apiRequest<ContractDTO>(`/teams/${teamId}/contracts`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
 };
 
 // ── Contracts ─────────────────────────────────────────────────────────────────

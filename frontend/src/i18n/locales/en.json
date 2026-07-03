@@ -308,6 +308,8 @@
     "sortLabel": "Sort:",
     "paginationInfo": "{from}–{to} of {total}",
     "ownershipLoading": "Checking…",
-    "yourTeam": "Your team"
+    "yourTeam": "Your team",
+    "buySuccess": "Contract purchased",
+    "buyError": "Couldn't buy this article"
   }
 }

@@ -416,11 +416,13 @@ import {
   type SortKey,
   type StatusFilter,
 } from "@/composables/useMarket";
+import { useToast } from "@/composables/useToast";
 import type { MarketArticle } from "@/types/market";
 import type { ArticleDTO } from "../../../dto/articleDTO";
 import type { ContractDTO } from "../../../dto/contractDTO";
 import type { ContractTier } from "@/types/articleDetail";
 import { formatViews, formatPrice } from "@/types/models";
+import { leaguesApi } from "@/services/api";
 
 // TODO: replace with real player balance from API when backend is ready
 const PLACEHOLDER_BALANCE = 550;
@@ -512,9 +514,20 @@ function closeDetail() {
   isDetailOpen.value = false;
 }
 
-// TODO: wire to teamsApi.createContract once the purchase flow is ready.
-function onBuy(tier: ContractTier) {
-  console.log("Buy", selectedArticle.value?.id, tier);
+const { showSuccess, showError } = useToast();
+
+async function onBuy(tier: ContractTier) {
+  const league = currentLeague.value;
+  const article = selectedArticle.value;
+  if (!league || !article) return;
+  try {
+    await leaguesApi.buyMyContract(league.id, article.id, tier);
+    closeDetail();
+    showSuccess(t("market.buySuccess"));
+    await refetch();
+  } catch (e) {
+    showError(e instanceof Error ? e.message : t("market.buyError"));
+  }
 }
 
 // TODO: wire to contractsApi.delete once the sell flow is ready.

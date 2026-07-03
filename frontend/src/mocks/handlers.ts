@@ -217,6 +217,31 @@ export const handlers = [
     return HttpResponse.json(contracts.filter((c) => c.team.id === team.id));
   }),
 
+  http.post("*/api/leagues/:leagueId/my-contracts", async ({ params, request }) => {
+    const data = (await request.json()) as {
+      articleId: string;
+      tier: string;
+    };
+    const team = getMyTeam(params.leagueId as string);
+    if (!team)
+      return HttpResponse.json({ error: "Team not found" }, { status: 404 });
+
+    const article = articles.find((a) => a.id === data.articleId);
+    if (!article)
+      return HttpResponse.json({ error: "Article not found" }, { status: 404 });
+
+    const newContract = new ContractDTO(
+      `ctr-${Date.now()}`,
+      team,
+      article,
+      Instant.from(Temporal.Now.instant().toString()),
+      Temporal.Duration.from({ days: 14 }),
+      150
+    );
+    contracts.push(newContract);
+    return HttpResponse.json(newContract, { status: 201 });
+  }),
+
   http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {
     const league = leagues.find((l) => l.id === params.leagueId);
     if (!league) return HttpResponse.json([]);

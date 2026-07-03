@@ -165,7 +165,7 @@ describe("external-apis/wikimedia/client", () => {
       linkedArticles: ["Isaac Newton", "Physics"],
     });
     expect(mockCache.getItem).toHaveBeenCalledWith(
-      "wikimedia:links:en.wikipedia:Albert_Einstein"
+      "wikimedia:links:v2:en.wikipedia:Albert_Einstein"
     );
   });
 });

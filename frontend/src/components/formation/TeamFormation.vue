@@ -71,12 +71,15 @@
             v-else
             class="pitch-slot-empty fm-center-col"
             :style="gridStyle(posKey)"
-            :class="{ 'pitch-slot-empty--swap': swapMode }"
+            :class="{ 'pitch-slot-empty--swap': swapMode, 'pitch-slot-empty--dragover': dragOverPos === posKey }"
             :aria-label="`Empty position ${posKey}`"
             :data-position="posKey"
             @click="
-              swapMode && swapSource ? $emit('moveToEmpty', posKey) : undefined
+              swapMode && swapSource ? emit('moveToEmpty', swapSource.id, posKey) : undefined
             "
+            @dragover.prevent="dragOverPos = posKey"
+            @dragleave="dragOverPos = null"
+            @drop="onEmptyDrop($event, posKey)"
           >
             <span class="slot-pos-label">{{ posKey }}</span>
             <ion-icon
@@ -160,17 +163,25 @@ const props = defineProps<{
   swapSource?: ContractDTO | null;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   /** User clicked a filled slot */
   articleClick: [article: ContractDTO];
   /** User dropped/clicked a swap target (string IDs) */
   swap: [fromId: string, toId: string];
   /** User clicked an empty slot while in swap mode */
-  moveToEmpty: [posKey: string];
+  moveToEmpty: [fromId: string, posKey: string];
   /** User dismissed the swap banner */
   cancelSwap: [];
 }>();
 const { t } = useI18n();
+
+const dragOverPos = ref<string | null>(null);
+
+function onEmptyDrop(e: DragEvent, posKey: string) {
+  dragOverPos.value = null;
+  const fromId = e.dataTransfer?.getData("articleId");
+  if (fromId) emit("moveToEmpty", fromId, posKey);
+}
 
 const chemistryLegendItems = computed(
   () =>
@@ -530,6 +541,12 @@ const chemistryLines = computed<RenderedChemistryLine[]>(() => {
 }
 .pitch-slot-empty--swap .slot-add-icon {
   opacity: 1;
+}
+
+.pitch-slot-empty--dragover {
+  transform: scale(1.05);
+  border-color: var(--ion-color-secondary);
+  background: rgba(var(--ion-color-secondary-rgb), 0.12);
 }
 
 /* ── Chemistry legend ─────────────────────────────────────────────────────── */

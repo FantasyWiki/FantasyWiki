@@ -105,6 +105,15 @@ function onDrop(e: DragEvent) {
   line-height: 1.3;
 }
 
+@media (min-width: 768px) {
+  .article-name {
+    max-width: none;
+    overflow: visible;
+    white-space: nowrap;
+    text-overflow: clip;
+  }
+}
+
 /* ── Tier badge ────────────────────────────────────────────────────────── */
 .article-tier {
   font-size: 9px;

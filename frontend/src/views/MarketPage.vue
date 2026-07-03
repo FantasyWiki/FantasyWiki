@@ -42,6 +42,14 @@
         <!-- Heading -->
         <div class="page-heading">
           <div class="heading-left">
+            <ion-button
+              fill="clear"
+              size="small"
+              class="back-btn"
+              @click="router.push({ name: 'Dashboard' })"
+            >
+              <ion-icon slot="icon-only" :icon="arrowBackOutline" />
+            </ion-button>
             <h2 class="page-title">{{ t("market.title") }}</h2>
             <ion-badge
               v-if="currentLeague"
@@ -397,6 +405,7 @@ import {
 } from "@ionic/vue";
 import {
   alertCircleOutline,
+  arrowBackOutline,
   arrowDownOutline,
   arrowUpOutline,
   chevronBackOutline,
@@ -407,6 +416,8 @@ import {
   swapVerticalOutline,
 } from "ionicons/icons";
 import { useI18n } from "vue-i18n";
+import { useRouter } from "vue-router";
+import { useQueryClient } from "@tanstack/vue-query";
 
 import NavBar from "@/layout/NavBar.vue";
 import ArticleDetail from "@/components/ArticleDetail.vue";
@@ -428,6 +439,8 @@ import { leaguesApi } from "@/services/api";
 const PLACEHOLDER_BALANCE = 550;
 
 const { t } = useI18n();
+const router = useRouter();
+const queryClient = useQueryClient();
 const leagueStore = useLeagueStore();
 const currentLeague = computed(() => leagueStore.currentLeague);
 
@@ -524,7 +537,18 @@ async function onBuy(tier: ContractTier) {
     await leaguesApi.buyMyContract(league.id, article.id, tier);
     closeDetail();
     showSuccess(t("market.buySuccess"));
-    await refetch();
+    // Refetch the article list and invalidate every view that reflects the
+    // purchase: market ownership badges (league-contracts), the team bench
+    // (team-lineup), and credits/portfolio (dashboard). Without this the bench
+    // stays stale until a manual reload.
+    await Promise.all([
+      refetch(),
+      queryClient.invalidateQueries({
+        queryKey: ["league-contracts", league.id],
+      }),
+      queryClient.invalidateQueries({ queryKey: ["team-lineup", league.id] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard", league.id] }),
+    ]);
   } catch (e) {
     showError(e instanceof Error ? e.message : t("market.buyError"));
   }
@@ -550,6 +574,12 @@ async function handleRefresh(event: CustomEvent) {
 .page-container {
   max-width: 1400px;
   margin: 0 auto;
+}
+
+.back-btn {
+  --padding-start: 0;
+  --padding-end: 4px;
+  margin-inline-end: 4px;
 }
 
 @media (min-width: 1024px) {

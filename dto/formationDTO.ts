@@ -425,6 +425,18 @@ export function computeChemistryLinks<S extends Schema>(
     });
 }
 
+/**
+ * Folds a Wikipedia title to a canonical match key: case-insensitive and with
+ * spaces/underscores unified. A contract's `article.title` is the underscored
+ * canonical form (`Cristiano_Ronaldo`), while Wikimedia link titles come back
+ * in display form (`Cristiano Ronaldo`) — without this fold an exact-string
+ * compare never matches, so every link resolved to WEAK (red). Mirrors
+ * `normKey` in the market service.
+ */
+function chemistryKey(title: string): string {
+    return title.trim().toLowerCase().replace(/[ _]+/g, "_");
+}
+
 export function calculateChemistry(
     article1: string | null | undefined,
     links1: string[],
@@ -435,8 +447,10 @@ export function calculateChemistry(
         return ChemistryLevel.EMPTY;
     }
 
-    const oneLinksToTwo = links1.includes(article2);
-    const twoLinksToOne = links2.includes(article1);
+    const links1Keys = new Set(links1.map(chemistryKey));
+    const links2Keys = new Set(links2.map(chemistryKey));
+    const oneLinksToTwo = links1Keys.has(chemistryKey(article2));
+    const twoLinksToOne = links2Keys.has(chemistryKey(article1));
 
     if (oneLinksToTwo && twoLinksToOne) {
         return ChemistryLevel.EXCELLENT;

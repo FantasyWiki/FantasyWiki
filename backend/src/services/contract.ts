@@ -148,9 +148,18 @@ export class ContractService {
         domain,
         articleId,
       );
-      const avg = views.averageViews30d ?? 0;
+      // Enforce correctness over availability: a failed views fetch leaves
+      // `averageViews30d` undefined. Never price that as 0 (which would sell the
+      // contract for free and skip the debit) — reject the buy instead. A real
+      // sub-2,000-view article still returns a defined number and legitimately
+      // prices at 0 (the intended free/broke-player mechanic, ADR 0003).
+      if (views.averageViews30d === undefined) {
+        return failure(
+          "Couldn't fetch this article's views to price the contract. Please try again.",
+        );
+      }
       price = computeContractPrice(
-        normalizedViews(avg, resolveLanguageScale(domain)),
+        normalizedViews(views.averageViews30d, resolveLanguageScale(domain)),
         TIER_DAYS[tier],
       );
     } catch (error) {

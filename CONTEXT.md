@@ -98,24 +98,28 @@ A four-step rating (Excellent/Good/Weak/Empty) assigned to a **Chemistry Link** 
 _Avoid_: color tier, synergy multiplier, all-pairs synergy
 
 **Contract Price**:
-The credits required to hold an article, `C × Normalized_30-day-average_Views^1.5 × contract_days` (ADR 0005 — convex in views, days-based; supersedes the earlier linear `/1000 × weeks` form). Priced on the **smoothed 30-day average**, never daily views — this is the deliberate decoupling that makes daily spikes cheap-but-fleeting and sustained popularity expensive. Convexity means giants/top-tier articles cost progressively more per marginal view than mid-tier ones, gating a top-tier team behind grinding rather than day-one budget.
-_Avoid_: daily-view price, spot price, linear-in-views price
+The credits required to hold an article, `D × BasePoints(Normalized_30-day-average_Views)^k × contract_days` (ADR 0005 — derived from the scoring curve's own BasePoints shape, not raw views; days-based; supersedes both the original linear `/1000 × weeks` form and an intermediate convex-in-raw-views form). Priced on the **smoothed 30-day average**, never daily views — this is the deliberate decoupling that makes daily spikes cheap-but-fleeting and sustained popularity expensive. The `k` exponent applies convexity to the already-log-compressed points value (not to raw, power-law-skewed views), so giants/top-tier articles cost progressively more per marginal point than mid-tier ones without the price curve diverging from the value it buys.
+_Avoid_: daily-view price, spot price, linear-in-views price, convex-in-views price
 
 **Purchase Price / Current Price**:
-**Purchase Price** is the **Contract Price** locked at signing; **Current Price** is the live market value (tracks the article's current 30-day average) used for resale.
-_Avoid_: fixed price only, single price
+**Purchase Price** is the **Contract Price** locked at signing. **Current Price** is the same formula re-evaluated with live 30-day-average views, at the contract's **original tier duration** — a "replacement cost" number (ADR 0003). It's the shared basis for both exit paths: prorated for an **Early Sell**, or a full **Expiry Settlement** against Purchase Price at natural term completion.
+_Avoid_: fixed price only, single price, resale price (ambiguous about which exit path)
 
-**Base Stipend**:
-A flat per-day credit grant (15/day) to every active player; the closed economy's income floor and engagement reward. Flat by design, so it is regressive (a large share of a poor player's wealth, negligible for a rich one) and therefore anti-snowball.
-_Avoid_: scaled income, performance payout
+**Early Sell**:
+Voluntarily exiting a contract before its committed term ends: `Current Price × (remaining days / original tier days)` — pays only for the *unused* portion of the term, at today's rate (ADR 0003). Prevents a full-refund exploit (buy LONG, sell right after the minimum hold, recover the full price plus free days of points).
+_Avoid_: resale, cash out (ambiguous with Expiry Settlement)
 
-**Transaction Fee / Renewal Premium**:
-The economy's two sinks: an **8%** fee on sale proceeds (churn / spike-arbitrage throttle) and a **+10%-per-consecutive-renewal** premium on the same article (anti-hoard).
-_Avoid_: tax, penalty
+**Expiry Settlement**:
+The "sold to system" outcome when a contract completes its full committed term without renewal: `Current Price − Purchase Price`, credited (profit) or debited (loss) against the team's balance (ADR 0003). A genuine mark-to-market result — real profit if the article's views rose over the whole hold, real loss if they fell. Can only trigger by holding the entire term, so it can't be reached via early exit. This is the mechanism that makes buying a viral/trending-spike article at its peak genuinely risky: a spike that fully reverts before the term ends turns into a real loss at settlement, not just "no profit."
+_Avoid_: expiry (bare), auto-sell, contract end (without specifying settlement)
 
 **Wealth Ceiling**:
-The point at which extra credits stop buying more daily points (~2,400 credits = the cost of fielding the literal top-11 team for one week). Above it, wealth only buys longer **tenure** and prestige, never more points/day — the structural anti-snowball.
+The point at which extra credits stop buying more daily points. **Stale pending re-derivation** (ADR 0003): the previous ~2,400-credit figure (cost of the top-11 team for one week) was calibrated against the now-removed income-floor economy; under mark-to-market settlement, wealth includes unrealized position gains/losses, not just spend, so the ceiling needs redefining before the number can be trusted again.
 _Avoid_: budget cap, hard cap
+
+**Renewal Premium**:
+A **+10%-per-consecutive-renewal** cost premium on holding the same article, resetting after dropping it for at least one cycle (ADR 0003, retained). The economy's anti-hoard sink — unaffected by the removal of the transaction fee, since it solves a different problem (hoarding one article vs. daily churn).
+_Avoid_: tax, penalty
 
 ## Relationships
 
@@ -162,3 +166,4 @@ _Avoid_: budget cap, hard cap
 - "contract duration units" is contradictory (§3.1/§6.1 say weeks–24 months; `contractDTO.tier` buckets in days: SHORT ≤3, MEDIUM ≤7, LONG >7) - leaning to the shorter, code-aligned day/week durations for a fast casual game; exact bounds still open.
 - "base scoring shape" was resolved against real en.wp data (2026-06-07 top-1000): rule-based geometric tiers (log-binned, "+1 point per doubling" from a 4k floor) replace the §2.1 three-tier 5k/20k model, with a convex linear tail above 150k (the volatile daily top ~10) to reward catching breakouts. en.wp is the reference language (factor 1.0).
 - "synergy/chemistry mechanic" was ambiguous (Requirements §2.2 said additive-over-all-pairs; the "Choose Team Formation" user story and shipped code said position-adjacency multiplier) - resolved: chemistry is **additive flat points** evaluated on **schema-adjacency topology** (FUT-style). It is not a multiplier and is not computed over every owned pair. This favors low-traffic articles proportionally and preserves the formation-placement puzzle.
+- "how does a contract pay out at the end" was undefined (only a 24h right-of-first-refusal-then-free-agent-pool was specified, no payout) - resolved (ADR 0003): two distinct exit paths, **Early Sell** (prorated, exiting before the term ends) and **Expiry Settlement** (full mark-to-market gain/loss against Purchase Price, only reachable by holding the entire term). Also resolved in the same decision: **Base Stipend** and the **8% Transaction Fee** are both removed — recovery for a broke player now comes from the pricing curve's zero floor (free sub-2,000-view articles), not a guaranteed flat income; the fee was redundant with 30-day-average smoothing plus the minimum hold. See ADR 0003 for the full reasoning and the acknowledged open risk (no-death-spiral is now probabilistic, not guaranteed).

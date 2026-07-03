@@ -88,8 +88,9 @@ describe("ArticleMarketService.getMarket", () => {
           monthViews: 30000,
           yearViews: 365000,
           averageViews30d: 0,
-          // ADR 0005: floored at 1, never 0, even for zero/missing views.
-          price: 1,
+          // ADR 0005: genuinely 0 for sub-2,000-view (here, zero-view) articles —
+          // intentional per ADR 0003, not a rounding artifact to floor away.
+          price: 0,
           owner: null,
         },
       ]);
@@ -126,7 +127,7 @@ describe("ArticleMarketService.getMarket", () => {
     }
   });
 
-  it("computes price from averageViews30d via the ADR 0005 convex formula", async () => {
+  it("computes price from averageViews30d via the ADR 0005 points-based formula", async () => {
     const wikimedia = wikimediaClientWithTopRead(async () => ({
       domain: "en",
       snapshotDate: "2026-06-29",
@@ -143,9 +144,8 @@ describe("ArticleMarketService.getMarket", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value[0].averageViews30d).toBe(9000);
-      // 9,000 views is the ADR 0005 anchor point (pre-scale rate == 9),
-      // and the whole economy is scaled x10 (CREDIT_SCALE in model/pricing.ts).
-      expect(result.value[0].price).toBe(90);
+      // basePoints(9000) = log2(9000/2000) ≈ 2.17; price = D × 2.17^1.7 × 7 (ADR 0005).
+      expect(result.value[0].price).toBe(67);
     }
   });
 

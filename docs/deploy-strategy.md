@@ -1,44 +1,51 @@
 # Deploy Strategy and Branch Policy
 
-This document describes the FantasyWiki Cloudflare deployment strategy across local, QA (`dev`), and production (`master`) environments.
+This document describes the FantasyWiki Cloudflare deployment strategy across local, QA (`master`), and production (version tag) environments.
 
 ---
 
-## Branch Policy
+## Branch / Tag Policy
 
-| Branch | Trigger | Deploy | Environments |
-|--------|---------|--------|--------------|
-| **master** | push / PR | ✅ Production | Prod Workers, Prod Pages, Prod D1 |
-| **dev** | push | ✅ QA | `backend-preview`, `frontend` (dev branch), `db-preview` |
+| Ref | Trigger | Deploy | Environments |
+|-----|---------|--------|--------------|
+| **master** (branch) | push / PR | ✅ QA | `backend-preview`, `frontend` (dev branch), `db-preview` |
+| **v\*** (tag) | push (tag creation) | ✅ Production | Prod Workers, Prod Pages, Prod D1 |
 | **feature/** | push / PR | ❌ CI only | No deploy |
 | **renovate/** | push | ❌ Skip | No deploy (dependency updates) |
+
+Every commit on `master` is automatically deployed to `dev.fantasywiki.pages.dev` (QA). Once a feature on `master` is confirmed working, create a `v*` tag (e.g. `v1.2.0`) pointing at that commit — pushing the tag deploys that exact commit to production (`fantasywiki.pages.dev`).
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
 
 ---
 
 ## CI/CD Workflows
 
-### 1. Dispatcher Workflow (`dispatcher.yml`)
-- **Trigger**: `push`, `pull_request`, `workflow_dispatch`
+### 1. CI/CD Workflow (`ci-cd.yml`)
+- **Trigger**: `push` (branches and tags), `pull_request`, `workflow_dispatch`
 - **Purpose**: route CI/CD execution and call reusable workflows
-- **Output**: calls `build.yml` (CI) and `deploy.yml` (deployment flow)
+- **Output**: calls `check.yml` (CI) and `deploy.yml` (deployment flow)
 
-### 2. Build Workflow (`build.yml`)
-- **Trigger**: `workflow_call` from `dispatcher.yml`
+### 2. Check Workflow (`check.yml`)
+- **Trigger**: `workflow_call` from `ci-cd.yml`
 - **Purpose**:
-  - run `./gradlew check` on all branches
+  - run `./gradlew check` on all branches and tags
   - no deployment logic (CI only)
 
 ### 3. Deploy Workflow (`deploy.yml`)
 - **Trigger**: `workflow_call`, `workflow_dispatch`
 - **Purpose**: deploy backend, frontend, and D1 migrations to explicit target environments
-  - `master`: backend `backend`, Pages project `frontend`, D1 `db`
-  - `dev`: backend `backend-preview`, Pages project `frontend`, D1 `db-preview`
+  - `master` (branch push): backend `backend-preview`, Pages project `frontend`, D1 `db-preview`
+  - `v*` (tag push): backend `backend`, Pages project `frontend`, D1 `db`
 
 ---
 
 ## Cloudflare Environments
 
-### Production (`master`)
+### Production (`v*` tag)
 - **Backend Worker**: `backend` (`luca0patrignani.workers.dev`)
 - **Frontend Pages**: `frontend` (`fantasywiki.pages.dev`)
 - **D1 Database**: production database (`db`)
@@ -46,7 +53,7 @@ This document describes the FantasyWiki Cloudflare deployment strategy across lo
   - `FRONTEND_URL=fantasywiki.pages.dev`
   - `VITE_BACKEND_URL=luca0patrignani.workers.dev`
 
-### QA (`dev`)
+### QA (`master`)
 - **Backend Worker**: `backend-preview`
 - **Frontend Pages**: `frontend` (`dev.fantasywiki.pages.dev`)
 - **D1 Database**: preview database (`db-preview`)
@@ -92,7 +99,7 @@ npx wrangler d1 migrations apply db-preview --remote
 ### 3. Test QA Deployment
 
 ```bash
-git push origin dev
+git push origin master
 ```
 
 Then verify the `deploy.yml` workflow in GitHub Actions.
@@ -103,9 +110,11 @@ Then verify the `deploy.yml` workflow in GitHub Actions.
 
 ### Production Rollback
 
+Re-tag a known-good commit on `master` and push it; pushing a `v*` tag always (re)deploys production from that commit.
+
 ```bash
-git revert <commit-hash>
-git push origin master
+git tag v1.2.1 <known-good-commit-hash>
+git push origin v1.2.1
 ```
 
 ### QA D1 Debug Query

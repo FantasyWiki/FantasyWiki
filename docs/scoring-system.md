@@ -35,8 +35,13 @@ into one score bucket; flat synergy points become dominant). See ADR 0002.
   lower-volume languages get `L > 1`.
 - **Normalized Views** = `raw_pageviews × L`. *All* scoring below operates on
   Normalized Views, never raw views.
-- `L` is derived from a **rank-matched top-K view ratio** between the language and
-  the reference, recalibrated ~annually (no formal season).
+- `L(domain) = median(en_views[i] / domain_views[i])` for rank-matched `i = 1..500`,
+  using each domain's 30-day-average views (not a single day, which is measurably
+  noisy) and content-article ranks only (namespace pages excluded via that domain's
+  own `siteinfo`, not a hardcoded prefix list). Recalibrated ~annually (no formal
+  season). A domain is only accepted (league creation allowed) if it has **≥300
+  ranks with ≥50 daily views** — below that, the shape-similarity assumption behind
+  a single scale factor stops holding. Full detail and real-data validation: ADR 0002.
 
 ---
 
@@ -277,9 +282,13 @@ when they are picked back up:
   spike-arbitrage edge cases — the broad guard (30-day-avg pricing + fee + min hold)
   is locked; fine balance is a live-tuning item.
 - Player-to-player transfer market (offers, time-bounds) — post-MVP.
-- Exact `L` values per language and the recalibration procedure — now also needs to
-  account for `L` entering the price formula superlinearly, `(rawViews × L)^1.5`
-  (ADR 0005), not just as a linear view-volume scale.
+- ~~Exact `L` values per language and the recalibration procedure~~ — **resolved
+  (ADR 0002, 2026-07-07):** median rank-matched top-500 ratio on 30-day-average
+  views, domain accepted only above a ≥300-ranks-@-≥50-views floor. Not yet
+  implemented in code (`LANGUAGE_SCALE` is still the `{en: 1.0, it: 1.0}`
+  placeholder) — still needs the actual per-language `L` computed and code updated
+  to account for `L` entering the price formula superlinearly via `BasePoints(rawViews
+  × L)^k` (ADR 0005), not as a linear view-volume scale.
 - ~~Contract duration bounds~~ — **resolved (ADR 0005):** SHORT = 3 days,
   MEDIUM = 7 days, LONG = 14 days, locked.
 - Re-simulate §6.3's economy flow (passive/skilled-trader credit trajectories) under

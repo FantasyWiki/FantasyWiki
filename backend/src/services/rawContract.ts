@@ -21,8 +21,13 @@ export function toRawContract(
       player,
     },
     article: {
+      // `id` is the canonical page title (underscored) — the stable identity.
+      // `title` is the display form (spaces), so the pitch/bench show
+      // "Cristiano Ronaldo", not "Cristiano_Ronaldo". We only persist the
+      // canonical title, so reconstruct the display form by unescaping
+      // underscores (faithful for all but rare specially-formatted titles).
       id: contract.articleId,
-      title: contract.articleId,
+      title: contract.articleId.replace(/_/g, " "),
       domain,
     },
     startDate: `${contract.purchaseDate.toString()}T00:00:00Z`,

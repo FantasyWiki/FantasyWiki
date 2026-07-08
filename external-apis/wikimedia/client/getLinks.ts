@@ -41,7 +41,12 @@ export function createGetLinks(http: WikimediaHttp, cache: CacheLike | null, ret
         title: string,
     ): Promise<articleWithLinks> {
         const encodedTitle = encodeURIComponent(title).replace(/%20/g, "_");
-        const cacheKey = `wikimedia:links:${domain}.wikipedia:${encodedTitle}`;
+        // Cache-key version: `v2` invalidates entries written before links were
+        // fully paginated. Older entries could hold a partial (page-1-only) link
+        // list that omits alphabetically-late targets (e.g. "Cristiano Ronaldo"
+        // is past page 1 of Messi's ~1900 links), which silently degraded
+        // chemistry to WEAK. Bump this whenever the fetch's completeness changes.
+        const cacheKey = `wikimedia:links:v2:${domain}.wikipedia:${encodedTitle}`;
 
         return withCache(cache, cacheKey, async () => {
             const baseUrl = buildActionApiBase(domain);

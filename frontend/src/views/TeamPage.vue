@@ -258,9 +258,8 @@ function handleSwap(fromId: string, toId: string) {
   cancelSwap();
 }
 
-function handleMoveToEmpty(posKey: string) {
-  if (!swapSource.value) return;
-  moveToEmpty(swapSource.value.id, posKey as Position);
+function handleMoveToEmpty(fromId: string, posKey: string) {
+  moveToEmpty(fromId, posKey as Position);
   cancelSwap();
 }
 </script>

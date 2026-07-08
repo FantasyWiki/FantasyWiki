@@ -23,6 +23,17 @@ type Bindings = {
 
 const leagues = new Hono<{ Bindings: Bindings }>();
 
+/**
+ * Missing team/league failures map to 404; every other ContractService
+ * failure (validation, slot/ownership conflicts, insufficient credits) is a
+ * 400 per docs/api-naming-rules.md's route error-mapping convention.
+ */
+function contractErrorStatus(error: string): 404 | 400 {
+  return error === "No team found for this league" || /not found/i.test(error)
+    ? 404
+    : 400;
+}
+
 leagues.get("/", async (c) => {
   const payload = c.get("jwtPayload") as JWTPayload;
   const playerService = new PlayerService(c.env.db);
@@ -163,7 +174,58 @@ leagues.get("/:id/market", async (c) => {
 });
 
 leagues.get("/:id/my-contracts", async (c) => {
-  return c.json([]);
+  const leagueId = c.req.param("id");
+  const playerResult = await resolveCurrentPlayer(c);
+  if (!playerResult.ok) {
+    return c.json({ error: playerResult.error }, 404);
+  }
+
+  const service = new ContractService(c.env.db);
+  const result = await service.getMyContracts(playerResult.value.id, leagueId);
+  if (!result.ok) {
+    return c.json({ error: result.error }, contractErrorStatus(result.error));
+  }
+  return c.json(result.value);
+});
+
+leagues.post("/:id/my-contracts", async (c) => {
+  const leagueId = c.req.param("id");
+  const playerResult = await resolveCurrentPlayer(c);
+  if (!playerResult.ok) {
+    return c.json({ error: playerResult.error }, 404);
+  }
+
+  const body = await c.req
+    .json<{ articleId?: string; tier?: string }>()
+    .catch(() => ({ articleId: undefined, tier: undefined }));
+  if (!body.articleId || typeof body.articleId !== "string") {
+    return c.json({ error: "articleId is required" }, 400);
+  }
+  if (!body.tier || typeof body.tier !== "string") {
+    return c.json({ error: "tier is required" }, 400);
+  }
+
+  const service = new ContractService(c.env.db);
+  const result = await service.buyContract(
+    playerResult.value.id,
+    leagueId,
+    body.articleId,
+    body.tier,
+  );
+  if (!result.ok) {
+    return c.json({ error: result.error }, contractErrorStatus(result.error));
+  }
+  return c.json(result.value, 201);
+});
+
+leagues.get("/:id/contracts", async (c) => {
+  const leagueId = c.req.param("id");
+  const service = new ContractService(c.env.db);
+  const result = await service.getLeagueContracts(leagueId);
+  if (!result.ok) {
+    return c.json({ error: result.error }, 404);
+  }
+  return c.json(result.value);
 });
 
 leagues.get("/:id/contracts", async (c) => {

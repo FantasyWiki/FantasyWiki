@@ -4,6 +4,7 @@ import type { ContractDTO } from "../../../dto/contractDTO";
 import {
   TIER_DAYS,
   computeContractPrice,
+  computeCurrentPrice,
   normalizedViews,
   resolveLanguageScale,
   type ContractTier,
@@ -66,19 +67,6 @@ export type ArticleDetailInput = {
   /** Raw (not normalized) 30-day average views — input to ContractPrice (ADR 0005). */
   averageViews30d: number;
 };
-
-/** ContractPrice (ADR 0005) at `days` — for owned contracts this must be the contract's own held tier, not a fixed tier, or the value-delta vs purchasePrice is spurious. */
-function computeCurrentPrice(
-  averageViews30d: number,
-  domain: ArticleDTO["domain"],
-  days: number
-): number {
-  const normalized = normalizedViews(
-    averageViews30d,
-    resolveLanguageScale(domain)
-  );
-  return computeContractPrice(normalized, days);
-}
 
 function computeTierOptions(
   averageViews30d: number,

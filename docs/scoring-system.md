@@ -35,8 +35,13 @@ into one score bucket; flat synergy points become dominant). See ADR 0002.
   lower-volume languages get `L > 1`.
 - **Normalized Views** = `raw_pageviews × L`. *All* scoring below operates on
   Normalized Views, never raw views.
-- `L` is derived from a **rank-matched top-K view ratio** between the language and
-  the reference, recalibrated ~annually (no formal season).
+- `L(domain) = median(en_views[i] / domain_views[i])` for rank-matched `i = 1..500`,
+  using each domain's 30-day-average views (not a single day, which is measurably
+  noisy) and content-article ranks only (namespace pages excluded via that domain's
+  own `siteinfo`, not a hardcoded prefix list). Recalibrated ~annually (no formal
+  season). A domain is only accepted (league creation allowed) if it has **≥300
+  ranks with ≥50 daily views** — below that, the shape-similarity assumption behind
+  a single scale factor stops holding. Full detail and real-data validation: ADR 0002.
 
 ---
 
@@ -169,9 +174,10 @@ without the price curve diverging from the value it buys the way a views-based e
   1-day spike barely moves the 30-day average, so you cannot buy-at-10k / sell-at-400k
   overnight; trades only pay off on *sustained* multi-week momentum.
 - `purchasePrice` is locked at signing; `currentPrice` floats with the live 30-day
-  average, evaluated at the contract's original tier duration. It's the basis for both exit
-  paths — prorated for an early sell, or a full mark-to-market settlement against `purchasePrice`
-  at natural expiry (§6.3, ADR 0003).
+  average, evaluated at the contract's tier duration. It's the basis for both exit
+  paths — prorated (unused time) for an early sell, or a full-`currentPrice` mark-to-market
+  settlement at natural expiry (buy debited `purchasePrice`, so expiry returns stake + P&L;
+  §6.3, ADR 0003).
 - **Contract duration tiers are locked in days** (ADR 0005): **SHORT = 3 days,
   MEDIUM = 7 days, LONG = 14 days**. These are the actual purchasable durations — the
   `contractDTO.tier` getter derives the *display* tier from an existing contract's
@@ -194,10 +200,10 @@ flat stipend, 8% transaction fee, and an expiry with no defined payout are all r
 | Lever | Value | Role |
 |---|---|---|
 | Renewal premium | **+10% per consecutive renewal** (resets after dropping ≥1 cycle) | anti-hoard (sink) |
-| Minimum hold | **3 days** | blocks daily spike-churn (the primary anti-churn lever now that the fee is gone) |
-| Early sell | `currentPrice(liveViews, originalTierDays) × (remainingDays / originalTierDays)` | pays only for unused time at today's rate — closes the "buy LONG, sell after minimum hold, full refund plus free days" exploit |
-| Expiry settlement ("sold to system") | `currentPrice(liveViews, originalTierDays) − purchasePrice`, credited or debited | full-term mark-to-market result; only triggers by holding the *entire* committed term |
-| Renewal priority | 24h right-of-first-refusal at expiry, then free-agent pool | no midnight sniping, but no permanent lock |
+| Early sell | `currentPrice(liveViews, tierDays) × (remainingDays / tierDays)` credited | pays only for the *unused* time at today's rate — proration is the sole anti-exploit guard (no minimum hold): holding 3 of 14 days recovers only 11/14, so a partial hold can never return the full price |
+| Expiry settlement ("sold to system") | credit **`currentPrice(liveViews, tierDays)`** — i.e. `purchasePrice + (currentPrice − purchasePrice)` | full-term mark-to-market: the buy already **debited** `purchasePrice`, so expiry returns the whole stake **plus** the P&L (`currentPrice − purchasePrice`). Net gain if views rose, net loss if they fell. Only reachable by holding the *entire* committed term |
+| Renewal decision | owner elects **Renew / let expire** during the **final 24h** of the term; the choice **locks** for expiry (**default = let expire**) | right-of-first-refusal without midnight sniping or a permanent lock; a renewal rolls the window forward (`purchaseDate ← old expireDate`, `expireDate += tierDays`) at `currentPrice + renewal premium` |
+| Settlement trigger | daily **Cloudflare Cron** sweep on the backend Worker (~06:00 UTC); 30-day-average views fetched via the Wikimedia client | backend stays the single money-writer (ADR 0004); idempotent on a contract `status` guard |
 | Broke-player recovery | free (0-credit) sub-2,000-view articles always available | skill-based comeback (scout undervalued content), not a guaranteed stipend |
 
 **Removed vs. the original model:**
@@ -207,9 +213,13 @@ flat stipend, 8% transaction fee, and an expiry with no defined payout are all r
   *guaranteed* no-death-spiral floor for a *probabilistic* one — an explicitly acknowledged,
   not-yet-fully-mitigated risk (see ADR 0003's "Open risk").
 - **Transaction fee (was 8% of sale proceeds):** removed — redundant with the 30-day-average
-  smoothing and the 3-day minimum hold, which already do the anti-churn/anti-spike-arbitrage work
+  smoothing plus early-sell proration, which already do the anti-churn/anti-spike-arbitrage work
   the fee existed for; kept alongside a removed stipend it would've been the one guaranteed drain
   in the economy.
+- **Minimum hold (was 3 days):** removed — early-sell proration (`× remaining/tier`) already makes
+  a partial hold cost the used portion, so the separate churn block was redundant. With 30-day-
+  average pricing a same-day round-trip pays ≈full price back but scores ~0, so churn is
+  economically neutral without it.
 
 **Self-balancing properties:**
 - Even view-budget allocation beats viral concentration (Jensen): pricing convex in *points*, not
@@ -224,8 +234,8 @@ flat stipend, 8% transaction fee, and an expiry with no defined payout are all r
   re-simulate once the mark-to-market economy is implemented.
 
 **Live-tuning levers:** players stuck broke too often → revisit the no-guaranteed-floor
-trade-off (ADR 0003's "Open risk"); spike-churn appears → lengthen minimum hold (now the only
-direct lever, since the fee is gone); giants hoarded → steepen renewal escalation.
+trade-off (ADR 0003's "Open risk"); spike-churn appears → reintroduce a minimum hold or a small
+fee (both currently removed); giants hoarded → steepen renewal escalation.
 
 ---
 
@@ -272,9 +282,13 @@ when they are picked back up:
   spike-arbitrage edge cases — the broad guard (30-day-avg pricing + fee + min hold)
   is locked; fine balance is a live-tuning item.
 - Player-to-player transfer market (offers, time-bounds) — post-MVP.
-- Exact `L` values per language and the recalibration procedure — now also needs to
-  account for `L` entering the price formula superlinearly, `(rawViews × L)^1.5`
-  (ADR 0005), not just as a linear view-volume scale.
+- ~~Exact `L` values per language and the recalibration procedure~~ — **resolved
+  (ADR 0002, 2026-07-07):** median rank-matched top-500 ratio on 30-day-average
+  views, domain accepted only above a ≥300-ranks-@-≥50-views floor. Not yet
+  implemented in code (`LANGUAGE_SCALE` is still the `{en: 1.0, it: 1.0}`
+  placeholder) — still needs the actual per-language `L` computed and code updated
+  to account for `L` entering the price formula superlinearly via `BasePoints(rawViews
+  × L)^k` (ADR 0005), not as a linear view-volume scale.
 - ~~Contract duration bounds~~ — **resolved (ADR 0005):** SHORT = 3 days,
   MEDIUM = 7 days, LONG = 14 days, locked.
 - Re-simulate §6.3's economy flow (passive/skilled-trader credit trajectories) under

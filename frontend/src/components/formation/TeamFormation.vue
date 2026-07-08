@@ -1,13 +1,74 @@
 <template>
   <ion-card class="pitch-card">
     <div ref="pitchRef" class="pitch">
+      <!-- Turf surface, clipped to the same trapezoid as the touchlines -->
+      <div class="pitch-surface" aria-hidden="true" />
       <!-- ── Decorative pitch markings ──────────────────────────────────── -->
-      <div class="pitch-center-line" aria-hidden="true" />
-      <div class="pitch-center-circle" aria-hidden="true" />
-      <!-- Goal area top -->
-      <div class="pitch-goal pitch-goal--top" aria-hidden="true" />
-      <!-- Goal area bottom -->
-      <div class="pitch-goal pitch-goal--bottom" aria-hidden="true" />
+      <!--
+        The pitch is drawn from behind the home goal: sidelines converge
+        toward the far (top) goal and the mow stripes shorten with distance.
+        preserveAspectRatio="none" stretches the drawing to the grid, so
+        every stroke uses non-scaling-stroke to keep line widths crisp.
+      -->
+      <svg
+        class="pitch-markings"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <defs>
+          <clipPath :id="clipId">
+            <polygon points="12.5,0 87.5,0 98.5,100 1.5,100" />
+          </clipPath>
+        </defs>
+        <!-- Mow stripes, foreshortened toward the far goal -->
+        <g class="pm-bands" :clip-path="`url(#${clipId})`">
+          <rect x="0" y="10" width="100" height="11" />
+          <rect x="0" y="33" width="100" height="13" />
+          <rect x="0" y="60" width="100" height="15" />
+          <rect x="0" y="91" width="100" height="9" />
+        </g>
+        <g class="pm-lines">
+          <!-- Touchlines -->
+          <polygon
+            points="12.5,0 87.5,0 98.5,100 1.5,100"
+            vector-effect="non-scaling-stroke"
+          />
+          <!-- Halfway line + center circle (squashed by perspective) -->
+          <line
+            x1="7.7"
+            y1="44"
+            x2="92.3"
+            y2="44"
+            vector-effect="non-scaling-stroke"
+          />
+          <ellipse
+            cx="50"
+            cy="44"
+            rx="10.5"
+            ry="5.5"
+            vector-effect="non-scaling-stroke"
+          />
+          <!-- Far goal box -->
+          <polyline
+            points="35.7,0 34.9,9 65.1,9 64.3,0"
+            vector-effect="non-scaling-stroke"
+          />
+          <!-- Near penalty area, goal box and arc -->
+          <polyline
+            points="22.9,100 24.1,80 75.9,80 77.1,100"
+            vector-effect="non-scaling-stroke"
+          />
+          <polyline
+            points="37.4,100 37.6,92 62.4,92 62.6,100"
+            vector-effect="non-scaling-stroke"
+          />
+          <path
+            d="M 41.5 80 Q 50 74.8 58.5 80"
+            vector-effect="non-scaling-stroke"
+          />
+        </g>
+      </svg>
 
       <!-- ── Swap-mode banner ───────────────────────────────────────────── -->
       <transition name="fade">
@@ -129,6 +190,7 @@ import {
   onBeforeUnmount,
   onMounted,
   ref,
+  useId,
   watch,
   nextTick,
 } from "vue";
@@ -145,7 +207,7 @@ import {
   addCircleOutline,
   closeOutline,
 } from "ionicons/icons";
-import { POSITION_MAP, FORMATIONS } from "@/types/pitch";
+import { POSITION_MAP, FORMATIONS, PITCH_GRID } from "@/types/pitch";
 import {
   ChemistryLevel,
   DraftFormationDTO,
@@ -176,6 +238,10 @@ const emit = defineEmits<{
 }>();
 const { t } = useI18n();
 
+// Ionic can keep several cached views (each with its own pitch) mounted at
+// once, so the SVG clipPath id must be unique per component instance.
+const clipId = `pitch-clip-${useId()}`;
+
 const dragOverPos = ref<string | null>(null);
 
 function onEmptyDrop(e: DragEvent, posKey: string) {
@@ -200,21 +266,10 @@ const chemistryLegendItems = computed(
     ] as const
 );
 
-const DESKTOP_MEDIA_QUERY = "(min-width: 768px)";
-const isDesktop = ref(false);
-let desktopMediaQuery: MediaQueryList | null = null;
 const pitchRef = ref<HTMLElement | null>(null);
 let pitchObserver: ResizeObserver | null = null;
 
-function updateDesktopLayout(event?: MediaQueryListEvent): void {
-  isDesktop.value = event ? event.matches : !!desktopMediaQuery?.matches;
-  void nextTick(updateAnchors);
-}
-
 onMounted(() => {
-  desktopMediaQuery = window.matchMedia(DESKTOP_MEDIA_QUERY);
-  updateDesktopLayout();
-  desktopMediaQuery.addEventListener("change", updateDesktopLayout);
   pitchObserver = new ResizeObserver(() => {
     updateAnchors();
   });
@@ -226,7 +281,6 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  desktopMediaQuery?.removeEventListener("change", updateDesktopLayout);
   pitchObserver?.disconnect();
 });
 
@@ -245,22 +299,22 @@ const activePositions = computed(
 /**
  * Returns inline CSS grid-placement styles for the given position key.
  * CSS grid is 1-indexed; POSITION_MAP uses 0-indexed values.
+ *
+ * --fm-col-offset / --fm-depth feed the perspective convergence in CSS:
+ * outer columns drift toward the center as rows recede to the far goal
+ * (row 0 = attack = deepest, last row = goalkeeper = camera plane).
  */
 function gridStyle(posKey: Position): Record<string, string> {
   const pos = POSITION_MAP[posKey];
   if (!pos) return {};
 
-  if (isDesktop.value) {
-    return {
-      // Desktop: transpose coordinates to render a landscape pitch.
-      gridRow: String(pos.col + 1),
-      gridColumn: String(pos.row + 1),
-    };
-  }
-
+  const lastRow = PITCH_GRID.rows - 1;
+  const centerCol = (PITCH_GRID.cols - 1) / 2;
   return {
     gridRow: String(pos.row + 1),
     gridColumn: String(pos.col + 1),
+    "--fm-col-offset": String(pos.col - centerCol),
+    "--fm-depth": String((lastRow - pos.row) / lastRow),
   };
 }
 
@@ -355,11 +409,23 @@ const chemistryLines = computed<RenderedChemistryLine[]>(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* The pitch is portrait everywhere; cap its width so it never sprawls
+     across a wide viewport, mirroring a console team-management screen. */
+  width: 100%;
+  max-width: 680px;
+  margin-inline: auto;
 }
 
 /* ── Pitch background ─────────────────────────────────────────────────────── */
 .pitch {
   position: relative;
+  /* Grow with the card so hosts can equal-height the pitch against
+     neighboring columns; the fr-based grid rows absorb the extra space. */
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  /* 1cqw = 1% of the pitch width, used for perspective convergence */
+  container-type: inline-size;
   --slot-gap-mobile: 14px;
   --slot-gap-desktop: 18px;
   --node-size-mobile: 48px;
@@ -367,16 +433,48 @@ const chemistryLines = computed<RenderedChemistryLine[]>(() => {
   --pitch-pad-top: 16px;
   --pitch-pad-x: 8px;
   --pitch-pad-bottom: 24px;
-  background: linear-gradient(
-    to bottom,
-    rgba(var(--ion-color-primary-rgb), 0.04) 0%,
-    rgba(var(--ion-color-primary-rgb), 0.1) 50%,
-    rgba(var(--ion-color-primary-rgb), 0.04) 100%
-  );
-  border-radius: 12px;
-  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.18);
   overflow: visible;
   padding: var(--pitch-pad-top) var(--pitch-pad-x) var(--pitch-pad-bottom);
+}
+
+/* Turf fill: no card box, just the trapezoid floating on the page.
+   Deeper tint at the far goal sells the distance. */
+.pitch-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  clip-path: polygon(12.5% 0, 87.5% 0, 98.5% 100%, 1.5% 100%);
+  background: linear-gradient(
+    to bottom,
+    rgba(var(--ion-color-primary-rgb), 0.18) 0%,
+    rgba(var(--ion-color-primary-rgb), 0.1) 45%,
+    rgba(var(--ion-color-primary-rgb), 0.07) 100%
+  );
+}
+
+/* ── Pitch markings (perspective SVG) ────────────────────────────────────── */
+.pitch-markings {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.pm-bands rect {
+  fill: rgba(var(--ion-color-primary-rgb), 0.05);
+}
+
+.pm-lines polygon,
+.pm-lines line,
+.pm-lines ellipse,
+.pm-lines polyline,
+.pm-lines path {
+  fill: none;
+  stroke: rgba(var(--ion-color-primary-rgb), 0.28);
+  stroke-width: 1.5px;
 }
 
 /* ── Chemistry links ─────────────────────────────────────────────────────── */
@@ -410,49 +508,6 @@ const chemistryLines = computed<RenderedChemistryLine[]>(() => {
 .chem-line--empty {
   stroke-width: 2px;
   stroke: rgba(var(--ion-color-medium-rgb), 0.75);
-}
-
-/* ── Pitch markings ───────────────────────────────────────────────────────── */
-.pitch-center-line {
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  top: 50%;
-  height: 1px;
-  background: rgba(var(--ion-color-primary-rgb), 0.18);
-  pointer-events: none;
-}
-
-.pitch-center-circle {
-  position: absolute;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.18);
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-}
-
-.pitch-goal {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 40%;
-  height: 28px;
-  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.18);
-  pointer-events: none;
-}
-.pitch-goal--top {
-  top: 0;
-  border-top: none;
-  border-radius: 0 0 6px 6px;
-}
-.pitch-goal--bottom {
-  bottom: 0;
-  border-bottom: none;
-  border-radius: 6px 6px 0 0;
 }
 
 /* ── Swap mode banner ─────────────────────────────────────────────────────── */
@@ -494,14 +549,28 @@ const chemistryLines = computed<RenderedChemistryLine[]>(() => {
 /* ── Main grid ────────────────────────────────────────────────────────────── */
 .pitch-grid {
   display: grid;
-  grid-template-rows: repeat(6, minmax(60px, auto));
+  /* Rows taper toward the far goal: the squashed perspective look */
+  grid-template-rows: 0.82fr 0.9fr 0.98fr 1.06fr 1.12fr 1fr;
   grid-template-columns: repeat(5, 1fr);
   gap: var(--slot-gap-mobile);
-  min-height: 480px;
+  min-height: 460px;
+  flex: 1;
   position: relative;
   z-index: 1;
   justify-items: center;
   align-items: center;
+}
+
+/*
+ * Perspective convergence: nodes in outer columns slide toward the center
+ * line as their row recedes (see gridStyle). Uses the standalone `translate`
+ * property so it composes with the `transform` scale on :active/drag-over,
+ * and cqw units so the shift is proportional to the pitch width. Chemistry
+ * anchors stay correct: they are measured from post-translate rects.
+ */
+.pitch-grid :deep(.article-node),
+.pitch-slot-empty {
+  translate: calc(var(--fm-col-offset, 0) * var(--fm-depth, 0) * -4.5cqw) 0;
 }
 
 /* ── Empty slot placeholder ───────────────────────────────────────────────── */
@@ -624,20 +693,12 @@ const chemistryLines = computed<RenderedChemistryLine[]>(() => {
 
 @media (min-width: 768px) {
   .pitch {
-    background: linear-gradient(
-      to right,
-      rgba(var(--ion-color-primary-rgb), 0.04) 0%,
-      rgba(var(--ion-color-primary-rgb), 0.1) 50%,
-      rgba(var(--ion-color-primary-rgb), 0.04) 100%
-    );
     --pitch-pad-x: 12px;
-    --pitch-pad-bottom: 16px;
+    --pitch-pad-bottom: 20px;
   }
 
   .pitch-grid {
-    grid-template-rows: repeat(5, minmax(64px, auto));
-    grid-template-columns: repeat(6, minmax(80px, 1fr));
-    min-height: 360px;
+    min-height: 540px;
     gap: var(--slot-gap-desktop);
   }
 
@@ -649,38 +710,6 @@ const chemistryLines = computed<RenderedChemistryLine[]>(() => {
   .pitch-grid :deep(.article-node) {
     width: min(100%, var(--node-size-desktop));
     min-height: var(--node-size-desktop);
-  }
-
-  .pitch-center-line {
-    top: 8px;
-    bottom: 8px;
-    left: 50%;
-    right: auto;
-    width: 1px;
-    height: auto;
-  }
-
-  .pitch-goal {
-    top: 50%;
-    left: auto;
-    transform: translateY(-50%);
-    width: 28px;
-    height: 40%;
-  }
-
-  .pitch-goal--top {
-    left: 0;
-    border-top: 1px solid rgba(var(--ion-color-primary-rgb), 0.18);
-    border-left: none;
-    border-radius: 0 6px 6px 0;
-  }
-
-  .pitch-goal--bottom {
-    right: 0;
-    bottom: auto;
-    border-bottom: 1px solid rgba(var(--ion-color-primary-rgb), 0.18);
-    border-right: none;
-    border-radius: 6px 0 0 6px;
   }
 
   .chemistry-legend {

@@ -2,223 +2,141 @@
   <div class="hero-wrapper">
     <div class="hero-bg-decoration" aria-hidden="true" />
 
-    <ion-grid class="hero-grid ion-no-padding">
-      <ion-row class="ion-align-items-center">
-        <!-- ── Left: identity + actions ─────────────── -->
-        <ion-col size="12" size-md="6">
-          <div class="hero-left">
-            <!-- League chip -->
-            <ion-chip
-              v-if="currentLeague"
-              class="league-chip"
-              color="primary"
-              outline
-              :disabled="true"
-              style="opacity: 1"
-            >
-              <span class="league-icon">{{ currentLeague.icon }}</span>
-              <ion-label>{{ currentLeague.title }}</ion-label>
-              <ion-badge
-                v-if="currentLeague.endDate.toLocaleString()"
-                color="primary"
-                class="season-badge"
-              >
-                {{
-                  currentLeague.startDate.toLocaleString(locale, {
-                    month: "short",
-                    year: "numeric",
-                  })
-                }}
-              </ion-badge>
-            </ion-chip>
+    <div class="hero-content">
+      <!-- ── Identity + actions ─────────────────────── -->
+      <div class="hero-left">
+        <!-- Greeting + team name, league chip aligned right -->
+        <div class="hero-top">
+          <div class="hero-heading">
+            <ion-text color="medium">
+              <p class="greeting-text ion-no-margin">
+                {{ $t("dashboard.hero.welcomeBack") }}
+              </p>
+            </ion-text>
+            <h1 class="team-name ion-no-margin">
+              {{ data?.team?.name ?? $t("dashboard.hero.yourTeam") }}
+            </h1>
+          </div>
 
-            <!-- Greeting + team name -->
-            <div class="hero-heading">
+          <ion-chip
+            v-if="currentLeague"
+            class="league-chip"
+            color="primary"
+            outline
+            :disabled="true"
+            style="opacity: 1"
+          >
+            <span class="league-icon">{{ currentLeague.icon }}</span>
+            <ion-label>{{ currentLeague.title }}</ion-label>
+            <ion-badge
+              v-if="currentLeague.endDate.toLocaleString()"
+              color="primary"
+              class="season-badge"
+            >
+              {{
+                currentLeague.startDate.toLocaleString(locale, {
+                  month: "short",
+                  year: "numeric",
+                })
+              }}
+            </ion-badge>
+          </ion-chip>
+        </div>
+
+        <!-- Actions: Buy Articles + inbox bell -->
+        <div class="hero-actions">
+          <ion-button
+            color="primary"
+            fill="solid"
+            @click="router.push('/market')"
+          >
+            <ion-icon slot="start" :icon="cartOutline" />
+            {{ $t("dashboard.hero.buyArticles") }}
+          </ion-button>
+
+          <in-box />
+        </div>
+      </div>
+
+      <!-- ── Stat ledger: label left, value right ───── -->
+      <div class="stat-list" v-if="data">
+        <div v-for="stat in allStats" :key="stat.label" class="stat-row">
+          <div class="stat-row__meta">
+            <div
+              class="stat-row__icon"
+              :style="{ background: stat.iconBg, color: stat.iconColor }"
+            >
+              <ion-icon :icon="stat.icon" />
+            </div>
+            <div class="stat-row__labels">
               <ion-text color="medium">
-                <p class="greeting-text ion-no-margin">
-                  {{ $t("dashboard.hero.welcomeBack") }}
+                <p class="stat-row__label ion-no-margin">
+                  {{ stat.label }}
                 </p>
               </ion-text>
-              <h1 class="team-name ion-no-margin">
-                {{ data?.team?.name ?? $t("dashboard.hero.yourTeam") }}
-              </h1>
-            </div>
-
-            <!-- Rank pill — rank only -->
-            <div class="rank-pill" v-if="data">
-              <ion-icon :icon="trophyOutline" color="warning" />
-              <span class="rank-value">#{{ data.rank }}</span>
-              <span class="rank-label">{{
-                $t("dashboard.hero.rankOf", { count: data.totalPlayers })
-              }}</span>
-            </div>
-
-            <!-- Actions: Buy Articles + inbox bell -->
-            <div class="hero-actions">
-              <ion-button
-                color="primary"
-                fill="solid"
-                @click="router.push('/market')"
-              >
-                <ion-icon slot="start" :icon="cartOutline" />
-                {{ $t("dashboard.hero.buyArticles") }}
-              </ion-button>
-
-              <in-box />
+              <p v-if="stat.sub" class="stat-row__sub ion-no-margin">
+                {{ stat.sub }}
+              </p>
             </div>
           </div>
-        </ion-col>
 
-        <!-- ── Right: rotating featured card + small stats ── -->
-        <ion-col size="12" size-md="6">
-          <div class="right-column">
-            <!-- Featured card — the active stat is shown large -->
-            <div class="featured-card-wrapper" v-if="data">
-              <ion-card class="featured-card" @click="advance">
-                <ion-card-content class="featured-content">
-                  <!-- Icon -->
-                  <div
-                    class="featured-icon-wrap"
-                    :style="{
-                      background: activeStatDef.iconBg,
-                      color: activeStatDef.iconColor,
-                    }"
-                  >
-                    <ion-icon :icon="activeStatDef.icon" />
-                  </div>
-
-                  <!-- Label + value -->
-                  <div class="featured-body">
-                    <ion-text color="medium">
-                      <p class="featured-label ion-no-margin">
-                        {{ activeStatDef.label }}
-                      </p>
-                    </ion-text>
-                    <div class="featured-value-row">
-                      <span class="featured-value">{{
-                        activeStatDef.value
-                      }}</span>
-                      <!-- Trend chip — only on the points card -->
-                      <ion-chip
-                        v-if="activeStatDef.trend !== undefined"
-                        :color="activeStatDef.trend >= 0 ? 'success' : 'danger'"
-                        class="trend-chip"
-                        outline
-                      >
-                        <ion-icon
-                          :icon="
-                            activeStatDef.trend >= 0
-                              ? trendingUpOutline
-                              : trendingDownOutline
-                          "
-                        />
-                        <ion-label>
-                          {{ activeStatDef.trend >= 0 ? "+" : ""
-                          }}{{ activeStatDef.trend }}%
-                        </ion-label>
-                      </ion-chip>
-                    </div>
-                    <p
-                      v-if="activeStatDef.sub"
-                      class="featured-sub ion-no-margin"
-                    >
-                      {{ activeStatDef.sub }}
-                    </p>
-                  </div>
-
-                  <!-- Dot indicators -->
-                  <div class="carousel-dots">
-                    <button
-                      v-for="(_, i) in allStats"
-                      :key="i"
-                      class="dot"
-                      :class="{ 'dot--active': activeIndex === i }"
-                      :aria-label="
-                        $t('dashboard.hero.showStat', { index: i + 1 })
-                      "
-                      @click.stop="goTo(i)"
-                    />
-                  </div>
-                </ion-card-content>
-              </ion-card>
-            </div>
-
-            <!-- Skeleton for featured card -->
-            <ion-card v-else class="featured-card featured-card--skeleton">
-              <ion-card-content>
-                <ion-skeleton-text
-                  :animated="true"
-                  style="height: 88px; border-radius: 8px"
-                />
-              </ion-card-content>
-            </ion-card>
-
-            <!-- Small stats row: always shows the 3 non-active stats -->
-            <div class="small-stats" v-if="data">
-              <div
-                v-for="stat in secondaryStats"
-                :key="stat.label"
-                class="small-stat"
-                @click="goToLabel(stat.label)"
-              >
-                <div
-                  class="small-stat__icon"
-                  :style="{ background: stat.iconBg, color: stat.iconColor }"
-                >
-                  <ion-icon :icon="stat.icon" />
-                </div>
-                <div class="small-stat__text">
-                  <p class="small-stat__label ion-no-margin">
-                    {{ stat.label }}
-                  </p>
-                  <p class="small-stat__value ion-no-margin">
-                    {{ stat.value }}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Skeleton for small stats -->
-            <div class="small-stats" v-else>
-              <div v-for="i in 3" :key="i" class="small-stat">
-                <ion-skeleton-text
-                  :animated="true"
-                  class="small-stat__skeleton-icon"
-                />
-                <div class="small-stat__text">
-                  <ion-skeleton-text
-                    :animated="true"
-                    class="small-stat__skeleton-lbl"
-                  />
-                  <ion-skeleton-text
-                    :animated="true"
-                    class="small-stat__skeleton-val"
-                  />
-                </div>
-              </div>
-            </div>
+          <div class="stat-row__figure">
+            <!-- Trend chip — only on the points row -->
+            <ion-chip
+              v-if="stat.trend !== undefined"
+              :color="stat.trend >= 0 ? 'success' : 'danger'"
+              class="trend-chip"
+              outline
+            >
+              <ion-icon
+                :icon="
+                  stat.trend >= 0 ? trendingUpOutline : trendingDownOutline
+                "
+              />
+              <ion-label>
+                {{ stat.trend >= 0 ? "+" : "" }}{{ stat.trend }}%
+              </ion-label>
+            </ion-chip>
+            <span
+              class="stat-row__value"
+              :class="{ 'stat-row__value--gold': stat.gold }"
+            >
+              {{ stat.value }}
+            </span>
           </div>
-        </ion-col>
-      </ion-row>
-    </ion-grid>
+        </div>
+      </div>
+
+      <!-- Skeletons for the stat rows -->
+      <div class="stat-list" v-else>
+        <div v-for="i in 4" :key="i" class="stat-row">
+          <div class="stat-row__meta">
+            <ion-skeleton-text
+              :animated="true"
+              class="stat-row__skeleton-icon"
+            />
+            <ion-skeleton-text
+              :animated="true"
+              class="stat-row__skeleton-lbl"
+            />
+          </div>
+          <ion-skeleton-text :animated="true" class="stat-row__skeleton-val" />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import {
   IonBadge,
   IonButton,
-  IonCard,
-  IonCardContent,
   IonChip,
-  IonCol,
-  IonGrid,
   IonIcon,
   IonLabel,
-  IonRow,
   IonSkeletonText,
   IonText,
 } from "@ionic/vue";
@@ -252,6 +170,8 @@ interface StatDef {
   value: string | number;
   sub?: string | null;
   trend?: number;
+  /** Wiki Gold value — reserved for ranking/prestige stats */
+  gold?: boolean;
   icon: string;
   iconBg: string;
   iconColor: string;
@@ -292,53 +212,12 @@ const allStats = computed<StatDef[]>(() => {
       label: t("dashboard.hero.standing"),
       value: `#${s.rank}`,
       sub: t("dashboard.hero.standingSub", { count: s.totalPlayers }),
+      gold: true,
       icon: trophyOutline,
       iconBg: "rgba(var(--ion-color-warning-rgb), 0.15)",
       iconColor: "var(--ion-color-warning)",
     },
   ];
-});
-
-// ── Carousel ──────────────────────────────────────
-const INTERVAL_MS = 3500;
-const activeIndex = ref(0);
-let timer: ReturnType<typeof setInterval> | null = null;
-
-const activeStatDef = computed(
-  () => allStats.value[activeIndex.value] ?? allStats.value[0]
-);
-
-const secondaryStats = computed(() =>
-  allStats.value.filter((_, i) => i !== activeIndex.value)
-);
-
-function advance() {
-  if (!allStats.value.length) return;
-  activeIndex.value = (activeIndex.value + 1) % allStats.value.length;
-}
-
-function goTo(i: number) {
-  activeIndex.value = i;
-  restartTimer();
-}
-
-function goToLabel(label: string) {
-  const i = allStats.value.findIndex((s) => s.label === label);
-  if (i !== -1) goTo(i);
-}
-
-function startTimer() {
-  timer = setInterval(advance, INTERVAL_MS);
-}
-
-function restartTimer() {
-  if (timer) clearInterval(timer);
-  startTimer();
-}
-
-onMounted(startTimer);
-onUnmounted(() => {
-  if (timer) clearInterval(timer);
 });
 </script>
 
@@ -349,7 +228,7 @@ onUnmounted(() => {
   border-radius: 1rem;
   overflow: hidden;
   padding: 1.5rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   background: linear-gradient(
     135deg,
     rgba(var(--ion-color-primary-rgb), 0.06) 0%,
@@ -373,71 +252,68 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-.hero-grid {
+.hero-content {
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
 }
 
-/* ── Left column ─────────────────────────────── */
+/* ── Identity block ──────────────────────────── */
 .hero-left {
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
 }
 
+/* Heading left, league chip pushed to the right edge */
+.hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.hero-heading {
+  min-width: 0;
+  flex: 1;
+}
+
 .league-chip {
-  align-self: flex-start;
+  margin: 0;
+  flex-shrink: 0;
   --background: rgba(var(--ion-color-primary-rgb), 0.08);
-  font-size: 0.8rem;
-  height: 2rem;
+  font-size: 0.62rem;
+  height: 1.4rem;
+  --padding-start: 8px;
+  --padding-end: 8px;
 }
 
 .league-icon {
-  margin-right: 4px;
-  font-size: 1rem;
+  margin-right: 3px;
+  font-size: 0.75rem;
 }
+
+/* Season date only fits comfortably in the desktop side panel */
 .season-badge {
+  display: none;
   margin-left: 4px;
   font-size: 0.65rem;
 }
 .greeting-text {
   font-size: 0.875rem;
   letter-spacing: 0.02em;
+  margin-bottom: 0.75rem;
 }
 
 .team-name {
   font-family: var(--font-family-headings), serif;
-  font-size: clamp(1.5rem, 5vw, 2.25rem);
+  /* rem-based on small screens so the name stays prominent on phones */
+  font-size: clamp(1.85rem, 7vw, 2.25rem);
   font-weight: 700;
   color: var(--ion-text-color);
   line-height: 1.1;
-}
-
-/* Rank pill */
-.rank-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: var(--ion-background-color);
-  border: 1px solid var(--ion-border-color);
-  border-radius: 999px;
-  padding: 0.4rem 1rem;
-  width: fit-content;
-}
-
-.rank-pill ion-icon {
-  font-size: 1rem;
-}
-
-.rank-value {
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--ion-text-color);
-}
-
-.rank-label {
-  font-size: 0.8rem;
-  color: var(--ion-color-medium);
 }
 
 /* Actions */
@@ -452,105 +328,83 @@ onUnmounted(() => {
   --border-radius: 0.5rem;
 }
 
-/* ── Right column ────────────────────────────── */
-.right-column {
+/* ── Stat ledger ─────────────────────────────── */
+.stat-list {
+  margin-top: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 1.25rem;
 }
 
-@media (min-width: 768px) {
-  .right-column {
-    margin-top: 0;
-  }
-}
-
-/* ── Featured card ───────────────────────────── */
-.featured-card-wrapper {
-  position: relative;
-}
-
-.featured-card {
-  --background: var(--ion-background-color);
-  border: 1px solid var(--ion-border-color);
-  border-radius: 0.875rem;
-  box-shadow: 0 2px 12px var(--ion-box-shadow-color);
-  margin: 0;
-  cursor: pointer;
-  transition: box-shadow 0.2s ease;
-}
-
-.featured-card:hover {
-  box-shadow: 0 4px 20px var(--ion-box-shadow-color);
-}
-
-.featured-card--skeleton {
-  cursor: default;
-}
-
-.featured-content {
-  padding: 1rem 1rem 0.75rem !important;
-  display: grid;
-  grid-template-columns: 3rem 1fr;
-  grid-template-rows: auto auto;
-  column-gap: 0.875rem;
-  row-gap: 0.5rem;
-  align-items: start;
-}
-
-.featured-icon-wrap {
-  grid-row: 1;
-  grid-column: 1;
-  width: 3rem;
-  height: 3rem;
-  min-width: 3rem;
-  border-radius: 0.75rem;
+.stat-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: background 0.35s ease;
-}
-
-.featured-icon-wrap ion-icon {
-  font-size: 1.4rem;
-}
-
-.featured-body {
-  grid-row: 1;
-  grid-column: 2;
-  flex: 1;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.25rem;
   min-width: 0;
 }
 
-.featured-label {
-  font-size: 0.72rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 4px;
+.stat-row + .stat-row {
+  border-top: 1px solid var(--ion-border-color);
 }
 
-.featured-value-row {
+.stat-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.stat-row__icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 2.5rem;
+  border-radius: 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-row__icon ion-icon {
+  font-size: 1.2rem;
+}
+
+.stat-row__labels {
+  min-width: 0;
+}
+
+.stat-row__label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.stat-row__sub {
+  font-size: 0.9rem;
+  color: var(--ion-color-medium);
+  margin-top: 3px;
+}
+
+/* Right-aligned figures form one scannable column down the panel */
+.stat-row__figure {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
-.featured-value {
+.stat-row__value {
   font-family: var(--font-family-headings), serif;
-  font-size: 2.25rem;
+  font-size: 1.65rem;
   font-weight: 700;
   color: var(--ion-text-color);
-  line-height: 1;
-  transition: color 0.35s ease;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
-.featured-sub {
-  font-size: 0.72rem;
-  color: var(--ion-color-medium);
-  margin-top: 3px;
+.stat-row__value--gold {
+  color: var(--ion-color-warning);
 }
 
 .trend-chip {
@@ -558,158 +412,103 @@ onUnmounted(() => {
   font-size: 0.72rem;
   --background: transparent;
   flex-shrink: 0;
-}
-
-.carousel-dots {
-  grid-row: 2;
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.375rem;
-  padding-top: 0.5rem;
-  width: 100%;
-}
-
-.dot {
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 50%;
-  background: var(--ion-border-color);
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  transition:
-    background 0.25s ease,
-    transform 0.25s ease;
-}
-
-.dot--active {
-  background: var(--ion-color-primary);
-  transform: scale(1.4);
-}
-
-/* ── Small stats row ─────────────────────────── */
-.small-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
-}
-
-.small-stat {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  background: var(--ion-background-color);
-  border: 1px solid var(--ion-border-color);
-  border-radius: 0.75rem;
-  cursor: pointer;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.small-stat:hover {
-  border-color: rgba(var(--ion-color-primary-rgb), 0.4);
-  box-shadow: 0 2px 8px var(--ion-box-shadow-color);
-}
-
-.small-stat__icon {
-  width: 1.75rem;
-  height: 1.75rem;
-  min-width: 1.75rem;
-  border-radius: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.35s ease;
-}
-
-.small-stat__icon ion-icon {
-  font-size: 0.9rem;
-}
-
-.small-stat__text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-}
-
-.small-stat__label {
-  font-size: 0.6rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--ion-color-medium);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.small-stat__value {
-  font-family: var(--font-family-headings), serif;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--ion-text-color);
-  line-height: 1.1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-@media (max-width: 380px) {
-  .small-stats {
-    gap: 0.375rem;
-  }
-  .small-stat {
-    padding: 0.4rem;
-    gap: 0.375rem;
-  }
-  .small-stat__icon {
-    width: 1.5rem;
-    height: 1.5rem;
-    min-width: 1.5rem;
-  }
-  .small-stat__icon ion-icon {
-    font-size: 0.8rem;
-  }
-  .small-stat__value {
-    font-size: 0.8rem;
-  }
-  .small-stat__label {
-    font-size: 0.55rem;
-  }
-}
-
-.small-stat__skeleton-icon {
-  width: 2rem;
-  height: 2rem;
-  min-width: 2rem;
-  border-radius: 0.5rem;
-}
-
-.small-stat__skeleton-lbl {
-  width: 70%;
-  height: 0.65rem;
-  border-radius: 4px;
-}
-
-.small-stat__skeleton-val {
-  width: 50%;
-  height: 1rem;
-  border-radius: 4px;
-}
-
-.proposal-actions ion-button {
-  --border-radius: 0.375rem;
-  width: 2rem;
-  height: 2rem;
   margin: 0;
+}
+
+/* Skeletons */
+.stat-row__skeleton-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
+  border-radius: 0.6rem;
+}
+
+.stat-row__skeleton-lbl {
+  width: 7rem;
+  height: 0.8rem;
+  border-radius: 4px;
+}
+
+.stat-row__skeleton-val {
+  width: 3.5rem;
+  height: 1.4rem;
+  border-radius: 4px;
+}
+
+/* ── Side-panel mode (next to the pitch) ─────── */
+@media (min-width: 992px) {
+  .hero-wrapper {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .league-chip {
+    font-size: 0.8rem;
+    height: 2rem;
+    --padding-start: 12px;
+    --padding-end: 12px;
+  }
+
+  .league-icon {
+    font-size: 1rem;
+    margin-right: 4px;
+  }
+
+  .season-badge {
+    display: inline-flex;
+  }
+
+  .team-name {
+    font-size: clamp(1vw, 3vw, 5vw);
+  }
+
+  .hero-content {
+    flex: 1;
+  }
+
+  /* Rows share the leftover height so the last divider rhythm
+     carries the panel down to the pitch's bottom edge */
+  .stat-list {
+    flex: 1;
+  }
+
+  .stat-row {
+    flex: 1;
+    padding: 0.875rem 0.25rem;
+  }
+
+  .stat-row__icon {
+    width: 3rem;
+    height: 3rem;
+    min-width: 3rem;
+    border-radius: 0.75rem;
+  }
+
+  .stat-row__icon ion-icon {
+    font-size: 1.4rem;
+  }
+
+  .stat-row__meta {
+    gap: 1rem;
+  }
+
+  .stat-row__label {
+    font-size: 0.92rem;
+    letter-spacing: 0.05em;
+  }
+
+  .stat-row__sub {
+    font-size: 0.98rem;
+    margin-top: 4px;
+  }
+
+  .stat-row__value {
+    font-size: 1.85rem;
+  }
+
+  .trend-chip {
+    height: 1.65rem;
+    font-size: 0.78rem;
+  }
 }
 </style>

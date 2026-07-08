@@ -130,10 +130,8 @@
       "standing": "Standing",
       "portfolio": "Portfolio: {value} Cr",
       "slotsFree": "{count} slots free",
-      "rankOf": "of {count}",
       "standingSub": "of {count} players",
-      "buyArticles": "Buy Articles",
-      "showStat": "Show stat {index}"
+      "buyArticles": "Buy Articles"
     },
     "leaderboard": {
       "title": "League Standings",

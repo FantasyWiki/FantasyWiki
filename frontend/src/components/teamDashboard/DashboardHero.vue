@@ -284,15 +284,20 @@ const allStats = computed<StatDef[]>(() => {
   margin: 0;
   flex-shrink: 0;
   --background: rgba(var(--ion-color-primary-rgb), 0.08);
-  font-size: 0.8rem;
-  height: 2rem;
+  font-size: 0.62rem;
+  height: 1.4rem;
+  --padding-start: 8px;
+  --padding-end: 8px;
 }
 
 .league-icon {
-  margin-right: 4px;
-  font-size: 1rem;
+  margin-right: 3px;
+  font-size: 0.75rem;
 }
+
+/* Season date only fits comfortably in the desktop side panel */
 .season-badge {
+  display: none;
   margin-left: 4px;
   font-size: 0.65rem;
 }
@@ -304,7 +309,8 @@ const allStats = computed<StatDef[]>(() => {
 
 .team-name {
   font-family: var(--font-family-headings), serif;
-  font-size: clamp(1vw, 3vw, 5vw);
+  /* rem-based on small screens so the name stays prominent on phones */
+  font-size: clamp(1.85rem, 7vw, 2.25rem);
   font-weight: 700;
   color: var(--ion-text-color);
   line-height: 1.1;
@@ -434,6 +440,26 @@ const allStats = computed<StatDef[]>(() => {
   .hero-wrapper {
     display: flex;
     flex-direction: column;
+  }
+
+  .league-chip {
+    font-size: 0.8rem;
+    height: 2rem;
+    --padding-start: 12px;
+    --padding-end: 12px;
+  }
+
+  .league-icon {
+    font-size: 1rem;
+    margin-right: 4px;
+  }
+
+  .season-badge {
+    display: inline-flex;
+  }
+
+  .team-name {
+    font-size: clamp(1vw, 3vw, 5vw);
   }
 
   .hero-content {

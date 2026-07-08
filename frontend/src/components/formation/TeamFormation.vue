@@ -77,11 +77,7 @@
             }"
             :aria-label="`Empty position ${posKey}`"
             :data-position="posKey"
-            @click="
-              swapMode && swapSource
-                ? emit('moveToEmpty', swapSource.id, posKey)
-                : undefined
-            "
+            @click="onEmptySlotClick(posKey)"
             @dragover.prevent="dragOverPos = posKey"
             @dragleave="dragOverPos = null"
             @drop="onEmptyDrop($event, posKey)"
@@ -186,6 +182,12 @@ function onEmptyDrop(e: DragEvent, posKey: string) {
   dragOverPos.value = null;
   const fromId = e.dataTransfer?.getData("articleId");
   if (fromId) emit("moveToEmpty", fromId, posKey);
+}
+
+function onEmptySlotClick(posKey: string) {
+  if (props.swapMode && props.swapSource) {
+    emit("moveToEmpty", props.swapSource.id, posKey);
+  }
 }
 
 const chemistryLegendItems = computed(

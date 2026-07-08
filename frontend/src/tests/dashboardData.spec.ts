@@ -28,7 +28,8 @@ function makeDashboard(
     [],
     recentPoints,
     rank,
-    totalPlayers ?? teams.length
+    totalPlayers ?? teams.length,
+    0
   );
 }
 

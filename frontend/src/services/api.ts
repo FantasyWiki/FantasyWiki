@@ -12,7 +12,12 @@ import { ArticleDTO } from "../../../dto/articleDTO";
 import { PerformanceDTO } from "../../../dto/performanceDTO";
 import { LeaderboardEntryDTO } from "../../../dto/leaderboardDTO";
 import { Temporal } from "@js-temporal/polyfill";
-import type { ContractTier } from "../../../model/pricing";
+import {
+  TIER_DAYS,
+  computeCurrentPrice,
+  type ContractTier,
+} from "../../../model/pricing";
+import { createWikimediaClient } from "@/services/wikimediaClient";
 
 const API_BASE_URL = "/api";
 
@@ -169,7 +174,34 @@ export const articlesApi = {
   getById: (id: string) => apiRequest<ArticleDTO>(`/articles/${id}`),
 };
 
-// ── Dashboard ─────────────────────────────────────────────────────────────────
+const wikimediaClient = createWikimediaClient();
+
+/**
+ * ContractPrice (ADR 0005) at the contract's own held tier — neither
+ * ContractDTO nor ArticleDTO carry pageview data, so it's fetched live per
+ * article (same source as ArticleDetail's stats block). If Wikimedia has no
+ * usable view history (a failed/empty fetch — `getArticleViews` swallows
+ * errors into `undefined` fields rather than throwing), fall back to
+ * purchasePrice: a stale-but-plausible figure beats silently pricing the
+ * contract at 0, which would understate the portfolio total for reasons
+ * invisible to the viewer.
+ */
+export async function getContractCurrentPrice(
+  contract: ContractDTO
+): Promise<number> {
+  const views = await wikimediaClient.pageviews.getArticleViews(
+    contract.article.domain,
+    contract.article.title
+  );
+  if (views.averageViews30d === undefined) {
+    return contract.purchasePrice;
+  }
+  return computeCurrentPrice(
+    views.averageViews30d,
+    contract.article.domain,
+    TIER_DAYS[contract.tier as ContractTier]
+  );
+}
 
 export const dashboardApi = {
   async getDashboardData(league: LeagueDTO): Promise<DashboardData> {
@@ -184,6 +216,10 @@ export const dashboardApi = {
 
     const rank = leaderboard.find((e) => e.team.id === team.id)?.rank ?? 0;
     const totalPlayers = leaderboard.length;
+    const currentPrices = await Promise.all(
+      contracts.map(getContractCurrentPrice)
+    );
+    const portfolioValue = currentPrices.reduce((sum, p) => sum + p, 0);
 
     return new DashboardData(
       team,
@@ -192,7 +228,8 @@ export const dashboardApi = {
       notifications,
       recentPoints,
       rank,
-      totalPlayers
+      totalPlayers,
+      portfolioValue
     );
   },
 };

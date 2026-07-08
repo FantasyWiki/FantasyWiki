@@ -46,10 +46,14 @@ export class DashboardData {
   contracts: ContractDTO[];
   notifications: NotificationDTO[];
   recentPoints: TeamPointsData;
-  // Both rank and totalPlayers are pre-computed from the leaderboard response
-  // and passed in by the caller — league.teams is always empty from the backend.
+  // rank, totalPlayers, and portfolioValue are pre-computed by the caller and
+  // passed in: rank/totalPlayers come from the leaderboard response
+  // (league.teams is always empty from the backend), and portfolioValue needs
+  // live per-article pageview data that isn't on ContractDTO/ArticleDTO
+  // (ADR 0005 — see computeCurrentPrice in types/articleDetail.ts).
   private readonly _rank: number;
   private readonly _totalPlayers: number;
+  private readonly _portfolioValue: number;
 
   constructor(
     team: TeamDTO,
@@ -58,7 +62,8 @@ export class DashboardData {
     notifications: NotificationDTO[],
     recentPoints: TeamPointsData,
     rank: number,
-    totalPlayers: number
+    totalPlayers: number,
+    portfolioValue: number
   ) {
     this.team = team;
     this.league = league;
@@ -67,11 +72,11 @@ export class DashboardData {
     this.recentPoints = recentPoints;
     this._rank = rank;
     this._totalPlayers = totalPlayers;
+    this._portfolioValue = portfolioValue;
   }
 
-  //TODO: to change with the current price that i still don't know how to get it
   get portfolioValue(): number {
-    return this.contracts.reduce((total, c) => total + c.purchasePrice, 0);
+    return this._portfolioValue;
   }
   get maxContracts(): number {
     return MAX_CONTRACTS;

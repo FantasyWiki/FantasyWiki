@@ -97,3 +97,13 @@ export function computeContractPrice(normalizedAvg30dViews: number, days: number
   if (!Number.isFinite(price)) return 0; // NaN/Infinity input (e.g. bad domain scale) -> floor, never propagate
   return Math.max(0, Math.round(price));
 }
+
+/** ContractPrice (ADR 0005) at `days` from raw (not normalized) average views — for owned contracts `days` must come from the contract's own held tier, not a fixed tier, or the value-delta vs purchasePrice is spurious. */
+export function computeCurrentPrice(
+  averageViews30d: number,
+  domain: Domain,
+  days: number
+): number {
+  const normalized = normalizedViews(averageViews30d, resolveLanguageScale(domain));
+  return computeContractPrice(normalized, days);
+}

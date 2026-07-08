@@ -107,10 +107,7 @@ function onDrop(e: DragEvent) {
 
 @media (min-width: 768px) {
   .article-name {
-    max-width: none;
-    overflow: visible;
-    white-space: nowrap;
-    text-overflow: clip;
+    max-width: 84px;
   }
 }
 

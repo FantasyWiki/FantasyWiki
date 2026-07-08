@@ -51,32 +51,40 @@
     </ion-card>
 
     <!-- Dashboard -->
+    <!--
+      Desktop geometry (named grid areas): the pitch fills the left column
+      while the right column is a vertical rail of hero + leaderboard, so
+      both columns bottom out together; needed-attention spans below.
+      On mobile the DOM order applies: hero, pitch, attention, leaderboard.
+    -->
     <template v-else>
-      <!-- Hero contains the notification bell and all top-level actions -->
-      <dashboard-hero
-        :current-league="currentLeague"
-        :current-team="team"
-        :data="dashboardData!"
-      />
-      <team-management :formation="draftFormation" />
-      <ion-grid class="content-grid ion-no-padding">
-        <ion-row>
-          <ion-col size="12" size-lg="6">
-            <needed-attention
-              :urgent-contract="urgentContracts"
-              :on-buy-articles="() => router.push('/market')"
-            />
-          </ion-col>
-          <ion-col size="12" size-lg="6">
-            <league-leaderboard
-              :leaderboard="leaderBoard"
-              :current-league="currentLeague"
-              :current-team="team"
-              :slice="LEADERBOARD_SLICE"
-            />
-          </ion-col>
-        </ion-row>
-      </ion-grid>
+      <div class="dashboard-layout">
+        <div class="area-hero">
+          <!-- Hero contains the notification bell and all top-level actions -->
+          <dashboard-hero
+            :current-league="currentLeague"
+            :current-team="team"
+            :data="dashboardData!"
+          />
+        </div>
+        <div class="area-pitch">
+          <team-management :formation="draftFormation" />
+        </div>
+        <div class="area-attention">
+          <needed-attention
+            :urgent-contract="urgentContracts"
+            :on-buy-articles="() => router.push('/market')"
+          />
+        </div>
+        <div class="area-leaderboard">
+          <league-leaderboard
+            :leaderboard="leaderBoard"
+            :current-league="currentLeague"
+            :current-team="team"
+            :slice="LEADERBOARD_SLICE"
+          />
+        </div>
+      </div>
     </template>
   </nav-bar>
 </template>
@@ -88,12 +96,9 @@ import {
   IonButton,
   IonCard,
   IonCardContent,
-  IonCol,
-  IonGrid,
   IonIcon,
   IonRefresher,
   IonRefresherContent,
-  IonRow,
   IonSpinner,
   IonText,
 } from "@ionic/vue";
@@ -202,7 +207,61 @@ async function handleRefresh(event: CustomEvent) {
   margin: 0;
 }
 
-.content-grid {
-  margin-top: 0;
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Desktop: pitch left, hero right; attention + leaderboard underneath */
+@media (min-width: 992px) {
+  .dashboard-layout {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    grid-template-areas:
+      "pitch hero"
+      "attention leaderboard";
+    column-gap: 1rem;
+  }
+
+  /* Stretch the formation card (and the pitch inside it) and the hero to
+     the same height so both columns bottom out on the same line. */
+  .area-pitch {
+    grid-area: pitch;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .area-pitch :deep(.td-card) {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .area-pitch :deep(.td-card ion-card-content) {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .area-pitch :deep(.pitch-card) {
+    flex: 1;
+  }
+
+  .area-hero {
+    grid-area: hero;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .area-hero :deep(.hero-wrapper) {
+    flex: 1;
+  }
+
+  .area-attention {
+    grid-area: attention;
+  }
+
+  .area-leaderboard {
+    grid-area: leaderboard;
+  }
 }
 </style>

@@ -5,50 +5,42 @@
     <div class="hero-content">
       <!-- ── Identity + actions ─────────────────────── -->
       <div class="hero-left">
-        <!-- League chip -->
-        <ion-chip
-          v-if="currentLeague"
-          class="league-chip"
-          color="primary"
-          outline
-          :disabled="true"
-          style="opacity: 1"
-        >
-          <span class="league-icon">{{ currentLeague.icon }}</span>
-          <ion-label>{{ currentLeague.title }}</ion-label>
-          <ion-badge
-            v-if="currentLeague.endDate.toLocaleString()"
+        <!-- Greeting + team name, league chip aligned right -->
+        <div class="hero-top">
+          <div class="hero-heading">
+            <ion-text color="medium">
+              <p class="greeting-text ion-no-margin">
+                {{ $t("dashboard.hero.welcomeBack") }}
+              </p>
+            </ion-text>
+            <h1 class="team-name ion-no-margin">
+              {{ data?.team?.name ?? $t("dashboard.hero.yourTeam") }}
+            </h1>
+          </div>
+
+          <ion-chip
+            v-if="currentLeague"
+            class="league-chip"
             color="primary"
-            class="season-badge"
+            outline
+            :disabled="true"
+            style="opacity: 1"
           >
-            {{
-              currentLeague.startDate.toLocaleString(locale, {
-                month: "short",
-                year: "numeric",
-              })
-            }}
-          </ion-badge>
-        </ion-chip>
-
-        <!-- Greeting + team name -->
-        <div class="hero-heading">
-          <ion-text color="medium">
-            <p class="greeting-text ion-no-margin">
-              {{ $t("dashboard.hero.welcomeBack") }}
-            </p>
-          </ion-text>
-          <h1 class="team-name ion-no-margin">
-            {{ data?.team?.name ?? $t("dashboard.hero.yourTeam") }}
-          </h1>
-        </div>
-
-        <!-- Rank pill — rank only -->
-        <div class="rank-pill" v-if="data">
-          <ion-icon :icon="trophyOutline" color="warning" />
-          <span class="rank-value">#{{ data.rank }}</span>
-          <span class="rank-label">{{
-            $t("dashboard.hero.rankOf", { count: data.totalPlayers })
-          }}</span>
+            <span class="league-icon">{{ currentLeague.icon }}</span>
+            <ion-label>{{ currentLeague.title }}</ion-label>
+            <ion-badge
+              v-if="currentLeague.endDate.toLocaleString()"
+              color="primary"
+              class="season-badge"
+            >
+              {{
+                currentLeague.startDate.toLocaleString(locale, {
+                  month: "short",
+                  year: "numeric",
+                })
+              }}
+            </ion-badge>
+          </ion-chip>
         </div>
 
         <!-- Actions: Buy Articles + inbox bell -->
@@ -66,64 +58,69 @@
         </div>
       </div>
 
-      <!-- ── All four stats, always visible ─────────── -->
-      <div class="stat-cards" v-if="data">
-        <div v-for="stat in allStats" :key="stat.label" class="stat-card">
-          <div
-            class="stat-card__icon"
-            :style="{ background: stat.iconBg, color: stat.iconColor }"
-          >
-            <ion-icon :icon="stat.icon" />
-          </div>
-          <div class="stat-card__body">
-            <ion-text color="medium">
-              <p class="stat-card__label ion-no-margin">
-                {{ stat.label }}
-              </p>
-            </ion-text>
-            <div class="stat-card__value-row">
-              <span class="stat-card__value">{{ stat.value }}</span>
-              <!-- Trend chip — only on the points card -->
-              <ion-chip
-                v-if="stat.trend !== undefined"
-                :color="stat.trend >= 0 ? 'success' : 'danger'"
-                class="trend-chip"
-                outline
-              >
-                <ion-icon
-                  :icon="
-                    stat.trend >= 0 ? trendingUpOutline : trendingDownOutline
-                  "
-                />
-                <ion-label>
-                  {{ stat.trend >= 0 ? "+" : "" }}{{ stat.trend }}%
-                </ion-label>
-              </ion-chip>
+      <!-- ── Stat ledger: label left, value right ───── -->
+      <div class="stat-list" v-if="data">
+        <div v-for="stat in allStats" :key="stat.label" class="stat-row">
+          <div class="stat-row__meta">
+            <div
+              class="stat-row__icon"
+              :style="{ background: stat.iconBg, color: stat.iconColor }"
+            >
+              <ion-icon :icon="stat.icon" />
             </div>
-            <p v-if="stat.sub" class="stat-card__sub ion-no-margin">
-              {{ stat.sub }}
-            </p>
+            <div class="stat-row__labels">
+              <ion-text color="medium">
+                <p class="stat-row__label ion-no-margin">
+                  {{ stat.label }}
+                </p>
+              </ion-text>
+              <p v-if="stat.sub" class="stat-row__sub ion-no-margin">
+                {{ stat.sub }}
+              </p>
+            </div>
+          </div>
+
+          <div class="stat-row__figure">
+            <!-- Trend chip — only on the points row -->
+            <ion-chip
+              v-if="stat.trend !== undefined"
+              :color="stat.trend >= 0 ? 'success' : 'danger'"
+              class="trend-chip"
+              outline
+            >
+              <ion-icon
+                :icon="
+                  stat.trend >= 0 ? trendingUpOutline : trendingDownOutline
+                "
+              />
+              <ion-label>
+                {{ stat.trend >= 0 ? "+" : "" }}{{ stat.trend }}%
+              </ion-label>
+            </ion-chip>
+            <span
+              class="stat-row__value"
+              :class="{ 'stat-row__value--gold': stat.gold }"
+            >
+              {{ stat.value }}
+            </span>
           </div>
         </div>
       </div>
 
-      <!-- Skeletons for the stat cards -->
-      <div class="stat-cards" v-else>
-        <div v-for="i in 4" :key="i" class="stat-card">
-          <ion-skeleton-text
-            :animated="true"
-            class="stat-card__skeleton-icon"
-          />
-          <div class="stat-card__body">
+      <!-- Skeletons for the stat rows -->
+      <div class="stat-list" v-else>
+        <div v-for="i in 4" :key="i" class="stat-row">
+          <div class="stat-row__meta">
             <ion-skeleton-text
               :animated="true"
-              class="stat-card__skeleton-lbl"
+              class="stat-row__skeleton-icon"
             />
             <ion-skeleton-text
               :animated="true"
-              class="stat-card__skeleton-val"
+              class="stat-row__skeleton-lbl"
             />
           </div>
+          <ion-skeleton-text :animated="true" class="stat-row__skeleton-val" />
         </div>
       </div>
     </div>
@@ -173,6 +170,8 @@ interface StatDef {
   value: string | number;
   sub?: string | null;
   trend?: number;
+  /** Wiki Gold value — reserved for ranking/prestige stats */
+  gold?: boolean;
   icon: string;
   iconBg: string;
   iconColor: string;
@@ -213,6 +212,7 @@ const allStats = computed<StatDef[]>(() => {
       label: t("dashboard.hero.standing"),
       value: `#${s.rank}`,
       sub: t("dashboard.hero.standingSub", { count: s.totalPlayers }),
+      gold: true,
       icon: trophyOutline,
       iconBg: "rgba(var(--ion-color-warning-rgb), 0.15)",
       iconColor: "var(--ion-color-warning)",
@@ -266,8 +266,23 @@ const allStats = computed<StatDef[]>(() => {
   gap: 0.875rem;
 }
 
+/* Heading left, league chip pushed to the right edge */
+.hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.hero-heading {
+  min-width: 0;
+  flex: 1;
+}
+
 .league-chip {
-  align-self: flex-start;
+  margin: 0;
+  flex-shrink: 0;
   --background: rgba(var(--ion-color-primary-rgb), 0.08);
   font-size: 0.8rem;
   height: 2rem;
@@ -284,41 +299,15 @@ const allStats = computed<StatDef[]>(() => {
 .greeting-text {
   font-size: 0.875rem;
   letter-spacing: 0.02em;
+  margin-bottom: 0.75rem;
 }
 
 .team-name {
   font-family: var(--font-family-headings), serif;
-  font-size: clamp(1.5rem, 5vw, 2.25rem);
+  font-size: clamp(1vw, 3vw, 5vw);
   font-weight: 700;
   color: var(--ion-text-color);
   line-height: 1.1;
-}
-
-/* Rank pill */
-.rank-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: var(--ion-background-color);
-  border: 1px solid var(--ion-border-color);
-  border-radius: 999px;
-  padding: 0.4rem 1rem;
-  width: fit-content;
-}
-
-.rank-pill ion-icon {
-  font-size: 1rem;
-}
-
-.rank-value {
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--ion-text-color);
-}
-
-.rank-label {
-  font-size: 0.8rem;
-  color: var(--ion-color-medium);
 }
 
 /* Actions */
@@ -333,72 +322,83 @@ const allStats = computed<StatDef[]>(() => {
   --border-radius: 0.5rem;
 }
 
-/* ── Stat cards ──────────────────────────────── */
-.stat-cards {
-  margin-top: 1.25rem;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.625rem;
+/* ── Stat ledger ─────────────────────────────── */
+.stat-list {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
 }
 
-.stat-card {
+.stat-row {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.875rem 1rem;
-  background: var(--ion-background-color);
-  border: 1px solid var(--ion-border-color);
-  border-radius: 0.875rem;
-  box-shadow: 0 2px 12px var(--ion-box-shadow-color);
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.25rem;
   min-width: 0;
 }
 
-.stat-card__icon {
+.stat-row + .stat-row {
+  border-top: 1px solid var(--ion-border-color);
+}
+
+.stat-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.stat-row__icon {
   width: 2.5rem;
   height: 2.5rem;
   min-width: 2.5rem;
-  border-radius: 0.65rem;
+  border-radius: 0.6rem;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.stat-card__icon ion-icon {
+.stat-row__icon ion-icon {
   font-size: 1.2rem;
 }
 
-.stat-card__body {
-  flex: 1;
+.stat-row__labels {
   min-width: 0;
 }
 
-.stat-card__label {
-  font-size: 0.68rem;
-  font-weight: 500;
+.stat-row__label {
+  font-size: 0.85rem;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin-bottom: 3px;
 }
 
-.stat-card__value-row {
+.stat-row__sub {
+  font-size: 0.9rem;
+  color: var(--ion-color-medium);
+  margin-top: 3px;
+}
+
+/* Right-aligned figures form one scannable column down the panel */
+.stat-row__figure {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
-.stat-card__value {
+.stat-row__value {
   font-family: var(--font-family-headings), serif;
-  font-size: 1.4rem;
+  font-size: 1.65rem;
   font-weight: 700;
   color: var(--ion-text-color);
   line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
-.stat-card__sub {
-  font-size: 0.72rem;
-  color: var(--ion-color-medium);
-  margin-top: 2px;
+.stat-row__value--gold {
+  color: var(--ion-color-warning);
 }
 
 .trend-chip {
@@ -406,25 +406,26 @@ const allStats = computed<StatDef[]>(() => {
   font-size: 0.72rem;
   --background: transparent;
   flex-shrink: 0;
+  margin: 0;
 }
 
 /* Skeletons */
-.stat-card__skeleton-icon {
-  width: 2.5rem;
-  height: 2.5rem;
-  min-width: 2.5rem;
-  border-radius: 0.65rem;
+.stat-row__skeleton-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
+  border-radius: 0.6rem;
 }
 
-.stat-card__skeleton-lbl {
-  width: 70%;
-  height: 0.65rem;
+.stat-row__skeleton-lbl {
+  width: 7rem;
+  height: 0.8rem;
   border-radius: 4px;
 }
 
-.stat-card__skeleton-val {
-  width: 50%;
-  height: 1.2rem;
+.stat-row__skeleton-val {
+  width: 3.5rem;
+  height: 1.4rem;
   border-radius: 4px;
 }
 
@@ -439,15 +440,49 @@ const allStats = computed<StatDef[]>(() => {
     flex: 1;
   }
 
-  /* One card per row, growing evenly to meet the pitch's bottom edge */
-  .stat-cards {
+  /* Rows share the leftover height so the last divider rhythm
+     carries the panel down to the pitch's bottom edge */
+  .stat-list {
     flex: 1;
-    grid-template-columns: minmax(0, 1fr);
-    grid-auto-rows: minmax(0, 1fr);
   }
 
-  .stat-card__value {
-    font-size: 1.75rem;
+  .stat-row {
+    flex: 1;
+    padding: 0.875rem 0.25rem;
+  }
+
+  .stat-row__icon {
+    width: 3rem;
+    height: 3rem;
+    min-width: 3rem;
+    border-radius: 0.75rem;
+  }
+
+  .stat-row__icon ion-icon {
+    font-size: 1.4rem;
+  }
+
+  .stat-row__meta {
+    gap: 1rem;
+  }
+
+  .stat-row__label {
+    font-size: 0.92rem;
+    letter-spacing: 0.05em;
+  }
+
+  .stat-row__sub {
+    font-size: 0.98rem;
+    margin-top: 4px;
+  }
+
+  .stat-row__value {
+    font-size: 1.85rem;
+  }
+
+  .trend-chip {
+    height: 1.65rem;
+    font-size: 0.78rem;
   }
 }
 </style>

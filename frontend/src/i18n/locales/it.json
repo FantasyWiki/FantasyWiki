@@ -130,7 +130,6 @@
       "standing": "Posizione",
       "portfolio": "Portfolio: {value} Cr",
       "slotsFree": "{count} slot liberi",
-      "rankOf": "su {count}",
       "standingSub": "su {count} giocatori",
       "buyArticles": "Acquista articoli"
     },

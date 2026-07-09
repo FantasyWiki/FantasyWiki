@@ -5,18 +5,15 @@
     <div class="hero-content">
       <!-- ── Identity + actions ─────────────────────── -->
       <div class="hero-left">
-        <!-- Greeting + team name, league chip aligned right -->
+        <!-- Greeting row with the league chip aligned right; the team name
+             sits below on its own full-width line so long names don't wrap
+             around the chip -->
         <div class="hero-top">
-          <div class="hero-heading">
-            <ion-text color="medium">
-              <p class="greeting-text ion-no-margin">
-                {{ $t("dashboard.hero.welcomeBack") }}
-              </p>
-            </ion-text>
-            <h1 class="team-name ion-no-margin">
-              {{ data?.team?.name ?? $t("dashboard.hero.yourTeam") }}
-            </h1>
-          </div>
+          <ion-text color="medium">
+            <p class="greeting-text ion-no-margin">
+              {{ $t("dashboard.hero.welcomeBack") }}
+            </p>
+          </ion-text>
 
           <ion-chip
             v-if="currentLeague"
@@ -42,6 +39,10 @@
             </ion-badge>
           </ion-chip>
         </div>
+
+        <h1 class="team-name ion-no-margin">
+          {{ data?.team?.name ?? $t("dashboard.hero.yourTeam") }}
+        </h1>
 
         <!-- Actions: Buy Articles + inbox bell -->
         <div class="hero-actions">
@@ -266,18 +267,13 @@ const allStats = computed<StatDef[]>(() => {
   gap: 0.875rem;
 }
 
-/* Heading left, league chip pushed to the right edge */
+/* Greeting left, league chip pushed to the right edge */
 .hero-top {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   flex-wrap: wrap;
-}
-
-.hero-heading {
-  min-width: 0;
-  flex: 1;
 }
 
 .league-chip {
@@ -304,7 +300,6 @@ const allStats = computed<StatDef[]>(() => {
 .greeting-text {
   font-size: 0.875rem;
   letter-spacing: 0.02em;
-  margin-bottom: 0.75rem;
 }
 
 .team-name {

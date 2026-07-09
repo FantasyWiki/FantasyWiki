@@ -8,6 +8,8 @@ import EnvInfoPage from "@/views/EnvInfoPage.vue";
 import TeamPage from "@/views/TeamPage.vue";
 import TeamCreationPage from "@/views/TeamCreationPage.vue";
 import MarketPage from "@/views/MarketPage.vue";
+import LegalPage from "@/views/LegalPage.vue";
+import NotFoundPage from "@/views/NotFoundPage.vue";
 import { useAppStore } from "@/stores/app";
 
 const routes: Array<RouteRecordRaw> = [
@@ -40,6 +42,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { public: true },
   },
   {
+    path: "/legal",
+    name: "Legal",
+    component: LegalPage,
+    meta: { public: true },
+  },
+  {
     path: "/auth/callback",
     name: "AuthCallback",
     component: AuthCallbackPage,
@@ -64,6 +72,13 @@ const routes: Array<RouteRecordRaw> = [
     path: "/market",
     name: "Market",
     component: MarketPage,
+  },
+  // Catch-all 404 — must stay last
+  {
+    path: "/:pathMatch(.*)*",
+    name: "NotFound",
+    component: NotFoundPage,
+    meta: { public: true },
   },
 ];
 

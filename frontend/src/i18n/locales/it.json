@@ -9,6 +9,45 @@
     "signIn": "Accedi con Google",
     "signOut": "Esci"
   },
+  "footer": {
+    "technicalDocs": "Documentazione tecnica",
+    "userGuide": "Guida utente",
+    "reportProblem": "Segnala un problema",
+    "legal": "Note legali e privacy",
+    "madeBy": "creato da",
+    "and": "e"
+  },
+  "notFound": {
+    "title": "404: Pagina non trovata",
+    "fromLine": "Da FantasyWiki, l'enciclopedia delle pagine mai scritte",
+    "body": "{path} non è mai stata scritta, letta o ingaggiata da nessuna squadra{citation}.",
+    "citationNeeded": "senza fonte",
+    "infobox": {
+      "title": "Profilo di mercato",
+      "marketValue": "Valore di mercato",
+      "marketValueFigure": "0 crediti",
+      "contract": "Stato contratto",
+      "contractFigure": "Svincolata, per sempre"
+    },
+    "stubNotice": "Questa pagina è uno stub. Puoi contribuire navigando verso una pagina che esiste.",
+    "ctaHome": "Torna alla home",
+    "ctaMarket": "Esplora il mercato"
+  },
+  "legal": {
+    "title": "Note legali e privacy",
+    "terms": {
+      "title": "Condizioni d'uso",
+      "body": "FantasyWiki è un progetto universitario non commerciale, fornito così com'è e senza alcuna garanzia. Giocare è gratuito e il budget e i punti di gioco non hanno alcun valore monetario."
+    },
+    "privacy": {
+      "title": "Privacy",
+      "body": "L'accesso avviene con il tuo account Google. Conserviamo solo nome, indirizzo email e immagine del profilo, in un cookie di sessione e insieme ai tuoi dati di gioco (squadre e leghe). Non ci sono pubblicità, analytics o altri tracciamenti."
+    },
+    "attribution": {
+      "title": "Attribuzione Wikimedia",
+      "body": "I dati sulle visualizzazioni provengono dalla Wikimedia Pageviews API. Titoli e contenuti degli articoli appartengono a Wikipedia e sono disponibili con licenza CC BY-SA 4.0. FantasyWiki non è affiliato né approvato dalla Wikimedia Foundation."
+    }
+  },
   "home": {
     "hero": {
       "badge": "Il fanta calcio incontra Wikipedia",
@@ -104,7 +143,7 @@
     "articleLeaderboard": {
       "trendingToday": "🔥 Di tendenza oggi",
       "mostViewed": "Più visti",
-      "goingUp": "In crescita",
+      "rank": "Posizione {rank}",
       "avg": "Media: {value}",
       "perDay": "/giorno",
       "unavailable": "Dati sugli articoli non disponibili al momento.",
@@ -252,6 +291,12 @@
       "termsPrefix": "Accedendo accetti i nostri {terms} e la {privacy}.",
       "terms": "Termini di servizio",
       "privacy": "Informativa sulla privacy"
+    },
+    "logout": {
+      "title": "Vuoi uscire?",
+      "message": "Sei connesso come {name}.",
+      "confirm": "Esci",
+      "cancel": "Annulla"
     },
     "callback": {
       "signInFailed": "Accesso fallito",

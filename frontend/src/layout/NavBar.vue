@@ -127,14 +127,30 @@
 
           <!-- Sign In / Out -->
           <ion-button
+            v-if="appStore.isAuthenticated"
+            fill="clear"
+            color="dark"
+            class="ion-hide-sm-down signout-button"
+            @click="handleAuth"
+          >
+            <ion-avatar
+              v-if="profilePicture"
+              slot="start"
+              class="profile-avatar"
+              aria-hidden="true"
+            >
+              <img :src="profilePicture" alt="" referrerpolicy="no-referrer" />
+            </ion-avatar>
+            {{ $t("nav.signOut") }}
+          </ion-button>
+          <ion-button
+            v-else
             color="primary"
             fill="solid"
             class="ion-hide-sm-down"
             @click="handleAuth"
           >
-            {{
-              appStore.isAuthenticated ? $t("nav.signOut") : $t("nav.signIn")
-            }}
+            {{ $t("nav.signIn") }}
           </ion-button>
         </div>
       </ion-toolbar>
@@ -142,6 +158,7 @@
 
     <ion-content :fullscreen="true" class="ion-padding">
       <slot></slot>
+      <info-footer></info-footer>
       <ion-modal
         :is-open="isLoginOpen"
         css-class="login-modal"
@@ -149,11 +166,22 @@
       >
         <login-page />
       </ion-modal>
+      <ion-modal
+        :is-open="isLogoutOpen"
+        css-class="login-modal"
+        @did-dismiss="onLogoutDismiss"
+      >
+        <logout-confirm-page />
+      </ion-modal>
     </ion-content>
 
     <!-- Mobile Footer -->
+    <!-- mobile-nav-footer is the positionAnchor for bottom toasts (see
+         useToast). It must be a class: the router outlet keeps previous
+         pages (each with its own NavBar) mounted, so the selector can match
+         several footers and useToast picks the visible one. -->
     <ion-footer
-      class="ion-hide-md-up transparent-top-layer"
+      class="mobile-nav-footer ion-hide-md-up transparent-top-layer"
       :translucent="true"
     >
       <ion-toolbar class="transparent-bot-layer">
@@ -167,7 +195,15 @@
             <ion-icon :icon="link.icon" />
           </ion-button>
           <ion-button fill="clear" @click="handleAuth">
+            <ion-avatar
+              v-if="profilePicture"
+              class="profile-avatar"
+              aria-hidden="true"
+            >
+              <img :src="profilePicture" alt="" referrerpolicy="no-referrer" />
+            </ion-avatar>
             <ion-icon
+              v-else
               :icon="appStore.isAuthenticated ? logOutOutline : logInOutline"
             />
           </ion-button>
@@ -183,6 +219,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import {
   IonModal,
+  IonAvatar,
   IonButton,
   IonBadge,
   IonContent,
@@ -209,7 +246,9 @@ import {
 } from "ionicons/icons";
 
 import AppLogo from "@/components/AppLogo.vue";
+import InfoFooter from "@/layout/InfoFooter.vue";
 import LoginPage from "@/views/auth/LoginPage.vue";
+import LogoutConfirmPage from "@/views/auth/LogoutConfirmPage.vue";
 import { useAppStore } from "@/stores/app";
 import { useLeagueStore } from "@/stores/league";
 import { useNotifications } from "@/composables/useNotifications";
@@ -219,6 +258,7 @@ const router = useRouter();
 const route = useRoute();
 const { t } = useI18n();
 const isLoginOpen = ref(false);
+const isLogoutOpen = ref(false);
 
 // State
 const appStore = useAppStore();
@@ -260,6 +300,12 @@ function selectLanguage(code: string) {
   langPopoverOpen.value = false;
 }
 
+// Google profile picture from the session; shown in the auth buttons so a
+// logged-in state is visible at a glance (issue #385).
+const profilePicture = computed(() =>
+  appStore.isAuthenticated ? appStore.currentUser?.picture : undefined
+);
+
 const navLinks = computed(() => [
   { name: t("nav.dashboard"), href: "/dashboard", icon: gridOutline },
   { name: t("nav.leagues"), href: "/leagues", icon: trophyOutline },
@@ -274,13 +320,24 @@ const toggleTheme = () => {
   localStorage.setItem("theme", appStore.isDarkMode ? "dark" : "light");
 };
 
-const handleAuth = async () => {
+// Signing out asks for confirmation in a modal (same style as the login
+// one); the store is only touched when the modal is dismissed with the
+// "confirm" role.
+const handleAuth = () => {
   if (appStore.isAuthenticated) {
+    isLogoutOpen.value = true;
+  } else {
+    // No route change: "/signin" was never a real route and would now hit
+    // the 404 catch-all; the modal simply opens over the current page.
+    isLoginOpen.value = true;
+  }
+};
+
+const onLogoutDismiss = (event: CustomEvent) => {
+  isLogoutOpen.value = false;
+  if (event.detail.role === "confirm") {
     appStore.logout();
     router.push("/");
-  } else {
-    router.push("/signin");
-    isLoginOpen.value = true;
   }
 };
 
@@ -367,6 +424,20 @@ ion-footer {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.profile-avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.signout-button {
+  font-weight: 500;
+  text-transform: none;
+}
+
+.signout-button .profile-avatar {
+  margin-inline-end: 0.5rem;
 }
 
 ion-modal {

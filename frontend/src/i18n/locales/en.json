@@ -9,6 +9,45 @@
     "signIn": "Sign In with Google",
     "signOut": "Sign Out"
   },
+  "footer": {
+    "technicalDocs": "Technical documentation",
+    "userGuide": "User guide",
+    "reportProblem": "Report a problem",
+    "legal": "Legal & privacy",
+    "madeBy": "made by",
+    "and": "and"
+  },
+  "notFound": {
+    "title": "404: Page not found",
+    "fromLine": "From FantasyWiki, the encyclopedia of pages nobody has written",
+    "body": "{path} has never been written, viewed, or signed by any team{citation}.",
+    "citationNeeded": "citation needed",
+    "infobox": {
+      "title": "Market profile",
+      "marketValue": "Market value",
+      "marketValueFigure": "0 credits",
+      "contract": "Contract status",
+      "contractFigure": "Free agent, forever"
+    },
+    "stubNotice": "This page is a stub. You can help by navigating somewhere that exists.",
+    "ctaHome": "Back to home",
+    "ctaMarket": "Scout the market"
+  },
+  "legal": {
+    "title": "Legal & Privacy",
+    "terms": {
+      "title": "Terms of use",
+      "body": "FantasyWiki is a non-commercial university project, provided as-is and without any warranty. Playing is free and the in-game budget and points have no monetary value."
+    },
+    "privacy": {
+      "title": "Privacy",
+      "body": "You sign in with your Google account. We store only your name, email address and profile picture, kept in a session cookie and alongside your game data (teams and leagues). There are no ads, analytics or other tracking."
+    },
+    "attribution": {
+      "title": "Wikimedia attribution",
+      "body": "Pageview data comes from the Wikimedia Pageviews API. Article titles and content belong to Wikipedia and are available under the CC BY-SA 4.0 license. FantasyWiki is not affiliated with or endorsed by the Wikimedia Foundation."
+    }
+  },
   "home": {
     "hero": {
       "badge": "Fantasy Sports meets Wikipedia",
@@ -104,7 +143,7 @@
     "articleLeaderboard": {
       "trendingToday": "🔥 Trending Today",
       "mostViewed": "Most viewed",
-      "goingUp": "Going up",
+      "rank": "Rank {rank}",
       "avg": "Avg: {value}",
       "perDay": "/day",
       "unavailable": "Top article data unavailable right now.",
@@ -252,6 +291,12 @@
       "termsPrefix": "By signing in you agree to our {terms} and {privacy}.",
       "terms": "Terms of Service",
       "privacy": "Privacy Policy"
+    },
+    "logout": {
+      "title": "Sign out?",
+      "message": "You are signed in as {name}.",
+      "confirm": "Sign Out",
+      "cancel": "Cancel"
     },
     "callback": {
       "signInFailed": "Sign-in failed",

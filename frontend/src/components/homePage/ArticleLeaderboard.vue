@@ -19,12 +19,15 @@
           :key="entry.canonicalTitle"
           class="ion-margin-bottom ion-no-padding"
         >
-          <ion-badge class="ion-margin ion-padding">
-            <ion-icon
-              :icon="trendingUpOutline"
-              :aria-label="$t('home.articleLeaderboard.goingUp')"
-            ></ion-icon>
-          </ion-badge>
+          <span
+            class="rank-badge"
+            :class="{ medal: isMedalRank(entry.filteredRank) }"
+            :aria-label="
+              $t('home.articleLeaderboard.rank', { rank: entry.filteredRank })
+            "
+          >
+            {{ rankLabel(entry.filteredRank) }}
+          </span>
           <ion-label class="ion-text-start ion-padding-horizontal">
             <a
               class="article-link"
@@ -32,9 +35,7 @@
               target="_blank"
               rel="noopener noreferrer"
             >
-              <h3 class="ion-no-margin">
-                #{{ entry.filteredRank }} {{ entry.displayTitle }}
-              </h3>
+              <h3 class="ion-no-margin">{{ entry.displayTitle }}</h3>
             </a>
             <p class="ion-display-flex ion-align-items-center">
               <ion-icon
@@ -84,12 +85,11 @@ import {
   IonItem,
   IonLabel,
   IonText,
-  IonBadge,
   IonNote,
   IonIcon,
   IonChip,
 } from "@ionic/vue";
-import { eyeOutline, trendingUpOutline } from "ionicons/icons";
+import { eyeOutline } from "ionicons/icons";
 import { createWikimediaClient } from "@/services/wikimediaClient";
 import type { TopReadEntry } from "../../../../external-apis/wikimedia/wikimedia";
 
@@ -100,6 +100,16 @@ const views = ref<number>();
 const isLoading = ref(true);
 const hasError = ref(false);
 const wikimediaClient = createWikimediaClient();
+
+const MEDALS = ["🥇", "🥈", "🥉"];
+
+function isMedalRank(rank: number): boolean {
+  return rank >= 1 && rank <= MEDALS.length;
+}
+
+function rankLabel(rank: number): string {
+  return isMedalRank(rank) ? MEDALS[rank - 1] : `#${rank}`;
+}
 
 function formatCompactViews(value: number | undefined): string {
   if (value === undefined) {
@@ -216,14 +226,24 @@ h3 {
   text-decoration: none;
 }
 
-ion-item ion-badge {
-  --ion-margin: 0.5rem;
-  --ion-padding: 0.5rem;
-  --background: var(--ion-background-color-step-500);
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  margin: 0.5rem;
+  border-radius: 50%;
+  background: var(--ion-background-color-step-150);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ion-color-medium);
 }
 
-ion-badge ion-icon {
-  font-size: 1.3rem;
+.rank-badge.medal {
+  background: transparent;
+  font-size: 1.5rem;
 }
 
 ion-text.views {

@@ -24,10 +24,14 @@
       <p>
         <i18n-t keypath="auth.login.termsPrefix" tag="span">
           <template #terms
-            ><a href="#">{{ $t("auth.login.terms") }}</a></template
+            ><router-link to="/legal">{{
+              $t("auth.login.terms")
+            }}</router-link></template
           >
           <template #privacy
-            ><a href="#">{{ $t("auth.login.privacy") }}</a></template
+            ><router-link to="/legal">{{
+              $t("auth.login.privacy")
+            }}</router-link></template
           >
         </i18n-t>
       </p>

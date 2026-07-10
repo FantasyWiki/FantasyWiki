@@ -5,7 +5,6 @@ import { Domain } from "../model/enums";
 export interface LeagueDTO {
   id: string;
   title: string;
-  description: string;
   domain: Domain;
   icon: string;
   startDate: Temporal.Instant;

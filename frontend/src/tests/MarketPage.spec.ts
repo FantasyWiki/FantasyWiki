@@ -34,7 +34,6 @@ vi.mock("@ionic/vue", async (importOriginal) => {
 const fakeLeague: LeagueDTO = {
   id: "global",
   title: "Global League",
-  description: "",
   domain: "en",
   icon: "🌍",
   startDate: Temporal.Now.instant(),

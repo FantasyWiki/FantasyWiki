@@ -51,7 +51,6 @@ const otherTeam: TeamDTO = {
 const league: LeagueDTO = {
   id: "league-1",
   title: "League",
-  description: "",
   domain: "en",
   icon: "L",
   startDate: Temporal.Now.instant(),

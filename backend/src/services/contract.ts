@@ -21,7 +21,7 @@ import { WikimediaClient } from "../../../external-apis/wikimedia/client";
 import { createWikimediaClient } from "./wikimediaClient";
 import { toRawContract } from "./rawContract";
 
-const MAX_TEAM_CONTRACTS = 11;
+export const MAX_TEAM_CONTRACTS = 22;
 const VALID_TIERS: ContractTier[] = ["SHORT", "MEDIUM", "LONG"];
 
 function isContractTier(tier: string): tier is ContractTier {

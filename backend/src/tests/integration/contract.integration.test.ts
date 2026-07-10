@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
-import { ContractService } from "../../services/contract";
+import { ContractService, MAX_TEAM_CONTRACTS } from "../../services/contract";
 import { PlayerService } from "../../services/player";
 import { WikimediaClient } from "../../../../external-apis/wikimedia/client";
 import {
@@ -478,8 +478,8 @@ describe("ContractService.buyContract Integration Tests", () => {
     });
   });
 
-  it("rejects buying an 12th contract once the team already holds 11", async () => {
-    for (let i = 0; i < 11; i++) {
+  it("rejects buying a contract once the team already holds MAX_TEAM_CONTRACTS", async () => {
+    for (let i = 0; i < MAX_TEAM_CONTRACTS; i++) {
       await env.db
         .prepare(
           "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",

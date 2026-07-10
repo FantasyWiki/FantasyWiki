@@ -63,7 +63,7 @@
             <span class="balance-label ion-hide-sm-down"
               >{{ t("market.balance") }}:</span
             >
-            <span class="balance-value">{{ PLACEHOLDER_BALANCE }} Cr</span>
+            <span class="balance-value">{{ balanceDisplay }} Cr</span>
           </div>
         </div>
 
@@ -435,14 +435,19 @@ import type { ContractTier } from "@/types/articleDetail";
 import { formatViews, formatPrice } from "@/types/models";
 import { leaguesApi } from "@/services/api";
 
-// TODO: replace with real player balance from API when backend is ready
-const PLACEHOLDER_BALANCE = 550;
-
 const { t } = useI18n();
 const router = useRouter();
 const queryClient = useQueryClient();
 const leagueStore = useLeagueStore();
 const currentLeague = computed(() => leagueStore.currentLeague);
+
+// The player's spendable balance for the active league. Sourced from the league
+// store's current team (fetched via getMyTeam); falls back to a dash until it
+// resolves so we never render a misleading hardcoded number.
+const balanceDisplay = computed(() => {
+  const credits = leagueStore.currentTeam?.credits;
+  return credits == null ? "—" : formatPrice(credits);
+});
 
 const {
   isLoading,
@@ -539,10 +544,12 @@ async function onBuy(tier: ContractTier) {
     showSuccess(t("market.buySuccess"));
     // Refetch the article list and invalidate every view that reflects the
     // purchase: market ownership badges (league-contracts), the team bench
-    // (team-lineup), and credits/portfolio (dashboard). Without this the bench
-    // stays stale until a manual reload.
+    // (team-lineup), and credits/portfolio (dashboard). Refresh the store's
+    // current team too so the balance pill reflects the deducted credits.
+    // Without this the bench and balance stay stale until a manual reload.
     await Promise.all([
       refetch(),
+      leagueStore.fetchCurrentTeamContext(),
       queryClient.invalidateQueries({
         queryKey: ["league-contracts", league.id],
       }),

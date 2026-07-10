@@ -580,6 +580,84 @@ describe("ContractService.buyContract Integration Tests", () => {
       .first();
     expect(contractRow).toBeNull();
   });
+
+  it("rejects the buy when the views fetch omits averageViews30d", async () => {
+    const service = new ContractService(
+      env.db,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      wikimediaClientWithArticleViews(async () => ({
+        latestDayViews: undefined,
+        averageViews30d: undefined,
+        weekViews: undefined,
+        previousWeekViews: undefined,
+        monthViews: undefined,
+        yearViews: undefined,
+      })),
+    );
+
+    const result = await service.buyContract(
+      playerId,
+      leagueId,
+      "Bitcoin",
+      "MEDIUM",
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error:
+        "Couldn't fetch this article's views to price the contract. Please try again.",
+    });
+  });
+
+  it("rejects the buy with the thrown error's message when the views fetch fails", async () => {
+    const service = new ContractService(
+      env.db,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      wikimediaClientWithArticleViews(async () => {
+        throw new Error("Wikimedia API unavailable");
+      }),
+    );
+
+    const result = await service.buyContract(
+      playerId,
+      leagueId,
+      "Bitcoin",
+      "MEDIUM",
+    );
+
+    expect(result).toEqual({ ok: false, error: "Wikimedia API unavailable" });
+  });
+
+  it("falls back to a generic message when the views fetch rejects with a non-Error", async () => {
+    const service = new ContractService(
+      env.db,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      wikimediaClientWithArticleViews(async () => {
+        throw "network blip";
+      }),
+    );
+
+    const result = await service.buyContract(
+      playerId,
+      leagueId,
+      "Bitcoin",
+      "MEDIUM",
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Failed to fetch article views",
+    });
+  });
 });
 
 describe("ContractService.getMyContracts Integration Tests", () => {
@@ -1106,5 +1184,102 @@ describe("ContractService.sellContract Integration Tests", () => {
     // No double payout.
     const credits = await getDerivedCredits(playerId, leagueId);
     expect(credits).toBe(INITIAL_CREDITS);
+  });
+
+  it("rejects the sale when the views fetch omits averageViews30d", async () => {
+    await insertSellableContract({
+      id: "contract-sell-no-views",
+      tierDays: TIER_DAYS.MEDIUM,
+      remainingDays: 4,
+    });
+
+    const service = new ContractService(
+      env.db,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      wikimediaClientWithArticleViews(async () => ({
+        latestDayViews: undefined,
+        averageViews30d: undefined,
+        weekViews: undefined,
+        previousWeekViews: undefined,
+        monthViews: undefined,
+        yearViews: undefined,
+      })),
+    );
+
+    const result = await service.sellContract(
+      playerId,
+      leagueId,
+      "contract-sell-no-views",
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error:
+        "Couldn't fetch this article's views to price the sale. Please try again.",
+    });
+
+    // No payout on the rejected sale.
+    const credits = await getDerivedCredits(playerId, leagueId);
+    expect(credits).toBe(INITIAL_CREDITS);
+  });
+
+  it("rejects the sale with the thrown error's message when the views fetch fails", async () => {
+    await insertSellableContract({
+      id: "contract-sell-fetch-error",
+      tierDays: TIER_DAYS.MEDIUM,
+      remainingDays: 4,
+    });
+
+    const service = new ContractService(
+      env.db,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      wikimediaClientWithArticleViews(async () => {
+        throw new Error("Wikimedia API unavailable");
+      }),
+    );
+
+    const result = await service.sellContract(
+      playerId,
+      leagueId,
+      "contract-sell-fetch-error",
+    );
+
+    expect(result).toEqual({ ok: false, error: "Wikimedia API unavailable" });
+  });
+
+  it("falls back to a generic message when the sale's views fetch rejects with a non-Error", async () => {
+    await insertSellableContract({
+      id: "contract-sell-non-error",
+      tierDays: TIER_DAYS.MEDIUM,
+      remainingDays: 4,
+    });
+
+    const service = new ContractService(
+      env.db,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      wikimediaClientWithArticleViews(async () => {
+        throw "network blip";
+      }),
+    );
+
+    const result = await service.sellContract(
+      playerId,
+      leagueId,
+      "contract-sell-non-error",
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Failed to fetch article views",
+    });
   });
 });

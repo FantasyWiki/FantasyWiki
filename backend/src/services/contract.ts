@@ -99,10 +99,9 @@ export class ContractService {
     articleId: string,
     tier: string,
   ): Promise<Result<RawContract>> {
-    const [teamResult, leagueResult, playerResult] = await Promise.all([
+    const [teamResult, leagueResult] = await Promise.all([
       this.teamRepo.getByPlayerAndLeague(playerId, leagueId),
       this.leagueRepo.getById(leagueId),
-      this.playerRepo.getById(playerId),
     ]);
     if (!teamResult.ok) {
       return teamResult;
@@ -116,10 +115,6 @@ export class ContractService {
       return leagueResult;
     }
     const domain = leagueResult.value.domain as Domain;
-
-    if (!playerResult.ok) {
-      return playerResult;
-    }
 
     if (!isContractTier(tier)) {
       return failure("Invalid contract tier");
@@ -189,13 +184,22 @@ export class ContractService {
     const purchaseDate = Temporal.Now.plainDateISO();
     const expireDate = purchaseDate.add({ days: TIER_DAYS[tier] });
 
-    const createResult = await this.contractRepo.create({
-      teamId: team.id,
-      articleId,
-      purchaseDate,
-      expireDate,
-      purchasePrice: price,
-    });
+    // Fetch the player's display name in parallel with the write rather than
+    // up front: on the rejection paths above it's never needed, so this avoids
+    // a wasted read on every rejected buy while adding no latency to the happy
+    // path. The lookup is deliberately non-fatal — the purchase is authoritative
+    // once `create` succeeds, so a failed name read falls back to an empty name
+    // (the client refetches) rather than turning a completed buy into an error.
+    const [createResult, playerResult] = await Promise.all([
+      this.contractRepo.create({
+        teamId: team.id,
+        articleId,
+        purchaseDate,
+        expireDate,
+        purchasePrice: price,
+      }),
+      this.playerRepo.getById(playerId),
+    ]);
     if (!createResult.ok) {
       return createResult;
     }
@@ -208,7 +212,10 @@ export class ContractService {
       toRawContract(
         createResult.value,
         { id: team.id, name: team.name, credits: team.credits - price },
-        { id: playerId, name: playerResult.value.username },
+        {
+          id: playerId,
+          name: playerResult.ok ? playerResult.value.username : "",
+        },
         domain,
       ),
     );
@@ -235,13 +242,11 @@ export class ContractService {
     leagueId: string,
     contractId: string,
   ): Promise<Result<RawContract>> {
-    const [teamResult, leagueResult, playerResult, contractResult] =
-      await Promise.all([
-        this.teamRepo.getByPlayerAndLeague(playerId, leagueId),
-        this.leagueRepo.getById(leagueId),
-        this.playerRepo.getById(playerId),
-        this.contractRepo.getById(contractId),
-      ]);
+    const [teamResult, leagueResult, contractResult] = await Promise.all([
+      this.teamRepo.getByPlayerAndLeague(playerId, leagueId),
+      this.leagueRepo.getById(leagueId),
+      this.contractRepo.getById(contractId),
+    ]);
     if (!teamResult.ok) {
       return teamResult;
     }
@@ -254,10 +259,6 @@ export class ContractService {
       return leagueResult;
     }
     const domain = leagueResult.value.domain as Domain;
-
-    if (!playerResult.ok) {
-      return playerResult;
-    }
 
     if (!contractResult.ok) {
       return contractResult;
@@ -312,11 +313,16 @@ export class ContractService {
     const articleTitle = contract.articleId.replace(/_/g, " ");
     const message = `Sold ${articleTitle} early for ${payout} credits`;
 
-    const saleResult = await this.contractRepo.settleSale(
-      contract.id,
-      team.id,
-      payout,
-    );
+    // Fetch the player's display name in parallel with the settlement write
+    // rather than up front: the rejection paths above never need it, so this
+    // avoids a wasted read on every rejected sale while adding no latency. The
+    // lookup is non-fatal — once `settleSale` wins, the sale is authoritative,
+    // so a failed name read falls back to an empty name (the client refetches)
+    // rather than turning a completed sale into an error.
+    const [saleResult, playerResult] = await Promise.all([
+      this.contractRepo.settleSale(contract.id, team.id, payout),
+      this.playerRepo.getById(playerId),
+    ]);
     if (!saleResult.ok) {
       return saleResult;
     }
@@ -347,7 +353,10 @@ export class ContractService {
       toRawContract(
         { ...contract, settled: true },
         { id: team.id, name: team.name, credits: team.credits + payout },
-        { id: playerId, name: playerResult.value.username },
+        {
+          id: playerId,
+          name: playerResult.ok ? playerResult.value.username : "",
+        },
         domain,
       ),
     );

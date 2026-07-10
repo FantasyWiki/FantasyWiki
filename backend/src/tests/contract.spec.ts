@@ -228,7 +228,7 @@ describe("ContractService.buyContract", () => {
     expect(result).toEqual(failure("league lookup failed"));
   });
 
-  it("propagates a failure from the player repository", async () => {
+  it("still completes the buy when the player lookup fails, falling back to an empty player name", async () => {
     const service = makeService({
       playerRepo: makePlayerRepo(failure("player lookup failed")),
     });
@@ -240,7 +240,10 @@ describe("ContractService.buyContract", () => {
       "SHORT",
     );
 
-    expect(result).toEqual(failure("player lookup failed"));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.team.player).toEqual({ id: PLAYER_ID, name: "" });
+    }
   });
 
   it("propagates a failure from the league contracts lookup", async () => {
@@ -323,7 +326,7 @@ describe("ContractService.sellContract", () => {
     expect(result).toEqual(failure("league lookup failed"));
   });
 
-  it("propagates a failure from the player repository", async () => {
+  it("still completes the sale when the player lookup fails, falling back to an empty player name", async () => {
     const service = makeService({
       playerRepo: makePlayerRepo(failure("player lookup failed")),
     });
@@ -334,7 +337,10 @@ describe("ContractService.sellContract", () => {
       CONTRACT_ID,
     );
 
-    expect(result).toEqual(failure("player lookup failed"));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.team.player).toEqual({ id: PLAYER_ID, name: "" });
+    }
   });
 
   it("propagates a failure from the contract repository", async () => {

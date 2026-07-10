@@ -311,6 +311,41 @@ describe("ContractService.buyContract Integration Tests", () => {
     expect(contractRow?.settled).toBe(0);
   });
 
+  it("reflects the debited credits on a subsequent read of the team's contracts", async () => {
+    const service = new ContractService(
+      env.db,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      wikimediaWithAvg(9000),
+    );
+
+    const buyResult = await service.buyContract(
+      playerId,
+      leagueId,
+      "Bitcoin",
+      "MEDIUM",
+    );
+    expect(buyResult.ok).toBe(true);
+    if (!buyResult.ok) return;
+
+    const expectedPrice = priceFor(9000, "MEDIUM");
+
+    // Re-query the system through a fresh call rather than trusting the buy
+    // result: the remaining credits must have been persisted.
+    const readService = new ContractService(env.db);
+    const contractsResult = await readService.getMyContracts(
+      playerId,
+      leagueId,
+    );
+
+    expect(contractsResult.ok).toBe(true);
+    if (!contractsResult.ok) return;
+    expect(contractsResult.value).toHaveLength(1);
+    expect(contractsResult.value[0].team.credits).toBe(1000 - expectedPrice);
+  });
+
   it("fails with 'No team found for this league' when the player has no team there", async () => {
     const service = new ContractService(
       env.db,

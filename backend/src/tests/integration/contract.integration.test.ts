@@ -478,7 +478,7 @@ describe("ContractService.buyContract Integration Tests", () => {
     });
   });
 
-  it("rejects buying an 12th contract once the team already holds MAX_TEAM_CONTRACTS", async () => {
+  it("rejects buying a contract once the team already holds MAX_TEAM_CONTRACTS", async () => {
     for (let i = 0; i < MAX_TEAM_CONTRACTS; i++) {
       await env.db
         .prepare(

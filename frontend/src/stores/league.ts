@@ -23,7 +23,6 @@ export const useLeagueStore = defineStore("league", () => {
   const emptyLeague = (): LeagueDTO => ({
     id: "",
     title: "No League Selected",
-    description: "",
     domain: "en",
     icon: "",
     startDate: Now.instant(),

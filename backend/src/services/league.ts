@@ -6,14 +6,15 @@ import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
 import { Result, success } from "../repositories/result";
 
 export const GLOBAL_LEAGUE_ID = "global";
-const GLOBAL_LEAGUE_DESCRIPTION =
-  "Compete with players from around the world in the ultimate Wikipedia trading experience!";
 
-function toLeagueDTO(league: League, description: string): LeagueDTO {
+/**
+ * Map a domain League to the LeagueDTO shape returned by the API.
+ * `teams` is populated by team-scoped endpoints, not here.
+ */
+export function toLeagueDTO(league: League): LeagueDTO {
   return {
     id: league.id,
     title: league.name,
-    description,
     domain: league.domain as Domain,
     icon: league.icon,
     startDate: league.startDate,
@@ -38,6 +39,6 @@ export class LeagueService {
     if (!result.ok) {
       return result;
     }
-    return success(toLeagueDTO(result.value, GLOBAL_LEAGUE_DESCRIPTION));
+    return success(toLeagueDTO(result.value));
   }
 }

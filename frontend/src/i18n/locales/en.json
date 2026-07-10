@@ -353,6 +353,8 @@
     "ownershipLoading": "Checking…",
     "yourTeam": "Your team",
     "buySuccess": "Contract purchased",
-    "buyError": "Couldn't buy this article"
+    "buyError": "Couldn't buy this article",
+    "sellSuccess": "Contract sold",
+    "sellError": "Couldn't sell this contract"
   }
 }

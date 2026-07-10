@@ -1,8 +1,10 @@
 import {
+  NewNotification,
   NotificationRepository,
   NotificationRow,
   NOTIFICATION_ERRORS,
 } from "../notificationRepository";
+import { STARTING_CREDITS } from "../../../../model/team";
 import { Result, success, failure } from "../result";
 
 interface NotificationJoinRow {
@@ -23,14 +25,26 @@ interface NotificationJoinRow {
   playerName: string;
 }
 
+// credits is derived from the contracts ledger (see
+// TeamRepositoryD1.getByPlayerAndLeague) via a CTE rather than a stored
+// column. Its bind param (STARTING_CREDITS) must be the first `?` supplied by
+// every caller of this fragment, before their own WHERE params.
 const SELECT_NOTIFICATIONS = `
+  WITH team_credits AS (
+    SELECT teamId,
+           ? - COALESCE(SUM(purchasePrice), 0)
+             + COALESCE(SUM(CASE WHEN settled = 1 THEN salePayout ELSE 0 END), 0) AS credits
+    FROM contracts
+    GROUP BY teamId
+  )
   SELECT n.id, n.message, n.date, n.isRead,
          c.id AS contractId, c.articleId, c.purchaseDate, c.expireDate, c.purchasePrice,
-         t.id AS teamId, t.name AS teamName, t.credits, t.leagueId,
+         t.id AS teamId, t.name AS teamName, tc.credits, t.leagueId,
          pl.id AS playerId, pl.username AS playerName
   FROM notifications n
   JOIN contracts c ON c.id = n.contractId
   JOIN teams t     ON t.id = c.teamId
+  JOIN team_credits tc ON tc.teamId = t.id
   JOIN players pl  ON pl.id = t.playerId
 `;
 
@@ -54,7 +68,7 @@ export class NotificationRepositoryD1 implements NotificationRepository {
         .prepare(
           `${SELECT_NOTIFICATIONS} WHERE t.playerId = ? AND t.leagueId = ? ORDER BY n.date DESC`,
         )
-        .bind(playerId, leagueId)
+        .bind(STARTING_CREDITS, playerId, leagueId)
         .all<NotificationJoinRow>();
 
       return success(result.results.map(toNotificationRow));
@@ -71,7 +85,7 @@ export class NotificationRepositoryD1 implements NotificationRepository {
         .prepare(
           `${SELECT_NOTIFICATIONS} WHERE t.playerId = ? ORDER BY n.date DESC`,
         )
-        .bind(playerId)
+        .bind(STARTING_CREDITS, playerId)
         .all<NotificationJoinRow>();
 
       return success(result.results.map(toNotificationRow));
@@ -120,6 +134,31 @@ export class NotificationRepositoryD1 implements NotificationRepository {
     } catch (error) {
       return failure(
         `Error marking notification as read: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  async create(notification: NewNotification): Promise<Result<void>> {
+    try {
+      const result = await this.db
+        .prepare(
+          `INSERT INTO notifications (id, contractId, message, date, isRead) VALUES (?, ?, ?, ?, 0)`,
+        )
+        .bind(
+          notification.id,
+          notification.contractId,
+          notification.message,
+          notification.date,
+        )
+        .run();
+
+      if (!result.success) {
+        return failure("Error creating notification");
+      }
+      return success(undefined);
+    } catch (error) {
+      return failure(
+        `Error creating notification: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
   }

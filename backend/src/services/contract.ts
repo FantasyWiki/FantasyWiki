@@ -16,6 +16,8 @@ import { TeamRepository } from "../repositories/teamRepository";
 import { TeamRepositoryD1 } from "../repositories/d1/teamRepositoryD1";
 import { PlayerRepository } from "../repositories/playerRepository";
 import { PlayerRepositoryD1 } from "../repositories/d1/playerRepositoryD1";
+import { NotificationRepository } from "../repositories/notificationRepository";
+import { NotificationRepositoryD1 } from "../repositories/d1/notificationRepositoryD1";
 import { Result, success, failure } from "../repositories/result";
 import { WikimediaClient } from "../../../external-apis/wikimedia/client";
 import { createWikimediaClient } from "./wikimediaClient";
@@ -34,6 +36,7 @@ export class ContractService {
   private teamRepo: TeamRepository;
   private playerRepo: PlayerRepository;
   private wikimedia: WikimediaClient;
+  private notificationRepo: NotificationRepository;
 
   constructor(
     db: D1Database,
@@ -42,12 +45,15 @@ export class ContractService {
     teamRepo?: TeamRepository,
     playerRepo?: PlayerRepository,
     wikimedia?: WikimediaClient,
+    notificationRepo?: NotificationRepository,
   ) {
     this.contractRepo = contractRepo ?? new ContractRepositoryD1(db);
     this.leagueRepo = leagueRepo ?? new LeagueRepositoryD1(db);
     this.teamRepo = teamRepo ?? new TeamRepositoryD1(db);
     this.playerRepo = playerRepo ?? new PlayerRepositoryD1(db);
     this.wikimedia = wikimedia ?? createWikimediaClient();
+    this.notificationRepo =
+      notificationRepo ?? new NotificationRepositoryD1(db);
   }
 
   /**
@@ -82,8 +88,10 @@ export class ContractService {
   /**
    * Buys an article contract for the current player's team in a league.
    * Price is always computed server-side from live Wikimedia views (ADR 0005)
-   * — the client only chooses `articleId`/`tier`, never a price. Persistence
-   * (contract insert + credit debit) is atomic; see ContractRepository.create.
+   * — the client only chooses `articleId`/`tier`, never a price. Team credits
+   * are derived from the contracts ledger (never stored), so the INSERT
+   * itself is the single guarded write that decides affordability — see
+   * ContractRepository.create.
    */
   async buyContract(
     playerId: string,
@@ -188,6 +196,20 @@ export class ContractService {
       return createResult;
     }
 
+    // Re-fetch rather than computing team.credits - price here: derivation
+    // logic lives exclusively in the repository layer.
+    const updatedTeamResult = await this.teamRepo.getByPlayerAndLeague(
+      playerId,
+      leagueId,
+    );
+    if (!updatedTeamResult.ok) {
+      return updatedTeamResult;
+    }
+    const updatedTeam = updatedTeamResult.value;
+    if (updatedTeam === null) {
+      return failure("No team found for this league");
+    }
+
     const playerResult = await this.playerRepo.getById(playerId);
     if (!playerResult.ok) {
       return playerResult;
@@ -196,7 +218,159 @@ export class ContractService {
     return success(
       toRawContract(
         createResult.value,
-        { id: team.id, name: team.name, credits: team.credits - price },
+        {
+          id: updatedTeam.id,
+          name: updatedTeam.name,
+          credits: updatedTeam.credits,
+        },
+        { id: playerId, name: playerResult.value.username },
+        domain,
+      ),
+    );
+  }
+
+  /**
+   * Sells one of the current player's contracts before its term ends for a
+   * prorated payout (the story's "sell early" flow). Price is always recomputed
+   * server-side from live Wikimedia views (ADR 0005), fed the contract's *own*
+   * held tier length — never a fixed tier — so the proration is against the
+   * value actually bought:
+   *
+   *   payout = max(0, ContractPrice(liveViews, tierDays) × remainingDays / tierDays)
+   *
+   * The contract row is retained (`settled=1`), never deleted, so the sale
+   * notification's `contractId` FK stays valid. `settleSale` is a single
+   * guarded write (flips settled + persists the payout) — team credits are
+   * derived from this same ledger, so there's no separate credit write to
+   * keep in sync. The follow-up notification write is a simple, low-stakes
+   * next step: money correctness never depends on it.
+   */
+  async sellContract(
+    playerId: string,
+    leagueId: string,
+    contractId: string,
+  ): Promise<Result<RawContract>> {
+    const teamResult = await this.teamRepo.getByPlayerAndLeague(
+      playerId,
+      leagueId,
+    );
+    if (!teamResult.ok) {
+      return teamResult;
+    }
+    if (teamResult.value === null) {
+      return failure("No team found for this league");
+    }
+    const team = teamResult.value;
+
+    const leagueResult = await this.leagueRepo.getById(leagueId);
+    if (!leagueResult.ok) {
+      return leagueResult;
+    }
+    const domain = leagueResult.value.domain as Domain;
+
+    const contractResult = await this.contractRepo.getById(contractId);
+    if (!contractResult.ok) {
+      return contractResult;
+    }
+    const contract = contractResult.value;
+    if (contract === null) {
+      return failure("Contract not found");
+    }
+    if (contract.teamId !== team.id) {
+      return failure("You do not own this contract");
+    }
+    if (contract.settled) {
+      return failure("Contract already sold");
+    }
+
+    // Tier length is the contract's own held duration; remaining is measured
+    // from today to expiry. today >= purchaseDate always, so the ratio never
+    // exceeds 1 — the formula only floors at 0 (a past-expiry contract).
+    const tierDays = contract.purchaseDate.until(contract.expireDate).days;
+    const today = Temporal.Now.plainDateISO();
+    const remainingDays = today.until(contract.expireDate).days;
+
+    let price: number;
+    try {
+      const views = await this.wikimedia.pageviews.getArticleViews(
+        domain,
+        contract.articleId,
+      );
+      // Same correctness-over-availability stance as buyContract: a failed
+      // views fetch leaves `averageViews30d` undefined; never price that as 0
+      // (which would hand out a free settlement). Reject the sale instead.
+      if (views.averageViews30d === undefined) {
+        return failure(
+          "Couldn't fetch this article's views to price the sale. Please try again.",
+        );
+      }
+      price = computeContractPrice(
+        normalizedViews(views.averageViews30d, resolveLanguageScale(domain)),
+        tierDays,
+      );
+    } catch (error) {
+      return failure(
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch article views",
+      );
+    }
+
+    const proratedRatio = tierDays > 0 ? remainingDays / tierDays : 0;
+    const payout = Math.max(0, Math.round(price * proratedRatio));
+
+    const articleTitle = contract.articleId.replace(/_/g, " ");
+    const message = `Sold ${articleTitle} early for ${payout} credits`;
+
+    const saleResult = await this.contractRepo.settleSale(
+      contract.id,
+      team.id,
+      payout,
+    );
+    if (!saleResult.ok) {
+      return saleResult;
+    }
+    if (!saleResult.value) {
+      return failure("Contract already sold");
+    }
+
+    const notificationResult = await this.notificationRepo.create({
+      id: crypto.randomUUID(),
+      contractId: contract.id,
+      message,
+      date: today.toString(),
+    });
+    if (!notificationResult.ok) {
+      return notificationResult;
+    }
+
+    // Re-fetch rather than computing team.credits + payout here: derivation
+    // logic lives exclusively in the repository layer.
+    const updatedTeamResult = await this.teamRepo.getByPlayerAndLeague(
+      playerId,
+      leagueId,
+    );
+    if (!updatedTeamResult.ok) {
+      return updatedTeamResult;
+    }
+    const updatedTeam = updatedTeamResult.value;
+    if (updatedTeam === null) {
+      return failure("No team found for this league");
+    }
+
+    const playerResult = await this.playerRepo.getById(playerId);
+    if (!playerResult.ok) {
+      return playerResult;
+    }
+
+    return success(
+      toRawContract(
+        { ...contract, settled: true },
+        {
+          id: updatedTeam.id,
+          name: updatedTeam.name,
+          credits: updatedTeam.credits,
+        },
         { id: playerId, name: playerResult.value.username },
         domain,
       ),

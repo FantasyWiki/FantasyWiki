@@ -4,6 +4,7 @@ import { PlayerService } from "../../services/player";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
 import { PlayerRepository } from "../../repositories/playerRepository";
 import { success } from "../../repositories/result";
+import { insertTeam } from "../utils/d1TestUtils";
 
 describe("PlayerService Integration Tests", () => {
   let playerService: PlayerService;
@@ -172,18 +173,12 @@ describe("PlayerService Integration Tests", () => {
       expect(created.ok).toBe(true);
       if (!created.ok) throw new Error("setup failed");
 
-      await env.db
-        .prepare(
-          "INSERT INTO teams (id, name, playerId, leagueId, credits) VALUES (?, ?, ?, ?, ?)",
-        )
-        .bind(
-          "team-leagues-1",
-          "Member FC",
-          created.value.id,
-          GLOBAL_LEAGUE_ID,
-          1000,
-        )
-        .run();
+      await insertTeam(env.db, {
+        id: "team-leagues-1",
+        name: "Member FC",
+        playerId: created.value.id,
+        leagueId: GLOBAL_LEAGUE_ID,
+      });
 
       const result = await playerService.getLeaguesByPlayerId(created.value.id);
 

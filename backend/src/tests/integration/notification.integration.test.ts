@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { NotificationService } from "../../services/notification";
 import { PlayerService } from "../../services/player";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
+import { insertTeam } from "../utils/d1TestUtils";
 
 describe("NotificationService Integration Tests", () => {
   let notificationService: NotificationService;
@@ -24,12 +25,12 @@ describe("NotificationService Integration Tests", () => {
     playerId = playerResult.value.id;
 
     teamId = "team-notify-1";
-    await env.db
-      .prepare(
-        "INSERT INTO teams (id, name, playerId, leagueId, credits) VALUES (?, ?, ?, ?, ?)",
-      )
-      .bind(teamId, "Notify FC", playerId, GLOBAL_LEAGUE_ID, 1000)
-      .run();
+    await insertTeam(env.db, {
+      id: teamId,
+      name: "Notify FC",
+      playerId,
+      leagueId: GLOBAL_LEAGUE_ID,
+    });
   });
 
   // Helper: insert a contract then a notification referencing it
@@ -100,18 +101,12 @@ describe("NotificationService Integration Tests", () => {
       const otherPlayerId = otherPlayerResult.value.id;
 
       const otherTeamId = "team-notify-other-1";
-      await env.db
-        .prepare(
-          "INSERT INTO teams (id, name, playerId, leagueId, credits) VALUES (?, ?, ?, ?, ?)",
-        )
-        .bind(
-          otherTeamId,
-          "Other Notify FC",
-          otherPlayerId,
-          otherLeagueId,
-          1000,
-        )
-        .run();
+      await insertTeam(env.db, {
+        id: otherTeamId,
+        name: "Other Notify FC",
+        playerId: otherPlayerId,
+        leagueId: otherLeagueId,
+      });
 
       // Notification for our player's team in global league
       await insertNotification({
@@ -178,12 +173,12 @@ describe("NotificationService Integration Tests", () => {
         .run();
 
       const secondTeamId = "team-notify-second-1";
-      await env.db
-        .prepare(
-          "INSERT INTO teams (id, name, playerId, leagueId, credits) VALUES (?, ?, ?, ?, ?)",
-        )
-        .bind(secondTeamId, "Second Notify FC", playerId, secondLeagueId, 1000)
-        .run();
+      await insertTeam(env.db, {
+        id: secondTeamId,
+        name: "Second Notify FC",
+        playerId,
+        leagueId: secondLeagueId,
+      });
 
       // Notification in global league
       await insertNotification({
@@ -266,18 +261,12 @@ describe("NotificationService Integration Tests", () => {
       const otherPlayerId = otherPlayerResult.value.id;
 
       const otherTeamId = "team-notify-read-other-1";
-      await env.db
-        .prepare(
-          "INSERT INTO teams (id, name, playerId, leagueId, credits) VALUES (?, ?, ?, ?, ?)",
-        )
-        .bind(
-          otherTeamId,
-          "Other Read FC",
-          otherPlayerId,
-          GLOBAL_LEAGUE_ID,
-          1000,
-        )
-        .run();
+      await insertTeam(env.db, {
+        id: otherTeamId,
+        name: "Other Read FC",
+        playerId: otherPlayerId,
+        leagueId: GLOBAL_LEAGUE_ID,
+      });
 
       // Insert notification belonging to the other player's team
       await insertNotification({

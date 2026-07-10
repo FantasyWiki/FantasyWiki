@@ -27,9 +27,26 @@ export interface ContractRepository {
   /** All contracts held by any team within the given league. */
   getByLeagueId(leagueId: string): Promise<Result<LeagueContractRow[]>>;
   /**
-   * Creates a contract and debits the purchase price from the owning team's
-   * credits as a single atomic write. Fails (without creating the contract)
-   * if the team no longer has enough credits at write time.
+   * Creates a contract in a single guarded write: the INSERT only applies if
+   * the owning team's derived credits (STARTING_CREDITS - sum(purchasePrice)
+   * + sum(salePayout of settled contracts)) can still cover the price at
+   * write time — naturally atomic (SQLite/D1 guarantee single-statement
+   * atomicity against concurrent writers), no debit step needed since
+   * credits are never stored. Fails if the team no longer has enough
+   * (derived) credits at write time.
    */
   create(newContract: NewContract): Promise<Result<Contract>>;
+  /**
+   * Settles a contract as an early sale in a single guarded write: flips it
+   * to `settled=1` and persists `payout` (the row is retained, never
+   * deleted, so the sale notification's `contractId` FK stays valid).
+   * Guarded on the contract still being unsettled and owned by `teamId`, so a
+   * concurrent double-sell can't succeed twice. Result<boolean>: true iff
+   * this call is the one that actually settled it.
+   */
+  settleSale(
+    contractId: string,
+    teamId: string,
+    payout: number,
+  ): Promise<Result<boolean>>;
 }

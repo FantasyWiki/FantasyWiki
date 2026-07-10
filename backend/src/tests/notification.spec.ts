@@ -58,6 +58,7 @@ function makeNotificationRepo(
     getByPlayerAndLeague: async () => success(rows),
     getByPlayerId: async () => success(rows),
     markAsRead: async () => success(undefined),
+    create: async () => success(undefined),
   };
 }
 
@@ -167,6 +168,7 @@ describe("NotificationService (unit)", () => {
             getByPlayerAndLeague: async () => success([enRow, itRow]),
             getByPlayerId: async () => success([enRow, itRow]),
             markAsRead: async () => success(undefined),
+            create: async () => success(undefined),
           },
           leagueRepository: leagueRepo,
         }),
@@ -188,6 +190,7 @@ describe("NotificationService (unit)", () => {
             getByPlayerAndLeague: async () => failure("db error"),
             getByPlayerId: async () => failure("db error"),
             markAsRead: async () => failure("unused"),
+            create: async () => failure("unused"),
           },
         }),
       );
@@ -254,6 +257,7 @@ describe("NotificationService (unit)", () => {
               markedPlayer = playerId;
               return success(undefined);
             },
+            create: async () => success(undefined),
           },
         }),
       );
@@ -271,6 +275,7 @@ describe("NotificationService (unit)", () => {
             getByPlayerAndLeague: async () => success([]),
             getByPlayerId: async () => success([]),
             markAsRead: async () => failure("not found"),
+            create: async () => success(undefined),
           },
         }),
       );

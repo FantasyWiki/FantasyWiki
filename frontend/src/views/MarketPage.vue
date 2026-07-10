@@ -561,9 +561,28 @@ async function onBuy(tier: ContractTier) {
   }
 }
 
-// TODO: wire to contractsApi.delete once the sell flow is ready.
-function onSell(contractId: string) {
-  console.log("Sell", contractId);
+async function onSell(contractId: string) {
+  const league = currentLeague.value;
+  if (!league) return;
+  try {
+    await leaguesApi.sellMyContract(league.id, contractId);
+    closeDetail();
+    showSuccess(t("market.sellSuccess"));
+    // Same invalidation set as onBuy, plus notifications: selling writes an
+    // inbox notification, so the notification list must refresh too.
+    await Promise.all([
+      refetch(),
+      leagueStore.fetchCurrentTeamContext(),
+      queryClient.invalidateQueries({
+        queryKey: ["league-contracts", league.id],
+      }),
+      queryClient.invalidateQueries({ queryKey: ["team-lineup", league.id] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard", league.id] }),
+      queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    ]);
+  } catch (e) {
+    showError(e instanceof Error ? e.message : t("market.sellError"));
+  }
 }
 
 // TODO: implement trade-request flow once a trade API exists.

@@ -353,6 +353,8 @@
     "ownershipLoading": "Verifica…",
     "yourTeam": "La tua squadra",
     "buySuccess": "Contratto acquistato",
-    "buyError": "Impossibile acquistare questo articolo"
+    "buyError": "Impossibile acquistare questo articolo",
+    "sellSuccess": "Contratto venduto",
+    "sellError": "Impossibile vendere questo contratto"
   }
 }

@@ -97,6 +97,9 @@ function makeContractRepo(contracts: Contract[]): ContractRepository {
     create: async () => {
       throw new Error("not implemented in stub");
     },
+    settleSale: async () => {
+      throw new Error("not implemented in stub");
+    },
   };
 }
 

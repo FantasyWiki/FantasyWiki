@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { LineupService, RawTeamLineUp } from "../../services/lineup";
 import { PlayerService } from "../../services/player";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
+import { insertTeam } from "../utils/d1TestUtils";
 
 describe("LineupService Integration Tests", () => {
   let lineupService: LineupService;
@@ -24,12 +25,12 @@ describe("LineupService Integration Tests", () => {
     playerId = playerResult.value.id;
 
     teamId = "team-lineup-1";
-    await env.db
-      .prepare(
-        "INSERT INTO teams (id, name, playerId, leagueId, credits) VALUES (?, ?, ?, ?, ?)",
-      )
-      .bind(teamId, "Lineup FC", playerId, GLOBAL_LEAGUE_ID, 1000)
-      .run();
+    await insertTeam(env.db, {
+      id: teamId,
+      name: "Lineup FC",
+      playerId,
+      leagueId: GLOBAL_LEAGUE_ID,
+    });
     await env.db
       .prepare(
         "INSERT INTO lineups (teamId, schema, formation, updatedAt) VALUES (?, ?, ?, ?)",
@@ -164,12 +165,12 @@ describe("LineupService Integration Tests", () => {
         .bind(otherPlayerId, "otherplayer", otherPlayerId)
         .run();
 
-      await env.db
-        .prepare(
-          "INSERT INTO teams (id, name, playerId, leagueId, credits) VALUES (?, ?, ?, ?, ?)",
-        )
-        .bind(otherTeamId, "Other FC", otherPlayerId, GLOBAL_LEAGUE_ID, 1000)
-        .run();
+      await insertTeam(env.db, {
+        id: otherTeamId,
+        name: "Other FC",
+        playerId: otherPlayerId,
+        leagueId: GLOBAL_LEAGUE_ID,
+      });
 
       const foreignContractId = "contract-foreign-1";
       await env.db

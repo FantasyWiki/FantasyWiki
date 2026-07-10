@@ -109,8 +109,14 @@ export class LineupService {
     if (!contractsResult.ok) {
       return contractsResult;
     }
+    // Settled contracts (e.g. sold early) are no longer owned inventory: the
+    // article has returned to Free Agent, so it must drop out of both the
+    // formation and the bench even though the row is retained for its FK.
+    const activeContracts = contractsResult.value.filter(
+      (contract) => !contract.settled,
+    );
     const contractsById = new Map(
-      contractsResult.value.map((contract) => [contract.id, contract]),
+      activeContracts.map((contract) => [contract.id, contract]),
     );
 
     let storedFormation: Record<string, string>;
@@ -136,7 +142,7 @@ export class LineupService {
       usedContractIds.add(contractId);
     }
 
-    const bench = contractsResult.value
+    const bench = activeContracts
       .filter((contract) => !usedContractIds.has(contract.id))
       .map((contract) =>
         this.buildRawContract(contract, team, playerName, domain),

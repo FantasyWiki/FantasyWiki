@@ -128,6 +128,13 @@ export const leaguesApi = {
       method: "POST",
       body: JSON.stringify({ articleId, tier }),
     }).then((c) => ContractDTO.fromRaw(c)),
+
+  /** Sell one of the current player's contracts early for a prorated payout */
+  sellMyContract: (leagueId: string, contractId: string) =>
+    apiRequest<RawContract>(
+      `/leagues/${leagueId}/my-contracts/${contractId}/sell`,
+      { method: "POST" }
+    ).then((c) => ContractDTO.fromRaw(c)),
 };
 
 // ── Teams ─────────────────────────────────────────────────────────────────────

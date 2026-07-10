@@ -99,10 +99,11 @@ export class ContractService {
     articleId: string,
     tier: string,
   ): Promise<Result<RawContract>> {
-    const teamResult = await this.teamRepo.getByPlayerAndLeague(
-      playerId,
-      leagueId,
-    );
+    const [teamResult, leagueResult, playerResult] = await Promise.all([
+      this.teamRepo.getByPlayerAndLeague(playerId, leagueId),
+      this.leagueRepo.getById(leagueId),
+      this.playerRepo.getById(playerId),
+    ]);
     if (!teamResult.ok) {
       return teamResult;
     }
@@ -111,11 +112,14 @@ export class ContractService {
     }
     const team = teamResult.value;
 
-    const leagueResult = await this.leagueRepo.getById(leagueId);
     if (!leagueResult.ok) {
       return leagueResult;
     }
     const domain = leagueResult.value.domain as Domain;
+
+    if (!playerResult.ok) {
+      return playerResult;
+    }
 
     if (!isContractTier(tier)) {
       return failure("Invalid contract tier");
@@ -196,33 +200,14 @@ export class ContractService {
       return createResult;
     }
 
-    // Re-fetch rather than computing team.credits - price here: derivation
-    // logic lives exclusively in the repository layer.
-    const updatedTeamResult = await this.teamRepo.getByPlayerAndLeague(
-      playerId,
-      leagueId,
-    );
-    if (!updatedTeamResult.ok) {
-      return updatedTeamResult;
-    }
-    const updatedTeam = updatedTeamResult.value;
-    if (updatedTeam === null) {
-      return failure("No team found for this league");
-    }
-
-    const playerResult = await this.playerRepo.getById(playerId);
-    if (!playerResult.ok) {
-      return playerResult;
-    }
-
+    // Credits are derived as STARTING_CREDITS - Σpurchases + Σpayouts
+    // (see TeamRepository.getByPlayerAndLeague), so the post-purchase value
+    // is just team.credits - price — no re-fetch needed, and nothing after
+    // the write can turn an already-successful purchase into an error.
     return success(
       toRawContract(
         createResult.value,
-        {
-          id: updatedTeam.id,
-          name: updatedTeam.name,
-          credits: updatedTeam.credits,
-        },
+        { id: team.id, name: team.name, credits: team.credits - price },
         { id: playerId, name: playerResult.value.username },
         domain,
       ),
@@ -250,10 +235,13 @@ export class ContractService {
     leagueId: string,
     contractId: string,
   ): Promise<Result<RawContract>> {
-    const teamResult = await this.teamRepo.getByPlayerAndLeague(
-      playerId,
-      leagueId,
-    );
+    const [teamResult, leagueResult, playerResult, contractResult] =
+      await Promise.all([
+        this.teamRepo.getByPlayerAndLeague(playerId, leagueId),
+        this.leagueRepo.getById(leagueId),
+        this.playerRepo.getById(playerId),
+        this.contractRepo.getById(contractId),
+      ]);
     if (!teamResult.ok) {
       return teamResult;
     }
@@ -262,13 +250,15 @@ export class ContractService {
     }
     const team = teamResult.value;
 
-    const leagueResult = await this.leagueRepo.getById(leagueId);
     if (!leagueResult.ok) {
       return leagueResult;
     }
     const domain = leagueResult.value.domain as Domain;
 
-    const contractResult = await this.contractRepo.getById(contractId);
+    if (!playerResult.ok) {
+      return playerResult;
+    }
+
     if (!contractResult.ok) {
       return contractResult;
     }
@@ -334,6 +324,9 @@ export class ContractService {
       return failure("Contract already sold");
     }
 
+    // Best-effort: the sale is already settled above, so a failure here must
+    // not turn a successful sale into an error response (that would send the
+    // client into a retry loop that only ever hits "Contract already sold").
     const notificationResult = await this.notificationRepo.create({
       id: crypto.randomUUID(),
       contractId: contract.id,
@@ -341,36 +334,19 @@ export class ContractService {
       date: today.toString(),
     });
     if (!notificationResult.ok) {
-      return notificationResult;
+      console.error(
+        `Failed to create sale notification for contract ${contract.id}: ${notificationResult.error}`,
+      );
     }
 
-    // Re-fetch rather than computing team.credits + payout here: derivation
-    // logic lives exclusively in the repository layer.
-    const updatedTeamResult = await this.teamRepo.getByPlayerAndLeague(
-      playerId,
-      leagueId,
-    );
-    if (!updatedTeamResult.ok) {
-      return updatedTeamResult;
-    }
-    const updatedTeam = updatedTeamResult.value;
-    if (updatedTeam === null) {
-      return failure("No team found for this league");
-    }
-
-    const playerResult = await this.playerRepo.getById(playerId);
-    if (!playerResult.ok) {
-      return playerResult;
-    }
-
+    // Credits are derived as STARTING_CREDITS - Σpurchases + Σpayouts
+    // (see TeamRepository.getByPlayerAndLeague), so the post-sale value is
+    // just team.credits + payout — no re-fetch needed, and nothing after
+    // the write can turn an already-successful sale into an error.
     return success(
       toRawContract(
         { ...contract, settled: true },
-        {
-          id: updatedTeam.id,
-          name: updatedTeam.name,
-          credits: updatedTeam.credits,
-        },
+        { id: team.id, name: team.name, credits: team.credits + payout },
         { id: playerId, name: playerResult.value.username },
         domain,
       ),

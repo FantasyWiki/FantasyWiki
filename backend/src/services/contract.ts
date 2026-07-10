@@ -207,7 +207,9 @@ export class ContractService {
     // Credits are derived as STARTING_CREDITS - Σpurchases + Σpayouts
     // (see TeamRepository.getByPlayerAndLeague), so the post-purchase value
     // is just team.credits - price — no re-fetch needed, and nothing after
-    // the write can turn an already-successful purchase into an error.
+    // the write can turn an already-successful purchase into an error. This is
+    // a point-in-time snapshot (pre-write balance minus this purchase); the
+    // authoritative balance under concurrency comes from the next team read.
     return success(
       toRawContract(
         createResult.value,
@@ -348,7 +350,9 @@ export class ContractService {
     // Credits are derived as STARTING_CREDITS - Σpurchases + Σpayouts
     // (see TeamRepository.getByPlayerAndLeague), so the post-sale value is
     // just team.credits + payout — no re-fetch needed, and nothing after
-    // the write can turn an already-successful sale into an error.
+    // the write can turn an already-successful sale into an error. This is a
+    // point-in-time snapshot (pre-write balance plus this payout); the
+    // authoritative balance under concurrency comes from the next team read.
     return success(
       toRawContract(
         { ...contract, settled: true },

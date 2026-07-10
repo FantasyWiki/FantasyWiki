@@ -10,8 +10,22 @@ import { TeamRepository } from "../repositories/teamRepository";
 import { PlayerRepository } from "../repositories/playerRepository";
 import { NotificationRepository } from "../repositories/notificationRepository";
 import { WikimediaClient } from "../../../external-apis/wikimedia/client";
+import {
+  computeContractPrice,
+  normalizedViews,
+  resolveLanguageScale,
+  TIER_DAYS,
+} from "../../../model/pricing";
 import { Result, success, failure } from "../repositories/result";
 import type { Contract, Team, Player, League } from "../../../model";
+
+/** Mirror the service's server-side price computation for `en` (league domain). */
+function priceFor(averageViews30d: number, tierDays: number): number {
+  return computeContractPrice(
+    normalizedViews(averageViews30d, resolveLanguageScale("en")),
+    tierDays,
+  );
+}
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
@@ -198,6 +212,36 @@ describe("ContractService.getLeagueContracts", () => {
 // ─── buyContract ────────────────────────────────────────────────────────────
 
 describe("ContractService.buyContract", () => {
+  it("creates the contract and returns credits debited by the server-side price", async () => {
+    const views = 50_000;
+    const expectedPrice = priceFor(views, TIER_DAYS.SHORT);
+    // Guard the fixture: the debit is only meaningful if it's non-zero and
+    // affordable from the starting balance.
+    expect(expectedPrice).toBeGreaterThan(0);
+    expect(expectedPrice).toBeLessThanOrEqual(team.credits);
+
+    const service = makeService({ wikimedia: makeWikimedia(views) });
+
+    const result = await service.buyContract(
+      PLAYER_ID,
+      LEAGUE_ID,
+      "Some_Article",
+      "SHORT",
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      // Credits are derived (STARTING - Σpurchases + Σpayouts); the response
+      // reports the pre-write snapshot minus this purchase without re-reading.
+      expect(result.value.team.credits).toBe(team.credits - expectedPrice);
+      expect(result.value.team.player).toEqual({
+        id: PLAYER_ID,
+        name: player.username,
+      });
+      expect(result.value.purchasePrice).toBe(expectedPrice);
+    }
+  });
+
   it("propagates a failure from the team repository", async () => {
     const service = makeService({
       teamRepo: makeTeamRepo(failure("team lookup failed")),
@@ -357,6 +401,44 @@ describe("ContractService.sellContract", () => {
     );
 
     expect(result).toEqual(failure("contract lookup failed"));
+  });
+
+  it("settles the contract and returns credits increased by the prorated payout", async () => {
+    const today = Temporal.Now.plainDateISO();
+    // tierDays = 10 (held), remainingDays = 7 — both fixed relative to today,
+    // so the expected payout is deterministic regardless of the run date.
+    const sellable = makeContract({
+      purchaseDate: today.subtract({ days: 3 }),
+      expireDate: today.add({ days: 7 }),
+    });
+    const views = 50_000;
+    const price = priceFor(views, 10);
+    const expectedPayout = Math.max(0, Math.round((price * 7) / 10));
+    expect(expectedPayout).toBeGreaterThan(0);
+
+    const service = makeService({
+      wikimedia: makeWikimedia(views),
+      contractRepo: makeContractRepo({
+        getById: async () => success(sellable),
+      }),
+    });
+
+    const result = await service.sellContract(
+      PLAYER_ID,
+      LEAGUE_ID,
+      CONTRACT_ID,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      // Credits are derived; the response reports the pre-write snapshot plus
+      // this payout without re-reading the ledger.
+      expect(result.value.team.credits).toBe(team.credits + expectedPayout);
+      expect(result.value.team.player).toEqual({
+        id: PLAYER_ID,
+        name: player.username,
+      });
+    }
   });
 
   it("prices a same-day purchase/expiry contract (zero tier length) at a zero payout", async () => {

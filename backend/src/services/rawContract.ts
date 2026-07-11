@@ -33,5 +33,7 @@ export function toRawContract(
     startDate: `${contract.purchaseDate.toString()}T00:00:00Z`,
     duration: `P${days}D`,
     purchasePrice: contract.purchasePrice,
+    renewalCount: contract.renewalCount,
+    renewalElected: contract.renewalElected,
   };
 }

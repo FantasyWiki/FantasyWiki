@@ -15,10 +15,17 @@
         expand="block"
         color="primary"
         class="action-primary"
+        :disabled="renewDisabled"
         @click="emit('renew', contract)"
       >
         <ion-icon slot="start" :icon="refreshOutline" class="action-icon" />
-        {{ $t("articleDetail.actions.renewContract") }}
+        {{
+          model.renewalElected
+            ? $t("articleDetail.actions.renewElected")
+            : $t("articleDetail.actions.renewFor", {
+                price: model.renewalPrice,
+              })
+        }}
       </ion-button>
 
       <ion-button
@@ -110,6 +117,21 @@ const buyDisabled = computed(() => {
     (o) => o.tier === props.selectedTier
   );
   return !option || option.price > props.model.viewerCredits;
+});
+
+/**
+ * Renewal can only be elected in the final 24h of the term (ADR 0003), and only
+ * once — so the button is disabled outside that window, while the live price is
+ * still loading, or if renewal has already been elected. `expiresIn` is
+ * negative once past expiry, so the `> 0` guard also closes it after the term.
+ */
+const renewDisabled = computed(() => {
+  const m = props.model;
+  if (!m || m.availability !== "owned-by-viewer") return true;
+  if (props.isLoadingViews) return true;
+  if (m.renewalElected) return true;
+  const hoursLeft = m.expiresIn.total("hours");
+  return !(hoursLeft > 0 && hoursLeft <= 24);
 });
 </script>
 

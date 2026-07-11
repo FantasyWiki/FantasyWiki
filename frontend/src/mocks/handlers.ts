@@ -248,6 +248,32 @@ export const handlers = [
     }
   ),
 
+  http.post(
+    "*/api/leagues/:leagueId/my-contracts/:contractId/renew",
+    ({ params }) => {
+      const team = getMyTeam(params.leagueId as string);
+      if (!team)
+        return HttpResponse.json(
+          { error: "No team found for this league" },
+          { status: 404 }
+        );
+      const contract = contracts.find((c) => c.id === params.contractId);
+      if (!contract)
+        return HttpResponse.json(
+          { error: "Contract not found" },
+          { status: 404 }
+        );
+      if (contract.team.id !== team.id)
+        return HttpResponse.json(
+          { error: "You do not own this contract" },
+          { status: 400 }
+        );
+      // Election only sets the flag; the sweep rolls the window at expiry.
+      contract.renewalElected = true;
+      return HttpResponse.json(contract);
+    }
+  ),
+
   http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {
     const league = leagues.find((l) => l.id === params.leagueId);
     if (!league) return HttpResponse.json([]);

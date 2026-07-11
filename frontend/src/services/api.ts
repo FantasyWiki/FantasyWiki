@@ -135,6 +135,17 @@ export const leaguesApi = {
       `/leagues/${leagueId}/my-contracts/${contractId}/sell`,
       { method: "POST" }
     ).then((c) => ContractDTO.fromRaw(c)),
+
+  /**
+   * Elect to renew one of the current player's contracts at expiry (only valid
+   * in the final-24h window). Sets the renewal flag; the daily settlement sweep
+   * executes the roll-forward at expiry.
+   */
+  renewMyContract: (leagueId: string, contractId: string) =>
+    apiRequest<RawContract>(
+      `/leagues/${leagueId}/my-contracts/${contractId}/renew`,
+      { method: "POST" }
+    ).then((c) => ContractDTO.fromRaw(c)),
 };
 
 // ── Teams ─────────────────────────────────────────────────────────────────────

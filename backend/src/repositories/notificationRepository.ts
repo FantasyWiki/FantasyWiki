@@ -23,6 +23,13 @@ export type NotificationRow = {
   playerName: string;
 };
 
+export interface NewNotification {
+  id: string;
+  contractId: string;
+  message: string;
+  date: string;
+}
+
 export interface NotificationRepository {
   getByPlayerAndLeague(
     playerId: string,
@@ -30,4 +37,5 @@ export interface NotificationRepository {
   ): Promise<Result<NotificationRow[]>>;
   getByPlayerId(playerId: string): Promise<Result<NotificationRow[]>>;
   markAsRead(id: string, playerId: string): Promise<Result<void>>;
+  create(notification: NewNotification): Promise<Result<void>>;
 }

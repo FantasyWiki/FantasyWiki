@@ -8,8 +8,11 @@ type Bindings = { db: D1Database };
 
 export async function resolveCurrentPlayer(
   c: Context<{ Bindings: Bindings }>,
+  playerService: Pick<
+    PlayerService,
+    "getPlayerByGoogleAccountId"
+  > = new PlayerService(c.env.db),
 ): Promise<Result<Player>> {
   const payload = c.get("jwtPayload") as JWTPayload;
-  const playerService = new PlayerService(c.env.db);
   return playerService.getPlayerByGoogleAccountId(payload.sub as string);
 }

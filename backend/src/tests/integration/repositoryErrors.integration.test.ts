@@ -63,7 +63,6 @@ describe("TeamRepositoryD1 error handling", () => {
       name: "The Wizards",
       playerId: "player-1",
       leagueId: "league-1",
-      credits: 1000,
     });
 
     expect(result.ok).toBe(false);

@@ -1,10 +1,11 @@
 import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
-import { TeamService, STARTING_CREDITS } from "../../services/team";
+import { TeamService } from "../../services/team";
 import { PlayerService } from "../../services/player";
 import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
 import type { TeamRepository } from "../../repositories/teamRepository";
 import { success, failure } from "../../repositories/result";
+import { STARTING_CREDITS } from "../../../../model/team";
 import type { Team } from "../../../../model";
 
 describe("TeamService Integration Tests", () => {
@@ -268,7 +269,6 @@ describe("TeamRepositoryD1 error handling", () => {
       name: "Test",
       playerId: "p1",
       leagueId: "l1",
-      credits: 1000,
     });
 
     expect(result.ok).toBe(false);

@@ -16,3 +16,20 @@ export async function resetD1Database(db: D1Database): Promise<void> {
     await db.prepare(statement).run();
   }
 }
+
+/**
+ * Inserts a team row for test setup. Credits are never a column here — they
+ * are derived from the contracts ledger, so a freshly-inserted team with no
+ * contracts naturally has STARTING_CREDITS with no need to write anything.
+ */
+export async function insertTeam(
+  db: D1Database,
+  opts: { id: string; name: string; playerId: string; leagueId: string },
+): Promise<void> {
+  await db
+    .prepare(
+      "INSERT INTO teams (id, name, playerId, leagueId) VALUES (?, ?, ?, ?)",
+    )
+    .bind(opts.id, opts.name, opts.playerId, opts.leagueId)
+    .run();
+}

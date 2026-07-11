@@ -31,7 +31,7 @@ export default defineConfig({
   test: {
     globals: true,
     testTimeout: 30000,
-    include: ["src/**/*.integration.test.ts"],
+    include: ["src/**/*.integration.test.ts", "src/**/*.spec.ts"],
     setupFiles: [
       "./src/tests/apply-migrations.ts",
       "./src/tests/setup-cloudflare.ts",

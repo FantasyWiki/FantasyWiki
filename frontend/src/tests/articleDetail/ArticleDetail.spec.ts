@@ -39,6 +39,27 @@ vi.mock("@/composables/useArticleViews", () => ({
   }),
 }));
 
+// The ownership context comes from the my-team query; mock it with mutable
+// state so loading/error/ready are each reachable deterministically.
+const myTeamMock = vi.hoisted(() => ({
+  team: null as { id: string; credits: number } | null,
+  isPending: false,
+  error: null as Error | null,
+}));
+
+vi.mock("@/composables/useMyTeam", async () => {
+  const { computed } = await import("vue");
+  return {
+    useMyTeam: () => ({
+      myTeam: computed(() => myTeamMock.team),
+      myTeamId: computed(() => myTeamMock.team?.id ?? null),
+      isPending: computed(() => myTeamMock.isPending),
+      error: computed(() => myTeamMock.error),
+      refetch: async () => undefined,
+    }),
+  };
+});
+
 // IonModal teleports its slotted content into an overlay that is only mounted
 // once the modal is "presented" — which never happens in jsdom — so the modal
 // body renders empty. Replace just IonModal with a plain slot-passthrough; the
@@ -145,9 +166,9 @@ function mountWithStores(
 
   const leagueStore = useLeagueStore();
   leagueStore.currentLeague = league;
-  leagueStore.currentTeam = options.currentTeam ?? viewerTeam;
-  leagueStore.isTeamLoading = options.isTeamLoading ?? false;
-  leagueStore.teamError = options.teamError ?? null;
+  myTeamMock.team = options.currentTeam ?? viewerTeam;
+  myTeamMock.isPending = options.isTeamLoading ?? false;
+  myTeamMock.error = options.teamError ? new Error(options.teamError) : null;
 
   return mount(ArticleDetail, {
     props: {

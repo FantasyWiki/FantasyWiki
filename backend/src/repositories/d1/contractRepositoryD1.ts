@@ -1,8 +1,9 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { Contract } from "../../../../model";
-import { STARTING_CREDITS } from "../../../../model/team";
+import { MAX_TEAM_CONTRACTS, STARTING_CREDITS } from "../../../../model/team";
 import {
   ContractRepository,
+  CONTRACT_ERRORS,
   DueContract,
   LeagueContractRow,
   NewContract,
@@ -142,11 +143,13 @@ export class ContractRepositoryD1 implements ContractRepository {
       const expireDate = newContract.expireDate.toString();
 
       // Single guarded write, no db.batch needed: the INSERT only applies if
-      // the team's derived credits (STARTING_CREDITS - everything ever spent
-      // + everything recovered from early sales) still cover the price at
-      // write time. Naturally atomic — SQLite/D1 guarantee single-statement
-      // atomicity against concurrent writers, the same guarantee a stored
-      // `credits >= ?` column check always relied on.
+      // every purchase condition still holds at write time — derived credits
+      // (STARTING_CREDITS - everything ever spent + everything recovered from
+      // early sales) cover the price, no team in the league holds an active
+      // contract on the article, and the team is under its contract cap.
+      // Naturally atomic — SQLite/D1 guarantee single-statement atomicity
+      // against concurrent writers — so a concurrent purchase can't slip in
+      // between the service's pre-checks and this write.
       const result = await this.db
         .prepare(
           `INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice, settled, renewalCount, renewalElected)
@@ -154,7 +157,16 @@ export class ContractRepositoryD1 implements ContractRepository {
            WHERE (
              ? - COALESCE((SELECT SUM(purchasePrice) FROM contracts WHERE teamId = ?), 0)
                + COALESCE((SELECT SUM(salePayout) FROM contracts WHERE teamId = ? AND settled = 1), 0)
-           ) >= ?`,
+           ) >= ?
+           AND NOT EXISTS (
+             SELECT 1
+             FROM contracts c
+             JOIN teams t ON t.id = c.teamId
+             WHERE c.articleId = ?
+               AND c.settled = 0
+               AND t.leagueId = (SELECT leagueId FROM teams WHERE id = ?)
+           )
+           AND (SELECT COUNT(*) FROM contracts WHERE teamId = ? AND settled = 0) < ?`,
         )
         .bind(
           id,
@@ -167,11 +179,15 @@ export class ContractRepositoryD1 implements ContractRepository {
           newContract.teamId,
           newContract.teamId,
           newContract.purchasePrice,
+          newContract.articleId,
+          newContract.teamId,
+          newContract.teamId,
+          MAX_TEAM_CONTRACTS,
         )
         .run();
 
       if (!result.success || result.meta.changes === 0) {
-        return failure("Not enough credits");
+        return failure(CONTRACT_ERRORS.PURCHASE_CONFLICT);
       }
 
       return success({

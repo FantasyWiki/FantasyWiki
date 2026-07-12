@@ -19,6 +19,10 @@ export const FORMATIONS = {
 
 export type PositionsForSchema<S extends Schema> = typeof FORMATIONS[S][number];
 
+export function isSchema(value: unknown): value is Schema {
+    return typeof value === "string" && value in FORMATIONS;
+}
+
 export const CHEMISTRY_LINKS = {
     "4-3-3": [
         ["LW", "ST"],

@@ -1,6 +1,7 @@
 import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { useLeagueStore } from "@/stores/league";
+import { queryKeys } from "@/composables/queryKeys";
 import api from "@/services/api";
 import { NotificationDTO } from "../../../dto/notificationDTO";
 
@@ -19,7 +20,7 @@ export function useNotifications() {
   const queryClient = useQueryClient();
 
   const { data, isLoading, refetch } = useQuery<NotificationDTO[]>({
-    queryKey: ["notifications"],
+    queryKey: queryKeys.notifications(),
     queryFn: () => api.player.getNotifications(),
     placeholderData: [],
   });
@@ -73,16 +74,16 @@ export function useNotifications() {
     mutationFn: (id: string) => api.notifications.markAsRead(id),
     // Optimistically update the cache so the badge drops immediately
     onMutate: async (id: string) => {
-      await queryClient.cancelQueries({ queryKey: ["notifications"] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.notifications() });
       queryClient.setQueryData<NotificationDTO[]>(
-        ["notifications"],
+        queryKeys.notifications(),
         (old) =>
           old?.map((n) => (n.id === id ? { ...n, isRead: true } : n)) ?? []
       );
     },
     onError: () => {
       // Roll back on failure
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications() });
     },
   });
 

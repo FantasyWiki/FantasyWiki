@@ -2,6 +2,7 @@ import { ref, computed, watch } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/useToast";
+import { queryKeys } from "@/composables/queryKeys";
 import { useLeagueStore } from "@/stores/league";
 import { fetchTeam, saveTeamApi } from "@/services/teamService";
 import { createWikimediaClient } from "@/services/wikimediaClient";
@@ -33,7 +34,9 @@ export function useTeamLineup() {
   const { t } = useI18n();
   const { showSuccess, showError } = useToast();
 
-  const queryKey = computed(() => ["team-lineup", leagueStore.currentLeagueId]);
+  const queryKey = computed(() =>
+    queryKeys.teamLineup(leagueStore.currentLeagueId)
+  );
 
   const {
     data: teamLineup,
@@ -66,14 +69,15 @@ export function useTeamLineup() {
     return Array.from(titles);
   });
 
-  const chemistryQueryKey = computed(() => [
-    "chemistry",
-    leagueStore.currentLeagueId,
-    draft.value.schema,
-    ...Object.entries(draft.value.formation as Record<string, ContractDTO>)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([pos, contract]) => `${pos}:${contract.article.title}`),
-  ]);
+  const chemistryQueryKey = computed(() =>
+    queryKeys.chemistry(
+      leagueStore.currentLeagueId,
+      draft.value.schema,
+      Object.entries(draft.value.formation as Record<string, ContractDTO>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([pos, contract]) => `${pos}:${contract.article.title}`)
+    )
+  );
 
   const { data: chemistryData } = useQuery({
     queryKey: chemistryQueryKey,
@@ -127,13 +131,24 @@ export function useTeamLineup() {
   );
 
   // ── Dirty tracking ────────────────────────────────────────────────────────
-  const isDirty = computed(() => {
-    const current = JSON.stringify({
-      draft: draft.value,
+  /**
+   * Serializes only what the user can actually edit and what the save sends:
+   * schema, placements and bench. `chemistry` and `date` are derived — chemistry
+   * is recomputed client-side from Wikimedia links after every load (the backend
+   * only ever returns EMPTY levels), so including it here would mark every
+   * freshly loaded lineup dirty and pin the draft to stale server data forever.
+   */
+  function fingerprint(): string {
+    return JSON.stringify({
+      schema: draft.value.schema,
+      formation: Object.entries(draft.value.formation)
+        .map(([position, contract]) => [position, contract?.id ?? null])
+        .sort(([a], [b]) => String(a).localeCompare(String(b))),
       bench: benchContracts.value.map((c) => c.id),
     });
-    return current !== savedSnapshot.value;
-  });
+  }
+
+  const isDirty = computed(() => fingerprint() !== savedSnapshot.value);
 
   // Sync draft from server data on first load and after a successful save
   // (isDirty will be false then). Skips sync when the user has unsaved edits
@@ -154,10 +169,7 @@ export function useTeamLineup() {
         chemistry,
       };
       benchContracts.value = [...lineup.bench];
-      savedSnapshot.value = JSON.stringify({
-        draft: draft.value,
-        bench: benchContracts.value.map((c) => c.id),
-      });
+      savedSnapshot.value = fingerprint();
       isInitialized.value = true;
     },
     { immediate: true }
@@ -188,10 +200,7 @@ export function useTeamLineup() {
       });
     },
     onSuccess: () => {
-      savedSnapshot.value = JSON.stringify({
-        draft: draft.value,
-        bench: benchContracts.value.map((c) => c.id),
-      });
+      savedSnapshot.value = fingerprint();
       queryClient.invalidateQueries({ queryKey: queryKey.value });
       showSuccess(t("views.teamPage.saveSuccess"));
     },

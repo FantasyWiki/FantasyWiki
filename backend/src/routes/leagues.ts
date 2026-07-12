@@ -9,7 +9,7 @@ import { ArticleMarketService } from "../services/articleMarket";
 import { ContractService } from "../services/contract";
 import {
   LineupService,
-  RawTeamLineUp,
+  parseLineupPayload,
   LINEUP_ERRORS,
 } from "../services/lineup";
 import { NotificationService } from "../services/notification";
@@ -302,16 +302,17 @@ leagues.put("/:id/lineup", async (c) => {
     return c.json({ error: playerResult.error }, 404);
   }
 
-  const body = await c.req.json<RawTeamLineUp>().catch(() => null);
-  if (body === null) {
-    return c.json({ error: "Invalid lineup payload" }, 400);
+  const body: unknown = await c.req.json().catch(() => null);
+  const payloadResult = parseLineupPayload(body);
+  if (!payloadResult.ok) {
+    return c.json({ error: payloadResult.error }, 400);
   }
 
   const lineupService = new LineupService(c.env.db);
   const result = await lineupService.saveLineup(
     playerResult.value.id,
     leagueId,
-    body,
+    payloadResult.value,
   );
   if (!result.ok) {
     return c.json({ error: result.error }, 400);

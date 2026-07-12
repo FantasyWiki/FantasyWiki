@@ -1,20 +1,19 @@
 import { useQueryClient } from "@tanstack/vue-query";
 import { useI18n } from "vue-i18n";
-import { useLeagueStore } from "@/stores/league";
 import { useToast } from "@/composables/useToast";
+import { queryKeys } from "@/composables/queryKeys";
 import { leaguesApi } from "@/services/api";
 
 /**
  * Shared "elect renewal" action, used by both the market's ArticleDetail modal
  * and the dashboard's Needed-Attention list. Elects renewal for a contract,
- * shows a toast, and refreshes every view the change touches (team context,
- * market ownership badges, bench, dashboard, inbox) — the same invalidation set
- * as the sell flow, since renewal likewise writes a notification and shifts
- * derived credits/holdings.
+ * shows a toast, and refreshes every view the change touches (the player's
+ * team, market ownership badges, bench, dashboard, inbox) — the same
+ * invalidation set as the sell flow, since renewal likewise writes a
+ * notification and shifts derived credits/holdings.
  */
 export function useRenewContract() {
   const queryClient = useQueryClient();
-  const leagueStore = useLeagueStore();
   const { showSuccess, showError } = useToast();
   const { t } = useI18n();
 
@@ -27,13 +26,17 @@ export function useRenewContract() {
       await leaguesApi.renewMyContract(leagueId, contractId);
       showSuccess(t("market.renewSuccess"));
       await Promise.all([
-        leagueStore.fetchCurrentTeamContext(),
         queryClient.invalidateQueries({
-          queryKey: ["league-contracts", leagueId],
+          queryKey: queryKeys.leagueContracts(leagueId),
         }),
-        queryClient.invalidateQueries({ queryKey: ["team-lineup", leagueId] }),
-        queryClient.invalidateQueries({ queryKey: ["dashboard", leagueId] }),
-        queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.teamLineup(leagueId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.dashboard(leagueId),
+        }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.myTeam(leagueId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.notifications() }),
       ]);
       return true;
     } catch (e) {

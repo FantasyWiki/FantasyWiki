@@ -1,6 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { League } from "../../../../model";
-import { LeagueRepository } from "../leagueRepository";
+import { LEAGUE_ERRORS, LeagueRepository } from "../leagueRepository";
 import { Result, success, failure } from "../result";
 
 interface LeagueRow {
@@ -30,7 +30,7 @@ export class LeagueRepositoryD1 implements LeagueRepository {
         .first<LeagueRow>();
 
       if (!result) {
-        return failure(`League with id ${id} not found`);
+        return failure(LEAGUE_ERRORS.NOT_FOUND);
       }
 
       return success({

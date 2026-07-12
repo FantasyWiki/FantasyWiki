@@ -6,15 +6,22 @@ import { PerformanceService } from "../services/performance";
 import { TeamService } from "../services/team";
 import { PlayerService } from "../services/player";
 import { ArticleMarketService } from "../services/articleMarket";
-import { ContractService } from "../services/contract";
+import {
+  ContractService,
+  CONTRACT_ERRORS,
+  type ContractError,
+} from "../services/contract";
 import {
   LineupService,
   parseLineupPayload,
   LINEUP_ERRORS,
 } from "../services/lineup";
 import { NotificationService } from "../services/notification";
+import { LEAGUE_ERRORS } from "../repositories/leagueRepository";
+import { PLAYER_ERRORS } from "../repositories/playerRepository";
+import { TEAM_ERRORS } from "../repositories/teamRepository";
 import { TeamDTO } from "../../../dto/teamDTO";
-import { resolveCurrentPlayer } from "./helpers";
+import { playerErrorStatus, resolveCurrentPlayer } from "./helpers";
 
 type Bindings = {
   db: D1Database;
@@ -23,14 +30,42 @@ type Bindings = {
 const leagues = new Hono<{ Bindings: Bindings }>();
 
 /**
- * Missing team/league failures map to 404; every other ContractService
- * failure (validation, slot/ownership conflicts, insufficient credits) is a
- * 400 per docs/api-naming-rules.md's route error-mapping convention.
+ * The status every contract business failure maps to, per
+ * docs/api-naming-rules.md: a missing resource is a 404, a broken purchase or
+ * sale rule is a 400. Declaring it as a total Record over ContractError means
+ * a new constant without a status fails to compile.
  */
-function contractErrorStatus(error: string): 404 | 400 {
-  return error === "No team found for this league" || /not found/i.test(error)
-    ? 404
-    : 400;
+const CONTRACT_ERROR_STATUS: Record<ContractError, 404 | 400> = {
+  [CONTRACT_ERRORS.NO_TEAM]: 404,
+  [CONTRACT_ERRORS.CONTRACT_NOT_FOUND]: 404,
+  [CONTRACT_ERRORS.INVALID_TIER]: 400,
+  [CONTRACT_ERRORS.ARTICLE_TAKEN]: 400,
+  [CONTRACT_ERRORS.ALREADY_OWNED]: 400,
+  [CONTRACT_ERRORS.TEAM_FULL]: 400,
+  [CONTRACT_ERRORS.NOT_ENOUGH_CREDITS]: 400,
+  [CONTRACT_ERRORS.NOT_CONTRACT_OWNER]: 400,
+  [CONTRACT_ERRORS.ALREADY_SOLD]: 400,
+  [CONTRACT_ERRORS.ALREADY_SETTLED]: 400,
+  [CONTRACT_ERRORS.EXPIRED]: 400,
+  [CONTRACT_ERRORS.RENEWAL_WINDOW_CLOSED]: 400,
+};
+
+/** Repository misses the service passes straight through to the route. */
+const NOT_FOUND_ERRORS: readonly string[] = [
+  LEAGUE_ERRORS.NOT_FOUND,
+  PLAYER_ERRORS.NOT_FOUND,
+];
+
+/**
+ * Anything the service did not name — a D1 outage, a Wikimedia failure — is
+ * ours, not the client's, and must surface as a 500 rather than be guessed at
+ * from its wording.
+ */
+export function contractErrorStatus(error: string): 404 | 400 | 500 {
+  if (error in CONTRACT_ERROR_STATUS) {
+    return CONTRACT_ERROR_STATUS[error as ContractError];
+  }
+  return NOT_FOUND_ERRORS.includes(error) ? 404 : 500;
 }
 
 leagues.get("/", async (c) => {
@@ -40,7 +75,10 @@ leagues.get("/", async (c) => {
     payload.sub as string,
   );
   if (!playerResult.ok) {
-    return c.json({ error: playerResult.error }, 404);
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
   }
   const leaguesResult = await playerService.getLeaguesByPlayerId(
     playerResult.value.id,
@@ -74,7 +112,10 @@ leagues.get("/:id/my-team", async (c) => {
   const leagueId = c.req.param("id");
   const playerResult = await resolveCurrentPlayer(c);
   if (!playerResult.ok) {
-    return c.json({ error: playerResult.error }, 404);
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
   }
 
   const teamService = new TeamService(c.env.db);
@@ -87,7 +128,7 @@ leagues.get("/:id/my-team", async (c) => {
     return c.json({ error: teamResult.error }, 500);
   }
   if (teamResult.value === null) {
-    return c.json({ error: "No team found for this league" }, 404);
+    return c.json({ error: TEAM_ERRORS.NO_TEAM_IN_LEAGUE }, 404);
   }
   return c.json(teamResult.value);
 });
@@ -98,7 +139,10 @@ leagues.get("/:id/my-performances", async (c) => {
   const limit = Math.max(1, Number.isNaN(rawLimit) ? 2 : rawLimit);
   const playerResult = await resolveCurrentPlayer(c);
   if (!playerResult.ok) {
-    return c.json({ error: playerResult.error }, 404);
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
   }
 
   const teamService = new TeamService(c.env.db);
@@ -111,7 +155,7 @@ leagues.get("/:id/my-performances", async (c) => {
     return c.json({ error: teamResult.error }, 500);
   }
   if (teamResult.value === null) {
-    return c.json({ error: "No team found for this league" }, 404);
+    return c.json({ error: TEAM_ERRORS.NO_TEAM_IN_LEAGUE }, 404);
   }
 
   const performanceService = new PerformanceService(c.env.db);
@@ -129,7 +173,10 @@ leagues.post("/:id/my-team", async (c) => {
   const leagueId = c.req.param("id");
   const playerResult = await resolveCurrentPlayer(c);
   if (!playerResult.ok) {
-    return c.json({ error: playerResult.error }, 404);
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
   }
 
   const body = await c.req
@@ -176,7 +223,10 @@ leagues.get("/:id/my-contracts", async (c) => {
   const leagueId = c.req.param("id");
   const playerResult = await resolveCurrentPlayer(c);
   if (!playerResult.ok) {
-    return c.json({ error: playerResult.error }, 404);
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
   }
 
   const service = new ContractService(c.env.db);
@@ -191,7 +241,10 @@ leagues.post("/:id/my-contracts", async (c) => {
   const leagueId = c.req.param("id");
   const playerResult = await resolveCurrentPlayer(c);
   if (!playerResult.ok) {
-    return c.json({ error: playerResult.error }, 404);
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
   }
 
   const body = await c.req
@@ -222,7 +275,10 @@ leagues.post("/:id/my-contracts/:contractId/sell", async (c) => {
   const contractId = c.req.param("contractId");
   const playerResult = await resolveCurrentPlayer(c);
   if (!playerResult.ok) {
-    return c.json({ error: playerResult.error }, 404);
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
   }
 
   const service = new ContractService(c.env.db);
@@ -242,7 +298,10 @@ leagues.post("/:id/my-contracts/:contractId/renew", async (c) => {
   const contractId = c.req.param("contractId");
   const playerResult = await resolveCurrentPlayer(c);
   if (!playerResult.ok) {
-    return c.json({ error: playerResult.error }, 404);
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
   }
 
   const service = new ContractService(c.env.db);
@@ -281,7 +340,10 @@ leagues.get("/:id/lineup", async (c) => {
   const leagueId = c.req.param("id");
   const playerResult = await resolveCurrentPlayer(c);
   if (!playerResult.ok) {
-    return c.json({ error: playerResult.error }, 404);
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
   }
 
   const lineupService = new LineupService(c.env.db);
@@ -299,7 +361,10 @@ leagues.put("/:id/lineup", async (c) => {
   const leagueId = c.req.param("id");
   const playerResult = await resolveCurrentPlayer(c);
   if (!playerResult.ok) {
-    return c.json({ error: playerResult.error }, 404);
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
   }
 
   const body: unknown = await c.req.json().catch(() => null);
@@ -324,7 +389,10 @@ leagues.get("/:id/my-notifications", async (c) => {
   const leagueId = c.req.param("id");
   const playerResult = await resolveCurrentPlayer(c);
   if (!playerResult.ok) {
-    return c.json({ error: playerResult.error }, 404);
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
   }
 
   const notificationService = new NotificationService(c.env.db);

@@ -1,5 +1,6 @@
 import { Player } from "../../../model";
 import { PlayerService } from "./player";
+import { PLAYER_ERRORS } from "../repositories/playerRepository";
 import { Result, failure } from "../repositories/result";
 
 type LoginPlayerService = Pick<
@@ -9,8 +10,12 @@ type LoginPlayerService = Pick<
 
 export type LoginResult = { player: Player; isNew: boolean };
 
-const buildPlayerByAccountNotFoundError = (googleAccountId: string) =>
-  `Player with account id ${googleAccountId} not found`;
+export const LOGIN_ERRORS = {
+  USERNAME_EXHAUSTED:
+    "Could not create player: unable to find available username after 1000 attempts",
+} as const;
+
+const MAX_USERNAME_ATTEMPTS = 1000;
 
 export class LoginService {
   private playerService: LoginPlayerService;
@@ -39,10 +44,9 @@ export class LoginService {
         value: { player: existingResult.value, isNew: false },
       };
     }
-    if (
-      existingResult.error !==
-      buildPlayerByAccountNotFoundError(googleAccountId)
-    ) {
+    // Only "this account has no player yet" means first-time login; anything
+    // else (a D1 outage, say) is a real failure and must not create an account.
+    if (existingResult.error !== PLAYER_ERRORS.ACCOUNT_NOT_FOUND) {
       return existingResult;
     }
 
@@ -78,15 +82,12 @@ export class LoginService {
     if (createResult.ok) {
       return createResult;
     }
-
-    const isUsernameConflict = (error: string) =>
-      error.includes("UNIQUE constraint failed: players.username");
-    if (!isUsernameConflict(createResult.error)) {
+    if (createResult.error !== PLAYER_ERRORS.USERNAME_TAKEN) {
       return createResult;
     }
 
     // If username is already taken, try with numeric suffixes
-    for (let suffix = 1; suffix < 1000; suffix++) {
+    for (let suffix = 1; suffix < MAX_USERNAME_ATTEMPTS; suffix++) {
       candidate = `${baseUsername}${suffix}`;
       createResult = await this.playerService.createPlayer(
         candidate,
@@ -97,14 +98,12 @@ export class LoginService {
       if (createResult.ok) {
         return createResult;
       }
-      if (!isUsernameConflict(createResult.error)) {
+      if (createResult.error !== PLAYER_ERRORS.USERNAME_TAKEN) {
         return createResult;
       }
     }
 
     // All attempts failed
-    return failure(
-      `Could not create player: unable to find available username after 1000 attempts`,
-    );
+    return failure(LOGIN_ERRORS.USERNAME_EXHAUSTED);
   }
 }

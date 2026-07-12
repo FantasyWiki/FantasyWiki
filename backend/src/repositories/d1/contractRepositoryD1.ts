@@ -3,7 +3,7 @@ import { Contract } from "../../../../model";
 import { MAX_TEAM_CONTRACTS, STARTING_CREDITS } from "../../../../model/team";
 import {
   ContractRepository,
-  CONTRACT_ERRORS,
+  CONTRACT_WRITE_ERRORS,
   DueContract,
   LeagueContractRow,
   NewContract,
@@ -187,7 +187,7 @@ export class ContractRepositoryD1 implements ContractRepository {
         .run();
 
       if (!result.success || result.meta.changes === 0) {
-        return failure(CONTRACT_ERRORS.PURCHASE_CONFLICT);
+        return failure(CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT);
       }
 
       return success({

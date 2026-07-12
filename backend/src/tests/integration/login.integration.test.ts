@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
-import { LoginService } from "../../services/login";
+import { LoginService, LOGIN_ERRORS } from "../../services/login";
+import { PLAYER_ERRORS } from "../../repositories/playerRepository";
 
 describe("LoginService Integration Tests", () => {
   let loginService: LoginService;
@@ -127,14 +128,11 @@ describe("LoginService Integration Tests", () => {
       }
     });
 
-    const notFoundError = (googleAccountId: string) =>
-      `Player with account id ${googleAccountId} not found`;
-
     it("should surface a non-conflict creation error on the base username", async () => {
       const googleAccountId = "google-create-error";
       const mockedService = {
         getPlayerByGoogleAccountId: async () =>
-          ({ ok: false, error: notFoundError(googleAccountId) }) as const,
+          ({ ok: false, error: PLAYER_ERRORS.ACCOUNT_NOT_FOUND }) as const,
         createPlayer: async () =>
           ({ ok: false, error: "Error saving player: disk full" }) as const,
       };
@@ -156,14 +154,14 @@ describe("LoginService Integration Tests", () => {
       let attempt = 0;
       const mockedService = {
         getPlayerByGoogleAccountId: async () =>
-          ({ ok: false, error: notFoundError(googleAccountId) }) as const,
+          ({ ok: false, error: PLAYER_ERRORS.ACCOUNT_NOT_FOUND }) as const,
         createPlayer: async () => {
           attempt += 1;
           // base username conflicts, the first suffixed attempt hits a hard error
           if (attempt === 1) {
             return {
               ok: false,
-              error: "UNIQUE constraint failed: players.username",
+              error: PLAYER_ERRORS.USERNAME_TAKEN,
             } as const;
           }
           return {
@@ -190,11 +188,11 @@ describe("LoginService Integration Tests", () => {
       const googleAccountId = "google-exhausted";
       const mockedService = {
         getPlayerByGoogleAccountId: async () =>
-          ({ ok: false, error: notFoundError(googleAccountId) }) as const,
+          ({ ok: false, error: PLAYER_ERRORS.ACCOUNT_NOT_FOUND }) as const,
         createPlayer: async () =>
           ({
             ok: false,
-            error: "UNIQUE constraint failed: players.username",
+            error: PLAYER_ERRORS.USERNAME_TAKEN,
           }) as const,
       };
       const service = new LoginService(env.db, mockedService);
@@ -206,7 +204,7 @@ describe("LoginService Integration Tests", () => {
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error).toContain("after 1000 attempts");
+        expect(result.error).toBe(LOGIN_ERRORS.USERNAME_EXHAUSTED);
       }
     });
 

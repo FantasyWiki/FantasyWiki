@@ -9,7 +9,7 @@ import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
 import { ContractRepositoryD1 } from "../../repositories/d1/contractRepositoryD1";
 import {
   ContractRepository,
-  CONTRACT_ERRORS,
+  CONTRACT_WRITE_ERRORS,
   LeagueContractRow,
   NewContract,
 } from "../../repositories/contractRepository";
@@ -1384,7 +1384,7 @@ describe("ContractRepositoryD1.create guarded INSERT", () => {
 
     expect(result).toEqual({
       ok: false,
-      error: CONTRACT_ERRORS.PURCHASE_CONFLICT,
+      error: CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT,
     });
   });
 
@@ -1396,7 +1396,7 @@ describe("ContractRepositoryD1.create guarded INSERT", () => {
 
     expect(result).toEqual({
       ok: false,
-      error: CONTRACT_ERRORS.PURCHASE_CONFLICT,
+      error: CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT,
     });
   });
 
@@ -1446,7 +1446,7 @@ describe("ContractRepositoryD1.create guarded INSERT", () => {
 
     expect(result).toEqual({
       ok: false,
-      error: CONTRACT_ERRORS.PURCHASE_CONFLICT,
+      error: CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT,
     });
   });
 
@@ -1460,7 +1460,7 @@ describe("ContractRepositoryD1.create guarded INSERT", () => {
 
     expect(result).toEqual({
       ok: false,
-      error: CONTRACT_ERRORS.PURCHASE_CONFLICT,
+      error: CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT,
     });
   });
 });
@@ -1494,7 +1494,7 @@ describe("ContractService.buyContract conflict classification", () => {
         leagueReads++;
         return success(leagueReads === 1 ? [] : [rivalContract]);
       },
-      create: async () => failure(CONTRACT_ERRORS.PURCHASE_CONFLICT),
+      create: async () => failure(CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT),
       getByTeamId: unimplemented,
       getById: unimplemented,
       settleSale: unimplemented,

@@ -2,7 +2,10 @@ import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
 import { PlayerService } from "../../services/player";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
-import { PlayerRepository } from "../../repositories/playerRepository";
+import {
+  PLAYER_ERRORS,
+  PlayerRepository,
+} from "../../repositories/playerRepository";
 import { success } from "../../repositories/result";
 import { insertTeam } from "../utils/d1TestUtils";
 
@@ -66,7 +69,7 @@ describe("PlayerService Integration Tests", () => {
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error).toContain("Error saving player");
+        expect(result.error).toBe(PLAYER_ERRORS.USERNAME_TAKEN);
       }
     });
 
@@ -117,7 +120,7 @@ describe("PlayerService Integration Tests", () => {
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error).toContain("not found");
+        expect(result.error).toBe(PLAYER_ERRORS.NOT_FOUND);
       }
     });
 
@@ -158,7 +161,7 @@ describe("PlayerService Integration Tests", () => {
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error).toContain("not found");
+        expect(result.error).toBe(PLAYER_ERRORS.ACCOUNT_NOT_FOUND);
       }
     });
   });

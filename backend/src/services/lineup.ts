@@ -2,6 +2,8 @@ import { Contract, Team } from "../../../model";
 import {
   Domain,
   CHEMISTRY_LINKS,
+  FORMATIONS,
+  isSchema,
   Schema,
   ChemistryLevel,
   ChemistryLink,
@@ -21,6 +23,8 @@ import { Result, success, failure } from "../repositories/result";
 
 export const LINEUP_ERRORS = {
   NO_TEAM: "No team found for this league",
+  INVALID_PAYLOAD: "Invalid lineup payload",
+  UNKNOWN_SCHEMA: "Unknown formation schema",
 } as const;
 import { toRawContract } from "./rawContract";
 
@@ -41,6 +45,62 @@ export type RawTeamLineUp = {
   };
   bench: RawContract[];
 };
+
+/**
+ * Validates an untrusted request body into a {@link RawTeamLineUp}.
+ *
+ * Guards the invariants persistence relies on: the schema must be a known
+ * FORMATIONS key (getLineup indexes CHEMISTRY_LINKS with it, so an unknown
+ * value would make every subsequent read fail) and each occupied position
+ * must belong to that schema and reference a contract by id.
+ */
+export function parseLineupPayload(body: unknown): Result<RawTeamLineUp> {
+  if (typeof body !== "object" || body === null) {
+    return failure(LINEUP_ERRORS.INVALID_PAYLOAD);
+  }
+  const { formation, bench } = body as Record<string, unknown>;
+  if (
+    typeof formation !== "object" ||
+    formation === null ||
+    !Array.isArray(bench)
+  ) {
+    return failure(LINEUP_ERRORS.INVALID_PAYLOAD);
+  }
+
+  const {
+    date,
+    schema,
+    formation: positions,
+  } = formation as Record<string, unknown>;
+  if (!isSchema(schema)) {
+    return failure(LINEUP_ERRORS.UNKNOWN_SCHEMA);
+  }
+  if (
+    typeof date !== "string" ||
+    typeof positions !== "object" ||
+    positions === null
+  ) {
+    return failure(LINEUP_ERRORS.INVALID_PAYLOAD);
+  }
+
+  const schemaPositions = FORMATIONS[schema] as readonly string[];
+  for (const [position, contract] of Object.entries(positions)) {
+    if (!schemaPositions.includes(position)) {
+      return failure(LINEUP_ERRORS.INVALID_PAYLOAD);
+    }
+    if (contract === null) {
+      continue;
+    }
+    if (
+      typeof contract !== "object" ||
+      typeof (contract as { id?: unknown }).id !== "string"
+    ) {
+      return failure(LINEUP_ERRORS.INVALID_PAYLOAD);
+    }
+  }
+
+  return success(body as RawTeamLineUp);
+}
 
 export class LineupService {
   private lineupRepository: LineupRepository;
@@ -104,6 +164,10 @@ export class LineupService {
       return failure("No lineup found for this team");
     }
     const lineup = lineupResult.value;
+    const schema = lineup.schema;
+    if (!isSchema(schema)) {
+      return failure(`Invalid formation data for team ${team.id}`);
+    }
 
     const contractsResult = await this.contractRepository.getByTeamId(team.id);
     if (!contractsResult.ok) {
@@ -151,9 +215,9 @@ export class LineupService {
     return success({
       formation: {
         date: lineup.updatedAt,
-        schema: lineup.schema,
+        schema,
         formation,
-        chemistry: this.emptyChemistryLinks(lineup.schema as Schema),
+        chemistry: this.emptyChemistryLinks(schema),
       },
       bench,
     });

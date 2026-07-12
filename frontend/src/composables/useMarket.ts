@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/vue-query";
 import { useLeagueStore } from "@/stores/league";
 import { fetchMarket, searchMarket } from "@/services/marketService";
 import { api } from "@/services/api";
+import { queryKeys } from "@/composables/queryKeys";
 import type { ContractDTO } from "../../../dto/contractDTO";
 import type { MarketArticle } from "@/types/market";
 
@@ -28,10 +29,9 @@ function normKey(title: string): string {
 export function useMarket() {
   const leagueStore = useLeagueStore();
 
-  const queryKey = computed(() => [
-    "market",
-    leagueStore.currentLeague?.domain,
-  ]);
+  const queryKey = computed(() =>
+    queryKeys.market(leagueStore.currentLeague?.domain)
+  );
 
   const { data, isLoading, isError, error, refetch } = useQuery<
     MarketArticle[]
@@ -51,7 +51,9 @@ export function useMarket() {
     isLoading: isOwnershipLoading,
     isError: isOwnershipError,
   } = useQuery<ContractDTO[]>({
-    queryKey: computed(() => ["league-contracts", leagueStore.currentLeagueId]),
+    queryKey: computed(() =>
+      queryKeys.leagueContracts(leagueStore.currentLeagueId)
+    ),
     queryFn: () => api.leagues.getContracts(leagueStore.currentLeagueId!),
     enabled: computed(() => !!leagueStore.currentLeagueId),
   });
@@ -180,11 +182,12 @@ export function useMarket() {
     isLoading: isSearching,
     isError: isSearchError,
   } = useQuery<MarketArticle[]>({
-    queryKey: computed(() => [
-      "market-search",
-      leagueStore.currentLeague?.domain,
-      searchQuery.value.trim(),
-    ]),
+    queryKey: computed(() =>
+      queryKeys.marketSearch(
+        leagueStore.currentLeague?.domain,
+        searchQuery.value.trim()
+      )
+    ),
     queryFn: () =>
       searchMarket(leagueStore.currentLeague!.domain, searchQuery.value.trim()),
     enabled: computed(

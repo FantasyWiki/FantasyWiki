@@ -9,9 +9,12 @@ import {
   normalizedViews,
   resolveLanguageScale,
 } from "../../../model/pricing";
+import { MAX_TEAM_CONTRACTS } from "../../../model/team";
 import {
   ContractRepository,
+  CONTRACT_ERRORS,
   DueContract,
+  LeagueContractRow,
 } from "../repositories/contractRepository";
 import { ContractRepositoryD1 } from "../repositories/d1/contractRepositoryD1";
 import { LeagueRepository } from "../repositories/leagueRepository";
@@ -27,9 +30,15 @@ import { WikimediaClient } from "../../../external-apis/wikimedia/client";
 import { createWikimediaClient } from "./wikimediaClient";
 import { toRawContract } from "./rawContract";
 
-export const MAX_TEAM_CONTRACTS = 22;
+// Re-exported because callers of this service (routes, tests) treat the cap
+// as part of the purchase rules this module owns; it lives in the shared
+// model so the repository's guarded INSERT can enforce it too.
+export { MAX_TEAM_CONTRACTS };
+
 /** ADR 0003: +10% of currentPrice per consecutive renewal (anti-hoard sink). */
 export const RENEWAL_PREMIUM_RATE = 0.1;
+
+
 const VALID_TIERS: ContractTier[] = ["SHORT", "MEDIUM", "LONG"];
 
 function isContractTier(tier: string): tier is ContractTier {
@@ -131,28 +140,14 @@ export class ContractService {
     if (!leagueContractsResult.ok) {
       return leagueContractsResult;
     }
-    const activeLeagueContracts = leagueContractsResult.value.filter(
-      (contract) => !contract.settled,
-    );
 
-    const ownedByOtherTeam = activeLeagueContracts.some(
-      (contract) =>
-        contract.articleId === articleId && contract.teamId !== team.id,
+    const rejection = ContractService.purchaseRejection(
+      leagueContractsResult.value,
+      team.id,
+      articleId,
     );
-    if (ownedByOtherTeam) {
-      return failure("Article already owned by another team");
-    }
-
-    const activeTeamContracts = activeLeagueContracts.filter(
-      (contract) => contract.teamId === team.id,
-    );
-    if (
-      activeTeamContracts.some((contract) => contract.articleId === articleId)
-    ) {
-      return failure("You already own this article");
-    }
-    if (activeTeamContracts.length >= MAX_TEAM_CONTRACTS) {
-      return failure("Team is full (11 contracts)");
+    if (rejection) {
+      return failure(rejection);
     }
 
     let price: number;
@@ -207,7 +202,12 @@ export class ContractService {
       this.playerRepo.getById(playerId),
     ]);
     if (!createResult.ok) {
-      return createResult;
+      if (createResult.error !== CONTRACT_ERRORS.PURCHASE_CONFLICT) {
+        return createResult;
+      }
+      return failure(
+        await this.classifyPurchaseConflict(team.id, leagueId, articleId),
+      );
     }
 
     // Credits are derived as STARTING_CREDITS - Σpurchases + Σpayouts
@@ -226,6 +226,67 @@ export class ContractService {
         },
         domain,
       ),
+    );
+  }
+
+  /**
+   * Names the ownership rule a purchase of `articleId` would break given the
+   * league's active contracts, or null when the buy is admissible. Shared by
+   * the pre-write fast-fail and the post-conflict classification, so both
+   * paths apply exactly the rules the repository's guarded INSERT enforces.
+   */
+  private static purchaseRejection(
+    leagueContracts: LeagueContractRow[],
+    teamId: string,
+    articleId: string,
+  ): string | null {
+    const activeLeagueContracts = leagueContracts.filter(
+      (contract) => !contract.settled,
+    );
+
+    const ownedByOtherTeam = activeLeagueContracts.some(
+      (contract) =>
+        contract.articleId === articleId && contract.teamId !== teamId,
+    );
+    if (ownedByOtherTeam) {
+      return "Article already owned by another team";
+    }
+
+    const activeTeamContracts = activeLeagueContracts.filter(
+      (contract) => contract.teamId === teamId,
+    );
+    if (
+      activeTeamContracts.some((contract) => contract.articleId === articleId)
+    ) {
+      return "You already own this article";
+    }
+    if (activeTeamContracts.length >= MAX_TEAM_CONTRACTS) {
+      return `Team is full (${MAX_TEAM_CONTRACTS} contracts)`;
+    }
+    return null;
+  }
+
+  /**
+   * The guarded INSERT inserted zero rows: a concurrent purchase changed the
+   * league between the pre-checks and the write. Re-read to name the rule
+   * that now fails; when every ownership rule still passes, the credits guard
+   * is the only remaining INSERT condition, so the team ran out of credits.
+   */
+  private async classifyPurchaseConflict(
+    teamId: string,
+    leagueId: string,
+    articleId: string,
+  ): Promise<string> {
+    const contractsResult = await this.contractRepo.getByLeagueId(leagueId);
+    if (!contractsResult.ok) {
+      return CONTRACT_ERRORS.PURCHASE_CONFLICT;
+    }
+    return (
+      ContractService.purchaseRejection(
+        contractsResult.value,
+        teamId,
+        articleId,
+      ) ?? "Not enough credits"
     );
   }
 

@@ -1,5 +1,5 @@
 import { computed, type ComputedRef, type Ref } from "vue";
-import { useLeagueStore } from "@/stores/league";
+import { useMyTeam } from "@/composables/useMyTeam";
 import { buildArticleDetail, type ArticleDetail } from "@/types/articleDetail";
 import type { ArticleDTO } from "../../../dto/articleDTO";
 import type { ContractDTO } from "../../../dto/contractDTO";
@@ -9,9 +9,9 @@ export type OwnershipStatus = "loading" | "ready" | "error";
 /**
  * Resolves the ownership context needed to show article actions.
  *
- * `buildArticleDetail` is synchronous and assumes the viewer's team context is
- * known, but that context loads asynchronously via the league store. This
- * composable owns that async "wait for team context" state machine and only
+ * `buildArticleDetail` is synchronous and assumes the viewer's team context
+ * is known, but that context loads asynchronously via the my-team query.
+ * This composable maps the query's states onto an ownership status and only
  * builds the {@link ArticleDetail} once the context is `ready`, so the
  * component can stay pure presentation.
  *
@@ -30,12 +30,12 @@ export function useArticleOwnership(
   detail: ComputedRef<ArticleDetail | null>;
   retry: () => void;
 } {
-  const leagueStore = useLeagueStore();
+  const { myTeam, myTeamId, isPending, error, refetch } = useMyTeam();
 
   const status = computed<OwnershipStatus>(() => {
-    if (leagueStore.isTeamLoading) return "loading";
-    if (leagueStore.teamError) return "error";
-    if (!leagueStore.currentTeamId) return "loading";
+    if (isPending.value) return "loading";
+    if (error.value) return "error";
+    if (!myTeamId.value) return "loading";
     return "ready";
   });
 
@@ -45,14 +45,14 @@ export function useArticleOwnership(
     return buildArticleDetail({
       article: article.value,
       contract: contract.value,
-      viewerTeamId: leagueStore.currentTeamId ?? undefined,
-      viewerCredits: leagueStore.currentTeam?.credits ?? 0,
+      viewerTeamId: myTeamId.value ?? undefined,
+      viewerCredits: myTeam.value?.credits ?? 0,
       averageViews30d: averageViews30d.value,
     });
   });
 
   const retry = () => {
-    void leagueStore.fetchCurrentTeamContext();
+    void refetch();
   };
 
   return { status, detail, retry };

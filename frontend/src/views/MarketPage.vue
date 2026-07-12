@@ -430,6 +430,8 @@ import {
 } from "@/composables/useMarket";
 import { useToast } from "@/composables/useToast";
 import { useRenewContract } from "@/composables/useRenewContract";
+import { queryKeys } from "@/composables/queryKeys";
+import { useMyTeam } from "@/composables/useMyTeam";
 import type { MarketArticle } from "@/types/market";
 import type { ArticleDTO } from "../../../dto/articleDTO";
 import type { ContractDTO } from "../../../dto/contractDTO";
@@ -442,12 +444,13 @@ const router = useRouter();
 const queryClient = useQueryClient();
 const leagueStore = useLeagueStore();
 const currentLeague = computed(() => leagueStore.currentLeague);
+const { myTeam, myTeamId } = useMyTeam();
 
-// The player's spendable balance for the active league. Sourced from the league
-// store's current team (fetched via getMyTeam); falls back to a dash until it
-// resolves so we never render a misleading hardcoded number.
+// The player's spendable balance for the active league. Sourced from the
+// my-team query; falls back to a dash until it resolves so we never render a
+// misleading hardcoded number.
 const balanceDisplay = computed(() => {
-  const credits = leagueStore.currentTeam?.credits;
+  const credits = myTeam.value?.credits;
   return credits == null ? "—" : formatPrice(credits);
 });
 
@@ -484,7 +487,7 @@ function statusChipLabel(article: MarketArticle): string {
     return t("market.ownershipLoading");
   }
   if (!article.owner) return t("market.freeAgent");
-  if (article.ownerTeamId === leagueStore.currentTeamId) {
+  if (article.ownerTeamId === myTeamId.value) {
     return t("market.yourTeam");
   }
   return article.owner.name;
@@ -537,6 +540,25 @@ function closeDetail() {
 const { showSuccess, showError } = useToast();
 const { renewContract } = useRenewContract();
 
+/**
+ * Refreshes every cached view a contract mutation touches: the article list,
+ * market ownership badges (league-contracts), the team bench (team-lineup),
+ * credits/portfolio (dashboard), and the player's team (my-team) so the
+ * balance pill reflects the new credits. Without this the bench and balance
+ * stay stale until a manual reload.
+ */
+function refreshContractViews(leagueId: string) {
+  return Promise.all([
+    refetch(),
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.leagueContracts(leagueId),
+    }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.teamLineup(leagueId) }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(leagueId) }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.myTeam(leagueId) }),
+  ]);
+}
+
 async function onBuy(tier: ContractTier) {
   const league = currentLeague.value;
   const article = selectedArticle.value;
@@ -545,20 +567,7 @@ async function onBuy(tier: ContractTier) {
     await leaguesApi.buyMyContract(league.id, article.id, tier);
     closeDetail();
     showSuccess(t("market.buySuccess"));
-    // Refetch the article list and invalidate every view that reflects the
-    // purchase: market ownership badges (league-contracts), the team bench
-    // (team-lineup), and credits/portfolio (dashboard). Refresh the store's
-    // current team too so the balance pill reflects the deducted credits.
-    // Without this the bench and balance stay stale until a manual reload.
-    await Promise.all([
-      refetch(),
-      leagueStore.fetchCurrentTeamContext(),
-      queryClient.invalidateQueries({
-        queryKey: ["league-contracts", league.id],
-      }),
-      queryClient.invalidateQueries({ queryKey: ["team-lineup", league.id] }),
-      queryClient.invalidateQueries({ queryKey: ["dashboard", league.id] }),
-    ]);
+    await refreshContractViews(league.id);
   } catch (e) {
     showError(e instanceof Error ? e.message : t("market.buyError"));
   }
@@ -571,17 +580,10 @@ async function onSell(contractId: string) {
     await leaguesApi.sellMyContract(league.id, contractId);
     closeDetail();
     showSuccess(t("market.sellSuccess"));
-    // Same invalidation set as onBuy, plus notifications: selling writes an
-    // inbox notification, so the notification list must refresh too.
+    // Selling also writes an inbox notification, so that list must refresh.
     await Promise.all([
-      refetch(),
-      leagueStore.fetchCurrentTeamContext(),
-      queryClient.invalidateQueries({
-        queryKey: ["league-contracts", league.id],
-      }),
-      queryClient.invalidateQueries({ queryKey: ["team-lineup", league.id] }),
-      queryClient.invalidateQueries({ queryKey: ["dashboard", league.id] }),
-      queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+      refreshContractViews(league.id),
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications() }),
     ]);
   } catch (e) {
     showError(e instanceof Error ? e.message : t("market.sellError"));

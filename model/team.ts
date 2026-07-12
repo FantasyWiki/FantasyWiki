@@ -16,3 +16,10 @@ export interface Team {
  * sum(salePayout where settled)`, computed at read time rather than stored.
  */
 export const STARTING_CREDITS = 1000;
+
+/**
+ * Maximum number of active (unsettled) contracts a team may hold. Lives in
+ * the shared model because the repository layer enforces it inside the same
+ * guarded contract INSERT that checks the derived credits.
+ */
+export const MAX_TEAM_CONTRACTS = 22;

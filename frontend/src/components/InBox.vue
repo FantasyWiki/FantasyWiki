@@ -167,6 +167,7 @@ import {
 // Inside InBox.vue <script setup> — no props needed for these
 import { useLeagueStore } from "@/stores/league";
 import { useNotifications } from "@/composables/useNotifications";
+import { queryKeys } from "@/composables/queryKeys";
 import { useMutation, useQueryClient } from "@tanstack/vue-query";
 import api from "@/services/api";
 
@@ -184,7 +185,7 @@ const badgeCount = computed(() => currentLeagueUnreadCount.value);
 const { mutate: markRead, isPending: actioning } = useMutation({
   mutationFn: (id: string) => api.notifications.markAsRead(id),
   onSuccess: () =>
-    queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.notifications() }),
 });
 // ── Local state ───────────────────────────────────────────────────────────────
 const isOpen = ref(false);

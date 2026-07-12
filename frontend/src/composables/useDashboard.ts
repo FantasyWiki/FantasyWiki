@@ -2,6 +2,7 @@ import { computed } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { useLeagueStore } from "@/stores/league";
 import { useLeaderboard } from "@/composables/useLeaderboard";
+import { queryKeys } from "@/composables/queryKeys";
 import api from "@/services/api";
 import type { DashboardData } from "@/types/models";
 
@@ -22,7 +23,7 @@ export function useDashboard() {
     error,
     refetch,
   } = useQuery<DashboardData>({
-    queryKey: computed(() => ["dashboard", leagueStore.currentLeagueId]),
+    queryKey: computed(() => queryKeys.dashboard(leagueStore.currentLeagueId)),
     queryFn: () => api.dashboard.getDashboardData(leagueStore.currentLeague!),
     enabled: computed(() => !!leagueStore.currentLeagueId),
   });

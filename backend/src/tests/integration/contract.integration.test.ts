@@ -6,6 +6,14 @@ import { NotificationService } from "../../services/notification";
 import { LineupService, RawTeamLineUp } from "../../services/lineup";
 import { PlayerService } from "../../services/player";
 import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
+import { ContractRepositoryD1 } from "../../repositories/d1/contractRepositoryD1";
+import {
+  ContractRepository,
+  CONTRACT_ERRORS,
+  LeagueContractRow,
+  NewContract,
+} from "../../repositories/contractRepository";
+import { success, failure } from "../../repositories/result";
 import { WikimediaClient } from "../../../../external-apis/wikimedia/client";
 import { STARTING_CREDITS } from "../../../../model/team";
 import {
@@ -533,7 +541,10 @@ describe("ContractService.buyContract Integration Tests", () => {
       "MEDIUM",
     );
 
-    expect(result).toEqual({ ok: false, error: "Team is full (11 contracts)" });
+    expect(result).toEqual({
+      ok: false,
+      error: `Team is full (${MAX_TEAM_CONTRACTS} contracts)`,
+    });
   });
 
   it("rejects buying when the computed price exceeds the team's credits", async () => {
@@ -1281,5 +1292,273 @@ describe("ContractService.sellContract Integration Tests", () => {
       ok: false,
       error: "Failed to fetch article views",
     });
+  });
+});
+
+describe("ContractRepositoryD1.create guarded INSERT", () => {
+  // Exercises the write-time guard directly, bypassing the service's
+  // pre-checks — i.e. the exact state a concurrent purchase creates between
+  // a buyer's reads and their write.
+  let repo: ContractRepositoryD1;
+  let playerService: PlayerService;
+  let leagueId: string;
+  let otherLeagueId: string;
+  let teamId: string;
+  let rivalTeamId: string;
+
+  function newContract(
+    forTeamId: string,
+    articleId: string,
+    purchasePrice = 10,
+  ): NewContract {
+    const purchaseDate = Temporal.Now.plainDateISO();
+    return {
+      teamId: forTeamId,
+      articleId,
+      purchaseDate,
+      expireDate: purchaseDate.add({ days: 7 }),
+      purchasePrice,
+    };
+  }
+
+  beforeEach(async () => {
+    repo = new ContractRepositoryD1(env.db);
+    playerService = new PlayerService(env.db);
+
+    const buyer = await playerService.createPlayer(
+      "guardbuyer",
+      "guardbuyer@example.com",
+      "account-guard-1",
+    );
+    const rival = await playerService.createPlayer(
+      "guardrival",
+      "guardrival@example.com",
+      "account-guard-2",
+    );
+    if (!buyer.ok || !rival.ok) throw new Error("setup failed: players");
+
+    leagueId = "league-guard-1";
+    otherLeagueId = "league-guard-2";
+    for (const [id, name] of [
+      [leagueId, "Guard League"],
+      [otherLeagueId, "Other Guard League"],
+    ]) {
+      await env.db
+        .prepare(
+          `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .bind(
+          id,
+          name,
+          buyer.value.id,
+          new Date().toISOString(),
+          new Date().toISOString(),
+          "en",
+          "🏆",
+        )
+        .run();
+    }
+
+    teamId = "team-guard-1";
+    rivalTeamId = "team-guard-2";
+    await insertTeam(env.db, {
+      id: teamId,
+      name: "Guard FC",
+      playerId: buyer.value.id,
+      leagueId,
+    });
+    await insertTeam(env.db, {
+      id: rivalTeamId,
+      name: "Guard Rivals",
+      playerId: rival.value.id,
+      leagueId,
+    });
+  });
+
+  it("rejects the write when another team in the league holds an active contract on the article", async () => {
+    const rivalResult = await repo.create(newContract(rivalTeamId, "Bitcoin"));
+    expect(rivalResult.ok).toBe(true);
+
+    const result = await repo.create(newContract(teamId, "Bitcoin"));
+
+    expect(result).toEqual({
+      ok: false,
+      error: CONTRACT_ERRORS.PURCHASE_CONFLICT,
+    });
+  });
+
+  it("rejects the write when the team already holds an active contract on the article", async () => {
+    const first = await repo.create(newContract(teamId, "Bitcoin"));
+    expect(first.ok).toBe(true);
+
+    const result = await repo.create(newContract(teamId, "Bitcoin"));
+
+    expect(result).toEqual({
+      ok: false,
+      error: CONTRACT_ERRORS.PURCHASE_CONFLICT,
+    });
+  });
+
+  it("allows the write when the article's only contract in the league is settled", async () => {
+    const rivalResult = await repo.create(newContract(rivalTeamId, "Bitcoin"));
+    expect(rivalResult.ok).toBe(true);
+    if (!rivalResult.ok) return;
+    const settle = await repo.settleSale(rivalResult.value.id, rivalTeamId, 5);
+    expect(settle).toEqual({ ok: true, value: true });
+
+    const result = await repo.create(newContract(teamId, "Bitcoin"));
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("does not let a contract in a different league block the article", async () => {
+    const foreignTeamId = "team-guard-foreign";
+    const foreignPlayer = await playerService.createPlayer(
+      "guardforeign",
+      "guardforeign@example.com",
+      "account-guard-3",
+    );
+    if (!foreignPlayer.ok) throw new Error("setup failed: foreign player");
+    await insertTeam(env.db, {
+      id: foreignTeamId,
+      name: "Foreign FC",
+      playerId: foreignPlayer.value.id,
+      leagueId: otherLeagueId,
+    });
+    const foreignResult = await repo.create(
+      newContract(foreignTeamId, "Bitcoin"),
+    );
+    expect(foreignResult.ok).toBe(true);
+
+    const result = await repo.create(newContract(teamId, "Bitcoin"));
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects the write once the team holds MAX_TEAM_CONTRACTS active contracts", async () => {
+    for (let i = 0; i < MAX_TEAM_CONTRACTS; i++) {
+      const filler = await repo.create(newContract(teamId, `Article_${i}`, 1));
+      expect(filler.ok).toBe(true);
+    }
+
+    const result = await repo.create(newContract(teamId, "Bitcoin"));
+
+    expect(result).toEqual({
+      ok: false,
+      error: CONTRACT_ERRORS.PURCHASE_CONFLICT,
+    });
+  });
+
+  it("rejects the write when the derived credits no longer cover the price", async () => {
+    const spendAll = await repo.create(
+      newContract(teamId, "Ethereum", STARTING_CREDITS),
+    );
+    expect(spendAll.ok).toBe(true);
+
+    const result = await repo.create(newContract(teamId, "Bitcoin", 1));
+
+    expect(result).toEqual({
+      ok: false,
+      error: CONTRACT_ERRORS.PURCHASE_CONFLICT,
+    });
+  });
+});
+
+describe("ContractService.buyContract conflict classification", () => {
+  it("names the rule a concurrent purchase broke when the guarded INSERT rejects", async () => {
+    // The pre-check read sees a free article; the write conflicts; the
+    // re-read (second getByLeagueId call) reveals a rival's fresh contract.
+    const purchaseDate = Temporal.Now.plainDateISO();
+    const rivalContract: LeagueContractRow = {
+      id: "contract-rival-race",
+      teamId: "team-rival-race",
+      articleId: "Bitcoin",
+      purchaseDate,
+      expireDate: purchaseDate.add({ days: 7 }),
+      purchasePrice: 10,
+      settled: false,
+      renewalCount: 0,
+      renewalElected: false,
+      teamName: "Race Rivals",
+      teamCredits: 990,
+      playerId: "player-rival-race",
+      playerName: "racerival",
+    };
+    let leagueReads = 0;
+    const unimplemented = () => {
+      throw new Error("not implemented in stub");
+    };
+    const contractRepo = {
+      getByLeagueId: async () => {
+        leagueReads++;
+        return success(leagueReads === 1 ? [] : [rivalContract]);
+      },
+      create: async () => failure(CONTRACT_ERRORS.PURCHASE_CONFLICT),
+      getByTeamId: unimplemented,
+      getById: unimplemented,
+      settleSale: unimplemented,
+    } as unknown as ContractRepository;
+
+    const playerService = new PlayerService(env.db);
+    const playerResult = await playerService.createPlayer(
+      "racebuyer",
+      "racebuyer@example.com",
+      "account-race-1",
+    );
+    expect(playerResult.ok).toBe(true);
+    if (!playerResult.ok) return;
+
+    const leagueId = "league-race-1";
+    await env.db
+      .prepare(
+        `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        leagueId,
+        "Race League",
+        playerResult.value.id,
+        new Date().toISOString(),
+        new Date().toISOString(),
+        "en",
+        "🏆",
+      )
+      .run();
+    await insertTeam(env.db, {
+      id: "team-race-1",
+      name: "Race FC",
+      playerId: playerResult.value.id,
+      leagueId,
+    });
+
+    const service = new ContractService(
+      env.db,
+      contractRepo,
+      undefined,
+      undefined,
+      undefined,
+      wikimediaClientWithArticleViews(async () => ({
+        latestDayViews: undefined,
+        averageViews30d: 9000,
+        weekViews: undefined,
+        previousWeekViews: undefined,
+        monthViews: undefined,
+        yearViews: undefined,
+      })),
+    );
+
+    const result = await service.buyContract(
+      playerResult.value.id,
+      leagueId,
+      "Bitcoin",
+      "MEDIUM",
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Article already owned by another team",
+    });
+    expect(leagueReads).toBe(2);
   });
 });

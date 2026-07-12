@@ -33,7 +33,13 @@ export interface DueContract extends Contract {
   teamCredits: number;
 }
 
-export const CONTRACT_ERRORS = {
+/**
+ * Persistence-level outcomes of the guarded writes. Business rejections
+ * (article taken, team full, ...) are named by CONTRACT_ERRORS in
+ * `services/contract.ts`: at write time this layer knows only that a guard
+ * failed, not which one.
+ */
+export const CONTRACT_WRITE_ERRORS = {
   /**
    * The guarded INSERT rejected the purchase: between the caller's reads and
    * the write, a concurrent purchase broke one of its conditions (article
@@ -59,7 +65,7 @@ export interface ContractRepository {
    * Evaluating the conditions inside the statement makes the check-and-write
    * atomic (SQLite/D1 guarantee single-statement atomicity against concurrent
    * writers), closing the read-then-write race a service-side pre-check alone
-   * leaves open. Fails with CONTRACT_ERRORS.PURCHASE_CONFLICT when any
+   * leaves open. Fails with CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT when any
    * condition no longer holds.
    */
   create(newContract: NewContract): Promise<Result<Contract>>;

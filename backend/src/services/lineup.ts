@@ -11,7 +11,7 @@ import {
 import { RawContract } from "../../../dto/contractDTO";
 import { LineupRepository } from "../repositories/lineupRepository";
 import { LineupRepositoryD1 } from "../repositories/d1/lineupRepositoryD1";
-import { TeamRepository } from "../repositories/teamRepository";
+import { TEAM_ERRORS, TeamRepository } from "../repositories/teamRepository";
 import { TeamRepositoryD1 } from "../repositories/d1/teamRepositoryD1";
 import { ContractRepository } from "../repositories/contractRepository";
 import { ContractRepositoryD1 } from "../repositories/d1/contractRepositoryD1";
@@ -20,13 +20,13 @@ import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
 import { PlayerRepository } from "../repositories/playerRepository";
 import { PlayerRepositoryD1 } from "../repositories/d1/playerRepositoryD1";
 import { Result, success, failure } from "../repositories/result";
+import { toRawContract } from "./rawContract";
 
 export const LINEUP_ERRORS = {
-  NO_TEAM: "No team found for this league",
+  NO_TEAM: TEAM_ERRORS.NO_TEAM_IN_LEAGUE,
   INVALID_PAYLOAD: "Invalid lineup payload",
   UNKNOWN_SCHEMA: "Unknown formation schema",
 } as const;
-import { toRawContract } from "./rawContract";
 
 export type LineupServiceDeps = {
   lineupRepository: LineupRepository;
@@ -236,7 +236,7 @@ export class LineupService {
       return teamResult;
     }
     if (teamResult.value === null) {
-      return failure("No team found for this league");
+      return failure(LINEUP_ERRORS.NO_TEAM);
     }
     const team = teamResult.value;
 

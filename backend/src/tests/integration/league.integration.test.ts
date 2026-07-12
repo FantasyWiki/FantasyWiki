@@ -6,6 +6,7 @@ import {
   GLOBAL_LEAGUE_ID,
   toLeagueDTO,
 } from "../../services/league";
+import { LEAGUE_ERRORS } from "../../repositories/leagueRepository";
 import { LeagueRepositoryD1 } from "../../repositories/d1/leagueRepositoryD1";
 import { LeagueRepository } from "../../repositories/leagueRepository";
 import { success, failure } from "../../repositories/result";
@@ -42,8 +43,7 @@ describe("LeagueService Integration Tests", () => {
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error).toContain(GLOBAL_LEAGUE_ID);
-        expect(result.error).toContain("not found");
+        expect(result.error).toBe(LEAGUE_ERRORS.NOT_FOUND);
       }
     });
 

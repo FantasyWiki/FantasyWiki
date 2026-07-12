@@ -1,6 +1,28 @@
 import { Player, League } from "../../../../model";
-import { PlayerRepository } from "../playerRepository";
+import { PLAYER_ERRORS, PlayerRepository } from "../playerRepository";
 import { Result, success, failure } from "../result";
+
+/**
+ * D1 surfaces a lost uniqueness constraint only as driver text, and it reaches
+ * us either as a thrown error or as a failed `run()`. Recognising it is this
+ * layer's job: the phrasing is SQLite's, so no other layer should ever see it.
+ */
+function isUsernameConflict(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+  return message.includes("UNIQUE constraint failed: players.username");
+}
+
+/** The driver's own message for a failed `run()`, which D1 types as `unknown`. */
+function d1ErrorMessage(result: object): string {
+  return "error" in result && typeof result.error === "string"
+    ? result.error
+    : "Unknown D1 error";
+}
 
 export class PlayerRepositoryD1 implements PlayerRepository {
   private db: D1Database;
@@ -27,12 +49,9 @@ export class PlayerRepositoryD1 implements PlayerRepository {
       const googleAccountResult = await googleAccountStmt.run();
 
       if (!googleAccountResult.success) {
-        const googleAccountError =
-          "error" in googleAccountResult &&
-          typeof googleAccountResult.error === "string"
-            ? googleAccountResult.error
-            : "Unknown D1 error";
-        return failure(`Failed to save google account: ${googleAccountError}`);
+        return failure(
+          `Failed to save google account: ${d1ErrorMessage(googleAccountResult)}`,
+        );
       }
 
       // Insert player with reference to google_account
@@ -44,15 +63,19 @@ export class PlayerRepositoryD1 implements PlayerRepository {
       const playerResult = await playerStmt.run();
 
       if (!playerResult.success) {
-        const playerError =
-          "error" in playerResult && typeof playerResult.error === "string"
-            ? playerResult.error
-            : "Unknown D1 error";
-        return failure(`Failed to save player: ${playerError}`);
+        const playerError = d1ErrorMessage(playerResult);
+        return failure(
+          isUsernameConflict(playerError)
+            ? PLAYER_ERRORS.USERNAME_TAKEN
+            : `Failed to save player: ${playerError}`,
+        );
       }
 
       return success({ id: playerId, username: player.username });
     } catch (error) {
+      if (isUsernameConflict(error)) {
+        return failure(PLAYER_ERRORS.USERNAME_TAKEN);
+      }
       return failure(
         `Error saving player: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -69,7 +92,7 @@ export class PlayerRepositoryD1 implements PlayerRepository {
       if (result) {
         return success(result);
       }
-      return failure(`Player with id ${id} not found`);
+      return failure(PLAYER_ERRORS.NOT_FOUND);
     } catch (error) {
       return failure(
         `Error retrieving player: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -118,7 +141,7 @@ export class PlayerRepositoryD1 implements PlayerRepository {
       if (result) {
         return success(result);
       }
-      return failure(`Player with account id ${accountId} not found`);
+      return failure(PLAYER_ERRORS.ACCOUNT_NOT_FOUND);
     } catch (error) {
       return failure(
         `Error retrieving player: ${error instanceof Error ? error.message : "Unknown error"}`,

@@ -12,14 +12,14 @@ import {
 import { MAX_TEAM_CONTRACTS } from "../../../model/team";
 import {
   ContractRepository,
-  CONTRACT_ERRORS,
+  CONTRACT_WRITE_ERRORS,
   DueContract,
   LeagueContractRow,
 } from "../repositories/contractRepository";
 import { ContractRepositoryD1 } from "../repositories/d1/contractRepositoryD1";
 import { LeagueRepository } from "../repositories/leagueRepository";
 import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
-import { TeamRepository } from "../repositories/teamRepository";
+import { TEAM_ERRORS, TeamRepository } from "../repositories/teamRepository";
 import { TeamRepositoryD1 } from "../repositories/d1/teamRepositoryD1";
 import { PlayerRepository } from "../repositories/playerRepository";
 import { PlayerRepositoryD1 } from "../repositories/d1/playerRepositoryD1";
@@ -38,6 +38,30 @@ export { MAX_TEAM_CONTRACTS };
 /** ADR 0003: +10% of currentPrice per consecutive renewal (anti-hoard sink). */
 export const RENEWAL_PREMIUM_RATE = 0.1;
 
+/**
+ * Every business failure buy/sell/renew can produce. Routes map these to HTTP
+ * statuses by identity (see `contractErrorStatus` in routes/leagues.ts), so
+ * the wording is display text and free to change; anything a route receives
+ * that is *not* one of these is an infrastructure failure, not a client error.
+ */
+export const CONTRACT_ERRORS = {
+  NO_TEAM: TEAM_ERRORS.NO_TEAM_IN_LEAGUE,
+  INVALID_TIER: "Invalid contract tier",
+  ARTICLE_TAKEN: "Article already owned by another team",
+  ALREADY_OWNED: "You already own this article",
+  TEAM_FULL: `Team is full (${MAX_TEAM_CONTRACTS} contracts)`,
+  NOT_ENOUGH_CREDITS: "Not enough credits",
+  CONTRACT_NOT_FOUND: "Contract not found",
+  NOT_CONTRACT_OWNER: "You do not own this contract",
+  ALREADY_SOLD: "Contract already sold",
+  ALREADY_SETTLED: "Contract already settled",
+  EXPIRED: "Contract has already expired",
+  RENEWAL_WINDOW_CLOSED:
+    "Renewal can only be elected in the final 24 hours before expiry",
+} as const;
+
+export type ContractError =
+  (typeof CONTRACT_ERRORS)[keyof typeof CONTRACT_ERRORS];
 
 const VALID_TIERS: ContractTier[] = ["SHORT", "MEDIUM", "LONG"];
 
@@ -122,7 +146,7 @@ export class ContractService {
       return teamResult;
     }
     if (teamResult.value === null) {
-      return failure("No team found for this league");
+      return failure(CONTRACT_ERRORS.NO_TEAM);
     }
     const team = teamResult.value;
 
@@ -132,7 +156,7 @@ export class ContractService {
     const domain = leagueResult.value.domain as Domain;
 
     if (!isContractTier(tier)) {
-      return failure("Invalid contract tier");
+      return failure(CONTRACT_ERRORS.INVALID_TIER);
     }
 
     const leagueContractsResult =
@@ -179,7 +203,7 @@ export class ContractService {
     }
 
     if (price > team.credits) {
-      return failure("Not enough credits");
+      return failure(CONTRACT_ERRORS.NOT_ENOUGH_CREDITS);
     }
 
     const purchaseDate = Temporal.Now.plainDateISO();
@@ -202,7 +226,7 @@ export class ContractService {
       this.playerRepo.getById(playerId),
     ]);
     if (!createResult.ok) {
-      if (createResult.error !== CONTRACT_ERRORS.PURCHASE_CONFLICT) {
+      if (createResult.error !== CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT) {
         return createResult;
       }
       return failure(
@@ -239,7 +263,7 @@ export class ContractService {
     leagueContracts: LeagueContractRow[],
     teamId: string,
     articleId: string,
-  ): string | null {
+  ): ContractError | null {
     const activeLeagueContracts = leagueContracts.filter(
       (contract) => !contract.settled,
     );
@@ -249,7 +273,7 @@ export class ContractService {
         contract.articleId === articleId && contract.teamId !== teamId,
     );
     if (ownedByOtherTeam) {
-      return "Article already owned by another team";
+      return CONTRACT_ERRORS.ARTICLE_TAKEN;
     }
 
     const activeTeamContracts = activeLeagueContracts.filter(
@@ -258,10 +282,10 @@ export class ContractService {
     if (
       activeTeamContracts.some((contract) => contract.articleId === articleId)
     ) {
-      return "You already own this article";
+      return CONTRACT_ERRORS.ALREADY_OWNED;
     }
     if (activeTeamContracts.length >= MAX_TEAM_CONTRACTS) {
-      return `Team is full (${MAX_TEAM_CONTRACTS} contracts)`;
+      return CONTRACT_ERRORS.TEAM_FULL;
     }
     return null;
   }
@@ -276,17 +300,17 @@ export class ContractService {
     teamId: string,
     leagueId: string,
     articleId: string,
-  ): Promise<string> {
+  ): Promise<ContractError | typeof CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT> {
     const contractsResult = await this.contractRepo.getByLeagueId(leagueId);
     if (!contractsResult.ok) {
-      return CONTRACT_ERRORS.PURCHASE_CONFLICT;
+      return CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT;
     }
     return (
       ContractService.purchaseRejection(
         contractsResult.value,
         teamId,
         articleId,
-      ) ?? "Not enough credits"
+      ) ?? CONTRACT_ERRORS.NOT_ENOUGH_CREDITS
     );
   }
 
@@ -320,7 +344,7 @@ export class ContractService {
       return teamResult;
     }
     if (teamResult.value === null) {
-      return failure("No team found for this league");
+      return failure(CONTRACT_ERRORS.NO_TEAM);
     }
     const team = teamResult.value;
 
@@ -334,13 +358,13 @@ export class ContractService {
     }
     const contract = contractResult.value;
     if (contract === null) {
-      return failure("Contract not found");
+      return failure(CONTRACT_ERRORS.CONTRACT_NOT_FOUND);
     }
     if (contract.teamId !== team.id) {
-      return failure("You do not own this contract");
+      return failure(CONTRACT_ERRORS.NOT_CONTRACT_OWNER);
     }
     if (contract.settled) {
-      return failure("Contract already sold");
+      return failure(CONTRACT_ERRORS.ALREADY_SOLD);
     }
 
     // Tier length is the contract's own held duration; remaining is measured
@@ -396,7 +420,7 @@ export class ContractService {
       return saleResult;
     }
     if (!saleResult.value) {
-      return failure("Contract already sold");
+      return failure(CONTRACT_ERRORS.ALREADY_SOLD);
     }
 
     // Best-effort: the sale is already settled above, so a failure here must
@@ -446,7 +470,7 @@ export class ContractService {
       return teamResult;
     }
     if (teamResult.value === null) {
-      return failure("No team found for this league");
+      return failure(CONTRACT_ERRORS.NO_TEAM);
     }
     const team = teamResult.value;
 
@@ -513,7 +537,7 @@ export class ContractService {
       return teamResult;
     }
     if (teamResult.value === null) {
-      return failure("No team found for this league");
+      return failure(CONTRACT_ERRORS.NO_TEAM);
     }
     const team = teamResult.value;
 
@@ -527,24 +551,22 @@ export class ContractService {
     }
     const contract = contractResult.value;
     if (contract === null) {
-      return failure("Contract not found");
+      return failure(CONTRACT_ERRORS.CONTRACT_NOT_FOUND);
     }
     if (contract.teamId !== team.id) {
-      return failure("You do not own this contract");
+      return failure(CONTRACT_ERRORS.NOT_CONTRACT_OWNER);
     }
     if (contract.settled) {
-      return failure("Contract already settled");
+      return failure(CONTRACT_ERRORS.ALREADY_SETTLED);
     }
 
     const today = Temporal.Now.plainDateISO();
     const remainingDays = today.until(contract.expireDate).days;
     if (remainingDays < 0) {
-      return failure("Contract has already expired");
+      return failure(CONTRACT_ERRORS.EXPIRED);
     }
     if (remainingDays > 1) {
-      return failure(
-        "Renewal can only be elected in the final 24 hours before expiry",
-      );
+      return failure(CONTRACT_ERRORS.RENEWAL_WINDOW_CLOSED);
     }
 
     const [electResult, playerResult] = await Promise.all([
@@ -555,7 +577,7 @@ export class ContractService {
       return electResult;
     }
     if (!electResult.value) {
-      return failure("Contract not found");
+      return failure(CONTRACT_ERRORS.CONTRACT_NOT_FOUND);
     }
 
     // Election moves no money, so credits are unchanged.

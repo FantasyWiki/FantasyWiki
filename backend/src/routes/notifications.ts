@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { NotificationService } from "../services/notification";
 import { NOTIFICATION_ERRORS } from "../repositories/notificationRepository";
-import { resolveCurrentPlayer } from "./helpers";
+import { playerErrorStatus, resolveCurrentPlayer } from "./helpers";
 
 type Bindings = {
   db: D1Database;
@@ -12,7 +12,10 @@ const notifications = new Hono<{ Bindings: Bindings }>();
 notifications.patch("/:id/read", async (c) => {
   const playerResult = await resolveCurrentPlayer(c);
   if (!playerResult.ok) {
-    return c.json({ error: playerResult.error }, 404);
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
   }
 
   const id = c.req.param("id");

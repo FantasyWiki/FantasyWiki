@@ -23,6 +23,7 @@ export default defineConfig({
         bindings: {
           JWT_SECRET: "test-jwt-secret",
           GOOGLE_CLIENT_SECRET: "test-google-client-secret",
+          SCORING_INGEST_SECRET: "test-scoring-secret",
           TEST_MIGRATIONS: migrations,
         },
       },

@@ -159,7 +159,7 @@ leagues.get("/:id/my-performances", async (c) => {
     return c.json({ error: TEAM_ERRORS.NO_TEAM_IN_LEAGUE }, 404);
   }
 
-  const performanceService = new PerformanceService(c.env.db);
+  const performanceService = PerformanceService.fromDb(c.env.db);
   const perfResult = await performanceService.getRecentForTeam(
     teamResult.value.id,
     limit,
@@ -372,7 +372,7 @@ leagues.get("/:id/lineup", async (c) => {
     );
   }
 
-  const lineupService = new LineupService(c.env.db);
+  const lineupService = LineupService.fromDb(c.env.db);
   const result = await lineupService.getLineup(playerResult.value.id, leagueId);
   if (!result.ok) {
     return c.json(
@@ -399,7 +399,7 @@ leagues.put("/:id/lineup", async (c) => {
     return c.json({ error: payloadResult.error }, 400);
   }
 
-  const lineupService = new LineupService(c.env.db);
+  const lineupService = LineupService.fromDb(c.env.db);
   const result = await lineupService.saveLineup(
     playerResult.value.id,
     leagueId,

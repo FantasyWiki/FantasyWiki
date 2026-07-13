@@ -5,14 +5,11 @@ import { Result, success } from "../repositories/result";
 import { PerformanceDTO } from "../../../dto/performanceDTO";
 
 export class PerformanceService {
-  private repository: PerformanceRepository;
+  constructor(private repository: PerformanceRepository) {}
 
-  constructor(repositoryOrDb: PerformanceRepository | D1Database) {
-    if ("getRecentByTeam" in repositoryOrDb) {
-      this.repository = repositoryOrDb;
-      return;
-    }
-    this.repository = new PerformanceRepositoryD1(repositoryOrDb);
+  /** Build a D1-backed instance — the production/route construction path. */
+  static fromDb(db: D1Database): PerformanceService {
+    return new PerformanceService(new PerformanceRepositoryD1(db));
   }
 
   async getRecentForTeam(

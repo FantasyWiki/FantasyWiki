@@ -132,6 +132,22 @@ export const CHEMISTRY_POINTS_BY_LEVEL = {
     empty: 0,
 } as const satisfies Record<ChemistryLevel, number>;
 
+/**
+ * @deprecated LEGACY / DISPLAY-ONLY — NOT the scoring model. Canonical daily
+ * scoring treats chemistry as **additive flat points** (+1.5 mutual / +0.5
+ * one-way), never a multiplier (see CHEMISTRY_POINTS_BY_LEVEL above,
+ * docs/domain/chemistry-links.md and docs/domain/scoring-system.md §4). Do NOT
+ * feed these multipliers into any scoring path (backend or the Kotlin scoring
+ * engine). Retained only because it is still re-exported by dto/formationDTO.ts;
+ * safe to delete once no importer remains.
+ */
+export const CHEMISTRY_MULTIPLIER_BY_LEVEL = {
+    excellent: 1.2,
+    good: 1.1,
+    weak: 1.05,
+    empty: 1.0,
+} as const satisfies Record<ChemistryLevel, number>;
+
 export type ChemistryLink<S extends Schema = Schema> = {
     from: PositionsForSchema<S>;
     to: PositionsForSchema<S>;

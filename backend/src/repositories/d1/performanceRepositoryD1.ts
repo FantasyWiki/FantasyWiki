@@ -1,16 +1,61 @@
+import { Temporal } from "@js-temporal/polyfill";
 import { Performance } from "../../../../model";
 import { STARTING_CREDITS } from "../../../../model/team";
 import { Result, success, failure } from "../result";
 import type {
   PerformanceRepository,
+  PerformanceUpsertRow,
   TeamCumulative,
 } from "../performanceRepository";
+
+// D1 caps the number of bound statements per batch; a chunk well under that
+// keeps a whole-catalogue nightly sweep within limits without any single huge
+// statement (docs/plan-scoring-engine.md §6).
+const UPSERT_CHUNK_SIZE = 50;
 
 export class PerformanceRepositoryD1 implements PerformanceRepository {
   private db: D1Database;
 
   constructor(db: D1Database) {
     this.db = db;
+  }
+
+  async upsertDaily(
+    date: Temporal.PlainDate,
+    rows: PerformanceUpsertRow[],
+  ): Promise<Result<void>> {
+    if (rows.length === 0) {
+      return success(undefined);
+    }
+    try {
+      const day = date.toString();
+      for (let i = 0; i < rows.length; i += UPSERT_CHUNK_SIZE) {
+        const chunk = rows.slice(i, i + UPSERT_CHUNK_SIZE);
+        const statements = chunk.map((row) =>
+          this.db
+            .prepare(
+              `INSERT INTO performances (teamId, date, points, historical_formation)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(teamId, date) DO UPDATE SET
+                 points = excluded.points,
+                 historical_formation = excluded.historical_formation`,
+            )
+            .bind(row.teamId, day, row.points, JSON.stringify(row.formation)),
+        );
+        const results = await this.db.batch(statements);
+        const failed = results.find((r) => !r.success);
+        if (failed) {
+          return failure(
+            `Failed to upsert performances: ${failed.error ?? "Unknown D1 error"}`,
+          );
+        }
+      }
+      return success(undefined);
+    } catch (error) {
+      return failure(
+        `Error upserting performances: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
   }
 
   async getRecentByTeam(

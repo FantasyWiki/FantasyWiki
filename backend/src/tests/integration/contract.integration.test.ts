@@ -1045,7 +1045,7 @@ describe("ContractService.sellContract Integration Tests", () => {
       articleId: "Bitcoin",
     });
 
-    const lineupService = new LineupService(env.db);
+    const lineupService = LineupService.fromDb(env.db);
     const payload: RawTeamLineUp = {
       formation: {
         date: new Date().toISOString(),

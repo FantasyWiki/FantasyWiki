@@ -1,3 +1,9 @@
+---
+title: "ADR 0005: Contract Pricing"
+type: adr
+tags: [economy, pricing, decision]
+---
+
 # Contract pricing: from linear-in-views, through convex-in-views, to convex-in-points
 
 > **Status:** current formula decided in design discussion, not yet implemented in code.
@@ -86,7 +92,7 @@ principle for a casual-core audience.
 
 ## Consequences
 
-- `model/pricing.ts`, `scoring-system.md` §6.1, and `CONTEXT.md`'s Contract Price entry all need
+- `model/pricing.ts`, `docs/domain/scoring-system.md` §6.1, and `CONTEXT.md`'s Contract Price entry all need
   updating to this formula — not yet done as of this ADR.
 - The Language Scale Factor `L` (ADR 0002) still enters superlinearly, now as
   `BasePoints(rawViews × L)^k` — same caveat as before: whoever calibrates `L` for other languages
@@ -97,3 +103,8 @@ principle for a casual-core audience.
 - Still open, raised alongside this decision but not yet resolved: the "sold to system if nobody
   renews at contract expiry" payout mechanic, and the trending-spike resale risk (buying near a
   rising 30-day average that may already be about to mean-revert down).
+
+## Related
+
+- [Scoring & Economy System](../domain/scoring-system.md)
+- [ADR 0003: Closed Trading Economy](./0003-closed-trading-economy.md)

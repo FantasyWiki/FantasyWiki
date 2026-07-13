@@ -8,14 +8,14 @@
     "install:all": "npm install && cd frontend && npm install",
     "build": "cd frontend && npm run build",
     "preview": "cd frontend && npm run preview",
-    "test:frontend": "cd frontend && npm run test-unit"
+    "test:frontend": "cd frontend && npm run test"
   },
   "keywords": [
     "fantasy",
     "wikipedia",
     "game"
   ],
-  "license": "MIT",
+  "license": "AGPL-3.0",
   "devDependencies": {
     "semantic-release-preconfigured-conventional-commits": "1.1.157"
   },

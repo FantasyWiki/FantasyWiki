@@ -1,3 +1,9 @@
+---
+title: Backend Architecture
+type: architecture
+tags: [backend, hono, cloudflare, layering]
+---
+
 # FantasyWiki Backend Architecture
 
 ## Overview
@@ -65,3 +71,9 @@ FantasyWiki/
 - Backend tests run with Vitest
 - Command: `cd backend && npm run test`
 - Integration-focused backend tests are under `backend/src/tests/integration`
+
+## Related
+
+- [Backend Error Constants](./backend-error-constants.md)
+- [API Naming Rules](../development/api-naming-rules.md)
+- [Wikimedia Client Architecture](./wikimedia-client-architecture.md)

@@ -51,9 +51,9 @@ npx vitest run src/tests/auth/LoginPage.spec.ts
 
 ```bash
 npm run dev              # wrangler dev --env local (runs D1 migrations first via Gradle)
-npm run test             # vitest run (Cloudflare Workers pool, watch)
+npm run test             # vitest run (Cloudflare Workers pool) — what Gradle check runs
 npm run test:integration # vitest run --config vitest.config.ts (single run)
-npm run test:run         # command used by Gradle check
+npm run test-coverage    # coverage report (uploaded to Codecov in CI)
 npm run lint / lintfix
 npm run format / formatfix
 npm run cf-typegen        # regenerate CloudflareBindings types from wrangler.jsonc
@@ -96,16 +96,17 @@ Tests also run through MSW with `onUnhandledRequest: "error"` (`frontend/src/tes
 ## Key conventions
 
 - **Shared packages**: `dto/` (API DTOs) and `model/` (domain models) are consumed by both frontend and backend — keep them framework-agnostic.
-- **API design**: follow `docs/api-naming-rules.md` — plural nouns for collections, `/api/me` and `my-` prefix for self-scoped data (never take `playerId` from the client), don't repeat path identifiers in request bodies, and resolve identity/authorization from the session/JWT server-side (hiding `playerId` from URLs is not a security control).
-- **npm script naming**: use camelCase with no separators (`formatfix`, `lintfix`), not `format:fix` or `format_fix` — Gradle's node plugin misinterprets `:` (subproject notation) and `_` (treated as a space). See `docs/npm-script-naming.md`.
+- **API design**: follow `docs/development/api-naming-rules.md` — plural nouns for collections, `/api/me` and `my-` prefix for self-scoped data (never take `playerId` from the client), don't repeat path identifiers in request bodies, and resolve identity/authorization from the session/JWT server-side (hiding `playerId` from URLs is not a security control).
+- **npm script naming**: use camelCase with no separators (`formatfix`, `lintfix`), not `format:fix` or `format_fix` — Gradle's node plugin misinterprets `:` (subproject notation) and `_` (treated as a space). See `docs/development/npm-script-naming.md`.
 - **Import alias**: use `@/` for frontend `src` imports (configured in Vite/tsconfig).
 - **Temporal DTOs**: backend responses carrying `@js-temporal/polyfill` Temporal types must be explicitly deserialized on the frontend (`Temporal.Instant.from`, `Temporal.Duration.from`) in service-layer helpers.
 - **Theming**: use Ionic CSS vars from `frontend/src/theme/variables.css` (e.g. `--ion-color-wiki-gold`); brand/UI tone guidance is in `DESIGN.md` and `PRODUCT.md`.
 - **Node/npm versions**: enforced via `engines` in each `package.json` and consumed by the Gradle node plugin (`npmInstallCommand = "ci"`). Keep versions aligned across root/frontend/backend when bumping.
+- **Docs**: grouped by concept under `docs/` — `domain/` (game rules and entities), `architecture/` (code seams and layering), `development/` (working on the code), `deployment/` (shipping), `adr/` (numbered decisions), `agents/` (machine-read metadata; **fixed paths, never move**). Start from `docs/README.md`. Filenames are **lowercase kebab-case** (ADRs: `NNNN-kebab-title.md`); every doc carries `title`/`type`/`tags`/`related` frontmatter and cross-links with relative markdown links. State a domain rule **once** in `domain/` and link to it — a doc that is both rule and implementation gets split in two and cross-linked.
 
 ## Local development setup
 
-Two gitignored env files are required (see `docs/local-dev-setup.md` for full details):
+Two gitignored env files are required (see `docs/development/local-dev-setup.md` for full details):
 
 - `backend/.dev.vars`: `GOOGLE_CLIENT_SECRET`, `JWT_SECRET`, `FRONTEND_URL=localhost:5173`
 - `frontend/.env.local`: `VITE_BACKEND_URL=http://127.0.0.1:8787`, `VITE_MOCK=true`
@@ -114,7 +115,7 @@ With `VITE_MOCK=true`, MSW intercepts all `/api/*` calls except `/api/session` a
 
 ## Deployment
 
-Branch-based deploys to Cloudflare (see `docs/deploy-strategy.md`):
+Branch-based deploys to Cloudflare (see `docs/deployment/deploy-strategy.md`):
 
 - `master` → production Worker `backend`, Pages project `frontend`, D1 `db`
 - `dev` → QA Worker `backend-preview`, Pages `frontend` (dev branch), D1 `db-preview`

@@ -1,3 +1,9 @@
+---
+title: Wikimedia Client Behavior Extension
+type: architecture
+tags: [wikimedia, external-apis, how-to]
+---
+
 # Wikimedia Client Behavior Extension Guide
 
 This guide shows how to add a new behavior to the shared Wikimedia client without changing existing behavior contracts.
@@ -103,3 +109,8 @@ return {
 2. Keep raw Wikimedia payloads in `wikimedia-wire.ts`, never in public app types.
 3. Keep app-facing results in `public-api.ts`, normalized and stable.
 4. Add behavior by composition (new file + wiring), not by modifying existing capability semantics.
+
+## Related
+
+- [Wikimedia Client Architecture](./wikimedia-client-architecture.md)
+- [Wikimedia Client Terminology & Hierarchy](./wikimedia-client-terminology-hierarchy.md)

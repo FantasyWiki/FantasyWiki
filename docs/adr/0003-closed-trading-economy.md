@@ -1,3 +1,9 @@
+---
+title: "ADR 0003: Closed Trading Economy"
+type: adr
+tags: [economy, contracts, settlement, decision]
+---
+
 # Closed trading economy: mark-to-market settlement, no income floor, no transaction fee
 
 > **Status:** decided in design discussion, not yet implemented in code. Backend has no
@@ -100,7 +106,7 @@ getting stuck.
 
 - **Supersedes** this ADR's own original income-floor-based model (flat stipend, 8% fee, no
   settlement mechanic — expiry previously had no defined payout at all).
-- `scoring-system.md` §6.2/§6.3 (stipend, fee, wealth ceiling figures) needs updating to match —
+- `docs/domain/scoring-system.md` §6.2/§6.3 (stipend, fee, wealth ceiling figures) needs updating to match —
   not yet done as of this ADR. The **wealth ceiling** concept (~2,400 credits under the old model)
   needs re-deriving under this economy; it's no longer just "cost of the top-11 team for a week"
   once settlement gains/losses are a factor.
@@ -111,3 +117,8 @@ getting stuck.
   fresh simulation once implemented.
 - Player-to-player trading remains deferred post-MVP; the system stays its own sole counterparty
   for both buys and settlements.
+
+## Related
+
+- [Scoring & Economy System](../domain/scoring-system.md)
+- [ADR 0005: Contract Pricing](./0005-contract-pricing.md)

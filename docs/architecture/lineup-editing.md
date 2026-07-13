@@ -1,7 +1,15 @@
-# Lineup Editing Architecture
+---
+title: Lineup Editing
+type: architecture
+tags: [formation, lineup, frontend, dto, composables]
+---
 
-This document describes how a player's lineup is edited (placing, removing,
-swapping, and moving contracts, and switching schema) in the team view.
+# Lineup Editing (architecture)
+
+How a player's lineup is edited in code — placing, removing, swapping, and moving
+contracts, and switching schema. The **rules** these operations enforce (nothing
+is ever dropped, 11 positions, bench semantics) live in
+[Lineup Rules (domain)](../domain/lineup-rules.md).
 
 ## The `DraftLineup` seam
 
@@ -15,24 +23,23 @@ DraftLineup = {
 ```
 
 All editing logic is a set of **pure** functions of the shape
-`(state: DraftLineup, ...args) => DraftLineup`. They never mutate the input;
-they return a new state (or the same reference when nothing changes, e.g.
-removing from an empty position or moving onto an occupied slot):
+`(state: DraftLineup, ...args) => DraftLineup`. They never mutate the input; they
+return a new state (or the same reference when nothing changes, e.g. removing
+from an empty position or moving onto an occupied slot):
 
 - `assignToPosition(state, position, contract)` — place a contract, displacing
   any current occupant to the bench.
 - `removeFromPosition(state, position)` — clear a position, returning its
   contract to the bench.
 - `swapSlots(state, fromId, toPos, toId)` — the general move/swap covering every
-  source/target combination: position↔position, position↔bench, bench↔bench,
-  and bench→position. `toPos` may be the literal `"bench"`; `toId` is the
-  contract currently at the target, if any.
+  source/target combination: position↔position, position↔bench, bench↔bench, and
+  bench→position. `toPos` may be the literal `"bench"`; `toId` is the contract
+  currently at the target, if any.
 - `moveToEmpty(state, fromId, targetPos)` — move onto an empty position only.
 - `setSchema(state, nextSchema)` — remap placed contracts to the new schema via
   `changeSchema`. Any contract the remap cannot carry into the new schema is
-  appended to the bench rather than silently dropped, so no contract is ever
-  lost on a schema change. The bench reference is preserved when nothing is
-  dropped.
+  appended to the bench rather than silently dropped, so no contract is ever lost
+  on a schema change. The bench reference is preserved when nothing is dropped.
 
 Because the mutations are pure and Vue-free, the branchy slot/bench logic is
 unit-tested directly in `frontend/src/tests/formation/lineupMutations.spec.ts`.
@@ -43,10 +50,12 @@ unit-tested directly in `frontend/src/tests/formation/lineupMutations.spec.ts`.
 (`draft`, `benchContracts`) plus server sync, dirty tracking, chemistry, and the
 save mutation. Its editing handlers are thin wrappers: snapshot the live state
 into a `DraftLineup`, call the matching pure mutation, and write the result back
-via `applyMutation`. `TeamPage.vue` continues to call the same handler names, so
-no view API changed.
+via `applyMutation`. `TeamPage.vue` calls the same handler names, so no view API
+changed.
 
 ## Related documentation
 
-- Chemistry composition for the placed formation: see
-  `docs/chemistry-links.md` (`computeChemistryLinks`).
+- [Lineup Rules (domain)](../domain/lineup-rules.md) — the invariants the
+  mutations exist to uphold.
+- [Chemistry Links Rendering](./chemistry-links-rendering.md) — chemistry
+  composition for the placed formation (`computeChemistryLinks`).

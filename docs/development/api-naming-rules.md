@@ -1,3 +1,9 @@
+---
+title: API Naming Rules
+type: development
+tags: [conventions, api, rest, security]
+---
+
 ## FantasyWiki API Naming Rules
 
 ### 1. Identifiers in URLs
@@ -66,3 +72,8 @@
     - Load the requested resource.
     - Check ownership / league membership / role.
     - If not allowed, return `403` or `404` depending on how much you want to reveal.
+
+## Related
+
+- [Backend Architecture](../architecture/backend-architecture.md)
+- [Backend Error Constants](../architecture/backend-error-constants.md)

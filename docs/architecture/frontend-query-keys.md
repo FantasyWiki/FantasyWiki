@@ -1,3 +1,9 @@
+---
+title: Frontend Query Keys
+type: architecture
+tags: [frontend, tanstack-query, caching, conventions]
+---
+
 # Frontend: TanStack Query keys
 
 All TanStack Query keys are defined in **one module**:
@@ -93,3 +99,7 @@ through MSW — the states become deterministic and each test controls them
 directly. When a test genuinely exercises the query plumbing, seed the cache
 with `queryClient.setQueryData(queryKeys.myTeam(leagueId), team)` and keep
 the MSW handler as the refetch target.
+
+## Related
+
+- [Article Ownership Resolution](./article-ownership-resolution.md)

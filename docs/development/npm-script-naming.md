@@ -1,3 +1,9 @@
+---
+title: NPM Script Naming Convention
+type: development
+tags: [conventions, gradle, npm]
+---
+
 # NPM Script Naming Convention
 
 ## Why `formatfix` and `lintfix` instead of `format:fix` or `format-fix`?
@@ -26,3 +32,7 @@ This approach:
 - Works correctly with the node-gradle plugin
 - Maintains consistency with JavaScript naming conventions
 - Keeps script names concise and readable
+
+## Related
+
+- [Local Development Setup](./local-dev-setup.md)

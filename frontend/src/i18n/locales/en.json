@@ -192,7 +192,9 @@
       "noneNeedAttention": "No contracts need attention right now",
       "renew": "Renew",
       "dismiss": "Dismiss",
-      "left": "{duration} left"
+      "left": "{duration} left",
+      "renewalAtRisk": "Renewal at risk",
+      "renewalShortfall": "{amount} cr short for renewal"
     }
   },
   "formation": {
@@ -219,10 +221,10 @@
     "actions": {
       "buy": "Buy",
       "renewFor": "Renew · {price} cr",
-      "renewElected": "Renewal Elected ✓",
       "swapArticle": "Swap Article",
       "sell": "Sell Contract",
-      "requestTrade": "Request Trade"
+      "requestTrade": "Request Trade",
+      "cancelRenewal": "Cancel Renewal"
     },
     "buy": {
       "title": "Buy Contract",
@@ -244,7 +246,11 @@
       "expiresIn": "Expires in",
       "urgent": "Urgent",
       "renewSoon": "Renew soon",
-      "healthy": "Healthy"
+      "healthy": "Healthy",
+      "renewalElected": "Renewal Elected",
+      "renewalChargeAtExpiry": "~{amount} cr will be charged at expiry",
+      "renewalRefundAtExpiry": "~{amount} cr will be refunded at expiry",
+      "renewalNoChargeAtExpiry": "No extra cost at expiry"
     },
     "stats": {
       "title": "Article Information",
@@ -358,6 +364,8 @@
     "sellSuccess": "Contract sold",
     "sellError": "Couldn't sell this contract",
     "renewSuccess": "Renewal elected",
-    "renewError": "Couldn't renew this contract"
+    "renewError": "Couldn't renew this contract",
+    "cancelRenewalSuccess": "Renewal cancelled",
+    "cancelRenewalError": "Couldn't cancel this renewal"
   }
 }

@@ -1,3 +1,9 @@
+---
+title: Dev Branch & QA Deployment
+type: deployment
+tags: [cloudflare, qa, branches]
+---
+
 # Dev Branch and QA Deployment
 
 This document explains what the `dev` branch is used for and how QA deployment works on Cloudflare.
@@ -57,3 +63,8 @@ When `master` is deployed, the workflow deploys:
 1. develop on feature branches
 2. merge to `dev` for full cloud QA validation
 3. merge to `master` for production release
+
+## Related
+
+- [Deploy Strategy & Branch Policy](./deploy-strategy.md)
+- [Setup QA Deploy](./setup-qa-deploy.md)

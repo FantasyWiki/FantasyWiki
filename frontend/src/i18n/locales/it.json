@@ -192,7 +192,9 @@
       "noneNeedAttention": "Nessun contratto richiede attenzione al momento",
       "renew": "Rinnova",
       "dismiss": "Rimuovi",
-      "left": "{duration} rimanenti"
+      "left": "{duration} rimanenti",
+      "renewalAtRisk": "Rinnovo a rischio",
+      "renewalShortfall": "Mancano {amount} cr per il rinnovo"
     }
   },
   "formation": {
@@ -219,10 +221,10 @@
     "actions": {
       "buy": "Acquista",
       "renewFor": "Rinnova · {price} cr",
-      "renewElected": "Rinnovo scelto ✓",
       "swapArticle": "Scambia articolo",
       "sell": "Vendi contratto",
-      "requestTrade": "Proponi scambio"
+      "requestTrade": "Proponi scambio",
+      "cancelRenewal": "Annulla Rinnovo"
     },
     "buy": {
       "title": "Acquista contratto",
@@ -244,7 +246,11 @@
       "expiresIn": "Scade tra",
       "urgent": "Urgente",
       "renewSoon": "Rinnova presto",
-      "healthy": "In salute"
+      "healthy": "In salute",
+      "renewalElected": "Rinnovo Scelto",
+      "renewalChargeAtExpiry": "~{amount} cr verranno addebitati alla scadenza",
+      "renewalRefundAtExpiry": "~{amount} cr verranno rimborsati alla scadenza",
+      "renewalNoChargeAtExpiry": "Nessun costo aggiuntivo alla scadenza"
     },
     "stats": {
       "title": "Informazioni articolo",
@@ -358,6 +364,8 @@
     "sellSuccess": "Contratto venduto",
     "sellError": "Impossibile vendere questo contratto",
     "renewSuccess": "Rinnovo scelto",
-    "renewError": "Impossibile rinnovare questo contratto"
+    "renewError": "Impossibile rinnovare questo contratto",
+    "cancelRenewalSuccess": "Rinnovo annullato",
+    "cancelRenewalError": "Impossibile annullare il rinnovo"
   }
 }

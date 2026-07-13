@@ -1,6 +1,11 @@
 import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
-import { LineupService, RawTeamLineUp } from "../../services/lineup";
+import {
+  LineupService,
+  RawTeamLineUp,
+  parseLineupPayload,
+  LINEUP_ERRORS,
+} from "../../services/lineup";
 import { PlayerService } from "../../services/player";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
 import { insertTeam } from "../utils/d1TestUtils";
@@ -336,6 +341,92 @@ describe("LineupService Integration Tests", () => {
       // The stale contract must not appear on the bench either
       const benchIds = lineup!.bench.map((c) => c.id);
       expect(benchIds).not.toContain(contractId);
+    });
+  });
+
+  describe("parseLineupPayload", () => {
+    const validPayload = (): RawTeamLineUp => ({
+      formation: {
+        date: new Date().toISOString(),
+        schema: "4-3-3",
+        formation: { GK: null },
+      },
+      bench: [],
+    });
+
+    it("should accept a well-formed payload", () => {
+      const result = parseLineupPayload(validPayload());
+      expect(result.ok).toBe(true);
+    });
+
+    it("should reject an empty object body", () => {
+      const result = parseLineupPayload({});
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toBe(LINEUP_ERRORS.INVALID_PAYLOAD);
+      }
+    });
+
+    it("should reject a non-object body", () => {
+      for (const body of [null, "lineup", 42, []]) {
+        const result = parseLineupPayload(body);
+        expect(result.ok).toBe(false);
+      }
+    });
+
+    it("should reject an unknown formation schema", () => {
+      const payload = validPayload();
+      payload.formation.schema = "5-4-1";
+      const result = parseLineupPayload(payload);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toBe(LINEUP_ERRORS.UNKNOWN_SCHEMA);
+      }
+    });
+
+    it("should reject a position that does not belong to the schema", () => {
+      const payload = validPayload();
+      // CB exists in 5-3-2 but not in 4-3-3
+      payload.formation.formation = { CB: null };
+      const result = parseLineupPayload(payload);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toBe(LINEUP_ERRORS.INVALID_PAYLOAD);
+      }
+    });
+
+    it("should reject a formation entry without a contract id", () => {
+      const payload = validPayload();
+      payload.formation.formation = {
+        GK: {
+          article: { title: "Cat" },
+        } as unknown as RawTeamLineUp["formation"]["formation"][string],
+      };
+      const result = parseLineupPayload(payload);
+      expect(result.ok).toBe(false);
+    });
+
+    it("should reject a missing bench", () => {
+      const payload = validPayload() as unknown as Record<string, unknown>;
+      delete payload.bench;
+      const result = parseLineupPayload(payload);
+      expect(result.ok).toBe(false);
+    });
+  });
+
+  describe("getLineup with corrupt stored schema", () => {
+    it("should fail gracefully instead of crashing when the stored schema is unknown", async () => {
+      await env.db
+        .prepare("UPDATE lineups SET schema = ? WHERE teamId = ?")
+        .bind("5-4-1", teamId)
+        .run();
+
+      const result = await lineupService.getLineup(playerId, GLOBAL_LEAGUE_ID);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toContain("Invalid formation data");
+      }
     });
   });
 });

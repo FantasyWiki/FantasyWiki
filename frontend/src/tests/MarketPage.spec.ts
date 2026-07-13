@@ -20,6 +20,26 @@ vi.mock("@/composables/useArticleSummary", () => ({
   }),
 }));
 
+// The viewer's team comes from the my-team query; mock it with mutable state
+// so each test controls whose team the viewer is without racing the MSW
+// my-team fixture.
+const myTeamMock = vi.hoisted(() => ({
+  team: null as { id: string; credits: number } | null,
+}));
+
+vi.mock("@/composables/useMyTeam", async () => {
+  const { computed } = await import("vue");
+  return {
+    useMyTeam: () => ({
+      myTeam: computed(() => myTeamMock.team),
+      myTeamId: computed(() => myTeamMock.team?.id ?? null),
+      isPending: computed(() => false),
+      error: computed(() => null),
+      refetch: async () => undefined,
+    }),
+  };
+});
+
 // Same rationale as ArticleDetail.spec.ts: IonModal never "presents" in
 // jsdom, so its slotted content stays unmounted unless replaced with a
 // plain passthrough.
@@ -64,7 +84,7 @@ function makePlugins(currentTeam: TeamDTO | null = null) {
   setActivePinia(pinia);
   const leagueStore = useLeagueStore();
   leagueStore.currentLeague = fakeLeague;
-  leagueStore.currentTeam = currentTeam;
+  myTeamMock.team = currentTeam;
 
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: 0, gcTime: 0 } },

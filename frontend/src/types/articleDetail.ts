@@ -52,6 +52,16 @@ export interface OwnedByViewerDetail extends ArticleDetailBase {
   renewalPremium: number;
   /** What renewing would cost: currentPrice + renewalPremium. */
   renewalPrice: number;
+  /**
+   * What renewal actually moves on the balance at expiry: `renewalPrice −
+   * purchasePrice`. The old purchasePrice is already sunk in the derived credits
+   * ledger, so renewing tops the stake up to today's price rather than charging
+   * it again. Mirrors `incrementalCost` in the backend's settleDueContract,
+   * which is what the sweep checks affordability against — so this is the number
+   * to show the player and to test for an at-risk renewal. Negative when the
+   * article got cheaper, i.e. the renewal refunds and is always affordable.
+   */
+  renewalIncrementalCost: number;
 }
 
 export interface OwnedByOtherDetail extends ArticleDetailBase {
@@ -120,6 +130,7 @@ export function buildArticleDetail(input: ArticleDetailInput): ArticleDetail {
     const renewalPremium = Math.round(
       currentPrice * 0.1 * contract.renewalCount
     );
+    const renewalPrice = currentPrice + renewalPremium;
     return {
       availability: "owned-by-viewer",
       article,
@@ -132,7 +143,8 @@ export function buildArticleDetail(input: ArticleDetailInput): ArticleDetail {
       renewalCount: contract.renewalCount,
       renewalElected: contract.renewalElected,
       renewalPremium,
-      renewalPrice: currentPrice + renewalPremium,
+      renewalPrice,
+      renewalIncrementalCost: renewalPrice - contract.purchasePrice,
     };
   }
 

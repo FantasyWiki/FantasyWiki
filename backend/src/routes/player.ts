@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { NotificationService } from "../services/notification";
 import { PlayerDTO } from "../../../dto/playerDTO";
-import { resolveCurrentPlayer } from "./helpers";
+import { playerErrorStatus, resolveCurrentPlayer } from "./helpers";
 
 type Bindings = {
   db: D1Database;
@@ -12,7 +12,10 @@ const player = new Hono<{ Bindings: Bindings }>();
 player.get("/", async (c) => {
   const playerResult = await resolveCurrentPlayer(c);
   if (!playerResult.ok) {
-    return c.json({ error: playerResult.error }, 404);
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
   }
 
   const dto: PlayerDTO = {
@@ -25,7 +28,10 @@ player.get("/", async (c) => {
 player.get("/notifications", async (c) => {
   const playerResult = await resolveCurrentPlayer(c);
   if (!playerResult.ok) {
-    return c.json({ error: playerResult.error }, 404);
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
   }
 
   const notificationService = new NotificationService(c.env.db);

@@ -9,14 +9,17 @@ import {
   normalizedViews,
   resolveLanguageScale,
 } from "../../../model/pricing";
+import { MAX_TEAM_CONTRACTS } from "../../../model/team";
 import {
   ContractRepository,
+  CONTRACT_WRITE_ERRORS,
   DueContract,
+  LeagueContractRow,
 } from "../repositories/contractRepository";
 import { ContractRepositoryD1 } from "../repositories/d1/contractRepositoryD1";
 import { LeagueRepository } from "../repositories/leagueRepository";
 import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
-import { TeamRepository } from "../repositories/teamRepository";
+import { TEAM_ERRORS, TeamRepository } from "../repositories/teamRepository";
 import { TeamRepositoryD1 } from "../repositories/d1/teamRepositoryD1";
 import { PlayerRepository } from "../repositories/playerRepository";
 import { PlayerRepositoryD1 } from "../repositories/d1/playerRepositoryD1";
@@ -27,9 +30,40 @@ import { WikimediaClient } from "../../../external-apis/wikimedia/client";
 import { createWikimediaClient } from "./wikimediaClient";
 import { toRawContract } from "./rawContract";
 
-export const MAX_TEAM_CONTRACTS = 22;
+// Re-exported because callers of this service (routes, tests) treat the cap
+// as part of the purchase rules this module owns; it lives in the shared
+// model so the repository's guarded INSERT can enforce it too.
+export { MAX_TEAM_CONTRACTS };
+
 /** ADR 0003: +10% of currentPrice per consecutive renewal (anti-hoard sink). */
 export const RENEWAL_PREMIUM_RATE = 0.1;
+
+/**
+ * Every business failure buy/sell/renew can produce. Routes map these to HTTP
+ * statuses by identity (see `contractErrorStatus` in routes/leagues.ts), so
+ * the wording is display text and free to change; anything a route receives
+ * that is *not* one of these is an infrastructure failure, not a client error.
+ */
+export const CONTRACT_ERRORS = {
+  NO_TEAM: TEAM_ERRORS.NO_TEAM_IN_LEAGUE,
+  INVALID_TIER: "Invalid contract tier",
+  ARTICLE_TAKEN: "Article already owned by another team",
+  ALREADY_OWNED: "You already own this article",
+  TEAM_FULL: `Team is full (${MAX_TEAM_CONTRACTS} contracts)`,
+  NOT_ENOUGH_CREDITS: "Not enough credits",
+  CONTRACT_NOT_FOUND: "Contract not found",
+  NOT_CONTRACT_OWNER: "You do not own this contract",
+  ALREADY_SOLD: "Contract already sold",
+  ALREADY_SETTLED: "Contract already settled",
+  EXPIRED: "Contract has already expired",
+  RENEWAL_WINDOW_CLOSED:
+    "Renewal can only be elected in the final 24 hours before expiry",
+  RENEWAL_NOT_ELECTED: "No renewal is elected for this contract",
+} as const;
+
+export type ContractError =
+  (typeof CONTRACT_ERRORS)[keyof typeof CONTRACT_ERRORS];
+
 const VALID_TIERS: ContractTier[] = ["SHORT", "MEDIUM", "LONG"];
 
 function isContractTier(tier: string): tier is ContractTier {
@@ -113,7 +147,7 @@ export class ContractService {
       return teamResult;
     }
     if (teamResult.value === null) {
-      return failure("No team found for this league");
+      return failure(CONTRACT_ERRORS.NO_TEAM);
     }
     const team = teamResult.value;
 
@@ -123,7 +157,7 @@ export class ContractService {
     const domain = leagueResult.value.domain as Domain;
 
     if (!isContractTier(tier)) {
-      return failure("Invalid contract tier");
+      return failure(CONTRACT_ERRORS.INVALID_TIER);
     }
 
     const leagueContractsResult =
@@ -131,28 +165,14 @@ export class ContractService {
     if (!leagueContractsResult.ok) {
       return leagueContractsResult;
     }
-    const activeLeagueContracts = leagueContractsResult.value.filter(
-      (contract) => !contract.settled,
-    );
 
-    const ownedByOtherTeam = activeLeagueContracts.some(
-      (contract) =>
-        contract.articleId === articleId && contract.teamId !== team.id,
+    const rejection = ContractService.purchaseRejection(
+      leagueContractsResult.value,
+      team.id,
+      articleId,
     );
-    if (ownedByOtherTeam) {
-      return failure("Article already owned by another team");
-    }
-
-    const activeTeamContracts = activeLeagueContracts.filter(
-      (contract) => contract.teamId === team.id,
-    );
-    if (
-      activeTeamContracts.some((contract) => contract.articleId === articleId)
-    ) {
-      return failure("You already own this article");
-    }
-    if (activeTeamContracts.length >= MAX_TEAM_CONTRACTS) {
-      return failure("Team is full (11 contracts)");
+    if (rejection) {
+      return failure(rejection);
     }
 
     let price: number;
@@ -184,7 +204,7 @@ export class ContractService {
     }
 
     if (price > team.credits) {
-      return failure("Not enough credits");
+      return failure(CONTRACT_ERRORS.NOT_ENOUGH_CREDITS);
     }
 
     const purchaseDate = Temporal.Now.plainDateISO();
@@ -207,7 +227,12 @@ export class ContractService {
       this.playerRepo.getById(playerId),
     ]);
     if (!createResult.ok) {
-      return createResult;
+      if (createResult.error !== CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT) {
+        return createResult;
+      }
+      return failure(
+        await this.classifyPurchaseConflict(team.id, leagueId, articleId),
+      );
     }
 
     // Credits are derived as STARTING_CREDITS - Σpurchases + Σpayouts
@@ -226,6 +251,67 @@ export class ContractService {
         },
         domain,
       ),
+    );
+  }
+
+  /**
+   * Names the ownership rule a purchase of `articleId` would break given the
+   * league's active contracts, or null when the buy is admissible. Shared by
+   * the pre-write fast-fail and the post-conflict classification, so both
+   * paths apply exactly the rules the repository's guarded INSERT enforces.
+   */
+  private static purchaseRejection(
+    leagueContracts: LeagueContractRow[],
+    teamId: string,
+    articleId: string,
+  ): ContractError | null {
+    const activeLeagueContracts = leagueContracts.filter(
+      (contract) => !contract.settled,
+    );
+
+    const ownedByOtherTeam = activeLeagueContracts.some(
+      (contract) =>
+        contract.articleId === articleId && contract.teamId !== teamId,
+    );
+    if (ownedByOtherTeam) {
+      return CONTRACT_ERRORS.ARTICLE_TAKEN;
+    }
+
+    const activeTeamContracts = activeLeagueContracts.filter(
+      (contract) => contract.teamId === teamId,
+    );
+    if (
+      activeTeamContracts.some((contract) => contract.articleId === articleId)
+    ) {
+      return CONTRACT_ERRORS.ALREADY_OWNED;
+    }
+    if (activeTeamContracts.length >= MAX_TEAM_CONTRACTS) {
+      return CONTRACT_ERRORS.TEAM_FULL;
+    }
+    return null;
+  }
+
+  /**
+   * The guarded INSERT inserted zero rows: a concurrent purchase changed the
+   * league between the pre-checks and the write. Re-read to name the rule
+   * that now fails; when every ownership rule still passes, the credits guard
+   * is the only remaining INSERT condition, so the team ran out of credits.
+   */
+  private async classifyPurchaseConflict(
+    teamId: string,
+    leagueId: string,
+    articleId: string,
+  ): Promise<ContractError | typeof CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT> {
+    const contractsResult = await this.contractRepo.getByLeagueId(leagueId);
+    if (!contractsResult.ok) {
+      return CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT;
+    }
+    return (
+      ContractService.purchaseRejection(
+        contractsResult.value,
+        teamId,
+        articleId,
+      ) ?? CONTRACT_ERRORS.NOT_ENOUGH_CREDITS
     );
   }
 
@@ -259,7 +345,7 @@ export class ContractService {
       return teamResult;
     }
     if (teamResult.value === null) {
-      return failure("No team found for this league");
+      return failure(CONTRACT_ERRORS.NO_TEAM);
     }
     const team = teamResult.value;
 
@@ -273,13 +359,13 @@ export class ContractService {
     }
     const contract = contractResult.value;
     if (contract === null) {
-      return failure("Contract not found");
+      return failure(CONTRACT_ERRORS.CONTRACT_NOT_FOUND);
     }
     if (contract.teamId !== team.id) {
-      return failure("You do not own this contract");
+      return failure(CONTRACT_ERRORS.NOT_CONTRACT_OWNER);
     }
     if (contract.settled) {
-      return failure("Contract already sold");
+      return failure(CONTRACT_ERRORS.ALREADY_SOLD);
     }
 
     // Tier length is the contract's own held duration; remaining is measured
@@ -335,7 +421,7 @@ export class ContractService {
       return saleResult;
     }
     if (!saleResult.value) {
-      return failure("Contract already sold");
+      return failure(CONTRACT_ERRORS.ALREADY_SOLD);
     }
 
     // Best-effort: the sale is already settled above, so a failure here must
@@ -385,7 +471,7 @@ export class ContractService {
       return teamResult;
     }
     if (teamResult.value === null) {
-      return failure("No team found for this league");
+      return failure(CONTRACT_ERRORS.NO_TEAM);
     }
     const team = teamResult.value;
 
@@ -452,7 +538,7 @@ export class ContractService {
       return teamResult;
     }
     if (teamResult.value === null) {
-      return failure("No team found for this league");
+      return failure(CONTRACT_ERRORS.NO_TEAM);
     }
     const team = teamResult.value;
 
@@ -466,24 +552,22 @@ export class ContractService {
     }
     const contract = contractResult.value;
     if (contract === null) {
-      return failure("Contract not found");
+      return failure(CONTRACT_ERRORS.CONTRACT_NOT_FOUND);
     }
     if (contract.teamId !== team.id) {
-      return failure("You do not own this contract");
+      return failure(CONTRACT_ERRORS.NOT_CONTRACT_OWNER);
     }
     if (contract.settled) {
-      return failure("Contract already settled");
+      return failure(CONTRACT_ERRORS.ALREADY_SETTLED);
     }
 
     const today = Temporal.Now.plainDateISO();
     const remainingDays = today.until(contract.expireDate).days;
     if (remainingDays < 0) {
-      return failure("Contract has already expired");
+      return failure(CONTRACT_ERRORS.EXPIRED);
     }
     if (remainingDays > 1) {
-      return failure(
-        "Renewal can only be elected in the final 24 hours before expiry",
-      );
+      return failure(CONTRACT_ERRORS.RENEWAL_WINDOW_CLOSED);
     }
 
     const [electResult, playerResult] = await Promise.all([
@@ -494,13 +578,90 @@ export class ContractService {
       return electResult;
     }
     if (!electResult.value) {
-      return failure("Contract not found");
+      return failure(CONTRACT_ERRORS.CONTRACT_NOT_FOUND);
     }
 
     // Election moves no money, so credits are unchanged.
     return success(
       toRawContract(
         { ...contract, renewalElected: true },
+        { id: team.id, name: team.name, credits: team.credits },
+        {
+          id: playerId,
+          name: playerResult.ok ? playerResult.value.username : "",
+        },
+        domain,
+      ),
+    );
+  }
+
+  /**
+   * Withdraws a previously elected renewal, putting the contract back on course
+   * to settle at expiry.
+   *
+   * The election is only an intent — the settlement sweep is what actually
+   * renews — so it can be withdrawn right up until that sweep runs. The guard is
+   * therefore `settled`, not the final-24h window used by {@link electRenewal}:
+   * a contract past its expireDate but not yet swept is still reversible, and
+   * once the sweep has renewed it the row is no longer `renewalElected` and this
+   * fails with RENEWAL_NOT_ELECTED. No money moves either way.
+   */
+  async cancelRenewal(
+    playerId: string,
+    leagueId: string,
+    contractId: string,
+  ): Promise<Result<RawContract>> {
+    const [teamResult, leagueResult, contractResult] = await Promise.all([
+      this.teamRepo.getByPlayerAndLeague(playerId, leagueId),
+      this.leagueRepo.getById(leagueId),
+      this.contractRepo.getById(contractId),
+    ]);
+    if (!teamResult.ok) {
+      return teamResult;
+    }
+    if (teamResult.value === null) {
+      return failure(CONTRACT_ERRORS.NO_TEAM);
+    }
+    const team = teamResult.value;
+
+    if (!leagueResult.ok) {
+      return leagueResult;
+    }
+    const domain = leagueResult.value.domain as Domain;
+
+    if (!contractResult.ok) {
+      return contractResult;
+    }
+    const contract = contractResult.value;
+    if (contract === null) {
+      return failure(CONTRACT_ERRORS.CONTRACT_NOT_FOUND);
+    }
+    if (contract.teamId !== team.id) {
+      return failure(CONTRACT_ERRORS.NOT_CONTRACT_OWNER);
+    }
+    if (contract.settled) {
+      return failure(CONTRACT_ERRORS.ALREADY_SETTLED);
+    }
+    if (!contract.renewalElected) {
+      return failure(CONTRACT_ERRORS.RENEWAL_NOT_ELECTED);
+    }
+
+    const [cancelResult, playerResult] = await Promise.all([
+      this.contractRepo.cancelRenewal(contract.id, team.id),
+      this.playerRepo.getById(playerId),
+    ]);
+    if (!cancelResult.ok) {
+      return cancelResult;
+    }
+    // The row was elected when we read it but is not any more: the settlement
+    // sweep renewed it in between, so the intent is no longer withdrawable.
+    if (!cancelResult.value) {
+      return failure(CONTRACT_ERRORS.RENEWAL_NOT_ELECTED);
+    }
+
+    return success(
+      toRawContract(
+        { ...contract, renewalElected: false },
         { id: team.id, name: team.name, credits: team.credits },
         {
           id: playerId,

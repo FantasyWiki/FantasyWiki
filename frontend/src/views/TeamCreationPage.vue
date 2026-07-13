@@ -87,6 +87,7 @@ import { useI18n } from "vue-i18n";
 import NavBar from "@/layout/NavBar.vue";
 import api from "@/services/api";
 import { useToast } from "@/composables/useToast";
+import { queryKeys } from "@/composables/queryKeys";
 
 const router = useRouter();
 const { t } = useI18n();
@@ -96,7 +97,7 @@ const { showSuccess } = useToast();
 // holds leagues the player already has a team in) can't be used here. The
 // Global League is the league every new player joins on team creation.
 const { data: league } = useQuery({
-  queryKey: ["global-league"],
+  queryKey: queryKeys.globalLeague(),
   queryFn: () => api.leagues.getGlobal(),
 });
 

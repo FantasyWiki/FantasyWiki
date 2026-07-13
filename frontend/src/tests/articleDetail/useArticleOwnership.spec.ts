@@ -1,12 +1,32 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
-import { createPinia, setActivePinia } from "pinia";
 import { Temporal } from "@js-temporal/polyfill";
 import { ContractDTO } from "../../../../dto/contractDTO";
 import type { ArticleDTO } from "../../../../dto/articleDTO";
 import type { TeamDTO } from "../../../../dto/teamDTO";
-import { useLeagueStore } from "@/stores/league";
 import { useArticleOwnership } from "@/composables/useArticleOwnership";
+
+// The composable maps the my-team query's states onto an ownership status;
+// mock the query with mutable state so each state is reachable
+// deterministically (a real query would race MSW responses).
+const myTeamMock = vi.hoisted(() => ({
+  team: null as { id: string; credits: number } | null,
+  isPending: false,
+  error: null as Error | null,
+}));
+
+vi.mock("@/composables/useMyTeam", async () => {
+  const { computed } = await import("vue");
+  return {
+    useMyTeam: () => ({
+      myTeam: computed(() => myTeamMock.team),
+      myTeamId: computed(() => myTeamMock.team?.id ?? null),
+      isPending: computed(() => myTeamMock.isPending),
+      error: computed(() => myTeamMock.error),
+      refetch: async () => undefined,
+    }),
+  };
+});
 
 const viewerTeam: TeamDTO = {
   id: "team-viewer",
@@ -38,25 +58,22 @@ function makeContract(team: TeamDTO): ContractDTO {
   );
 }
 
-interface StoreState {
+interface MyTeamState {
   currentTeam?: TeamDTO | null;
   isTeamLoading?: boolean;
   teamError?: string | null;
 }
 
-function setupStore(state: StoreState = {}) {
-  setActivePinia(createPinia());
-  const store = useLeagueStore();
-  store.currentTeam =
+function setupMyTeam(state: MyTeamState = {}) {
+  myTeamMock.team =
     "currentTeam" in state ? (state.currentTeam ?? null) : viewerTeam;
-  store.isTeamLoading = state.isTeamLoading ?? false;
-  store.teamError = state.teamError ?? null;
-  return store;
+  myTeamMock.isPending = state.isTeamLoading ?? false;
+  myTeamMock.error = state.teamError ? new Error(state.teamError) : null;
 }
 
 describe("useArticleOwnership", () => {
   it("reports loading while team context is loading and yields no detail", () => {
-    setupStore({ currentTeam: null, isTeamLoading: true });
+    setupMyTeam({ currentTeam: null, isTeamLoading: true });
     const { status, detail } = useArticleOwnership(
       ref(article),
       ref(makeContract(otherTeam)),
@@ -67,7 +84,7 @@ describe("useArticleOwnership", () => {
   });
 
   it("reports loading when there is no current team yet", () => {
-    setupStore({ currentTeam: null });
+    setupMyTeam({ currentTeam: null });
     const { status, detail } = useArticleOwnership(
       ref(article),
       ref(makeContract(otherTeam)),
@@ -78,7 +95,7 @@ describe("useArticleOwnership", () => {
   });
 
   it("reports error when team context failed", () => {
-    setupStore({ currentTeam: null, teamError: "boom" });
+    setupMyTeam({ currentTeam: null, teamError: "boom" });
     const { status, detail } = useArticleOwnership(
       ref(article),
       ref(makeContract(otherTeam)),
@@ -89,7 +106,7 @@ describe("useArticleOwnership", () => {
   });
 
   it("builds the detail model for a viewer-owned contract when ready", () => {
-    setupStore({ currentTeam: viewerTeam });
+    setupMyTeam({ currentTeam: viewerTeam });
     const { status, detail } = useArticleOwnership(
       ref(article),
       ref(makeContract(viewerTeam)),
@@ -100,7 +117,7 @@ describe("useArticleOwnership", () => {
   });
 
   it("marks an article owned by another team when ready", () => {
-    setupStore({ currentTeam: viewerTeam });
+    setupMyTeam({ currentTeam: viewerTeam });
     const { detail } = useArticleOwnership(
       ref(article),
       ref(makeContract(otherTeam)),
@@ -111,7 +128,7 @@ describe("useArticleOwnership", () => {
   });
 
   it("builds a free-agent detail model when there is no contract", () => {
-    setupStore({ currentTeam: viewerTeam });
+    setupMyTeam({ currentTeam: viewerTeam });
     const { detail } = useArticleOwnership(ref(article), ref(null), ref(9000));
     expect(detail.value?.availability).toBe("free-agent");
   });

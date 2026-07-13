@@ -1,8 +1,14 @@
+---
+title: FantaWiki Requirements (Game Design Document v5.5)
+type: domain
+tags: [requirements, product, historical]
+---
+
 # Fantasy Word - Game Design Document v5.5
 
 ---
 
-> **Reconciliation note (2026-06-18):** the scoring (§2), portfolio/economy (§3, §6) and tournament (§4) sections have been reconciled to the locked design. The **canonical** scoring & economy spec is `docs/scoring-system.md` together with the ADRs (`docs/adr/0001`–`0004`) and the domain glossary in `CONTEXT.md`. Where this document disagrees with those, **the ADRs win**; superseded mechanics below are marked and point to their source.
+> **Reconciliation note (2026-06-18):** the scoring (§2), portfolio/economy (§3, §6) and tournament (§4) sections have been reconciled to the locked design. The **canonical** scoring & economy spec is `docs/domain/scoring-system.md` together with the ADRs (`docs/adr/0001`–`0004`) and the domain glossary in `CONTEXT.md`. Where this document disagrees with those, **the ADRs win**; superseded mechanics below are marked and point to their source.
 
 ---
 
@@ -143,7 +149,7 @@ When a user press es the theme switch button, the website switches between light
 
 ### 2.1 Base Scoring
 
-> **Superseded — canonical: ADR 0001/0002 + `docs/scoring-system.md`.** Base points are computed from **Normalized Views** (raw pageviews × the per-language **Language Scale Factor**; en.wp = 1.0) via a **continuous geometric (log)** model — `max(0, log₂(views / 2000))` (decimal-valued, crosses zero at 2,000 views; the "+1 per doubling" rule is just the headline at the rungs), with a convex linear tail of **+1 point per 50,000 views** above a 150k kink — validated against real en.wp data. The 5k/20k three-tier model below is historical and retained only for context.
+> **Superseded — canonical: ADR 0001/0002 + `docs/domain/scoring-system.md`.** Base points are computed from **Normalized Views** (raw pageviews × the per-language **Language Scale Factor**; en.wp = 1.0) via a **continuous geometric (log)** model — `max(0, log₂(views / 2000))` (decimal-valued, crosses zero at 2,000 views; the "+1 per doubling" rule is just the headline at the rungs), with a convex linear tail of **+1 point per 50,000 views** above a 150k kink — validated against real en.wp data. The 5k/20k three-tier model below is historical and retained only for context.
 
 Each article earns points based on its Wikipedia pageviews using a tiered model to prevent viral articles from completely dominating and allow synergy to matter strategically.
 
@@ -694,3 +700,9 @@ Using actual Wikipedia pageviews from Dec 27, 2025:
 - Team C shows that "perfect synergy, low traffic" is viable but requires a very different budget allocation
 
 This confirms your meta design: **Top tier is not "all viral" but "balanced compromise"**.
+
+## Related
+
+- [Scoring & Economy System](./scoring-system.md)
+- [Chemistry Links](./chemistry-links.md)
+- [Lineup Rules](./lineup-rules.md)

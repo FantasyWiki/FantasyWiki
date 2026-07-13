@@ -1,7 +1,15 @@
-# Article Ownership Resolution
+---
+title: Article Ownership Resolution
+type: architecture
+tags: [articles, ownership, frontend, composables]
+---
 
-This document describes how the Article Detail view resolves an article's
-**Article Availability** and the actions a viewer may take on it.
+# Article Ownership Resolution (architecture)
+
+How the Article Detail view resolves an article's **Article Availability** at
+runtime. The **rules** — the three states, what Owner Team means, which actions
+each state permits — live in
+[Article Availability (domain)](../domain/article-availability.md).
 
 ## The two layers
 
@@ -15,11 +23,15 @@ separate:
    agent, and which actions are shown/enabled (buy / renew / swap). It assumes
    the viewer's team context is already known.
 
-2. **Async seam — `useArticleOwnership` (`frontend/src/composables/useArticleOwnership.ts`).**
+2. **Async seam — `useArticleOwnership`
+   (`frontend/src/composables/useArticleOwnership.ts`).**
    The **Viewer Team Context** loads asynchronously through the league store
    (`currentTeam`, `isTeamLoading`, `teamError`). This composable owns that
-   "wait for team context" state machine and only calls `buildArticleDetail`
-   once the context is `ready`.
+   "wait for team context" state machine and only calls `buildArticleDetail` once
+   the context is `ready`.
+
+Splitting them this way keeps the branchy eligibility logic pure and testable
+while isolating the loading/error states in one place.
 
 ## The composable interface
 
@@ -32,5 +44,10 @@ separate:
 
 `ArticleDetail.vue` consumes the composable and is pure presentation: it shows a
 loading/error placeholder (with a retry button) until `status` is `ready`, then
-renders `ArticleActions` from `detail`. The logic is unit-tested without
-mounting Vue in `frontend/src/tests/articleDetail/useArticleOwnership.spec.ts`.
+renders `ArticleActions` from `detail`. The logic is unit-tested without mounting
+Vue in `frontend/src/tests/articleDetail/useArticleOwnership.spec.ts`.
+
+## Related documentation
+
+- [Article Availability (domain)](../domain/article-availability.md) — the states
+  and action eligibility rules.

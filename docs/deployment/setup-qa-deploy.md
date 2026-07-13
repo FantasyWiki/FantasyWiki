@@ -1,3 +1,9 @@
+---
+title: Setup QA Deploy
+type: deployment
+tags: [cloudflare, qa, d1, how-to]
+---
+
 # Setup QA Deploy
 
 Quick guide to enable automatic QA deployment on branch `dev` with a dedicated QA D1 database.
@@ -146,6 +152,11 @@ If build or runtime fails due to backend URL:
 
 ## Next Steps
 
-1. [Read the full deploy strategy](deploy-strategy.md)
-2. [Configure D1 migrations (optional)](../backend/README.md#type-generation)
+1. [Read the full deploy strategy](./deploy-strategy.md)
+2. [Configure D1 migrations (optional)](../../backend/README.md#type-generation)
 3. Validate on `dev` before opening a PR to `master`
+
+## Related
+
+- [Deploy Strategy & Branch Policy](./deploy-strategy.md)
+- [Dev Branch & QA Deployment](./dev-branch-deployment.md)

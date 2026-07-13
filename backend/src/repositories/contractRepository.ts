@@ -33,19 +33,40 @@ export interface DueContract extends Contract {
   teamCredits: number;
 }
 
+/**
+ * Persistence-level outcomes of the guarded writes. Business rejections
+ * (article taken, team full, ...) are named by CONTRACT_ERRORS in
+ * `services/contract.ts`: at write time this layer knows only that a guard
+ * failed, not which one.
+ */
+export const CONTRACT_WRITE_ERRORS = {
+  /**
+   * The guarded INSERT rejected the purchase: between the caller's reads and
+   * the write, a concurrent purchase broke one of its conditions (article
+   * exclusivity, team cap, or derived credits). Callers re-read to tell which.
+   */
+  PURCHASE_CONFLICT: "Purchase conditions no longer hold",
+} as const;
+
 export interface ContractRepository {
   getByTeamId(teamId: string): Promise<Result<Contract[]>>;
   getById(id: string): Promise<Result<Contract | null>>;
   /** All contracts held by any team within the given league. */
   getByLeagueId(leagueId: string): Promise<Result<LeagueContractRow[]>>;
   /**
-   * Creates a contract in a single guarded write: the INSERT only applies if
-   * the owning team's derived credits (STARTING_CREDITS - sum(purchasePrice)
-   * + sum(salePayout of settled contracts)) can still cover the price at
-   * write time — naturally atomic (SQLite/D1 guarantee single-statement
-   * atomicity against concurrent writers), no debit step needed since
-   * credits are never stored. Fails if the team no longer has enough
-   * (derived) credits at write time.
+   * Creates a contract in a single guarded write. The INSERT only applies
+   * when, at write time, every purchase condition still holds:
+   *  - the owning team's derived credits (STARTING_CREDITS -
+   *    sum(purchasePrice) + sum(salePayout of settled contracts)) cover the
+   *    price — no debit step needed since credits are never stored;
+   *  - no team in the league holds an active contract on the article
+   *    (Article Availability exclusivity);
+   *  - the team holds fewer than MAX_TEAM_CONTRACTS active contracts.
+   * Evaluating the conditions inside the statement makes the check-and-write
+   * atomic (SQLite/D1 guarantee single-statement atomicity against concurrent
+   * writers), closing the read-then-write race a service-side pre-check alone
+   * leaves open. Fails with CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT when any
+   * condition no longer holds.
    */
   create(newContract: NewContract): Promise<Result<Contract>>;
   /**
@@ -99,4 +120,12 @@ export interface ContractRepository {
    * true iff this call flipped the flag.
    */
   electRenewal(contractId: string, teamId: string): Promise<Result<boolean>>;
+
+  /**
+   * Withdraws a renewal intent by clearing `renewalElected`. Guarded on the row
+   * being unsettled, owned by `teamId` and actually elected, so a contract the
+   * settlement sweep has already renewed cannot be un-elected after the fact.
+   * Result<boolean>: true iff this call actually cleared the flag.
+   */
+  cancelRenewal(contractId: string, teamId: string): Promise<Result<boolean>>;
 }

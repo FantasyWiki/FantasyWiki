@@ -1,3 +1,9 @@
+---
+title: Local Development Setup
+type: development
+tags: [setup, env, msw, wrangler]
+---
+
 # Local Development Setup
 
 This document explains how to configure your local environment to run FantasyWiki
@@ -140,3 +146,8 @@ so those requests reach the real Wrangler backend. Everything else is mocked.
 | `401` on `/api/session` | `FRONTEND_URL` in `.dev.vars` still points to production | Check `.dev.vars` exists inside `backend/` and restart Wrangler |
 | Backend not reachable | Wrangler not running or wrong port | Run `npx wrangler dev` and check the port in the log |
 | Cookie not sent | Browser privacy settings blocking cookies | Use Chrome/Firefox, disable aggressive privacy extensions during dev |
+
+## Related
+
+- [Deploy Strategy & Branch Policy](../deployment/deploy-strategy.md)
+- [NPM Script Naming Convention](./npm-script-naming.md)

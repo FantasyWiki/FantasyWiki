@@ -1,3 +1,9 @@
+---
+title: What Are Model Entities
+type: domain
+tags: [model, entities, shared-packages]
+---
+
 ### Concept:
 - The `\model` folder acts as the isolated single source of truth for the structure of the data.
 
@@ -6,3 +12,8 @@ of the game without any dependencies on the backend framework or frontend UI.
 These entities remain completely separate from application-specific logic and represent the naked, fundamental state of the application.
 
 Crucially, models represent strict relational boundaries and normalized data. They avoid deep nesting and instead use simple ID references to connect aggregate roots (for example, a `Team` model merely holds a `leagueId`, rather than a full `League` object). The responsibility of expanding these relationships into nested structures is left entirely to the DTOs.
+
+## Related
+
+- [Shared DTO Package](./shared-dto-package.md)
+- [DTO Dressing Pattern](../architecture/dto-dressing-pattern.md)

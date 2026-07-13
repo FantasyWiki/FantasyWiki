@@ -1,3 +1,9 @@
+---
+title: "ADR 0004: Scoring Engine Platform"
+type: adr
+tags: [scoring, platform, gcp, decision]
+---
+
 # Daily scoring as a separate Kotlin/JVM batch service on Cloud Run Jobs
 
 **Decision.** The daily scoring engine is a **standalone Kotlin/JVM service** packaged as a container and run as a scheduled **GCP Cloud Run Job** (triggered by **Cloud Scheduler**). It reads contracts and writes scores/standings to **D1 via the REST API**, sources pageviews from the **per-article Wikimedia Analytics API**, resolves chemistry links through a **D1-backed cache**, and computes base points + chemistry + the weekly tournament once per day. It is autonomous from the Cloudflare backend, and it is the SPE **second target platform** (a JVM runtime distinct from the all-V8/JS frontend + backend).
@@ -73,7 +79,7 @@ Workload sits at **<1%** of every relevant quota, and storage is one system (D1)
 - **One storage system.** Folding the link cache and pageview history into D1 removes the separate object store an ephemeral-container design would otherwise need.
 - **Free** and effectively hard-cappable (killswitch); keyless CI via OIDC.
 - **Accepted cost:** no type-sharing with the TS DTOs — the engine re-declares the handful of D1 row shapes it touches as Kotlin data classes.
-- **Supersedes** the Requirements doc's §2/§4 daily-at-00:00 and global-tournament framing (see ADR 0001/0002, `docs/scoring-system.md`); `FantaWiki-Requirements.md` is reconciled to match.
+- **Supersedes** the Requirements doc's §2/§4 daily-at-00:00 and global-tournament framing (see ADR 0001/0002, `docs/domain/scoring-system.md`); `docs/domain/fantawiki-requirements.md` is reconciled to match.
 
 ## Sources
 
@@ -86,3 +92,8 @@ Workload sits at **<1%** of every relevant quota, and storage is one system (D1)
 7. Cloudflare D1 — Limits: https://developers.cloudflare.com/d1/platform/limits/
 8. Wikimedia — Analytics (AQS) pageviews API: https://doc.wikimedia.org/analytics-api/
 9. Wikimedia APIs — Authentication (OAuth 2.0 client credentials): https://www.mediawiki.org/wiki/Wikimedia_APIs/Authentication
+
+## Related
+
+- [Scoring & Economy System](../domain/scoring-system.md)
+- [Deploy Strategy & Branch Policy](../deployment/deploy-strategy.md)

@@ -7,14 +7,13 @@ import {
     FORMATIONS,
     CHEMISTRY_LINKS,
     ChemistryLevel,
-    CHEMISTRY_MULTIPLIER_BY_LEVEL,
     ChemistryLink,
     ChemistryLinksForSchema,
 } from "../model/enums";
 
 // Re-export domain types for consumers that import them from this file.
 export type { Schema, Position, PositionsForSchema, ChemistryLink, ChemistryLinksForSchema };
-export { CHEMISTRY_LINKS, CHEMISTRY_MULTIPLIER_BY_LEVEL, FORMATIONS, ChemistryLevel };
+export { CHEMISTRY_LINKS, FORMATIONS, ChemistryLevel };
 
 /**
  * Editable formation used while the user is composing or modifying a lineup.

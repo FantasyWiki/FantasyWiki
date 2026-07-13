@@ -1,3 +1,9 @@
+---
+title: Wikimedia Client Terminology & Hierarchy
+type: architecture
+tags: [wikimedia, external-apis, terminology]
+---
+
 # Wikimedia Client Terminology and Hierarchy
 
 This document defines terminology and hierarchy rules used when expanding the shared Wikimedia client.
@@ -39,3 +45,8 @@ When adding new functionality, follow this hierarchy:
 - Use verb-driven operation names (`get`, `list`, `search`, `resolve`) for public capability methods.
 - Use noun-driven namespace names for cohesive capability groups.
 - Keep internal helper names policy-oriented (`fetchJsonWithRetry`, `toDateParts`, `getDefaultCache`) instead of endpoint-specific wording.
+
+## Related
+
+- [Wikimedia Client Architecture](./wikimedia-client-architecture.md)
+- [Wikimedia Client Behavior Extension](./wikimedia-client-behavior-extension.md)

@@ -120,11 +120,16 @@ export const ChemistryLevel = {
 
 export type ChemistryLevel = typeof ChemistryLevel[keyof typeof ChemistryLevel];
 
-export const CHEMISTRY_MULTIPLIER_BY_LEVEL = {
-    excellent: 1.2,
-    good: 1.1,
-    weak: 1.05,
-    empty: 1.0,
+/**
+ * Additive flat points contributed by one Chemistry Link, summed over the
+ * schema topology. Chemistry is additive, never a multiplier — see
+ * docs/domain/chemistry-links.md and docs/domain/scoring-system.md §4.
+ */
+export const CHEMISTRY_POINTS_BY_LEVEL = {
+    excellent: 1.5,
+    good: 0.5,
+    weak: 0,
+    empty: 0,
 } as const satisfies Record<ChemistryLevel, number>;
 
 export type ChemistryLink<S extends Schema = Schema> = {

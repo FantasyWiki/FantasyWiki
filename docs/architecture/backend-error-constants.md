@@ -1,3 +1,9 @@
+---
+title: Backend Error Constants
+type: architecture
+tags: [backend, errors, result, conventions]
+---
+
 # Backend: typed error constants and guarded writes
 
 Services and repositories return `Result<T, string>` (`repositories/result.ts`).
@@ -126,3 +132,7 @@ Still free text, and fine as such: messages nobody branches on (e.g. the
 Wikimedia views-fetch failures in `services/contract.ts`). They reach the
 client as 500s. Give one a constant the moment any code needs to _decide_
 something from it.
+
+## Related
+
+- [Backend Architecture](./backend-architecture.md)

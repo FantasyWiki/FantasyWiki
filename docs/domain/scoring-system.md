@@ -1,6 +1,12 @@
+---
+title: Scoring & Economy System
+type: domain
+tags: [scoring, economy, pricing, contracts]
+---
+
 # FantasyWiki — Definitive Scoring & Economy System
 
-This document supersedes the scoring portions of `FantaWiki-Requirements.md` §2, §3, and §6.
+This document supersedes the scoring portions of `docs/domain/fantawiki-requirements.md` §2, §3, and §6.
 It was derived by stress-testing the original design against three principles and
 validating every number against real Wikipedia pageview data
 (en.wikipedia top-1000, snapshot 2026-06-07).
@@ -293,3 +299,12 @@ when they are picked back up:
   MEDIUM = 7 days, LONG = 14 days, locked.
 - Re-simulate §6.3's economy flow (passive/skilled-trader credit trajectories) under
   the new convex pricing formula — the old linear-formula figures are stale (ADR 0005).
+
+## Related
+
+- [Chemistry Links](./chemistry-links.md)
+- [FantaWiki Requirements (Game Design Document v5.5)](./fantawiki-requirements.md)
+- [ADR 0001: Base Scoring Model](../adr/0001-base-scoring-model.md)
+- [ADR 0002: Language Scale Factor](../adr/0002-language-scale-factor.md)
+- [ADR 0003: Closed Trading Economy](../adr/0003-closed-trading-economy.md)
+- [ADR 0005: Contract Pricing](../adr/0005-contract-pricing.md)

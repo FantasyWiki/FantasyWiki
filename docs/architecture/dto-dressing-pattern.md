@@ -1,3 +1,9 @@
+---
+title: DTO Dressing Pattern
+type: architecture
+tags: [dto, frontend, backend, serialization]
+---
+
 ### Concept:
 - Both Backend and Frontend independently wrap domain data into local DTOs to add internal functionality, state, or metadata.
 
@@ -16,3 +22,8 @@ DTO's own responsibility, exposed as the static factory `ContractDTO.fromRaw(raw
 `dto/contractDTO.ts`. Services (`frontend/src/services/api.ts`, `frontend/src/services/teamService.ts`)
 call this single factory instead of constructing `new ContractDTO(...)` themselves, so the
 string→Temporal conversion lives in exactly one place.
+
+## Related
+
+- [Shared DTO Package](../domain/shared-dto-package.md)
+- [What Are Model Entities](../domain/what-are-model-entities.md)

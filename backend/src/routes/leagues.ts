@@ -31,7 +31,7 @@ const leagues = new Hono<{ Bindings: Bindings }>();
 
 /**
  * The status every contract business failure maps to, per
- * docs/api-naming-rules.md: a missing resource is a 404, a broken purchase or
+ * docs/development/api-naming-rules.md: a missing resource is a 404, a broken purchase or
  * sale rule is a 400. Declaring it as a total Record over ContractError means
  * a new constant without a status fails to compile.
  */

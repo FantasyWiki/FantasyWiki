@@ -1,8 +1,14 @@
+---
+title: "ADR 0002: Language Scale Factor"
+type: adr
+tags: [scoring, language, decision]
+---
+
 # Per-language calibration via a single Language Scale Factor
 
 > **Update (2026-07-07):** extends this ADR from the original en/it pair to arbitrary
 > Wikipedia domains — pins the exact calibration formula and a domain-acceptance floor,
-> both left as open items in `docs/scoring-system.md` §9 until now. Not yet implemented
+> both left as open items in `docs/domain/scoring-system.md` §9 until now. Not yet implemented
 > in code (`model/pricing.ts`'s `LANGUAGE_SCALE` is still the hardcoded `{en: 1.0, it: 1.0}`
 > placeholder); see the tracking issue for the implementation plan.
 
@@ -38,3 +44,8 @@ A domain is only accepted (league creation allowed) if its top-list has **≥300
 ### Calibration architecture (locked 2026-07-07)
 
 `L` is computed and stored per domain, not derived inline per request — 500 rank-matched 30-day-average lookups per domain is too much work to run synchronously inside a single request/Worker invocation. League creation on an already-calibrated domain reads the stored value; a never-before-seen domain triggers calibration (siteinfo + top-500 fetch + median, en side cached/reused across all calibrations) which must complete and be persisted **before** the league is created — see the invariant above.
+
+## Related
+
+- [Scoring & Economy System](../domain/scoring-system.md)
+- [ADR 0001: Base Scoring Model](./0001-base-scoring-model.md)

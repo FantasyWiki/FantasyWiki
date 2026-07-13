@@ -1,3 +1,9 @@
+---
+title: Wikimedia Client Architecture
+type: architecture
+tags: [wikimedia, external-apis, composition-root]
+---
+
 # Wikimedia Client Architecture
 
 This document describes the internal architecture of the shared Wikimedia module at `external-apis/wikimedia/client.ts`.
@@ -53,7 +59,8 @@ The composition root enforces the policies that must stay consistent across capa
 Runtime-specific wrappers (frontend/backend) provide transport adapters and call the same shared client factory.  
 Runtime concerns remain outside the shared module so the capability behavior stays deterministic and reusable.
 
-## Related documentation
+## Related
 
-- For domain language and expansion hierarchy conventions, see `docs/wikimedia-client-terminology-hierarchy.md`.
-- For step-by-step behavior extension with a concrete example, see `docs/wikimedia-client-behavior-extension.md`.
+- [Wikimedia Client Terminology & Hierarchy](./wikimedia-client-terminology-hierarchy.md) — domain language and expansion hierarchy conventions.
+- [Wikimedia Client Behavior Extension](./wikimedia-client-behavior-extension.md) — step-by-step, with a concrete example.
+- [Backend Architecture](./backend-architecture.md) — where the client is consumed.

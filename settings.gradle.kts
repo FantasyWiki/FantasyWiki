@@ -4,6 +4,9 @@ plugins {
 }
 
 gitHooks {
+    preCommit {
+        tasks("ktlintCheck")
+    }
     commitMsg { conventionalCommits() }
     createHooks()
 }
@@ -12,3 +15,4 @@ rootProject.name = "FantasyWiki"
 
 include("frontend")
 include("backend")
+include("scoring-engine")

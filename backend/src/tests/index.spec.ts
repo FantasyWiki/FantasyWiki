@@ -1,3 +1,4 @@
+import { Temporal } from "@js-temporal/polyfill";
 import { describe, expect, it } from "vitest";
 import { sign } from "hono/jwt";
 import app from "../index";
@@ -81,5 +82,33 @@ describe("backend app", () => {
     await expect(response.json()).resolves.toEqual({
       error: "Missing OAuth GOOGLE_CLIENT_ID",
     });
+  });
+
+  /**
+   * The Cron Trigger is the only thing that starts the daily sweep in
+   * production, and it hands the Workflow the date the sweep resolves contracts
+   * as of — a wrong or missing `today` would settle the wrong day's contracts.
+   */
+  it("starts the settlement workflow with today's date on the cron trigger", async () => {
+    const created: unknown[] = [];
+    const env = {
+      ...makeEnv(),
+      CONTRACT_SETTLEMENT_WORKFLOW: {
+        create: async (options: unknown) => {
+          created.push(options);
+          return { id: "workflow-instance-1" };
+        },
+      },
+    };
+
+    await app.scheduled(
+      { cron: "0 5 * * *" } as ScheduledController,
+      env as never,
+      {} as ExecutionContext,
+    );
+
+    expect(created).toEqual([
+      { params: { today: Temporal.Now.plainDateISO().toString() } },
+    ]);
   });
 });

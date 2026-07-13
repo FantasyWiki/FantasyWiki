@@ -1,10 +1,20 @@
 import { env } from "cloudflare:workers";
 import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect, beforeEach } from "vitest";
-import { ContractService } from "../../services/contract";
+import { ContractService, CONTRACT_ERRORS } from "../../services/contract";
 import { NotificationService } from "../../services/notification";
 import { PlayerService } from "../../services/player";
 import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
+import { ContractRepositoryD1 } from "../../repositories/d1/contractRepositoryD1";
+import {
+  ContractRepository,
+  DueContract,
+} from "../../repositories/contractRepository";
+import { NotificationRepository } from "../../repositories/notificationRepository";
+import { TeamRepository } from "../../repositories/teamRepository";
+import { LeagueRepository } from "../../repositories/leagueRepository";
+import { PlayerRepository } from "../../repositories/playerRepository";
+import { success, failure } from "../../repositories/result";
 import { WikimediaClient } from "../../../../external-apis/wikimedia/client";
 import { STARTING_CREDITS } from "../../../../model/team";
 import {
@@ -58,6 +68,53 @@ function priceFor(averageViews30d: number, tierDays: number): number {
     normalizedViews(averageViews30d, resolveLanguageScale("en")),
     tierDays,
   );
+}
+
+/** Repositories whose only exercised read fails. */
+const failingTeamRepo = (error: string): TeamRepository =>
+  ({
+    getByPlayerAndLeague: async () => failure(error),
+  }) as unknown as TeamRepository;
+
+const failingLeagueRepo = (error: string): LeagueRepository =>
+  ({ getById: async () => failure(error) }) as unknown as LeagueRepository;
+
+const failingPlayerRepo = (error: string): PlayerRepository =>
+  ({ getById: async () => failure(error) }) as unknown as PlayerRepository;
+
+/** Records every notification the service attempts to write. */
+function recordingNotificationRepo(sink: string[]): NotificationRepository {
+  return {
+    create: async (notification: { message: string }) => {
+      sink.push(notification.message);
+      return success(undefined);
+    },
+  } as unknown as NotificationRepository;
+}
+
+/**
+ * The real D1 repository with individual methods swapped out, so a test can
+ * force one guarded write to fail — or to lose its race and change no rows —
+ * while every other read still goes to the database.
+ */
+function contractRepoOver(
+  db: D1Database,
+  overrides: Partial<ContractRepository>,
+): ContractRepository {
+  const real = new ContractRepositoryD1(db);
+  return {
+    getByTeamId: (...args) => real.getByTeamId(...args),
+    getById: (...args) => real.getById(...args),
+    getByLeagueId: (...args) => real.getByLeagueId(...args),
+    create: (...args) => real.create(...args),
+    settleSale: (...args) => real.settleSale(...args),
+    getDueForSettlement: (...args) => real.getDueForSettlement(...args),
+    settleExpiry: (...args) => real.settleExpiry(...args),
+    renew: (...args) => real.renew(...args),
+    electRenewal: (...args) => real.electRenewal(...args),
+    cancelRenewal: (...args) => real.cancelRenewal(...args),
+    ...overrides,
+  };
 }
 
 async function getDerivedCredits(
@@ -639,5 +696,526 @@ describe("ContractService.electRenewal Integration Tests", () => {
       ok: false,
       error: "Contract already settled",
     });
+  });
+
+  it("rejects electing a contract that does not exist", async () => {
+    const service = new ContractService(env.db);
+    const result = await service.electRenewal(playerId, leagueId, "no-such-id");
+
+    expect(result).toEqual({
+      ok: false,
+      error: CONTRACT_ERRORS.CONTRACT_NOT_FOUND,
+    });
+  });
+
+  it("rejects electing when the player has no team in the league", async () => {
+    const outsider = await playerService.createPlayer(
+      "electoutsider",
+      "electoutsider@example.com",
+      "account-elect-outsider-1",
+    );
+    expect(outsider.ok).toBe(true);
+    if (!outsider.ok) return;
+    await insertContractExpiringIn({
+      id: "contract-elect-noteam",
+      remainingDays: 1,
+    });
+
+    const service = new ContractService(env.db);
+    const result = await service.electRenewal(
+      outsider.value.id,
+      leagueId,
+      "contract-elect-noteam",
+    );
+
+    expect(result).toEqual({ ok: false, error: CONTRACT_ERRORS.NO_TEAM });
+  });
+
+  /**
+   * The election is a guarded write, so it can lose a race with the settlement
+   * sweep that ran between the read and the write. Zero rows changed is not
+   * "already elected" — the contract is simply no longer electable.
+   */
+  it("rejects the election when the guarded write finds no electable row", async () => {
+    await insertContractExpiringIn({
+      id: "contract-elect-race",
+      remainingDays: 1,
+    });
+    const contractRepo = contractRepoOver(env.db, {
+      electRenewal: async () => success(false),
+    });
+
+    const service = new ContractService(env.db, contractRepo);
+    const result = await service.electRenewal(
+      playerId,
+      leagueId,
+      "contract-elect-race",
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: CONTRACT_ERRORS.CONTRACT_NOT_FOUND,
+    });
+  });
+
+  it("propagates a failure to read the contract", async () => {
+    const contractRepo = contractRepoOver(env.db, {
+      getById: async () => failure("Error fetching contract: D1 unavailable"),
+    });
+
+    const service = new ContractService(env.db, contractRepo);
+    const result = await service.electRenewal(
+      playerId,
+      leagueId,
+      "contract-elect-anything",
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Error fetching contract: D1 unavailable",
+    });
+  });
+
+  it("propagates a failure from the guarded election write", async () => {
+    await insertContractExpiringIn({
+      id: "contract-elect-writefail",
+      remainingDays: 1,
+    });
+    const contractRepo = contractRepoOver(env.db, {
+      electRenewal: async () => failure("Error electing contract renewal"),
+    });
+
+    const service = new ContractService(env.db, contractRepo);
+    const result = await service.electRenewal(
+      playerId,
+      leagueId,
+      "contract-elect-writefail",
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Error electing contract renewal",
+    });
+  });
+
+  it("propagates a failure to read the team", async () => {
+    const service = new ContractService(
+      env.db,
+      undefined,
+      undefined,
+      failingTeamRepo("Error retrieving team"),
+    );
+
+    const result = await service.electRenewal(playerId, leagueId, "contract-x");
+
+    expect(result).toEqual({ ok: false, error: "Error retrieving team" });
+  });
+
+  it("propagates a failure to read the league", async () => {
+    const service = new ContractService(
+      env.db,
+      undefined,
+      failingLeagueRepo("Error retrieving league"),
+    );
+
+    const result = await service.electRenewal(playerId, leagueId, "contract-x");
+
+    expect(result).toEqual({ ok: false, error: "Error retrieving league" });
+  });
+
+  /**
+   * The player name is cosmetic on the returned DTO — the election itself has
+   * already been written — so a failed player lookup must not fail the call.
+   */
+  it("still elects when the player lookup fails, leaving the name blank", async () => {
+    await insertContractExpiringIn({
+      id: "contract-elect-noplayer",
+      remainingDays: 1,
+    });
+
+    const service = new ContractService(
+      env.db,
+      undefined,
+      undefined,
+      undefined,
+      failingPlayerRepo("Error retrieving player"),
+    );
+    const result = await service.electRenewal(
+      playerId,
+      leagueId,
+      "contract-elect-noplayer",
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.renewalElected).toBe(true);
+    expect(result.value.team.player.name).toBe("");
+  });
+});
+
+/**
+ * Renewal guards that need a real team/contract in D1, plus the failure modes
+ * of the sweep's own writes. `settleDueContract` throws rather than returns on
+ * a write failure — that is the contract with the Workflow, whose step retries
+ * on a thrown error and would otherwise mark a failed settlement as done.
+ */
+describe("ContractService cancelRenewal guards and settlement failure modes", () => {
+  let playerService: PlayerService;
+  let leagueId: string;
+  let playerId: string;
+  let teamId: string;
+
+  function dueContract(overrides: Partial<DueContract> = {}): DueContract {
+    const expireDate = Temporal.Now.plainDateISO();
+    return {
+      id: "contract-due-1",
+      teamId,
+      articleId: "Bitcoin",
+      purchaseDate: expireDate.subtract({ days: 7 }),
+      expireDate,
+      purchasePrice: 100,
+      settled: false,
+      renewalCount: 0,
+      renewalElected: false,
+      domain: "en",
+      teamCredits: STARTING_CREDITS,
+      ...overrides,
+    };
+  }
+
+  beforeEach(async () => {
+    playerService = new PlayerService(env.db);
+
+    const playerResult = await playerService.createPlayer(
+      "guardtester",
+      "guardtester@example.com",
+      "account-guard-1",
+    );
+    expect(playerResult.ok).toBe(true);
+    if (!playerResult.ok) throw new Error("setup failed: player");
+    playerId = playerResult.value.id;
+
+    leagueId = "league-guard-1";
+    await env.db
+      .prepare(
+        `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        leagueId,
+        "Guard League",
+        playerId,
+        new Date().toISOString(),
+        new Date().toISOString(),
+        "en",
+        "🏆",
+      )
+      .run();
+
+    teamId = "team-guard-1";
+    await insertTeam(env.db, {
+      id: teamId,
+      name: "Guard FC",
+      playerId,
+      leagueId,
+    });
+  });
+
+  async function insertElectedContract(id: string): Promise<void> {
+    const today = Temporal.Now.plainDateISO();
+    await env.db
+      .prepare(
+        `INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice, renewalElected)
+         VALUES (?, ?, ?, ?, ?, ?, 1)`,
+      )
+      .bind(
+        id,
+        teamId,
+        "Bitcoin",
+        today.subtract({ days: 7 }).toString(),
+        today.add({ days: 1 }).toString(),
+        100,
+      )
+      .run();
+  }
+
+  it("rejects cancelling a contract that does not exist", async () => {
+    const result = await new ContractService(env.db).cancelRenewal(
+      playerId,
+      leagueId,
+      "no-such-id",
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: CONTRACT_ERRORS.CONTRACT_NOT_FOUND,
+    });
+  });
+
+  it("rejects cancelling when the player has no team in the league", async () => {
+    const outsider = await playerService.createPlayer(
+      "guardoutsider",
+      "guardoutsider@example.com",
+      "account-guard-outsider-1",
+    );
+    expect(outsider.ok).toBe(true);
+    if (!outsider.ok) return;
+    await insertElectedContract("contract-guard-noteam");
+
+    const result = await new ContractService(env.db).cancelRenewal(
+      outsider.value.id,
+      leagueId,
+      "contract-guard-noteam",
+    );
+
+    expect(result).toEqual({ ok: false, error: CONTRACT_ERRORS.NO_TEAM });
+  });
+
+  it("rejects cancelling a contract owned by another team", async () => {
+    const rival = await playerService.createPlayer(
+      "guardrival",
+      "guardrival@example.com",
+      "account-guard-rival-1",
+    );
+    expect(rival.ok).toBe(true);
+    if (!rival.ok) return;
+    const rivalTeamId = "team-guard-rival-1";
+    await insertTeam(env.db, {
+      id: rivalTeamId,
+      name: "Rival Guard FC",
+      playerId: rival.value.id,
+      leagueId,
+    });
+    const today = Temporal.Now.plainDateISO();
+    await env.db
+      .prepare(
+        `INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice, renewalElected)
+         VALUES (?, ?, ?, ?, ?, ?, 1)`,
+      )
+      .bind(
+        "contract-guard-rival",
+        rivalTeamId,
+        "Bitcoin",
+        today.subtract({ days: 7 }).toString(),
+        today.add({ days: 1 }).toString(),
+        100,
+      )
+      .run();
+
+    const result = await new ContractService(env.db).cancelRenewal(
+      playerId,
+      leagueId,
+      "contract-guard-rival",
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: CONTRACT_ERRORS.NOT_CONTRACT_OWNER,
+    });
+  });
+
+  /**
+   * The row was elected when the service read it but is not any more: the sweep
+   * renewed it in between, clearing the flag. The withdrawal has to lose that
+   * race rather than silently un-electing an already-renewed contract.
+   */
+  it("rejects the withdrawal when the sweep renewed the contract first", async () => {
+    await insertElectedContract("contract-guard-race");
+    const contractRepo = contractRepoOver(env.db, {
+      cancelRenewal: async () => success(false),
+    });
+
+    const result = await new ContractService(
+      env.db,
+      contractRepo,
+    ).cancelRenewal(playerId, leagueId, "contract-guard-race");
+
+    expect(result).toEqual({
+      ok: false,
+      error: CONTRACT_ERRORS.RENEWAL_NOT_ELECTED,
+    });
+  });
+
+  it("propagates a failure from the guarded withdrawal write", async () => {
+    await insertElectedContract("contract-guard-writefail");
+    const contractRepo = contractRepoOver(env.db, {
+      cancelRenewal: async () => failure("Error cancelling contract renewal"),
+    });
+
+    const result = await new ContractService(
+      env.db,
+      contractRepo,
+    ).cancelRenewal(playerId, leagueId, "contract-guard-writefail");
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Error cancelling contract renewal",
+    });
+  });
+
+  it("propagates a failure to read the team", async () => {
+    const service = new ContractService(
+      env.db,
+      undefined,
+      undefined,
+      failingTeamRepo("Error retrieving team"),
+    );
+
+    const result = await service.cancelRenewal(playerId, leagueId, "any");
+
+    expect(result).toEqual({ ok: false, error: "Error retrieving team" });
+  });
+
+  it("propagates a failure to read the league", async () => {
+    const service = new ContractService(
+      env.db,
+      undefined,
+      failingLeagueRepo("Error retrieving league"),
+    );
+
+    const result = await service.cancelRenewal(playerId, leagueId, "any");
+
+    expect(result).toEqual({ ok: false, error: "Error retrieving league" });
+  });
+
+  it("propagates a failure to read the contract", async () => {
+    const contractRepo = contractRepoOver(env.db, {
+      getById: async () => failure("Error fetching contract"),
+    });
+
+    const result = await new ContractService(
+      env.db,
+      contractRepo,
+    ).cancelRenewal(playerId, leagueId, "any");
+
+    expect(result).toEqual({ ok: false, error: "Error fetching contract" });
+  });
+
+  /**
+   * A re-run of the sweep over a contract a previous run already resolved must
+   * be silent: the guarded write changes no rows, and notifying again would
+   * tell the player twice that the same contract was settled or renewed.
+   */
+  it("does not notify when the settlement write finds the contract already settled", async () => {
+    const messages: string[] = [];
+    const contractRepo = contractRepoOver(env.db, {
+      settleExpiry: async () => success(false),
+    });
+    const service = new ContractService(
+      env.db,
+      contractRepo,
+      undefined,
+      undefined,
+      undefined,
+      wikimediaWithAvg(120000),
+      recordingNotificationRepo(messages),
+    );
+
+    await service.settleDueContract(dueContract());
+
+    expect(messages).toEqual([]);
+  });
+
+  it("does not notify when the renewal write finds the contract already renewed", async () => {
+    const messages: string[] = [];
+    const contractRepo = contractRepoOver(env.db, {
+      renew: async () => success(false),
+    });
+    const service = new ContractService(
+      env.db,
+      contractRepo,
+      undefined,
+      undefined,
+      undefined,
+      wikimediaWithAvg(9000),
+      recordingNotificationRepo(messages),
+    );
+
+    await service.settleDueContract(dueContract({ renewalElected: true }));
+
+    expect(messages).toEqual([]);
+  });
+
+  it("throws when the expiry settlement write fails, so the sweep step retries", async () => {
+    const contractRepo = contractRepoOver(env.db, {
+      settleExpiry: async () => failure("Error settling contract at expiry"),
+    });
+    const service = new ContractService(
+      env.db,
+      contractRepo,
+      undefined,
+      undefined,
+      undefined,
+      wikimediaWithAvg(120000),
+    );
+
+    await expect(service.settleDueContract(dueContract())).rejects.toThrow(
+      "Error settling contract at expiry",
+    );
+  });
+
+  it("throws when the renewal write fails, so the sweep step retries", async () => {
+    const contractRepo = contractRepoOver(env.db, {
+      renew: async () => failure("Error renewing contract"),
+    });
+    const service = new ContractService(
+      env.db,
+      contractRepo,
+      undefined,
+      undefined,
+      undefined,
+      wikimediaWithAvg(9000),
+    );
+
+    await expect(
+      service.settleDueContract(dueContract({ renewalElected: true })),
+    ).rejects.toThrow("Error renewing contract");
+  });
+
+  /**
+   * The money write has already landed by the time the notification is written,
+   * and the settlement is idempotent — so a failed notification must not throw
+   * the step into a retry that would re-do nothing.
+   */
+  it("settles even when the notification cannot be written", async () => {
+    const today = Temporal.Now.plainDateISO();
+    await env.db
+      .prepare(
+        `INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        "contract-guard-nonotify",
+        teamId,
+        "Bitcoin",
+        today.subtract({ days: 7 }).toString(),
+        today.toString(),
+        100,
+      )
+      .run();
+
+    const notificationRepo = {
+      create: async () => failure("Error creating notification"),
+    } as unknown as NotificationRepository;
+    const service = new ContractService(
+      env.db,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      wikimediaWithAvg(120000),
+      notificationRepo,
+    );
+
+    await expect(
+      service.settleDueContract(dueContract({ id: "contract-guard-nonotify" })),
+    ).resolves.toBeUndefined();
+
+    const row = await env.db
+      .prepare("SELECT settled, salePayout FROM contracts WHERE id = ?")
+      .bind("contract-guard-nonotify")
+      .first<{ settled: number; salePayout: number }>();
+    expect(row?.settled).toBe(1);
+    expect(row?.salePayout).toBe(priceFor(120000, 7));
   });
 });

@@ -1565,6 +1565,92 @@ describe("ContractService.buyContract conflict classification", () => {
     });
     expect(leagueReads).toBe(2);
   });
+
+  /**
+   * The re-read exists only to name which rule the concurrent purchase broke.
+   * If it cannot run, the purchase still has to be reported as rejected — the
+   * INSERT did not apply — rather than surfacing a database error as if the
+   * player had done something wrong.
+   */
+  it("still reports a conflict when the classifying re-read fails", async () => {
+    let leagueReads = 0;
+    const unimplemented = () => {
+      throw new Error("not implemented in stub");
+    };
+    const contractRepo = {
+      getByLeagueId: async () => {
+        leagueReads++;
+        return leagueReads === 1
+          ? success([])
+          : failure("Error fetching league contracts: D1 unavailable");
+      },
+      create: async () => failure(CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT),
+      getByTeamId: unimplemented,
+      getById: unimplemented,
+      settleSale: unimplemented,
+    } as unknown as ContractRepository;
+
+    const playerService = new PlayerService(env.db);
+    const playerResult = await playerService.createPlayer(
+      "classifybuyer",
+      "classifybuyer@example.com",
+      "account-classify-1",
+    );
+    expect(playerResult.ok).toBe(true);
+    if (!playerResult.ok) return;
+
+    const leagueId = "league-classify-1";
+    await env.db
+      .prepare(
+        `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        leagueId,
+        "Classify League",
+        playerResult.value.id,
+        new Date().toISOString(),
+        new Date().toISOString(),
+        "en",
+        "🏆",
+      )
+      .run();
+    await insertTeam(env.db, {
+      id: "team-classify-1",
+      name: "Classify FC",
+      playerId: playerResult.value.id,
+      leagueId,
+    });
+
+    const service = new ContractService(
+      env.db,
+      contractRepo,
+      undefined,
+      undefined,
+      undefined,
+      wikimediaClientWithArticleViews(async () => ({
+        latestDayViews: undefined,
+        averageViews30d: 9000,
+        weekViews: undefined,
+        previousWeekViews: undefined,
+        monthViews: undefined,
+        yearViews: undefined,
+      })),
+    );
+
+    const result = await service.buyContract(
+      playerResult.value.id,
+      leagueId,
+      "Bitcoin",
+      "MEDIUM",
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT,
+    });
+    expect(leagueReads).toBe(2);
+  });
 });
 
 /**

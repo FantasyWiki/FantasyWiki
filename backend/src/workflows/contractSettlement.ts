@@ -82,12 +82,22 @@ export class ContractSettlementWorkflow extends WorkflowEntrypoint<
   Env,
   ContractSettlementParams
 > {
+  /**
+   * The Workflow is constructed by the runtime, so its dependencies cannot come
+   * in through the constructor the way every service's do. This factory is the
+   * seam instead: tests override it to settle against a stubbed Wikimedia
+   * client rather than the live API.
+   */
+  protected createService(): ContractService {
+    return new ContractService(this.env.db);
+  }
+
   async run(
     event: WorkflowEvent<ContractSettlementParams>,
     step: WorkflowStep,
   ): Promise<void> {
     const today = Temporal.PlainDate.from(event.payload.today);
-    const service = new ContractService(this.env.db);
+    const service = this.createService();
 
     const due = await step.do("fetch-due", async () => {
       const result = await service.getDueForSettlement(today);

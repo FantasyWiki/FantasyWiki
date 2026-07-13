@@ -1,6 +1,11 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect } from "vitest";
-import { LineupService, LineupServiceDeps } from "../services/lineup";
+import {
+  LineupService,
+  LineupServiceDeps,
+  LINEUP_ERRORS,
+  parseLineupPayload,
+} from "../services/lineup";
 import { LineupRepository } from "../repositories/lineupRepository";
 import { TeamRepository } from "../repositories/teamRepository";
 import { ContractRepository } from "../repositories/contractRepository";
@@ -397,5 +402,99 @@ describe("LineupService (unit)", () => {
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error).toContain("No team found");
     });
+  });
+});
+
+/**
+ * The request body reaching saveLineup is untrusted. These guard the invariants
+ * persistence depends on — an unknown schema would make every later read fail,
+ * and a position outside the schema would be written to a slot that cannot be
+ * rendered.
+ */
+describe("parseLineupPayload", () => {
+  const validFormation = {
+    date: "2026-07-13",
+    schema: "4-3-3",
+    formation: { LW: { id: "contract-1" }, ST: null },
+  };
+
+  it("accepts a well-formed payload", () => {
+    const body = { formation: validFormation, bench: [] };
+
+    expect(parseLineupPayload(body)).toEqual({ ok: true, value: body });
+  });
+
+  it.each([
+    ["not an object", null],
+    ["a string", "lineup"],
+  ])("rejects a body that is %s", (_label, body) => {
+    expect(parseLineupPayload(body)).toEqual({
+      ok: false,
+      error: LINEUP_ERRORS.INVALID_PAYLOAD,
+    });
+  });
+
+  it("rejects a body whose bench is not an array", () => {
+    expect(
+      parseLineupPayload({ formation: validFormation, bench: "none" }),
+    ).toEqual({ ok: false, error: LINEUP_ERRORS.INVALID_PAYLOAD });
+  });
+
+  it("rejects an unknown formation schema", () => {
+    expect(
+      parseLineupPayload({
+        formation: { ...validFormation, schema: "9-0-1" },
+        bench: [],
+      }),
+    ).toEqual({ ok: false, error: LINEUP_ERRORS.UNKNOWN_SCHEMA });
+  });
+
+  it("rejects a formation with no date", () => {
+    const noDate = {
+      schema: validFormation.schema,
+      formation: validFormation.formation,
+    };
+
+    expect(parseLineupPayload({ formation: noDate, bench: [] })).toEqual({
+      ok: false,
+      error: LINEUP_ERRORS.INVALID_PAYLOAD,
+    });
+  });
+
+  it("rejects a formation whose positions are not an object", () => {
+    expect(
+      parseLineupPayload({
+        formation: { ...validFormation, formation: null },
+        bench: [],
+      }),
+    ).toEqual({ ok: false, error: LINEUP_ERRORS.INVALID_PAYLOAD });
+  });
+
+  it("rejects a position that does not belong to the schema", () => {
+    // "LST" is a 4-4-2 slot, not a 4-3-3 one.
+    expect(
+      parseLineupPayload({
+        formation: { ...validFormation, formation: { LST: null } },
+        bench: [],
+      }),
+    ).toEqual({ ok: false, error: LINEUP_ERRORS.INVALID_PAYLOAD });
+  });
+
+  it("rejects an occupied position that does not reference a contract id", () => {
+    expect(
+      parseLineupPayload({
+        formation: { ...validFormation, formation: { LW: { id: 42 } } },
+        bench: [],
+      }),
+    ).toEqual({ ok: false, error: LINEUP_ERRORS.INVALID_PAYLOAD });
+  });
+
+  it("rejects a position holding a non-object", () => {
+    expect(
+      parseLineupPayload({
+        formation: { ...validFormation, formation: { LW: "contract-1" } },
+        bench: [],
+      }),
+    ).toEqual({ ok: false, error: LINEUP_ERRORS.INVALID_PAYLOAD });
   });
 });

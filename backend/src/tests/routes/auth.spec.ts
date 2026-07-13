@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveFrontendUrl } from "../routes/auth";
+import { resolveFrontendUrl } from "../../routes/auth";
 
 describe("resolveFrontendUrl", () => {
   it("keeps explicit https URLs", () => {

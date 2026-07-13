@@ -1,7 +1,7 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { describe, expect, it } from "vitest";
 import { sign } from "hono/jwt";
-import app from "../index";
+import app from "../../index";
 
 type TestBindings = {
   GOOGLE_CLIENT_ID: string;

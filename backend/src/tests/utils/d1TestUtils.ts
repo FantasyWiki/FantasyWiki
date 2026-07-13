@@ -33,3 +33,46 @@ export async function insertTeam(
     .bind(opts.id, opts.name, opts.playerId, opts.leagueId)
     .run();
 }
+
+/** Inserts a lineup row (`formation` stored as a position->contractId JSON map). */
+export async function insertLineup(
+  db: D1Database,
+  teamId: string,
+  schema: string,
+  formation: Record<string, string>,
+): Promise<void> {
+  await db
+    .prepare(
+      "INSERT INTO lineups (teamId, schema, formation, updatedAt) VALUES (?, ?, ?, ?)",
+    )
+    .bind(teamId, schema, JSON.stringify(formation), new Date().toISOString())
+    .run();
+}
+
+/** Inserts a contract row for test setup (fixed price; `settled` defaults to 0). */
+export async function insertContract(
+  db: D1Database,
+  opts: {
+    id: string;
+    teamId: string;
+    articleId: string;
+    purchaseDate: string;
+    expireDate: string;
+    settled?: number;
+  },
+): Promise<void> {
+  await db
+    .prepare(
+      "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice, settled) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(
+      opts.id,
+      opts.teamId,
+      opts.articleId,
+      opts.purchaseDate,
+      opts.expireDate,
+      10,
+      opts.settled ?? 0,
+    )
+    .run();
+}

@@ -127,7 +127,15 @@ The page shows three panels:
 
 The main panel shows the graphical formation of the team as a 4-3-3 with a goalkeeper. Links are shown between close players in formation (see FUT 2020 as reference).
 
-The line between articles A and B carries a chemistry level (and multiplier):
+The line between articles A and B carries a chemistry level.
+
+> **Superseded — canonical: `docs/scoring-system.md` §4, `CONTEXT.md` "Chemistry
+> Level", ADR 0001.** Chemistry contributes **additive flat points**, not a
+> percentage multiplier: **Excellent** (mutual link) **+1.5**, **Good** (one-way
+> link) **+0.5**, **Weak** and **Empty** **0**, summed to a team total. The
+> percentage multipliers below (+20%/+10%/+5%) are historical and retained only for
+> context; the color mapping (green/yellow/orange/gray) still drives the UI.
+
 - **Excellent** (green): +20%
 - **Good** (yellow): +10%
 - **Weak** (orange): +5%

@@ -19,9 +19,17 @@ topology per schema (4-3-3, 4-4-2, etc.) compile-time checked:
 
 `dto/formationDTO.ts` defines:
 
-- `ChemistryLevel`: `excellent | good | weak | empty`
-- `CHEMISTRY_MULTIPLIER_BY_LEVEL` for score multipliers
+- `ChemistryLevel`: `excellent | good | weak | empty` — drives UI color and the
+  article's **scoring** contribution.
 - `ChemistryLink`: `{ from, to, level }`
+
+> **Scoring is additive, not a multiplier.** The canonical daily-score contribution
+> of a Chemistry Link is **flat additive points** — `+1.5` for a mutual Wikipedia
+> link (Excellent), `+0.5` for a one-way link (Good), `0` for Weak/Empty — summed to
+> a team total (canonical: `docs/scoring-system.md` §4, `CONTEXT.md` "Chemistry
+> Level", ADR 0001). The `CHEMISTRY_MULTIPLIER_BY_LEVEL` constant in `model/enums.ts`
+> is a **legacy/display-only** artifact and is **not** used for scoring; do not wire
+> it into the scoring engine (see `docs/plan-scoring-engine.md` §3, discrepancy 1).
 - `createChemistryLinks(schema)` which expands `CHEMISTRY_LINKS[schema]` into
   a list of `ChemistryLink` objects with default `level: "empty"`.
 

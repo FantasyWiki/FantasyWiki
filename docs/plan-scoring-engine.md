@@ -273,16 +273,37 @@ Bearer <token>` against `c.env.SCORING_INGEST_SECRET`).
   articles). ADR 0004's D1-backed cache is a later optimization and, under A′, would
   live behind a backend endpoint (not in the engine).
 
-### Component 3 — GitHub Actions workflow
+### Component 3 — GitHub Actions workflow (two environments)
+
+The repo deploys two backends (`docs/deploy-strategy.md`): `master` → Worker
+`backend` + D1 `db` (production); `dev` → Worker `backend-preview` + D1 `db-preview`
+(QA). The `/internal` endpoint ships to **both** automatically via the existing
+branch deploys — no extra work. Under A′, the `(BACKEND_URL, SCORING_INGEST_SECRET)`
+pair fully determines which D1 is written, so scoring QA can never touch production.
+
+**Key GitHub constraint:** `schedule:` triggers run **only from the default branch
+(master)**. So the nightly job always runs *master's* engine code and must itself fan
+out to both backends — the engine is **not** per-branch deployed the way the Worker
+is. A matrix over `[production, qa]` handles this; each leg uses **GitHub
+Environments** to scope its own URL + secret (they must differ — a leaked QA secret
+must never write production; the `production` environment can also carry protection
+rules).
 
 `.github/workflows/scoring.yml`:
 
 ```yaml
 on:
-  schedule: [{ cron: "0 5 * * *" }]   # ~2h after AQS publishes day D
-  workflow_dispatch: { inputs: { date: { required: false } } }  # manual backfill
+  schedule: [{ cron: "0 5 * * *" }]   # ~2h after AQS publishes day D; runs from master only
+  workflow_dispatch:                  # manual backfill / feature-branch engine testing
+    inputs:
+      environment: { type: choice, options: [both, production, qa], default: both }
+      date: { required: false }
 jobs:
   score:
+    strategy:
+      matrix:
+        target: [production, qa]      # (manual runs narrow this via the input)
+    environment: ${{ matrix.target }}  # scopes per-env secrets/vars
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -290,14 +311,23 @@ jobs:
       - uses: actions/setup-java@v4
       - run: ./gradlew :scoring-engine:run --args="..."
         env:
-          BACKEND_URL: ${{ secrets.SCORING_BACKEND_URL }}
-          SCORING_INGEST_SECRET: ${{ secrets.SCORING_INGEST_SECRET }}
+          BACKEND_URL: ${{ vars.SCORING_BACKEND_URL }}                # per-environment
+          SCORING_INGEST_SECRET: ${{ secrets.SCORING_INGEST_SECRET }} # per-environment
           WIKIMEDIA_USER_AGENT: ${{ secrets.WIKIMEDIA_UA }}
 ```
 
+- **Nightly** scores both environments (QA benefits from realistic daily-scored data
+  for testing the read UI); each matrix leg writes only its own D1.
+- **Engine changes on a feature branch** are tested via `workflow_dispatch` (manual
+  dispatch runs from any branch) targeting **qa** only — never production.
 - Cron jitter (GH can delay 10–30 min) is absorbed by the ~2h publication buffer.
 - Wikimedia OAuth (2000 req/min) is optional headroom; UA-compliant unauth (200/min)
-  covers friends-scale. Secrets live in GH repo secrets.
+  covers friends-scale. Fetch volume ~doubles across two envs (different teams/
+  articles); trivial at this scale — collapse the matrix into one job to share the
+  per-article view cache only if it ever matters.
+- Config: set `SCORING_INGEST_SECRET` (secret) + `SCORING_BACKEND_URL` (var) in **both**
+  the backend Worker envs (`wrangler.jsonc` per-env) and the matching GitHub
+  Environments (`production`, `qa`).
 
 ### Testing
 

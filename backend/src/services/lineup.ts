@@ -49,11 +49,7 @@ export class LineupService {
   private leagueRepository: LeagueRepository;
   private playerRepository: PlayerRepository;
 
-  constructor(depsOrDb: LineupServiceDeps | D1Database) {
-    const deps =
-      "lineupRepository" in depsOrDb
-        ? depsOrDb
-        : LineupService.d1Deps(depsOrDb as D1Database);
+  constructor(deps: LineupServiceDeps) {
     this.lineupRepository = deps.lineupRepository;
     this.teamRepository = deps.teamRepository;
     this.contractRepository = deps.contractRepository;
@@ -61,14 +57,15 @@ export class LineupService {
     this.playerRepository = deps.playerRepository;
   }
 
-  private static d1Deps(db: D1Database): LineupServiceDeps {
-    return {
+  /** Build a D1-backed instance — the production/route construction path. */
+  static fromDb(db: D1Database): LineupService {
+    return new LineupService({
       lineupRepository: new LineupRepositoryD1(db),
       teamRepository: new TeamRepositoryD1(db),
       contractRepository: new ContractRepositoryD1(db),
       leagueRepository: new LeagueRepositoryD1(db),
       playerRepository: new PlayerRepositoryD1(db),
-    };
+    });
   }
 
   async getLineup(

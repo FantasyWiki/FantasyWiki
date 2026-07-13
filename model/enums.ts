@@ -116,6 +116,14 @@ export const ChemistryLevel = {
 
 export type ChemistryLevel = typeof ChemistryLevel[keyof typeof ChemistryLevel];
 
+/**
+ * @deprecated LEGACY / DISPLAY-ONLY — NOT the scoring model. Canonical daily
+ * scoring treats chemistry as **additive flat points** (+1.5 mutual / +0.5
+ * one-way), never a multiplier (docs/scoring-system.md §4, CONTEXT.md, ADR 0001,
+ * docs/plan-scoring-engine.md §3 discrepancy 1). Do NOT feed these multipliers
+ * into any scoring path (backend or the Kotlin scoring engine). Retained only
+ * because it is still re-exported; safe to delete once no importer remains.
+ */
 export const CHEMISTRY_MULTIPLIER_BY_LEVEL = {
     excellent: 1.2,
     good: 1.1,

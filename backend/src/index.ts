@@ -6,6 +6,7 @@ import session from "./routes/session";
 import leagues from "./routes/leagues";
 import notifications from "./routes/notifications";
 import player from "./routes/player";
+import internal from "./routes/internal";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -15,6 +16,7 @@ type Bindings = {
   GOOGLE_CLIENT_SECRET: string;
   JWT_SECRET: string;
   FRONTEND_URL: string;
+  SCORING_INGEST_SECRET: string;
 };
 
 app.use(
@@ -34,6 +36,10 @@ app.get("/", (c) => {
 
 // Mount auth routes
 app.route("/auth", auth);
+
+// Internal routes for the scoring engine — service-token auth (not user JWT),
+// so mounted outside the /api/* Google-JWT guard (docs/plan-scoring-engine.md §6).
+app.route("/internal", internal);
 
 // Protected routes - apply JWT middleware
 app.use("/api/*", async (c, next) => {

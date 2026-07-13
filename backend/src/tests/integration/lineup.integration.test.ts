@@ -12,7 +12,7 @@ describe("LineupService Integration Tests", () => {
   let teamId: string;
 
   beforeEach(async () => {
-    lineupService = new LineupService(env.db);
+    lineupService = LineupService.fromDb(env.db);
     playerService = new PlayerService(env.db);
 
     const playerResult = await playerService.createPlayer(

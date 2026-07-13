@@ -274,6 +274,37 @@ export const handlers = [
     }
   ),
 
+  http.delete(
+    "*/api/leagues/:leagueId/my-contracts/:contractId/renew",
+    ({ params }) => {
+      const team = getMyTeam(params.leagueId as string);
+      if (!team)
+        return HttpResponse.json(
+          { error: "No team found for this league" },
+          { status: 404 }
+        );
+      const contract = contracts.find((c) => c.id === params.contractId);
+      if (!contract)
+        return HttpResponse.json(
+          { error: "Contract not found" },
+          { status: 404 }
+        );
+      if (contract.team.id !== team.id)
+        return HttpResponse.json(
+          { error: "You do not own this contract" },
+          { status: 400 }
+        );
+      if (!contract.renewalElected)
+        return HttpResponse.json(
+          { error: "No renewal is elected for this contract" },
+          { status: 400 }
+        );
+      // Withdrawing the intent: the contract goes back to settling at expiry.
+      contract.renewalElected = false;
+      return HttpResponse.json(contract);
+    }
+  ),
+
   http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {
     const league = leagues.find((l) => l.id === params.leagueId);
     if (!league) return HttpResponse.json([]);

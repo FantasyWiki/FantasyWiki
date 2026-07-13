@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import { Temporal } from "@js-temporal/polyfill";
 import { createPinia, setActivePinia } from "pinia";
-import { ref } from "vue";
+import { defineComponent, ref } from "vue";
 import ArticleDetail from "@/components/ArticleDetail.vue";
 import { ContractDTO } from "../../../../dto/contractDTO";
 import { useLeagueStore } from "@/stores/league";
@@ -138,8 +138,11 @@ function makeContractExpiringInHours(
   );
 }
 
+/** Matches the renew label ("Renew · {price} cr") without also matching "Cancel Renewal". */
 function findRenewButton(wrapper: ReturnType<typeof mountWithStores>) {
-  return wrapper.findAll("ion-button").find((b) => b.text().includes("Renew"));
+  return wrapper
+    .findAll("ion-button")
+    .find((b) => b.text().includes("Renew ·"));
 }
 
 /** ion-button reflects `disabled` as a DOM property, not an attribute. */
@@ -155,6 +158,9 @@ interface MountOptions {
   currentTeam?: TeamDTO | null;
   isTeamLoading?: boolean;
   teamError?: string | null;
+  /** Host-supplied actions. Omitted by default, as most hosts cannot perform them. */
+  onSwap?: (contract: ContractDTO) => void;
+  onRequestTrade?: (contractId: string) => void;
 }
 
 function mountWithStores(
@@ -175,6 +181,8 @@ function mountWithStores(
       article,
       contract,
       isOpen: true,
+      onSwap: options.onSwap,
+      onRequestTrade: options.onRequestTrade,
     },
     global: {
       plugins: [pinia],
@@ -183,14 +191,14 @@ function mountWithStores(
 }
 
 describe("ArticleDetail.vue", () => {
-  it("shows renew, swap and sell actions for a viewer-owned contract", () => {
+  // This contract has 6 days left, so renewal is not yet available — only sell is.
+  it("shows the sell action for a viewer-owned contract", () => {
     const wrapper = mountWithStores(makeContract(viewerTeam), {
       currentTeam: viewerTeam,
     });
 
-    expect(wrapper.text()).toContain("Renew");
-    expect(wrapper.text()).toContain("Swap Article");
     expect(wrapper.text()).toContain("Sell Contract");
+    expect(findRenewButton(wrapper)).toBeUndefined();
     expect(wrapper.text()).not.toContain("Request Trade");
     expect(wrapper.text()).not.toContain("Buy");
     expect(wrapper.text()).toContain("Availability");
@@ -201,16 +209,77 @@ describe("ArticleDetail.vue", () => {
     );
   });
 
-  it("disables the renew action outside the final-24h window", async () => {
+  // Swap and request-trade are host-specific: swap puts the *team page* into
+  // swap mode and nothing else can honour it. Rendering them unconditionally is
+  // what produced buttons that did nothing on three of the four hosts, so they
+  // now appear only where the host passed a handler.
+  it("hides swap unless the host can perform it", () => {
+    const withoutHandler = mountWithStores(makeContract(viewerTeam), {
+      currentTeam: viewerTeam,
+    });
+    expect(withoutHandler.text()).not.toContain("Swap Article");
+
+    const onSwap = vi.fn();
+    const withHandler = mountWithStores(makeContract(viewerTeam), {
+      currentTeam: viewerTeam,
+      onSwap,
+    });
+    expect(withHandler.text()).toContain("Swap Article");
+  });
+
+  // TeamPage binds the handler as `@swap="enterSwapMode"`. Vue routes a listener
+  // into a same-named declared prop, so that keeps working — but the whole fix
+  // rests on it, so bind it through a real template rather than passing the prop
+  // directly as the tests above do.
+  it("accepts a swap handler bound with @swap listener syntax", async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    useLeagueStore().currentLeague = league;
+    myTeamMock.team = viewerTeam;
+    myTeamMock.isPending = false;
+    myTeamMock.error = null;
+
+    const onSwap = vi.fn();
+    const contract = makeContract(viewerTeam);
+    const Host = defineComponent({
+      components: { ArticleDetail },
+      setup: () => ({ article, contract, onSwap }),
+      template: `<ArticleDetail :article="article" :contract="contract"
+                   :is-open="true" @swap="onSwap" />`,
+    });
+
+    const wrapper = mount(Host, { global: { plugins: [pinia] } });
+    const swapBtn = wrapper
+      .findAll("ion-button")
+      .find((b) => b.text().includes("Swap Article"));
+
+    expect(
+      swapBtn,
+      "swap should render for a host listening on @swap"
+    ).toBeDefined();
+    await swapBtn!.trigger("click");
+    expect(onSwap).toHaveBeenCalledWith(contract);
+  });
+
+  it("hides request-trade unless the host can perform it", () => {
+    const withHandler = mountWithStores(makeContract(otherTeam), {
+      currentTeam: viewerTeam,
+      onRequestTrade: vi.fn(),
+    });
+    expect(withHandler.text()).toContain("Request Trade");
+  });
+
+  // The renew action is shown only when it can actually be taken, rather than
+  // rendered disabled for most of the contract's life.
+  it("hides the renew action outside the final-24h window", async () => {
     const wrapper = mountWithStores(
       makeContractExpiringInHours(viewerTeam, 48),
       { currentTeam: viewerTeam }
     );
     await flushPromises();
 
-    const renewBtn = findRenewButton(wrapper);
-    expect(renewBtn).toBeDefined();
-    expect(isRenewDisabled(wrapper)).toBe(true);
+    expect(findRenewButton(wrapper)).toBeUndefined();
+    expect(wrapper.text()).not.toContain("Cancel Renewal");
   });
 
   it("enables the renew action inside the final-24h window and shows the premium-adjusted price", async () => {
@@ -236,7 +305,10 @@ describe("ArticleDetail.vue", () => {
     expect(renewBtn!.text()).toContain(String(renewalPrice));
   });
 
-  it("shows an elected state and disables the button once renewal is elected", async () => {
+  // Election is only an intent until the settlement sweep acts on it, so once
+  // elected the renew button is replaced by an undo, and the elected state moves
+  // to the contract details block so it stays visible.
+  it("replaces renew with an undo action once renewal is elected", async () => {
     const wrapper = mountWithStores(
       makeContractExpiringInHours(viewerTeam, 12, { renewalElected: true }),
       { currentTeam: viewerTeam }
@@ -244,7 +316,8 @@ describe("ArticleDetail.vue", () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain("Renewal Elected");
-    expect(isRenewDisabled(wrapper)).toBe(true);
+    expect(findRenewButton(wrapper)).toBeUndefined();
+    expect(wrapper.text()).toContain("Cancel Renewal");
   });
 
   it("shows a tier picker and buy action for a free-agent article", () => {
@@ -260,9 +333,10 @@ describe("ArticleDetail.vue", () => {
     expect(wrapper.text()).toContain("Current Price");
   });
 
-  it("shows the lock box and request-trade action for another team's contract", () => {
+  it("shows the lock box for another team's contract", () => {
     const wrapper = mountWithStores(makeContract(otherTeam), {
       currentTeam: viewerTeam,
+      onRequestTrade: vi.fn(),
     });
 
     expect(wrapper.text()).toContain("Locked");

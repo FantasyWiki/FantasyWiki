@@ -50,6 +50,8 @@
         v-else-if="ownedByViewer"
         :tier="ownedByViewer.tier"
         :expires-in="ownedByViewer.expiresIn"
+        :renewal-elected="ownedByViewer.renewalElected"
+        :renewal-incremental-cost="ownedByViewer.renewalIncrementalCost"
       />
       <LockedByOtherBlock
         v-else-if="ownedByOther"
@@ -66,11 +68,15 @@
         :contract="contract"
         :selected-tier="selectedTier"
         :is-loading-views="isLoadingViews"
-        @buy="(tier) => emit('buy', tier)"
-        @sell="(contractId) => emit('sell', contractId)"
-        @request-trade="(contractId) => emit('requestTrade', contractId)"
-        @renew="(c) => emit('renew', c)"
-        @swap="(c) => emit('swap', c)"
+        :is-submitting="isSubmitting"
+        :can-swap="!!onSwap"
+        :can-request-trade="!!onRequestTrade"
+        @buy="handleBuy"
+        @sell="handleSell"
+        @renew="handleRenew"
+        @cancel-renewal="handleCancelRenewal"
+        @swap="(c) => onSwap?.(c)"
+        @request-trade="(contractId) => onRequestTrade?.(contractId)"
         @close="emit('close')"
       />
       <div v-else class="detail-section ownership-state">
@@ -128,26 +134,71 @@ import LockedByOtherBlock from "@/components/articleDetail/LockedByOtherBlock.vu
 import ArticleActions from "@/components/articleDetail/ArticleActions.vue";
 import { useArticleSummary } from "@/composables/useArticleSummary";
 import { useArticleViews } from "@/composables/useArticleViews";
+import { useContractActions } from "@/composables/useContractActions";
+import { useLeagueStore } from "@/stores/league";
 import type { ContractTier } from "@/types/articleDetail";
 
 interface Props {
   article: ArticleDTO;
   contract: ContractDTO | null;
   isOpen: boolean;
+  /**
+   * Host-specific actions, declared as callback props rather than emits.
+   *
+   * Buy/sell/renew are the same everywhere, so this modal owns them (see
+   * useContractActions). Swap is different in kind: it puts the *team page*
+   * into swap mode, so no other host can implement it, and requesting a trade
+   * needs a page that can show another team's contract. An emit no host listens
+   * to is silently dropped by Vue, which is how the sell and renew buttons ended
+   * up rendering on pages where they did nothing. As callback props these render
+   * only where a handler was supplied (`v-if` on the prop below), so a dead
+   * button is impossible to ship. Vue routes `@swap="fn"` into the `onSwap` prop
+   * as well, so hosts may bind either way.
+   */
+  onSwap?: (contract: ContractDTO) => void;
+  onRequestTrade?: (contractId: string) => void;
 }
 
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
   close: [];
-  buy: [tier: ContractTier];
-  sell: [contractId: string];
-  requestTrade: [contractId: string];
-  renew: [contract: ContractDTO];
-  swap: [contract: ContractDTO];
 }>();
 
 const selectedTier = ref<ContractTier>("MEDIUM");
+
+const leagueStore = useLeagueStore();
+const { buyContract, sellContract, renewContract, cancelRenewal } =
+  useContractActions();
+
+// Guards against a double submit while a mutation is in flight — every action
+// button is disabled off this, so a second tap can't fire a second sell.
+const isSubmitting = ref(false);
+
+/** Runs a contract mutation against the active league and closes on success. */
+async function runAction(action: (leagueId: string) => Promise<boolean>) {
+  const leagueId = leagueStore.currentLeague?.id;
+  if (!leagueId || isSubmitting.value) return;
+
+  isSubmitting.value = true;
+  try {
+    if (await action(leagueId)) emit("close");
+  } finally {
+    isSubmitting.value = false;
+  }
+}
+
+const handleBuy = (tier: ContractTier) =>
+  runAction((leagueId) => buyContract(leagueId, props.article.id, tier));
+
+const handleSell = (contractId: string) =>
+  runAction((leagueId) => sellContract(leagueId, contractId));
+
+const handleRenew = (contract: ContractDTO) =>
+  runAction((leagueId) => renewContract(leagueId, contract.id));
+
+const handleCancelRenewal = (contract: ContractDTO) =>
+  runAction((leagueId) => cancelRenewal(leagueId, contract.id));
 
 const summarySource = computed(() => ({
   title: props.article.title,

@@ -355,4 +355,30 @@ export class ContractRepositoryD1 implements ContractRepository {
       );
     }
   }
+
+  async cancelRenewal(
+    contractId: string,
+    teamId: string,
+  ): Promise<Result<boolean>> {
+    try {
+      // renewalElected = 1 in the WHERE clause makes this lose the race against
+      // the settlement sweep rather than silently un-electing an already-renewed
+      // contract: the sweep clears the flag as it renews, so 0 rows change.
+      const result = await this.db
+        .prepare(
+          `UPDATE contracts SET renewalElected = 0 WHERE id = ? AND teamId = ? AND settled = 0 AND renewalElected = 1`,
+        )
+        .bind(contractId, teamId)
+        .run();
+
+      if (!result.success) {
+        return failure("Error cancelling contract renewal");
+      }
+      return success(result.meta.changes > 0);
+    } catch (error) {
+      return failure(
+        `Error cancelling contract renewal: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
 }

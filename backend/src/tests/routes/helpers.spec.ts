@@ -1,7 +1,7 @@
 import { it, expect, vi } from "vitest";
-import { success, failure } from "../repositories/result";
-import { resolveCurrentPlayer } from "../routes/helpers";
-import { PlayerService } from "../services/player";
+import { success, failure } from "../../repositories/result";
+import { resolveCurrentPlayer } from "../../routes/helpers";
+import { PlayerService } from "../../services/player";
 
 function makeCtx(sub: string) {
   return {

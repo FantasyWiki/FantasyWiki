@@ -226,16 +226,21 @@ behind its own service-token middleware (constant-time compare of `Authorization
 Bearer <token>` against `c.env.SCORING_INGEST_SECRET`).
 
 - **`GET /internal/scoring-inputs?date=YYYY-MM-DD`** → for every team across all
-  leagues: `{ leagueId, domain, teamId, schema, placements: { position: articleId } }`.
-  Backed by a new `ScoringInputService` joining `lineups` + active `contracts`
-  (`settled = 0` and `purchaseDate ≤ D < expireDate`), resolving
-  `position → contractId → articleId`. Teams with a lineup but no placements are
-  included (they score 0, keeping standings advancing).
+  leagues: `{ leagueId, domain, teamId, articles: string[], chemistryLinks:
+  [string, string][], formationSnapshot: string }`. Backed by `ScoringService`
+  joining `lineups` + active `contracts` (`settled = 0` and
+  `purchaseDate ≤ D < expireDate`), resolving `position → contractId → articleId`.
+  **The backend owns all formation logic:** it resolves `CHEMISTRY_LINKS[schema]`
+  against the placed articles and emits a flat list of article *pairs*, so the
+  engine never sees a schema or position — **adding a new formation touches only
+  `model/enums.ts`, never the engine.** `formationSnapshot` is an opaque
+  serialized `{position: articleId}` map the engine echoes back untouched.
 - **`POST /internal/performances`** → idempotent, chunkable upsert:
-  `{ date, results: [{ teamId, points, formation }] }`. New
+  `{ date, results: [{ teamId, points, formationSnapshot }] }`. New
   `PerformanceRepository.upsertDaily(date, rows)` +
   D1 `INSERT ... ON CONFLICT(teamId, date) DO UPDATE`, wrapped in `db.batch()` chunks.
-  Validates: only touches `performances`, rejects unknown `teamId`, `points` finite ≥ 0.
+  Validates: only touches `performances`, `points` finite ≥ 0; stores
+  `formationSnapshot` verbatim as `historical_formation`.
 - Mount in `backend/src/index.ts`: `app.route("/internal", internal)` (independent of
   the `/api/*` JWT middleware).
 - Config: add `SCORING_INGEST_SECRET` to `backend/.dev.vars`, `wrangler.jsonc`, and
@@ -263,12 +268,14 @@ Bearer <token>` against `c.env.SCORING_INGEST_SECRET`).
 - **Deps (minimal):** `kotlinx-coroutines` (throttled fan-out, `Semaphore(3)`),
   `kotlinx-serialization-json`, JDK built-in `java.net.http.HttpClient`.
 - **Logic (`Main.kt`):** resolve `D` = last completed UTC day (overridable for
-  backfill) → GET inputs → dedup `(domain, articleTitle)` → concurrently (≤3) fetch
-  each article's daily views for `D` and outbound links → per team compute
-  `Σ basePoints(views × L) + synergy` → POST results in chunks (per league) → exit
-  non-zero on hard failure.
-- **Edge handling:** unresolved views → 0 base + warning; empty slots → 0; synergy
-  capped at 20/team.
+  backfill) → GET inputs → dedup `(domain, articleTitle)` across `articles` and
+  `chemistryLinks` → concurrently (≤3) fetch each article's daily views for `D` and
+  outbound links → per team compute `Σ basePoints(views × L)` over `articles` +
+  synergy over the given `chemistryLinks` pairs (mutual +1.5 / one-way +0.5) → POST
+  results (echoing `formationSnapshot`) in chunks → exit non-zero on hard failure.
+  **The engine has no schema/position/formation concepts** — it scores a flat list
+  of articles and a flat list of pairs the backend already resolved.
+- **Edge handling:** unresolved views → 0 base + warning; synergy capped at 20/team.
 - **Link cache:** in-memory per run for MVP (friends-scale = dozens of distinct
   articles). ADR 0004's D1-backed cache is a later optimization and, under A′, would
   live behind a backend endpoint (not in the engine).
@@ -332,16 +339,16 @@ jobs:
 ### Testing
 
 - **Golden-vector sync (key):** shared `docs/scoring-golden-vectors.json` of
-  `views → basePoints` (the §3 table rows) and a few `(schema, placements, links) →
-  synergy` cases. Both the Kotlin `ScoringTest` and a TS test assert against it,
-  preventing the two `basePoints` implementations from drifting. Export `basePoints`
-  from `model/pricing.ts` (currently private) for the TS assertion.
+  `views → basePoints` (the §3 table rows) and a few `(pairs, links) → synergy` cases
+  (pairs already resolved — no schema). Both the Kotlin `ScoringTest` and a TS test
+  assert against it, preventing the two `basePoints` implementations from drifting.
+  Export `basePoints` from `model/pricing.ts` (currently private) for the TS assertion.
 - **Backend integration tests** (`@cloudflare/vitest-pool-workers`): POST upserts +
-  idempotency; auth rejects bad/missing token; GET resolves placements and excludes
-  settled/expired contracts; end-to-end `/:id/leaderboard` and `/:id/my-performances`
-  reflect written rows.
-- **Engine unit tests:** Wikimedia client parsing (fixture JSON), synergy over each of
-  the 5 schemas, throttling.
+  idempotency; auth rejects bad/missing token; GET resolves `articles` + chemistry
+  pairs and excludes settled/expired contracts; end-to-end `/:id/leaderboard` and
+  `/:id/my-performances` reflect written rows. *(Done — 155 backend tests passing.)*
+- **Engine unit tests:** Wikimedia client parsing (fixture JSON), synergy over a set
+  of resolved pairs, throttling.
 
 ---
 

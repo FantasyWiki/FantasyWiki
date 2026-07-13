@@ -40,7 +40,7 @@ export class PerformanceRepositoryD1 implements PerformanceRepository {
                  points = excluded.points,
                  historical_formation = excluded.historical_formation`,
             )
-            .bind(row.teamId, day, row.points, JSON.stringify(row.formation)),
+            .bind(row.teamId, day, row.points, row.formationSnapshot),
         );
         const results = await this.db.batch(statements);
         const failed = results.find((r) => !r.success);

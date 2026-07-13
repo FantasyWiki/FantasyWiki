@@ -28,6 +28,7 @@ tasks.register("check") {
         "npm_ci",
         ":frontend:check",
         ":backend:check",
+        ":scoring-engine:check",
     )
 }
 
@@ -49,6 +50,7 @@ tasks.register("fix") {
     dependsOn(
         ":frontend:fix",
         ":backend:fix",
+        ":scoring-engine:ktlintFormat",
     )
 }
 

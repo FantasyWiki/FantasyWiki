@@ -1,7 +1,11 @@
 import { env } from "cloudflare:workers";
 import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect, beforeEach } from "vitest";
-import { ContractService, MAX_TEAM_CONTRACTS } from "../../services/contract";
+import {
+  ContractService,
+  CONTRACT_ERRORS,
+  MAX_TEAM_CONTRACTS,
+} from "../../services/contract";
 import { NotificationService } from "../../services/notification";
 import { LineupService, RawTeamLineUp } from "../../services/lineup";
 import { PlayerService } from "../../services/player";
@@ -1560,5 +1564,159 @@ describe("ContractService.buyContract conflict classification", () => {
       error: "Article already owned by another team",
     });
     expect(leagueReads).toBe(2);
+  });
+});
+
+/**
+ * Electing renewal only records an intent — the daily settlement sweep is what
+ * actually renews — so the intent stays withdrawable right up until that sweep
+ * runs, including after the expireDate has passed but before the row is settled.
+ */
+describe("ContractService.cancelRenewal Integration Tests", () => {
+  let service: ContractService;
+  let leagueId: string;
+  let playerId: string;
+  let teamId: string;
+
+  /** Inserts an unsettled contract expiring in `remainingDays` (negative = past due, unswept). */
+  async function insertContract(opts: {
+    id: string;
+    remainingDays: number;
+    renewalElected?: boolean;
+    settled?: boolean;
+  }): Promise<void> {
+    const today = Temporal.Now.plainDateISO();
+    await env.db
+      .prepare(
+        `INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice, settled, renewalElected)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        opts.id,
+        teamId,
+        "Bitcoin",
+        today.subtract({ days: TIER_DAYS.MEDIUM }).toString(),
+        today.add({ days: opts.remainingDays }).toString(),
+        0,
+        opts.settled ? 1 : 0,
+        opts.renewalElected ? 1 : 0,
+      )
+      .run();
+  }
+
+  async function readElected(contractId: string): Promise<number | undefined> {
+    const row = await env.db
+      .prepare("SELECT renewalElected FROM contracts WHERE id = ?")
+      .bind(contractId)
+      .first<{ renewalElected: number }>();
+    return row?.renewalElected;
+  }
+
+  beforeEach(async () => {
+    service = new ContractService(env.db);
+
+    const playerResult = await new PlayerService(env.db).createPlayer(
+      "canceltester",
+      "canceltester@example.com",
+      "account-cancel-1",
+    );
+    expect(playerResult.ok).toBe(true);
+    if (!playerResult.ok) throw new Error("setup failed: player");
+    playerId = playerResult.value.id;
+
+    leagueId = "league-cancel-1";
+    await env.db
+      .prepare(
+        `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        leagueId,
+        "Cancel League",
+        playerId,
+        new Date().toISOString(),
+        new Date().toISOString(),
+        "en",
+        "🏆",
+      )
+      .run();
+
+    teamId = "team-cancel-1";
+    await insertTeam(env.db, {
+      id: teamId,
+      name: "Cancel FC",
+      playerId,
+      leagueId,
+    });
+  });
+
+  it("withdraws an election made through electRenewal", async () => {
+    await insertContract({ id: "contract-cancel-1", remainingDays: 1 });
+
+    const elect = await service.electRenewal(
+      playerId,
+      leagueId,
+      "contract-cancel-1",
+    );
+    expect(elect.ok).toBe(true);
+    expect(await readElected("contract-cancel-1")).toBe(1);
+
+    const result = await service.cancelRenewal(
+      playerId,
+      leagueId,
+      "contract-cancel-1",
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.renewalElected).toBe(false);
+    expect(await readElected("contract-cancel-1")).toBe(0);
+  });
+
+  it("still withdraws once the term has lapsed but the sweep has not run", async () => {
+    await insertContract({
+      id: "contract-cancel-2",
+      remainingDays: -2,
+      renewalElected: true,
+    });
+
+    const result = await service.cancelRenewal(
+      playerId,
+      leagueId,
+      "contract-cancel-2",
+    );
+    expect(result.ok).toBe(true);
+    expect(await readElected("contract-cancel-2")).toBe(0);
+  });
+
+  it("rejects a contract with no renewal elected", async () => {
+    await insertContract({ id: "contract-cancel-3", remainingDays: 1 });
+
+    const result = await service.cancelRenewal(
+      playerId,
+      leagueId,
+      "contract-cancel-3",
+    );
+    expect(result).toEqual({
+      ok: false,
+      error: CONTRACT_ERRORS.RENEWAL_NOT_ELECTED,
+    });
+  });
+
+  it("rejects a contract the sweep has already settled", async () => {
+    await insertContract({
+      id: "contract-cancel-4",
+      remainingDays: -1,
+      renewalElected: true,
+      settled: true,
+    });
+
+    const result = await service.cancelRenewal(
+      playerId,
+      leagueId,
+      "contract-cancel-4",
+    );
+    expect(result).toEqual({
+      ok: false,
+      error: CONTRACT_ERRORS.ALREADY_SETTLED,
+    });
   });
 });

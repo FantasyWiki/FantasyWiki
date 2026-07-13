@@ -146,6 +146,16 @@ export const leaguesApi = {
       `/leagues/${leagueId}/my-contracts/${contractId}/renew`,
       { method: "POST" }
     ).then((c) => ContractDTO.fromRaw(c)),
+
+  /**
+   * Withdraw a renewal election. Valid until the settlement sweep executes the
+   * renewal at expiry — the election is only an intent until then.
+   */
+  cancelRenewMyContract: (leagueId: string, contractId: string) =>
+    apiRequest<RawContract>(
+      `/leagues/${leagueId}/my-contracts/${contractId}/renew`,
+      { method: "DELETE" }
+    ).then((c) => ContractDTO.fromRaw(c)),
 };
 
 // ── Teams ─────────────────────────────────────────────────────────────────────

@@ -377,11 +377,8 @@
       :article="selectedArticle"
       :contract="selectedContract"
       :is-open="isDetailOpen"
+      :on-request-trade="onRequestTrade"
       @close="closeDetail"
-      @buy="onBuy"
-      @sell="onSell"
-      @renew="onRenew"
-      @request-trade="onRequestTrade"
     />
   </nav-bar>
 </template>
@@ -418,7 +415,6 @@ import {
 } from "ionicons/icons";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
-import { useQueryClient } from "@tanstack/vue-query";
 
 import NavBar from "@/layout/NavBar.vue";
 import ArticleDetail from "@/components/ArticleDetail.vue";
@@ -428,20 +424,16 @@ import {
   type SortKey,
   type StatusFilter,
 } from "@/composables/useMarket";
-import { useToast } from "@/composables/useToast";
-import { useRenewContract } from "@/composables/useRenewContract";
-import { queryKeys } from "@/composables/queryKeys";
 import { useMyTeam } from "@/composables/useMyTeam";
+import { useToast } from "@/composables/useToast";
 import type { MarketArticle } from "@/types/market";
 import type { ArticleDTO } from "../../../dto/articleDTO";
 import type { ContractDTO } from "../../../dto/contractDTO";
-import type { ContractTier } from "@/types/articleDetail";
 import { formatViews, formatPrice } from "@/types/models";
-import { leaguesApi } from "@/services/api";
 
 const { t } = useI18n();
+const { show } = useToast();
 const router = useRouter();
-const queryClient = useQueryClient();
 const leagueStore = useLeagueStore();
 const currentLeague = computed(() => leagueStore.currentLeague);
 const { myTeam, myTeamId } = useMyTeam();
@@ -537,72 +529,13 @@ function closeDetail() {
   isDetailOpen.value = false;
 }
 
-const { showSuccess, showError } = useToast();
-const { renewContract } = useRenewContract();
-
-/**
- * Refreshes every cached view a contract mutation touches: the article list,
- * market ownership badges (league-contracts), the team bench (team-lineup),
- * credits/portfolio (dashboard), and the player's team (my-team) so the
- * balance pill reflects the new credits. Without this the bench and balance
- * stay stale until a manual reload.
- */
-function refreshContractViews(leagueId: string) {
-  return Promise.all([
-    refetch(),
-    queryClient.invalidateQueries({
-      queryKey: queryKeys.leagueContracts(leagueId),
-    }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.teamLineup(leagueId) }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(leagueId) }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.myTeam(leagueId) }),
-  ]);
-}
-
-async function onBuy(tier: ContractTier) {
-  const league = currentLeague.value;
-  const article = selectedArticle.value;
-  if (!league || !article) return;
-  try {
-    await leaguesApi.buyMyContract(league.id, article.id, tier);
-    closeDetail();
-    showSuccess(t("market.buySuccess"));
-    await refreshContractViews(league.id);
-  } catch (e) {
-    showError(e instanceof Error ? e.message : t("market.buyError"));
-  }
-}
-
-async function onSell(contractId: string) {
-  const league = currentLeague.value;
-  if (!league) return;
-  try {
-    await leaguesApi.sellMyContract(league.id, contractId);
-    closeDetail();
-    showSuccess(t("market.sellSuccess"));
-    // Selling also writes an inbox notification, so that list must refresh.
-    await Promise.all([
-      refreshContractViews(league.id),
-      queryClient.invalidateQueries({ queryKey: queryKeys.notifications() }),
-    ]);
-  } catch (e) {
-    showError(e instanceof Error ? e.message : t("market.sellError"));
-  }
-}
-
-async function onRenew(contract: ContractDTO) {
-  const league = currentLeague.value;
-  if (!league) return;
-  const ok = await renewContract(league.id, contract.id);
-  if (ok) {
-    closeDetail();
-    await refetch();
-  }
-}
-
-// TODO: implement trade-request flow once a trade API exists.
-function onRequestTrade(contractId: string) {
-  console.log("Request trade", contractId);
+// Buy, sell and renew are owned by ArticleDetail itself (useContractActions),
+// which also invalidates every view they touch — this page only supplies the
+// action no other host can implement.
+// TODO: implement trade-request flow once a trade API exists. Until then the
+// button acknowledges the tap instead of failing silently.
+function onRequestTrade() {
+  show("Not implemented yet", "medium");
 }
 
 async function handleRefresh(event: CustomEvent) {

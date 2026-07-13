@@ -107,6 +107,13 @@
                 {{ contract.article.title }}
               </h4>
 
+              <!-- Only elected contracts can be at risk, and the chip prices the
+                   renewal from live views — so don't mount it for the rest. -->
+              <RenewalRiskChip
+                v-if="contract.renewalElected"
+                :contract="contract"
+              />
+
               <ion-badge
                 :color="getTierColor(contract.tier)"
                 class="tier-badge"
@@ -133,7 +140,6 @@
     :article="selectedContract.article"
     :isOpen="isModalOpen"
     @close="closeDetail"
-    @renew="onRenew"
   />
 </template>
 
@@ -166,10 +172,11 @@ import {
   timeOutline,
 } from "ionicons/icons";
 import ArticleDetail from "@/components/ArticleDetail.vue";
+import RenewalRiskChip from "@/components/teamDashboard/RenewalRiskChip.vue";
 import { ContractDTO } from "../../../../dto/contractDTO";
 import { formatDuration } from "@/types/models";
 import { useLeagueStore } from "@/stores/league";
-import { useRenewContract } from "@/composables/useRenewContract";
+import { useContractActions } from "@/composables/useContractActions";
 
 // ── Props ──────────────────────────────────────────────────────────────────
 // urgentContract is pre-filtered by the parent. This component does not
@@ -182,7 +189,9 @@ interface Props {
 const props = defineProps<Props>();
 
 const leagueStore = useLeagueStore();
-const { renewContract } = useRenewContract();
+// Powers the swipe-to-renew shortcut on each row. Renewing from inside the
+// article detail modal is the modal's own concern.
+const { renewContract } = useContractActions();
 
 // ── Local modal state ──────────────────────────────────────────────────────
 const selectedContract = ref<ContractDTO | null>(null);
@@ -268,14 +277,20 @@ function onDismiss(/*contract: Contract*/) {
   --background-hover: rgba(var(--ion-color-danger-rgb), 0.12);
 }
 
+/* The risk column collapses to zero width when no chip is rendered, which is
+   the common case — only an elected renewal can be at risk. */
 .attention-row {
   display: grid;
-  grid-template-columns: 24px 120px minmax(0, 1fr) auto;
-  grid-template-areas: "icon expiry title tier";
+  grid-template-columns: 24px 120px minmax(0, 1fr) auto auto;
+  grid-template-areas: "icon expiry title risk tier";
   align-items: center;
   gap: 0.5rem;
   width: 100%;
   min-width: 0;
+}
+
+.risk-chip {
+  grid-area: risk;
 }
 
 .item-icon {
@@ -340,6 +355,17 @@ function onDismiss(/*contract: Contract*/) {
     grid-template-columns: 96px minmax(0, 1fr) auto;
     grid-template-areas: "expiry title tier";
     gap: 0.45rem;
+  }
+
+  /* No room beside the title here, so the chip drops onto its own full-width
+     line. Auto-placing it (rather than naming a second template row) means that
+     row only exists when the chip does — a declared-but-empty row would add a
+     row-gap to every contract that is not at risk. */
+  .risk-chip {
+    grid-area: auto;
+    grid-column: 1 / -1;
+    justify-self: start;
+    white-space: normal;
   }
 
   .item-icon {

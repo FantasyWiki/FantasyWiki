@@ -120,4 +120,12 @@ export interface ContractRepository {
    * true iff this call flipped the flag.
    */
   electRenewal(contractId: string, teamId: string): Promise<Result<boolean>>;
+
+  /**
+   * Withdraws a renewal intent by clearing `renewalElected`. Guarded on the row
+   * being unsettled, owned by `teamId` and actually elected, so a contract the
+   * settlement sweep has already renewed cannot be un-elected after the fact.
+   * Result<boolean>: true iff this call actually cleared the flag.
+   */
+  cancelRenewal(contractId: string, teamId: string): Promise<Result<boolean>>;
 }

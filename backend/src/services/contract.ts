@@ -58,6 +58,7 @@ export const CONTRACT_ERRORS = {
   EXPIRED: "Contract has already expired",
   RENEWAL_WINDOW_CLOSED:
     "Renewal can only be elected in the final 24 hours before expiry",
+  RENEWAL_NOT_ELECTED: "No renewal is elected for this contract",
 } as const;
 
 export type ContractError =
@@ -584,6 +585,83 @@ export class ContractService {
     return success(
       toRawContract(
         { ...contract, renewalElected: true },
+        { id: team.id, name: team.name, credits: team.credits },
+        {
+          id: playerId,
+          name: playerResult.ok ? playerResult.value.username : "",
+        },
+        domain,
+      ),
+    );
+  }
+
+  /**
+   * Withdraws a previously elected renewal, putting the contract back on course
+   * to settle at expiry.
+   *
+   * The election is only an intent — the settlement sweep is what actually
+   * renews — so it can be withdrawn right up until that sweep runs. The guard is
+   * therefore `settled`, not the final-24h window used by {@link electRenewal}:
+   * a contract past its expireDate but not yet swept is still reversible, and
+   * once the sweep has renewed it the row is no longer `renewalElected` and this
+   * fails with RENEWAL_NOT_ELECTED. No money moves either way.
+   */
+  async cancelRenewal(
+    playerId: string,
+    leagueId: string,
+    contractId: string,
+  ): Promise<Result<RawContract>> {
+    const [teamResult, leagueResult, contractResult] = await Promise.all([
+      this.teamRepo.getByPlayerAndLeague(playerId, leagueId),
+      this.leagueRepo.getById(leagueId),
+      this.contractRepo.getById(contractId),
+    ]);
+    if (!teamResult.ok) {
+      return teamResult;
+    }
+    if (teamResult.value === null) {
+      return failure(CONTRACT_ERRORS.NO_TEAM);
+    }
+    const team = teamResult.value;
+
+    if (!leagueResult.ok) {
+      return leagueResult;
+    }
+    const domain = leagueResult.value.domain as Domain;
+
+    if (!contractResult.ok) {
+      return contractResult;
+    }
+    const contract = contractResult.value;
+    if (contract === null) {
+      return failure(CONTRACT_ERRORS.CONTRACT_NOT_FOUND);
+    }
+    if (contract.teamId !== team.id) {
+      return failure(CONTRACT_ERRORS.NOT_CONTRACT_OWNER);
+    }
+    if (contract.settled) {
+      return failure(CONTRACT_ERRORS.ALREADY_SETTLED);
+    }
+    if (!contract.renewalElected) {
+      return failure(CONTRACT_ERRORS.RENEWAL_NOT_ELECTED);
+    }
+
+    const [cancelResult, playerResult] = await Promise.all([
+      this.contractRepo.cancelRenewal(contract.id, team.id),
+      this.playerRepo.getById(playerId),
+    ]);
+    if (!cancelResult.ok) {
+      return cancelResult;
+    }
+    // The row was elected when we read it but is not any more: the settlement
+    // sweep renewed it in between, so the intent is no longer withdrawable.
+    if (!cancelResult.value) {
+      return failure(CONTRACT_ERRORS.RENEWAL_NOT_ELECTED);
+    }
+
+    return success(
+      toRawContract(
+        { ...contract, renewalElected: false },
         { id: team.id, name: team.name, credits: team.credits },
         {
           id: playerId,

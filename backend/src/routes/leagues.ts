@@ -48,6 +48,7 @@ const CONTRACT_ERROR_STATUS: Record<ContractError, 404 | 400> = {
   [CONTRACT_ERRORS.ALREADY_SETTLED]: 400,
   [CONTRACT_ERRORS.EXPIRED]: 400,
   [CONTRACT_ERRORS.RENEWAL_WINDOW_CLOSED]: 400,
+  [CONTRACT_ERRORS.RENEWAL_NOT_ELECTED]: 400,
 };
 
 /** Repository misses the service passes straight through to the route. */
@@ -306,6 +307,31 @@ leagues.post("/:id/my-contracts/:contractId/renew", async (c) => {
 
   const service = new ContractService(c.env.db);
   const result = await service.electRenewal(
+    playerResult.value.id,
+    leagueId,
+    contractId,
+  );
+  if (!result.ok) {
+    return c.json({ error: result.error }, contractErrorStatus(result.error));
+  }
+  return c.json(result.value);
+});
+
+// The election is the resource being removed, so DELETE on the same path — the
+// intent can be withdrawn any time before the settlement sweep acts on it.
+leagues.delete("/:id/my-contracts/:contractId/renew", async (c) => {
+  const leagueId = c.req.param("id");
+  const contractId = c.req.param("contractId");
+  const playerResult = await resolveCurrentPlayer(c);
+  if (!playerResult.ok) {
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
+  }
+
+  const service = new ContractService(c.env.db);
+  const result = await service.cancelRenewal(
     playerResult.value.id,
     leagueId,
     contractId,

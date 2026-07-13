@@ -12,26 +12,38 @@
 
     <template v-if="model?.availability === 'owned-by-viewer' && contract">
       <ion-button
+        v-if="canRenew"
         expand="block"
         color="primary"
         class="action-primary"
-        :disabled="renewDisabled"
+        :disabled="isSubmitting"
         @click="emit('renew', contract)"
       >
         <ion-icon slot="start" :icon="refreshOutline" class="action-icon" />
         {{
-          model.renewalElected
-            ? $t("articleDetail.actions.renewElected")
-            : $t("articleDetail.actions.renewFor", {
-                price: model.renewalPrice,
-              })
+          $t("articleDetail.actions.renewFor", { price: model.renewalPrice })
         }}
       </ion-button>
 
       <ion-button
+        v-else-if="model.renewalElected"
+        expand="block"
+        fill="outline"
+        color="medium"
+        class="action-secondary"
+        :disabled="isSubmitting"
+        @click="emit('cancelRenewal', contract)"
+      >
+        <ion-icon slot="start" :icon="closeCircleOutline" class="action-icon" />
+        {{ $t("articleDetail.actions.cancelRenewal") }}
+      </ion-button>
+
+      <ion-button
+        v-if="canSwap"
         expand="block"
         fill="outline"
         class="action-secondary"
+        :disabled="isSubmitting"
         @click="emit('swap', contract)"
       >
         <ion-icon
@@ -47,6 +59,7 @@
         fill="outline"
         color="danger"
         class="action-secondary"
+        :disabled="isSubmitting"
         @click="emit('sell', model.contractId)"
       >
         <ion-icon slot="start" :icon="cashOutline" class="action-icon" />
@@ -55,7 +68,7 @@
     </template>
 
     <ion-button
-      v-if="model?.availability === 'owned-by-other'"
+      v-if="model?.availability === 'owned-by-other' && canRequestTrade"
       expand="block"
       color="primary"
       class="action-primary"
@@ -85,6 +98,7 @@ import { computed } from "vue";
 import { IonButton, IonIcon } from "@ionic/vue";
 import {
   cashOutline,
+  closeCircleOutline,
   refreshOutline,
   swapHorizontalOutline,
 } from "ionicons/icons";
@@ -97,6 +111,12 @@ interface Props {
   selectedTier: ContractTier;
   /** True while the live views fetch is in flight — price is floored/wrong until it resolves. */
   isLoadingViews?: boolean;
+  /** True while a contract mutation is in flight, so a second tap can't re-submit. */
+  isSubmitting?: boolean;
+  /** Only the team page can act on a swap, and only the market can show another
+   * team's contract — so these render only where the host supplied a handler. */
+  canSwap?: boolean;
+  canRequestTrade?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -107,11 +127,12 @@ const emit = defineEmits<{
   sell: [contractId: string];
   requestTrade: [contractId: string];
   renew: [contract: ContractDTO];
+  cancelRenewal: [contract: ContractDTO];
   swap: [contract: ContractDTO];
 }>();
 
 const buyDisabled = computed(() => {
-  if (props.isLoadingViews) return true;
+  if (props.isLoadingViews || props.isSubmitting) return true;
   if (props.model?.availability !== "free-agent") return true;
   const option = props.model.tierOptions.find(
     (o) => o.tier === props.selectedTier
@@ -121,17 +142,19 @@ const buyDisabled = computed(() => {
 
 /**
  * Renewal can only be elected in the final 24h of the term (ADR 0003), and only
- * once — so the button is disabled outside that window, while the live price is
- * still loading, or if renewal has already been elected. `expiresIn` is
- * negative once past expiry, so the `> 0` guard also closes it after the term.
+ * once — so the button is *absent* outside that window, while the live price is
+ * still loading (the price is floored until views resolve), or once renewal has
+ * already been elected. `expiresIn` is negative once past expiry, so the `> 0`
+ * guard also closes it after the term. Once elected, the button is replaced by
+ * the undo action rather than a disabled renew button.
  */
-const renewDisabled = computed(() => {
+const canRenew = computed(() => {
   const m = props.model;
-  if (!m || m.availability !== "owned-by-viewer") return true;
-  if (props.isLoadingViews) return true;
-  if (m.renewalElected) return true;
+  if (!m || m.availability !== "owned-by-viewer") return false;
+  if (props.isLoadingViews) return false;
+  if (m.renewalElected) return false;
   const hoursLeft = m.expiresIn.total("hours");
-  return !(hoursLeft > 0 && hoursLeft <= 24);
+  return hoursLeft > 0 && hoursLeft <= 24;
 });
 </script>
 

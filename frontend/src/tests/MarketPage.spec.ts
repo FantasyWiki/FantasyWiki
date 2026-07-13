@@ -150,7 +150,7 @@ describe("MarketPage.vue", () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain("Sell Contract");
-    expect(wrapper.text()).toContain("Renew Contract");
+    expect(wrapper.text()).toContain("Renew");
   });
 
   it("opens ArticleDetail as locked-by-other when the clicked row's contract belongs to another team", async () => {

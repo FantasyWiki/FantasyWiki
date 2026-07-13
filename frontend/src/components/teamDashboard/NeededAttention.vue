@@ -133,6 +133,7 @@
     :article="selectedContract.article"
     :isOpen="isModalOpen"
     @close="closeDetail"
+    @renew="onRenew"
   />
 </template>
 
@@ -167,6 +168,8 @@ import {
 import ArticleDetail from "@/components/ArticleDetail.vue";
 import { ContractDTO } from "../../../../dto/contractDTO";
 import { formatDuration } from "@/types/models";
+import { useLeagueStore } from "@/stores/league";
+import { useRenewContract } from "@/composables/useRenewContract";
 
 // ── Props ──────────────────────────────────────────────────────────────────
 // urgentContract is pre-filtered by the parent. This component does not
@@ -177,6 +180,9 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const leagueStore = useLeagueStore();
+const { renewContract } = useRenewContract();
 
 // ── Local modal state ──────────────────────────────────────────────────────
 const selectedContract = ref<ContractDTO | null>(null);
@@ -205,9 +211,11 @@ function getTierColor(tier: string): string {
   }
 }
 
-function onRenew(contract: ContractDTO) {
-  // TODO: call renewal API via useMutation when the endpoint is ready
-  console.log("Renew contract", contract.id);
+async function onRenew(contract: ContractDTO) {
+  const league = leagueStore.currentLeague;
+  if (!league) return;
+  await renewContract(league.id, contract.id);
+  closeDetail();
 }
 
 function onDismiss(/*contract: Contract*/) {

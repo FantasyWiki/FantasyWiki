@@ -1,14 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
-import { mount } from "@vue/test-utils";
+import { mount, flushPromises } from "@vue/test-utils";
 import { Temporal } from "@js-temporal/polyfill";
 import { createPinia, setActivePinia } from "pinia";
 import { ref } from "vue";
 import ArticleDetail from "@/components/ArticleDetail.vue";
 import { ContractDTO } from "../../../../dto/contractDTO";
 import { useLeagueStore } from "@/stores/league";
+import { computeCurrentPrice, TIER_DAYS } from "../../../../model/pricing";
 import type { TeamDTO } from "../../../../dto/teamDTO";
 import type { LeagueDTO } from "../../../../dto/leagueDTO";
 import type { ArticleDTO } from "../../../../dto/articleDTO";
+
+const MOCK_AVG_VIEWS = 9000;
 
 vi.mock("@/composables/useArticleSummary", () => ({
   useArticleSummary: () => ({
@@ -19,6 +22,20 @@ vi.mock("@/composables/useArticleSummary", () => ({
     }),
     isLoading: ref(false),
     error: ref(null),
+  }),
+}));
+
+// Pin the live views so currentPrice (and the renewal premium derived from it)
+// are deterministic, and so isLoadingViews is false (the renew gate is disabled
+// while views load).
+vi.mock("@/composables/useArticleViews", () => ({
+  useArticleViews: () => ({
+    views: ref({
+      averageViews30d: 9000,
+      weekViews: 100,
+      previousWeekViews: 90,
+    }),
+    isLoading: ref(false),
   }),
 }));
 
@@ -74,6 +91,45 @@ function makeContract(team: TeamDTO, purchasePrice = 800): ContractDTO {
   );
 }
 
+const TIER_DURATION_DAYS = 7;
+
+/**
+ * A viewer-owned MEDIUM (7-day) contract with exactly `hoursLeft` remaining, so
+ * the final-24h renewal window can be exercised precisely regardless of run time.
+ */
+function makeContractExpiringInHours(
+  team: TeamDTO,
+  hoursLeft: number,
+  opts: { renewalCount?: number; renewalElected?: boolean } = {}
+): ContractDTO {
+  const startDate = Temporal.Now.instant()
+    .add({ hours: hoursLeft })
+    .subtract({ hours: 24 * TIER_DURATION_DAYS });
+  return new ContractDTO(
+    `contract-${team.id}`,
+    team,
+    article,
+    startDate,
+    Temporal.Duration.from({ days: TIER_DURATION_DAYS }),
+    800,
+    opts.renewalCount ?? 0,
+    opts.renewalElected ?? false
+  );
+}
+
+function findRenewButton(wrapper: ReturnType<typeof mountWithStores>) {
+  return wrapper.findAll("ion-button").find((b) => b.text().includes("Renew"));
+}
+
+/** ion-button reflects `disabled` as a DOM property, not an attribute. */
+function isRenewDisabled(
+  wrapper: ReturnType<typeof mountWithStores>
+): boolean | undefined {
+  const btn = findRenewButton(wrapper);
+  return (btn?.element as unknown as { disabled?: boolean } | undefined)
+    ?.disabled;
+}
+
 interface MountOptions {
   currentTeam?: TeamDTO | null;
   isTeamLoading?: boolean;
@@ -111,7 +167,7 @@ describe("ArticleDetail.vue", () => {
       currentTeam: viewerTeam,
     });
 
-    expect(wrapper.text()).toContain("Renew Contract");
+    expect(wrapper.text()).toContain("Renew");
     expect(wrapper.text()).toContain("Swap Article");
     expect(wrapper.text()).toContain("Sell Contract");
     expect(wrapper.text()).not.toContain("Request Trade");
@@ -122,6 +178,52 @@ describe("ArticleDetail.vue", () => {
     expect(wikipediaLink.attributes("href")).toContain(
       "https://en.wikipedia.org/wiki/ChatGPT"
     );
+  });
+
+  it("disables the renew action outside the final-24h window", async () => {
+    const wrapper = mountWithStores(
+      makeContractExpiringInHours(viewerTeam, 48),
+      { currentTeam: viewerTeam }
+    );
+    await flushPromises();
+
+    const renewBtn = findRenewButton(wrapper);
+    expect(renewBtn).toBeDefined();
+    expect(isRenewDisabled(wrapper)).toBe(true);
+  });
+
+  it("enables the renew action inside the final-24h window and shows the premium-adjusted price", async () => {
+    const renewalCount = 2;
+    const wrapper = mountWithStores(
+      makeContractExpiringInHours(viewerTeam, 12, { renewalCount }),
+      { currentTeam: viewerTeam }
+    );
+    await flushPromises();
+
+    const renewBtn = findRenewButton(wrapper);
+    expect(renewBtn).toBeDefined();
+    expect(isRenewDisabled(wrapper)).toBe(false);
+
+    // renewalPrice = currentPrice + round(currentPrice × 0.10 × renewalCount).
+    const currentPrice = computeCurrentPrice(
+      MOCK_AVG_VIEWS,
+      "en",
+      TIER_DAYS.MEDIUM
+    );
+    const renewalPrice =
+      currentPrice + Math.round(currentPrice * 0.1 * renewalCount);
+    expect(renewBtn!.text()).toContain(String(renewalPrice));
+  });
+
+  it("shows an elected state and disables the button once renewal is elected", async () => {
+    const wrapper = mountWithStores(
+      makeContractExpiringInHours(viewerTeam, 12, { renewalElected: true }),
+      { currentTeam: viewerTeam }
+    );
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Renewal Elected");
+    expect(isRenewDisabled(wrapper)).toBe(true);
   });
 
   it("shows a tier picker and buy action for a free-agent article", () => {

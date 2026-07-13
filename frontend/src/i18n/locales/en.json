@@ -218,7 +218,8 @@
   "articleDetail": {
     "actions": {
       "buy": "Buy",
-      "renewContract": "Renew Contract",
+      "renewFor": "Renew · {price} cr",
+      "renewElected": "Renewal Elected ✓",
       "swapArticle": "Swap Article",
       "sell": "Sell Contract",
       "requestTrade": "Request Trade"
@@ -355,6 +356,8 @@
     "buySuccess": "Contract purchased",
     "buyError": "Couldn't buy this article",
     "sellSuccess": "Contract sold",
-    "sellError": "Couldn't sell this contract"
+    "sellError": "Couldn't sell this contract",
+    "renewSuccess": "Renewal elected",
+    "renewError": "Couldn't renew this contract"
   }
 }

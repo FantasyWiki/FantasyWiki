@@ -237,6 +237,26 @@ leagues.post("/:id/my-contracts/:contractId/sell", async (c) => {
   return c.json(result.value);
 });
 
+leagues.post("/:id/my-contracts/:contractId/renew", async (c) => {
+  const leagueId = c.req.param("id");
+  const contractId = c.req.param("contractId");
+  const playerResult = await resolveCurrentPlayer(c);
+  if (!playerResult.ok) {
+    return c.json({ error: playerResult.error }, 404);
+  }
+
+  const service = new ContractService(c.env.db);
+  const result = await service.electRenewal(
+    playerResult.value.id,
+    leagueId,
+    contractId,
+  );
+  if (!result.ok) {
+    return c.json({ error: result.error }, contractErrorStatus(result.error));
+  }
+  return c.json(result.value);
+});
+
 leagues.get("/:id/contracts", async (c) => {
   const leagueId = c.req.param("id");
   const service = new ContractService(c.env.db);

@@ -218,7 +218,8 @@
   "articleDetail": {
     "actions": {
       "buy": "Acquista",
-      "renewContract": "Rinnova contratto",
+      "renewFor": "Rinnova · {price} cr",
+      "renewElected": "Rinnovo scelto ✓",
       "swapArticle": "Scambia articolo",
       "sell": "Vendi contratto",
       "requestTrade": "Proponi scambio"
@@ -355,6 +356,8 @@
     "buySuccess": "Contratto acquistato",
     "buyError": "Impossibile acquistare questo articolo",
     "sellSuccess": "Contratto venduto",
-    "sellError": "Impossibile vendere questo contratto"
+    "sellError": "Impossibile vendere questo contratto",
+    "renewSuccess": "Rinnovo scelto",
+    "renewError": "Impossibile rinnovare questo contratto"
   }
 }

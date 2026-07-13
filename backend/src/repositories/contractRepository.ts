@@ -21,6 +21,18 @@ export interface NewContract {
   purchasePrice: number;
 }
 
+/**
+ * An unsettled contract at or past its `expireDate`, enriched with the league
+ * `domain` (needed to price its live currentPrice) and the owning team's
+ * derived `teamCredits` (needed to decide whether an elected renewal is
+ * affordable) — both resolved in the sweep query so the daily settlement
+ * job needs no extra per-contract reads.
+ */
+export interface DueContract extends Contract {
+  domain: string;
+  teamCredits: number;
+}
+
 export interface ContractRepository {
   getByTeamId(teamId: string): Promise<Result<Contract[]>>;
   getById(id: string): Promise<Result<Contract | null>>;
@@ -49,4 +61,42 @@ export interface ContractRepository {
     teamId: string,
     payout: number,
   ): Promise<Result<boolean>>;
+  /**
+   * All unsettled contracts whose `expireDate` is on or before `today`, i.e.
+   * the ones the daily settlement sweep must resolve (settle or renew). Uses
+   * the `idx_contracts_settled_expire (settled, expireDate)` index and joins in
+   * the league domain + derived team credits (see {@link DueContract}).
+   */
+  getDueForSettlement(
+    today: Temporal.PlainDate,
+  ): Promise<Result<DueContract[]>>;
+  /**
+   * Settles a contract at natural expiry ("sold to system", ADR 0003) in a
+   * single guarded write: flips it to `settled=1` and persists `payout` (the
+   * full live currentPrice) into the same `salePayout` ledger column early
+   * sales use. Guarded on the row still being unsettled, so a re-run of the
+   * sweep is a no-op. Result<boolean>: true iff this call actually settled it.
+   */
+  settleExpiry(contractId: string, payout: number): Promise<Result<boolean>>;
+  /**
+   * Rolls an elected contract's window forward one tier at renewal (ADR 0003):
+   * `purchaseDate ← old expireDate`, `expireDate += tierDays`,
+   * `purchasePrice ← currentPrice + premium`, `renewalCount++`, and clears
+   * `renewalElected`. Guarded on the row being unsettled AND `renewalElected=1`,
+   * so a re-run is a no-op (the flag is cleared and the window has moved past
+   * `today`). Result<boolean>: true iff this call actually renewed it.
+   */
+  renew(
+    contractId: string,
+    newPurchaseDate: Temporal.PlainDate,
+    newExpireDate: Temporal.PlainDate,
+    newPurchasePrice: number,
+  ): Promise<Result<boolean>>;
+  /**
+   * Records the owner's intent to renew a contract at expiry by setting
+   * `renewalElected=1`. Guarded on the row being unsettled and owned by
+   * `teamId`. The renewal itself is executed later by the sweep. Result<boolean>:
+   * true iff this call flipped the flag.
+   */
+  electRenewal(contractId: string, teamId: string): Promise<Result<boolean>>;
 }

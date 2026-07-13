@@ -1,4 +1,5 @@
 import { Temporal } from "@js-temporal/polyfill";
+import { CHEMISTRY_LINKS } from "../../../model/enums";
 import { ScoringRepositoryD1 } from "../repositories/d1/scoringRepositoryD1";
 import { PerformanceRepositoryD1 } from "../repositories/d1/performanceRepositoryD1";
 import type { ScoringRepository } from "../repositories/scoringRepository";
@@ -68,6 +69,7 @@ export class ScoringService {
         stored = {};
       }
 
+      // Resolve position -> articleId for slots backed by an active contract.
       const placements: Record<string, string> = {};
       for (const [position, contractId] of Object.entries(stored)) {
         const articleId = contracts.get(contractId);
@@ -76,12 +78,33 @@ export class ScoringService {
         }
       }
 
+      // Resolve the schema's Chemistry Links to concrete article pairs here, so
+      // the engine stays unaware of schemas/positions — a new formation only
+      // touches CHEMISTRY_LINKS (model/enums.ts), never the engine. Pairs with
+      // an empty endpoint are dropped (they contribute no synergy).
+      const schemaLinks =
+        (
+          CHEMISTRY_LINKS as Record<
+            string,
+            ReadonlyArray<readonly [string, string]>
+          >
+        )[row.schema] ?? [];
+      const chemistryLinks: Array<[string, string]> = [];
+      for (const [positionA, positionB] of schemaLinks) {
+        const articleA = placements[positionA];
+        const articleB = placements[positionB];
+        if (articleA && articleB) {
+          chemistryLinks.push([articleA, articleB]);
+        }
+      }
+
       return {
         leagueId: row.leagueId,
         teamId: row.teamId,
         domain: row.domain,
-        schema: row.schema,
-        placements,
+        articles: Object.values(placements),
+        chemistryLinks,
+        formationSnapshot: JSON.stringify(placements),
       };
     });
 
@@ -112,11 +135,15 @@ export class ScoringService {
       ) {
         return failure(`invalid points for team ${result.teamId}`);
       }
-      const formation =
-        result.formation && typeof result.formation === "object"
-          ? result.formation
-          : {};
-      rows.push({ teamId: result.teamId, points: result.points, formation });
+      const formationSnapshot =
+        typeof result.formationSnapshot === "string"
+          ? result.formationSnapshot
+          : "{}";
+      rows.push({
+        teamId: result.teamId,
+        points: result.points,
+        formationSnapshot,
+      });
     }
 
     const upsertResult = await this.performanceRepository.upsertDaily(

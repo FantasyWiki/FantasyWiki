@@ -16,8 +16,11 @@ export interface TeamCumulative {
 export interface PerformanceUpsertRow {
   teamId: string;
   points: number;
-  /** position -> articleId snapshot to store immutably as historical_formation. */
-  formation: Record<string, string>;
+  /**
+   * Pre-serialized position->articleId snapshot, stored verbatim as
+   * historical_formation. Opaque here — the engine relayed it untouched.
+   */
+  formationSnapshot: string;
 }
 
 export interface PerformanceRepository {

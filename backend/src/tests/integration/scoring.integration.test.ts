@@ -109,8 +109,41 @@ describe("Scoring engine integration", () => {
       const forTeam = result.value.find((i) => i.teamId === TEAM_ID);
       expect(forTeam).toBeDefined();
       expect(forTeam!.domain).toBe("en");
-      expect(forTeam!.schema).toBe("4-3-3");
-      expect(forTeam!.placements).toEqual({ ST: "Active_Article" });
+      // Only the active contract's article is scorable (expired + settled dropped).
+      expect(forTeam!.articles).toEqual(["Active_Article"]);
+      // The engine receives no schema/positions — the opaque snapshot carries them.
+      expect(JSON.parse(forTeam!.formationSnapshot)).toEqual({
+        ST: "Active_Article",
+      });
+    });
+
+    it("resolves chemistry links to article pairs (backend owns the topology)", async () => {
+      // Two 4-3-3 positions joined by a Chemistry Link: LB <-> CLB.
+      await insertContract({
+        id: "c-lb",
+        teamId: TEAM_ID,
+        articleId: "Left_Back",
+        purchaseDate: "2026-07-01",
+        expireDate: "2026-07-15",
+      });
+      await insertContract({
+        id: "c-clb",
+        teamId: TEAM_ID,
+        articleId: "Centre_Back",
+        purchaseDate: "2026-07-01",
+        expireDate: "2026-07-15",
+      });
+      await insertLineup(TEAM_ID, "4-3-3", { LB: "c-lb", CLB: "c-clb" });
+
+      const service = ScoringService.fromDb(env.db);
+      const result = await service.getScoringInputs(SCORE_DAY);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const forTeam = result.value.find((i) => i.teamId === TEAM_ID);
+      expect(forTeam!.chemistryLinks).toContainEqual([
+        "Left_Back",
+        "Centre_Back",
+      ]);
     });
   });
 
@@ -123,7 +156,7 @@ describe("Scoring engine integration", () => {
         {
           teamId: TEAM_ID,
           points: 21.23,
-          formation: { ST: "Active_Article" },
+          formationSnapshot: JSON.stringify({ ST: "Active_Article" }),
         },
       ]);
       expect(first.ok).toBe(true);
@@ -137,7 +170,11 @@ describe("Scoring engine integration", () => {
 
       // Re-run the same day with a different score: still one row, updated.
       const second = await scoring.ingestPerformances(SCORE_DAY, [
-        { teamId: TEAM_ID, points: 30, formation: { ST: "Active_Article" } },
+        {
+          teamId: TEAM_ID,
+          points: 30,
+          formationSnapshot: JSON.stringify({ ST: "Active_Article" }),
+        },
       ]);
       expect(second.ok).toBe(true);
 
@@ -151,7 +188,7 @@ describe("Scoring engine integration", () => {
     it("rejects negative or non-finite points", async () => {
       const scoring = ScoringService.fromDb(env.db);
       const negative = await scoring.ingestPerformances(SCORE_DAY, [
-        { teamId: TEAM_ID, points: -1, formation: {} },
+        { teamId: TEAM_ID, points: -1, formationSnapshot: "{}" },
       ]);
       expect(negative.ok).toBe(false);
     });
@@ -219,11 +256,11 @@ describe("Scoring engine integration", () => {
       expect(getRes.status).toBe(200);
       const inputs = (await getRes.json()) as Array<{
         teamId: string;
-        placements: Record<string, string>;
+        articles: string[];
       }>;
-      expect(inputs.find((i) => i.teamId === TEAM_ID)?.placements).toEqual({
-        ST: "Active_Article",
-      });
+      expect(inputs.find((i) => i.teamId === TEAM_ID)?.articles).toEqual([
+        "Active_Article",
+      ]);
 
       const postRes = await app.request(
         "/internal/performances",
@@ -236,7 +273,7 @@ describe("Scoring engine integration", () => {
               {
                 teamId: TEAM_ID,
                 points: 12.5,
-                formation: { ST: "Active_Article" },
+                formationSnapshot: JSON.stringify({ ST: "Active_Article" }),
               },
             ],
           }),

@@ -14,6 +14,16 @@ export type RawContract = {
   startDate: string;
   duration: string | Record<string, unknown>;
   purchasePrice: number;
+  /**
+   * Consecutive renewals so far — drives the +10%-per-renewal premium.
+   * Optional on the wire for backward compatibility; defaults to 0.
+   */
+  renewalCount?: number;
+  /**
+   * Whether the owner has elected to renew this contract at expiry.
+   * Optional on the wire for backward compatibility; defaults to false.
+   */
+  renewalElected?: boolean;
 };
 
 
@@ -24,15 +34,19 @@ export class ContractDTO {
   startDate: Temporal.Instant;
   duration: Temporal.Duration;
   purchasePrice: number;
+  renewalCount: number;
+  renewalElected: boolean;
 
 
-  constructor(id: string, team: TeamDTO, article: ArticleDTO, startDate: Temporal.Instant, duration: Temporal.Duration, purchasePrice: number) {
+  constructor(id: string, team: TeamDTO, article: ArticleDTO, startDate: Temporal.Instant, duration: Temporal.Duration, purchasePrice: number, renewalCount: number = 0, renewalElected: boolean = false) {
     this.id = id;
     this.team = team;
     this.article = article;
     this.startDate = startDate;
     this.duration = duration;
     this.purchasePrice = purchasePrice;
+    this.renewalCount = renewalCount;
+    this.renewalElected = renewalElected;
   }
 
   /**
@@ -48,7 +62,9 @@ export class ContractDTO {
       raw.article,
       Temporal.Instant.from(raw.startDate),
       Temporal.Duration.from(raw.duration),
-      raw.purchasePrice
+      raw.purchasePrice,
+      raw.renewalCount,
+      raw.renewalElected
     );
   }
 

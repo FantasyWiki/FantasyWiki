@@ -44,6 +44,14 @@ export interface OwnedByViewerDetail extends ArticleDetailBase {
   expiresIn: Temporal.Duration;
   ownerTeamName: string;
   purchasePrice: number;
+  /** Consecutive renewals so far — drives the +10%-per-renewal premium. */
+  renewalCount: number;
+  /** Whether renewal has already been elected for this contract's expiry. */
+  renewalElected: boolean;
+  /** currentPrice × 0.10 × renewalCount — the anti-hoard premium (ADR 0003). */
+  renewalPremium: number;
+  /** What renewing would cost: currentPrice + renewalPremium. */
+  renewalPrice: number;
 }
 
 export interface OwnedByOtherDetail extends ArticleDetailBase {
@@ -109,6 +117,9 @@ export function buildArticleDetail(input: ArticleDetailInput): ArticleDetail {
   const ownerTeamName = contract.team.name;
 
   if (viewerTeamId && contract.team.id === viewerTeamId) {
+    const renewalPremium = Math.round(
+      currentPrice * 0.1 * contract.renewalCount
+    );
     return {
       availability: "owned-by-viewer",
       article,
@@ -118,6 +129,10 @@ export function buildArticleDetail(input: ArticleDetailInput): ArticleDetail {
       ownerTeamName,
       currentPrice,
       purchasePrice: contract.purchasePrice,
+      renewalCount: contract.renewalCount,
+      renewalElected: contract.renewalElected,
+      renewalPremium,
+      renewalPrice: currentPrice + renewalPremium,
     };
   }
 

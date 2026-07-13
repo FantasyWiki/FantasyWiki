@@ -13,6 +13,16 @@
           "database_id": "640d7014-0bf9-44f6-8026-15bf2a18cdda",
         },
       ],
+      "workflows": [
+        {
+          "binding": "CONTRACT_SETTLEMENT_WORKFLOW",
+          "name": "contract-settlement",
+          "class_name": "ContractSettlementWorkflow",
+        },
+      ],
+      "triggers": {
+        "crons": ["0 5 * * *"],
+      },
     },
     "preview": {
       "name": "backend-preview",
@@ -23,6 +33,16 @@
           "database_id": "cd2e57f5-b1c1-47f4-ac3a-70b4621043c8",
         },
       ],
+      "workflows": [
+        {
+          "binding": "CONTRACT_SETTLEMENT_WORKFLOW",
+          "name": "contract-settlement-preview",
+          "class_name": "ContractSettlementWorkflow",
+        },
+      ],
+      "triggers": {
+        "crons": ["0 5 * * *"],
+      },
     },
     "local": {
       "d1_databases": [
@@ -32,6 +52,16 @@
           "database_id": "640d7014-0bf9-44f6-8026-15bf2a18cdda",
         },
       ],
+      "workflows": [
+        {
+          "binding": "CONTRACT_SETTLEMENT_WORKFLOW",
+          "name": "contract-settlement-local",
+          "class_name": "ContractSettlementWorkflow",
+        },
+      ],
+      "triggers": {
+        "crons": ["0 5 * * *"],
+      },
       "vars": {
         "frontend_url": "https://dev.fantasywiki.pages.dev",
         "vite_backend_url": "https://backend-preview.luca0patrignani.workers.dev",

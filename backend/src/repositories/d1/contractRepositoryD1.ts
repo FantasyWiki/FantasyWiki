@@ -3,6 +3,7 @@ import { Contract } from "../../../../model";
 import { STARTING_CREDITS } from "../../../../model/team";
 import {
   ContractRepository,
+  DueContract,
   LeagueContractRow,
   NewContract,
 } from "../contractRepository";
@@ -27,6 +28,11 @@ interface LeagueContractQueryRow extends ContractRow {
   playerName: string;
 }
 
+interface DueContractQueryRow extends ContractRow {
+  domain: string;
+  teamCredits: number;
+}
+
 function toContract(row: ContractRow): Contract {
   return {
     id: row.id,
@@ -48,6 +54,14 @@ function toLeagueContractRow(row: LeagueContractQueryRow): LeagueContractRow {
     teamCredits: row.teamCredits,
     playerId: row.playerId,
     playerName: row.playerName,
+  };
+}
+
+function toDueContract(row: DueContractQueryRow): DueContract {
+  return {
+    ...toContract(row),
+    domain: row.domain,
+    teamCredits: row.teamCredits,
   };
 }
 
@@ -203,6 +217,125 @@ export class ContractRepositoryD1 implements ContractRepository {
     } catch (error) {
       return failure(
         `Error selling contract: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  async getDueForSettlement(
+    today: Temporal.PlainDate,
+  ): Promise<Result<DueContract[]>> {
+    try {
+      // teamCredits is derived from the same ledger as getByLeagueId; domain
+      // comes from the owning team's league. The WHERE clause rides the
+      // idx_contracts_settled_expire (settled, expireDate) index.
+      const result = await this.db
+        .prepare(
+          `WITH team_credits AS (
+             SELECT teamId,
+                    ? - COALESCE(SUM(purchasePrice), 0)
+                      + COALESCE(SUM(CASE WHEN settled = 1 THEN salePayout ELSE 0 END), 0) AS credits
+             FROM contracts
+             GROUP BY teamId
+           )
+           SELECT c.*, l.domain AS domain, tc.credits AS teamCredits
+           FROM contracts c
+           JOIN teams t ON c.teamId = t.id
+           JOIN leagues l ON t.leagueId = l.id
+           JOIN team_credits tc ON tc.teamId = t.id
+           WHERE c.settled = 0 AND c.expireDate <= ?`,
+        )
+        .bind(STARTING_CREDITS, today.toString())
+        .all<DueContractQueryRow>();
+
+      return success(result.results.map(toDueContract));
+    } catch (error) {
+      return failure(
+        `Error fetching due contracts: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  async settleExpiry(
+    contractId: string,
+    payout: number,
+  ): Promise<Result<boolean>> {
+    try {
+      // Same guarded single-write shape as settleSale, but system-driven (no
+      // teamId guard needed): guarded on settled=0 so a re-run of the sweep is
+      // idempotent. The payout lands in the shared salePayout ledger column.
+      const result = await this.db
+        .prepare(
+          `UPDATE contracts SET settled = 1, salePayout = ? WHERE id = ? AND settled = 0`,
+        )
+        .bind(payout, contractId)
+        .run();
+
+      if (!result.success) {
+        return failure("Error settling contract at expiry");
+      }
+      return success(result.meta.changes > 0);
+    } catch (error) {
+      return failure(
+        `Error settling contract at expiry: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  async renew(
+    contractId: string,
+    newPurchaseDate: Temporal.PlainDate,
+    newExpireDate: Temporal.PlainDate,
+    newPurchasePrice: number,
+  ): Promise<Result<boolean>> {
+    try {
+      // Guarded on settled=0 AND renewalElected=1: once this runs, renewalElected
+      // is cleared and expireDate moves past today, so a re-run of the sweep
+      // can neither pick the row up again nor double-apply the premium.
+      const result = await this.db
+        .prepare(
+          `UPDATE contracts
+           SET purchaseDate = ?, expireDate = ?, purchasePrice = ?,
+               renewalCount = renewalCount + 1, renewalElected = 0
+           WHERE id = ? AND settled = 0 AND renewalElected = 1`,
+        )
+        .bind(
+          newPurchaseDate.toString(),
+          newExpireDate.toString(),
+          newPurchasePrice,
+          contractId,
+        )
+        .run();
+
+      if (!result.success) {
+        return failure("Error renewing contract");
+      }
+      return success(result.meta.changes > 0);
+    } catch (error) {
+      return failure(
+        `Error renewing contract: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  async electRenewal(
+    contractId: string,
+    teamId: string,
+  ): Promise<Result<boolean>> {
+    try {
+      const result = await this.db
+        .prepare(
+          `UPDATE contracts SET renewalElected = 1 WHERE id = ? AND teamId = ? AND settled = 0`,
+        )
+        .bind(contractId, teamId)
+        .run();
+
+      if (!result.success) {
+        return failure("Error electing contract renewal");
+      }
+      return success(result.meta.changes > 0);
+    } catch (error) {
+      return failure(
+        `Error electing contract renewal: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
   }

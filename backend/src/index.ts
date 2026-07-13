@@ -1,11 +1,13 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { jwt } from "hono/jwt";
+import { Temporal } from "@js-temporal/polyfill";
 import auth, { resolveFrontendUrl } from "./routes/auth";
 import session from "./routes/session";
 import leagues from "./routes/leagues";
 import notifications from "./routes/notifications";
 import player from "./routes/player";
+import type { ContractSettlementParams } from "./workflows/contractSettlement";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -15,6 +17,7 @@ type Bindings = {
   GOOGLE_CLIENT_SECRET: string;
   JWT_SECRET: string;
   FRONTEND_URL: string;
+  CONTRACT_SETTLEMENT_WORKFLOW: Workflow<ContractSettlementParams>;
 };
 
 app.use(
@@ -57,4 +60,26 @@ app.route("/api/notifications", notifications);
 // Mount player routes
 app.route("/api/player", player);
 
-export default app;
+/**
+ * Daily settlement Cron Trigger (ADR 0003, ~05:00 UTC): kicks off the durable
+ * ContractSettlementWorkflow, which settles or renews every contract that has
+ * reached the end of its term. The handler stays thin — it only starts the
+ * Workflow instance; all the resolution logic lives in the Workflow/service.
+ */
+const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
+  _controller,
+  env,
+) => {
+  await env.CONTRACT_SETTLEMENT_WORKFLOW.create({
+    params: { today: Temporal.Now.plainDateISO().toString() },
+  });
+};
+
+// Cloudflare requires the WorkflowEntrypoint class to be exported from the
+// Worker's main module (referenced by class_name in wrangler.jsonc).
+export { ContractSettlementWorkflow } from "./workflows/contractSettlement";
+
+export default {
+  fetch: app.fetch,
+  scheduled,
+} satisfies ExportedHandler<Bindings>;

@@ -5,10 +5,14 @@ import {
   ContractTier,
   TIER_DAYS,
   computeContractPrice,
+  computeCurrentPrice,
   normalizedViews,
   resolveLanguageScale,
 } from "../../../model/pricing";
-import { ContractRepository } from "../repositories/contractRepository";
+import {
+  ContractRepository,
+  DueContract,
+} from "../repositories/contractRepository";
 import { ContractRepositoryD1 } from "../repositories/d1/contractRepositoryD1";
 import { LeagueRepository } from "../repositories/leagueRepository";
 import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
@@ -24,6 +28,8 @@ import { createWikimediaClient } from "./wikimediaClient";
 import { toRawContract } from "./rawContract";
 
 export const MAX_TEAM_CONTRACTS = 22;
+/** ADR 0003: +10% of currentPrice per consecutive renewal (anti-hoard sink). */
+export const RENEWAL_PREMIUM_RATE = 0.1;
 const VALID_TIERS: ContractTier[] = ["SHORT", "MEDIUM", "LONG"];
 
 function isContractTier(tier: string): tier is ContractTier {
@@ -407,5 +413,221 @@ export class ContractService {
         ),
       ),
     );
+  }
+
+  /**
+   * All unsettled contracts at or past their `expireDate` — the work list for
+   * the daily settlement sweep. Thin passthrough to the repository so the
+   * settlement Workflow depends only on the service layer.
+   */
+  async getDueForSettlement(
+    today: Temporal.PlainDate,
+  ): Promise<Result<DueContract[]>> {
+    return this.contractRepo.getDueForSettlement(today);
+  }
+
+  /**
+   * Records the current player's intent to renew one of their contracts at
+   * expiry (ADR 0003's final-24h right-of-first-refusal). This only flips
+   * `renewalElected` — the renewal is executed by the daily settlement sweep,
+   * which is the single money-writer, so no price is computed or charged here.
+   *
+   * The server stores dates only, so the window guard is coarse
+   * (`0 <= remainingDays <= 1`); the frontend applies the finer sub-24h gate.
+   * Affordability is deliberately not checked here — the price isn't known
+   * until expiry — so electing only records intent; the sweep does the
+   * authoritative affordability check and settles instead if it can't be met.
+   */
+  async electRenewal(
+    playerId: string,
+    leagueId: string,
+    contractId: string,
+  ): Promise<Result<RawContract>> {
+    const [teamResult, leagueResult, contractResult] = await Promise.all([
+      this.teamRepo.getByPlayerAndLeague(playerId, leagueId),
+      this.leagueRepo.getById(leagueId),
+      this.contractRepo.getById(contractId),
+    ]);
+    if (!teamResult.ok) {
+      return teamResult;
+    }
+    if (teamResult.value === null) {
+      return failure("No team found for this league");
+    }
+    const team = teamResult.value;
+
+    if (!leagueResult.ok) {
+      return leagueResult;
+    }
+    const domain = leagueResult.value.domain as Domain;
+
+    if (!contractResult.ok) {
+      return contractResult;
+    }
+    const contract = contractResult.value;
+    if (contract === null) {
+      return failure("Contract not found");
+    }
+    if (contract.teamId !== team.id) {
+      return failure("You do not own this contract");
+    }
+    if (contract.settled) {
+      return failure("Contract already settled");
+    }
+
+    const today = Temporal.Now.plainDateISO();
+    const remainingDays = today.until(contract.expireDate).days;
+    if (remainingDays < 0) {
+      return failure("Contract has already expired");
+    }
+    if (remainingDays > 1) {
+      return failure(
+        "Renewal can only be elected in the final 24 hours before expiry",
+      );
+    }
+
+    const [electResult, playerResult] = await Promise.all([
+      this.contractRepo.electRenewal(contract.id, team.id),
+      this.playerRepo.getById(playerId),
+    ]);
+    if (!electResult.ok) {
+      return electResult;
+    }
+    if (!electResult.value) {
+      return failure("Contract not found");
+    }
+
+    // Election moves no money, so credits are unchanged.
+    return success(
+      toRawContract(
+        { ...contract, renewalElected: true },
+        { id: team.id, name: team.name, credits: team.credits },
+        {
+          id: playerId,
+          name: playerResult.ok ? playerResult.value.username : "",
+        },
+        domain,
+      ),
+    );
+  }
+
+  /**
+   * Resolves a single contract that has reached the end of its term (ADR 0003
+   * "sold to system" / renewal). Called once per due contract by the daily
+   * settlement Workflow, so the durable step is a thin wrapper over this.
+   *
+   * - No renewal elected → **settle**: credit the full live `currentPrice`
+   *   (`settled=1`, payout into the salePayout ledger) and notify with the P&L.
+   * - Renewal elected AND affordable → **renew**: roll the window forward a
+   *   tier at `currentPrice + premium` and notify. "Affordable" means the
+   *   incremental capital `newPurchasePrice − purchasePrice` (the actual ledger
+   *   movement, since the old purchasePrice is already sunk) fits in the team's
+   *   derived credits.
+   * - Renewal elected but unaffordable → **settle instead**, with a message
+   *   saying the renewal failed for insufficient credits.
+   *
+   * Throws on a failed/again-missing views fetch or a DB write error so the
+   * Workflow step retries; the guarded writes make a re-run a no-op, so a
+   * contract already settled/renewed by a prior run is skipped safely.
+   */
+  async settleDueContract(contract: DueContract): Promise<void> {
+    const domain = contract.domain as Domain;
+    const tierDays = contract.purchaseDate.until(contract.expireDate).days;
+    const today = Temporal.Now.plainDateISO();
+    const articleTitle = contract.articleId.replace(/_/g, " ");
+
+    const views = await this.wikimedia.pageviews.getArticleViews(
+      domain,
+      contract.articleId,
+    );
+    // Never settle at 0 on a failed fetch (that would hand out a free/forfeited
+    // settlement). Throw so the Workflow step retries; the contract stays
+    // settled=0 and is re-picked by the next sweep.
+    if (views.averageViews30d === undefined) {
+      throw new Error(
+        `Couldn't fetch views for ${contract.articleId}; deferring settlement`,
+      );
+    }
+    const currentPrice = computeCurrentPrice(
+      views.averageViews30d,
+      domain,
+      tierDays,
+    );
+
+    if (contract.renewalElected) {
+      const premium = Math.round(
+        currentPrice * RENEWAL_PREMIUM_RATE * contract.renewalCount,
+      );
+      const newPurchasePrice = currentPrice + premium;
+      // Incremental cost is the real balance movement: the old purchasePrice is
+      // already sunk in the derived ledger. A drop in currentPrice can make
+      // this <= 0, i.e. always affordable.
+      const incrementalCost = newPurchasePrice - contract.purchasePrice;
+      if (incrementalCost <= contract.teamCredits) {
+        const newExpireDate = contract.expireDate.add({ days: tierDays });
+        const renewResult = await this.contractRepo.renew(
+          contract.id,
+          contract.expireDate, // new purchaseDate = old expireDate
+          newExpireDate,
+          newPurchasePrice,
+        );
+        if (!renewResult.ok) {
+          throw new Error(renewResult.error);
+        }
+        // Only notify when this call actually renewed the row (a re-run that
+        // finds it already renewed is a silent no-op).
+        if (renewResult.value) {
+          await this.writeSettlementNotification(
+            contract.id,
+            `Renewed ${articleTitle} for ${tierDays} more days at ${newPurchasePrice} credits (+${premium} premium)`,
+            today,
+          );
+        }
+        return;
+      }
+      // Unaffordable: fall through to settlement below.
+    }
+
+    const delta = currentPrice - contract.purchasePrice;
+    const signed = delta >= 0 ? `+${delta}` : `−${Math.abs(delta)}`;
+    const settleResult = await this.contractRepo.settleExpiry(
+      contract.id,
+      currentPrice,
+    );
+    if (!settleResult.ok) {
+      throw new Error(settleResult.error);
+    }
+    if (settleResult.value) {
+      // Reaching the settle branch with renewalElected set means the renewal
+      // was elected but couldn't be afforded.
+      const message = contract.renewalElected
+        ? `Couldn't renew ${articleTitle} (not enough credits) — settled at expiry: ${signed} credits`
+        : `${articleTitle} settled at expiry: ${signed} credits`;
+      await this.writeSettlementNotification(contract.id, message, today);
+    }
+  }
+
+  /**
+   * Best-effort settlement notification: mirrors sellContract's stance — the
+   * money write already succeeded, so a failed notification is logged, never
+   * thrown (throwing would send the Workflow step into a needless retry that
+   * re-does nothing, the settlement being idempotent).
+   */
+  private async writeSettlementNotification(
+    contractId: string,
+    message: string,
+    today: Temporal.PlainDate,
+  ): Promise<void> {
+    const result = await this.notificationRepo.create({
+      id: crypto.randomUUID(),
+      contractId,
+      message,
+      date: today.toString(),
+    });
+    if (!result.ok) {
+      console.error(
+        `Failed to create settlement notification for contract ${contractId}: ${result.error}`,
+      );
+    }
   }
 }

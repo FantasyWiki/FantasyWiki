@@ -380,6 +380,7 @@
       @close="closeDetail"
       @buy="onBuy"
       @sell="onSell"
+      @renew="onRenew"
       @request-trade="onRequestTrade"
     />
   </nav-bar>
@@ -428,6 +429,7 @@ import {
   type StatusFilter,
 } from "@/composables/useMarket";
 import { useToast } from "@/composables/useToast";
+import { useRenewContract } from "@/composables/useRenewContract";
 import type { MarketArticle } from "@/types/market";
 import type { ArticleDTO } from "../../../dto/articleDTO";
 import type { ContractDTO } from "../../../dto/contractDTO";
@@ -533,6 +535,7 @@ function closeDetail() {
 }
 
 const { showSuccess, showError } = useToast();
+const { renewContract } = useRenewContract();
 
 async function onBuy(tier: ContractTier) {
   const league = currentLeague.value;
@@ -582,6 +585,16 @@ async function onSell(contractId: string) {
     ]);
   } catch (e) {
     showError(e instanceof Error ? e.message : t("market.sellError"));
+  }
+}
+
+async function onRenew(contract: ContractDTO) {
+  const league = currentLeague.value;
+  if (!league) return;
+  const ok = await renewContract(league.id, contract.id);
+  if (ok) {
+    closeDetail();
+    await refetch();
   }
 }
 

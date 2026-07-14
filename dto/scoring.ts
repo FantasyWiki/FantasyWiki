@@ -4,8 +4,11 @@
  * Consumed by `backend/src/routes/internal.ts`. The Kotlin scoring engine
  * re-declares equivalents on its side of the JVM boundary — ADR 0004 accepts
  * no type-sharing across runtimes, so these two must be kept in lockstep by
- * hand (and by the golden-vector test for the scoring math itself).
+ * hand. The scoring *math* is not duplicated across the boundary at all: the
+ * engine sends raw Wikimedia signals and the backend scores them
+ * (`model/scoring.ts`), so there is only one `basePoints` implementation.
  */
+import type { ChemistryLevel } from "../model/enums";
 
 /**
  * One team's daily scoring inputs, as returned by GET /internal/scoring-inputs.
@@ -41,10 +44,24 @@ export interface ScoringInputDTO {
   formationSnapshot: string;
 }
 
-/** One team's computed daily result, as sent to POST /internal/performances. */
+/**
+ * One team's raw daily scoring signals, as sent to POST /internal/performances.
+ *
+ * The engine sends *facts it fetched from Wikimedia*, not a computed score: the
+ * backend owns all scoring math (`model/scoring.ts` `teamDailyScore`) so
+ * `basePoints`, the synergy values, the team cap, and the Language Scale Factor
+ * live in exactly one implementation. The backend resolves the team's `L` from
+ * its domain and computes `points` on ingest.
+ */
 export interface PerformanceResultDTO {
   teamId: string;
-  points: number;
+  /** Placed articles' raw daily views for the scored day (any order, one per placed article). */
+  articleViews: number[];
+  /**
+   * Resolved level for each of the team's Chemistry Links (the `chemistryLinks`
+   * pairs from the matching input), as classified from the Wikipedia link graph.
+   */
+  chemistryLevels: ChemistryLevel[];
   /** The opaque `formationSnapshot` echoed back from the matching input. */
   formationSnapshot: string;
 }

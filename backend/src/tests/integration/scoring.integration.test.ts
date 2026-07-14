@@ -117,14 +117,22 @@ describe("Scoring engine integration", () => {
   });
 
   describe("ingestPerformances", () => {
-    it("upserts idempotently on (teamId, date) and is readable back", async () => {
+    beforeEach(async () => {
+      // The team must have a lineup so getTeamLineups() resolves its domain -> L.
+      await insertLineup(env.db, TEAM_ID, "4-3-3", {});
+    });
+
+    it("computes points from raw signals and upserts idempotently on (teamId, date)", async () => {
       const scoring = ScoringService.fromDb(env.db);
       const performance = PerformanceService.fromDb(env.db);
 
+      // domain "en" -> L = 1.0. basePoints(64000)=5.0, basePoints(16000)=3.0;
+      // "excellent" synergy = +1.5 -> 5.0 + 3.0 + 1.5 = 9.5.
       const first = await scoring.ingestPerformances(SCORE_DAY, [
         {
           teamId: TEAM_ID,
-          points: 21.23,
+          articleViews: [64_000, 16_000],
+          chemistryLevels: ["excellent"],
           formationSnapshot: JSON.stringify({ ST: "Active_Article" }),
         },
       ]);
@@ -135,13 +143,15 @@ describe("Scoring engine integration", () => {
       expect(afterFirst.ok).toBe(true);
       if (!afterFirst.ok) return;
       expect(afterFirst.value).toHaveLength(1);
-      expect(afterFirst.value[0].points).toBeCloseTo(21.23);
+      expect(afterFirst.value[0].points).toBeCloseTo(9.5);
 
-      // Re-run the same day with a different score: still one row, updated.
+      // Re-run the same day with different signals: still one row, recomputed.
+      // basePoints(4000)=1.0, no chemistry -> 1.0.
       const second = await scoring.ingestPerformances(SCORE_DAY, [
         {
           teamId: TEAM_ID,
-          points: 30,
+          articleViews: [4_000],
+          chemistryLevels: [],
           formationSnapshot: JSON.stringify({ ST: "Active_Article" }),
         },
       ]);
@@ -151,15 +161,47 @@ describe("Scoring engine integration", () => {
       expect(afterSecond.ok).toBe(true);
       if (!afterSecond.ok) return;
       expect(afterSecond.value).toHaveLength(1);
-      expect(afterSecond.value[0].points).toBeCloseTo(30);
+      expect(afterSecond.value[0].points).toBeCloseTo(1.0);
     });
 
-    it("rejects negative or non-finite points", async () => {
+    it("rejects negative or non-finite article views", async () => {
       const scoring = ScoringService.fromDb(env.db);
       const negative = await scoring.ingestPerformances(SCORE_DAY, [
-        { teamId: TEAM_ID, points: -1, formationSnapshot: "{}" },
+        {
+          teamId: TEAM_ID,
+          articleViews: [-1],
+          chemistryLevels: [],
+          formationSnapshot: "{}",
+        },
       ]);
       expect(negative.ok).toBe(false);
+    });
+
+    it("rejects an unknown chemistry level", async () => {
+      const scoring = ScoringService.fromDb(env.db);
+      const bad = await scoring.ingestPerformances(SCORE_DAY, [
+        {
+          teamId: TEAM_ID,
+          articleViews: [4_000],
+          // Deliberately not a ChemistryLevel value.
+          chemistryLevels: ["mutual" as never],
+          formationSnapshot: "{}",
+        },
+      ]);
+      expect(bad.ok).toBe(false);
+    });
+
+    it("rejects a team with no lineup (no resolvable domain)", async () => {
+      const scoring = ScoringService.fromDb(env.db);
+      const unknown = await scoring.ingestPerformances(SCORE_DAY, [
+        {
+          teamId: "team-without-lineup",
+          articleViews: [4_000],
+          chemistryLevels: [],
+          formationSnapshot: "{}",
+        },
+      ]);
+      expect(unknown.ok).toBe(false);
     });
   });
 });

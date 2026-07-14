@@ -1,4 +1,5 @@
 import type { Domain } from "./enums";
+import { basePoints } from "./scoring";
 
 /**
  * ADR 0005: locked contract-duration tiers, in days. This is the forward
@@ -36,30 +37,11 @@ export function resolveLanguageScale(domain: Domain): number {
 }
 
 /**
- * scoring-system.md §3 / ADR 0001: the exact same curve used for daily scoring —
- * log-compressed up to a 150k-view kink, linear tail above it. ADR 0005 reuses
- * this shape (not raw views) as the input to contract pricing, fed the 30-day
- * average instead of daily views, so price stays proportionate to the value it
- * buys instead of diverging from it. (A views^1.5 curve over raw views doesn't
- * work: pageviews are Zipfian, so any convexity applied directly to raw views
- * front-loads almost all price differentiation onto the extreme head of the
- * distribution — see ADR 0005's "how we got here".)
- */
-const BASE_POINTS_ZERO_VIEWS = 2_000;
-const BASE_POINTS_KINK_VIEWS = 150_000;
-const BASE_POINTS_TAIL_VIEWS_PER_POINT = 50_000;
-const BASE_POINTS_AT_KINK = Math.log2(BASE_POINTS_KINK_VIEWS / BASE_POINTS_ZERO_VIEWS);
-
-function basePoints(views: number): number {
-  if (views <= BASE_POINTS_KINK_VIEWS) {
-    return Math.max(0, Math.log2(views / BASE_POINTS_ZERO_VIEWS));
-  }
-  return BASE_POINTS_AT_KINK + (views - BASE_POINTS_KINK_VIEWS) / BASE_POINTS_TAIL_VIEWS_PER_POINT;
-}
-
-/**
  * ADR 0005: price is convex in *points* (basePoints), not in raw views. The
- * exponent operates over the already-log-compressed points range (~5.7x
+ * `basePoints` curve is the *exact same* one daily scoring uses — it lives in
+ * `scoring.ts` (one curve, one place to tune, scoring-system.md §6.1); pricing
+ * just feeds it the 30-day average instead of daily views. The exponent operates
+ * over the already-log-compressed points range (~5.7x
  * anchor-to-viral) instead of raw views' ~249x range, giving direct control
  * over the top-to-anchor price ratio without an emergent, distribution-driven
  * blowout.

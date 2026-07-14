@@ -1,5 +1,19 @@
 # Plan — Kotlin Scoring Engine (Component 2)
 
+> **Amendment (2026-07-14) — the engine no longer computes scores.** To keep a
+> single `basePoints` implementation, all scoring math moved to the backend
+> (`model/scoring.ts`); the engine is now a **pure Wikimedia fetcher**. It fetches
+> per-article daily views (AQS) and classifies each Chemistry Link as
+> excellent/good/weak (Action API, clustered) and POSTs those raw facts; the
+> backend scores them. This obsoletes the sections below that describe the engine
+> doing the math: **§9 (Scoring math / golden vectors) is dropped entirely** — there
+> is no Kotlin `basePoints` or golden-vector sync. Still accurate and load-bearing:
+> §3–§5 (view fan-out, caching, chemistry clustering) and §7's Gradle wiring.
+> Corrections to the rest: the stack is **Kotest** (not JUnit5/`kotlin-test`) and
+> **Ktor client + MockEngine** (not JDK `HttpClient`); the `Scoring.kt`/`Titles.kt`
+> classification helpers ship with the Wikimedia client in the fetcher PR; and §2's
+> `languageScale`-in-DTO is **not** added (the backend applies `L` at ingest).
+
 Status: **proposed**. Detailed design for the nightly scoring engine — the
 compute half of the loop whose backend half (Component 1) is already built and
 merged. Parent plan and platform rationale: `docs/plan-scoring-engine.md`

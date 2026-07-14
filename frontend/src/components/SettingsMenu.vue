@@ -45,6 +45,19 @@
         </ion-toggle>
       </ion-item>
 
+      <!-- Signed-out visitors keep the footer's link straight to GitHub Issues;
+           the in-app form needs a session to attribute the report. -->
+      <ion-item
+        v-if="appStore.isAuthenticated"
+        :button="true"
+        :detail="false"
+        class="report-row"
+        @click="goToReport"
+      >
+        <ion-icon :icon="bugOutline" slot="start" aria-hidden="true" />
+        <ion-label>{{ $t("menu.reportProblem") }}</ion-label>
+      </ion-item>
+
       <ion-item
         :button="true"
         :detail="false"
@@ -113,6 +126,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { useRouter } from "vue-router";
 import {
   IonAvatar,
   IonIcon,
@@ -124,6 +138,7 @@ import {
 } from "@ionic/vue";
 import {
   bookOutline,
+  bugOutline,
   checkmarkOutline,
   chevronBackOutline,
   globeOutline,
@@ -141,7 +156,13 @@ const USER_GUIDE_URL =
 
 const emit = defineEmits<{ close: [] }>();
 
+const router = useRouter();
 const appStore = useAppStore();
+
+function goToReport() {
+  emit("close");
+  router.push("/report");
+}
 
 // A nested list rather than an inline segment: adding a locale to
 // AVAILABLE_LANGUAGES then costs no layout work here.

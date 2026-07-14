@@ -35,6 +35,7 @@ GOOGLE_CLIENT_ID=457796621894-7krpa8n09mekpj2cdd952jjkf1c3ookt.apps.googleuserco
 GOOGLE_CLIENT_SECRET=<ask a team member>
 JWT_SECRET=<any random string, at least 32 characters>
 FRONTEND_URL=localhost:5173
+GH_APP_PRIVATE_KEY=<optional; only needed to exercise the problem report form>
 ```
 
 **Notes:**
@@ -48,6 +49,19 @@ FRONTEND_URL=localhost:5173
   ```
 - `GOOGLE_CLIENT_SECRET` is sensitive — ask a team member or find it in the
   Google Cloud Console under the OAuth 2.0 client for this project.
+- `GH_APP_PRIVATE_KEY` backs the in-app problem report form (`/report`), which opens an
+  issue on `FantasyWiki/FantasyWiki` as `FantasyWiki[bot]`. **Leave it unset unless you are
+  working on that form** — every submission with a valid key files a **real** issue (labelled
+  `preview` outside production, so it stays filterable and bulk-deletable).
+
+  It is the GitHub App's private key, converted to **PKCS#8** (GitHub gives you PKCS#1, which
+  WebCrypto cannot import), with newlines escaped as `\n` so it fits on one line. See
+  [Problem Reports](../architecture/problem-reports.md) for how to create the App and convert
+  the key. `GH_APP_ID`, `GH_APP_INSTALLATION_ID`, `GITHUB_REPO` and `ENVIRONMENT` are plain
+  vars and already live in `wrangler.jsonc`.
+
+  In CI it is a **GitHub Actions secret** of the same name, pushed to the Worker by the deploy
+  workflow — not a `wrangler secret put`.
 
 ---
 

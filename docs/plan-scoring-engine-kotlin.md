@@ -4,15 +4,21 @@
 > single `basePoints` implementation, all scoring math moved to the backend
 > (`model/scoring.ts`); the engine is now a **pure Wikimedia fetcher**. It fetches
 > per-article daily views (AQS) and classifies each Chemistry Link as
-> excellent/good/weak (Action API, clustered) and POSTs those raw facts; the
+> excellent/good/weak (Action API) and POSTs those raw facts; the
 > backend scores them. This obsoletes the sections below that describe the engine
 > doing the math: **§9 (Scoring math / golden vectors) is dropped entirely** — there
 > is no Kotlin `basePoints` or golden-vector sync. Still accurate and load-bearing:
-> §3–§5 (view fan-out, caching, chemistry clustering) and §7's Gradle wiring.
+> §3–§5 (view fan-out, caching) and §7's Gradle wiring.
 > Corrections to the rest: the stack is **Kotest** (not JUnit5/`kotlin-test`) and
-> **Ktor client + MockEngine** (not JDK `HttpClient`); the `Scoring.kt`/`Titles.kt`
-> classification helpers ship with the Wikimedia client in the fetcher PR; and §2's
+> **Ktor client + MockEngine** (not JDK `HttpClient`); §2's
 > `languageScale`-in-DTO is **not** added (the backend applies `L` at ingest).
+> The implemented module is **`:scoring-collector`** (package
+> `io.github.fantasywiki.collector`), renamed from `scoring-engine` since it no
+> longer computes scores. Files: `Config`, `Model`, `Titles`, `WikimediaClient`
+> (+ `Chemistry`), `Collector` (fetch/assemble orchestration), `BackendClient`,
+> `Main`. Link resolution is **per-source with a `pltitles` filter** (one bounded
+> request per distinct paired article); the §5 connected-component *clustering* that
+> batches multiple sources per call is a documented, not-yet-needed optimization.
 
 Status: **proposed**. Detailed design for the nightly scoring engine — the
 compute half of the loop whose backend half (Component 1) is already built and

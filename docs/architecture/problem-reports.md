@@ -31,14 +31,28 @@ The body is the reporter's own text, followed by a collapsed `<details>` block h
 they came from, locale, viewport, user agent, and the opaque `players.id`.
 
 **The email is never published.** The repository is public, so an address in an issue body would
-be indexed and harvested permanently. To reply to a reporter, resolve their id server-side —
-there is no tooling for this, it is a hand-run query:
+be indexed and harvested permanently. To find out who filed a report, resolve their id against
+our own database:
+
+```bash
+./gradlew who --player=<uuid from the issue body>   # production
+./gradlew who --player=<uuid> --preview             # QA (issues labelled `preview`)
+```
+
+Under the hood that runs the join below through `wrangler d1 execute db --env <environment>`.
+Note the argument is the **binding** `db`, not the database name: `wrangler.jsonc` declares
+`d1_databases` per-environment and nothing at the top level, so `db-preview` is not addressable —
+only `--env` selects the database.
 
 ```sql
-SELECT ga.email
-FROM players p JOIN google_accounts ga ON ga.id = p.accountId
-WHERE p.id = '<uuid from the issue body>';
+SELECT p.username, ga.email, p.created_at
+  FROM players p JOIN google_accounts ga ON ga.id = p.accountId
+ WHERE p.id = '<uuid from the issue body>';
 ```
+
+**Only contact a reporter whose issue carries `contact-ok`.** That label is the sole record that
+they agreed to it — the email is in our database because they signed in with Google, not because
+they offered it for support.
 
 The consent checkbox covers **this report only** ("You can contact me about this report") and adds
 the `contact-ok` label. It is not a marketing opt-in.

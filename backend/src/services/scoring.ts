@@ -1,5 +1,8 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { CHEMISTRY_LINKS } from "../../../model/enums";
+import { CHEMISTRY_LINKS, ChemistryLevel } from "../../../model/enums";
+import type { Domain } from "../../../model/enums";
+import { resolveLanguageScale } from "../../../model/pricing";
+import { teamDailyScore } from "../../../model/scoring";
 import { ScoringRepositoryD1 } from "../repositories/d1/scoringRepositoryD1";
 import { PerformanceRepositoryD1 } from "../repositories/d1/performanceRepositoryD1";
 import type { ScoringRepository } from "../repositories/scoringRepository";
@@ -112,8 +115,13 @@ export class ScoringService {
   }
 
   /**
-   * Idempotent ingest of computed daily results. Validates shape only — points
-   * must be a finite, non-negative number — then upserts on (teamId, date).
+   * Idempotent ingest of the engine's raw daily signals. The engine sends
+   * *facts it fetched from Wikimedia* (per-article daily views + each Chemistry
+   * Link's resolved level); the backend computes `points` here via the single
+   * `teamDailyScore` implementation (`model/scoring.ts`) so scoring math lives
+   * in exactly one place. The team's Language Scale Factor `L` is resolved
+   * server-side from its league domain — the engine never sends it. Then upserts
+   * on (teamId, date).
    */
   async ingestPerformances(
     date: Temporal.PlainDate,
@@ -123,25 +131,51 @@ export class ScoringService {
       return failure("results must be an array");
     }
 
+    // Resolve each team's L from its league domain — authoritative, server-side.
+    const lineupsResult = await this.scoringRepository.getTeamLineups();
+    if (!lineupsResult.ok) return lineupsResult;
+    const domainByTeam = new Map<string, string>(
+      lineupsResult.value.map((row) => [row.teamId, row.domain]),
+    );
+    const validLevels = new Set<string>(Object.values(ChemistryLevel));
+
     const rows: PerformanceUpsertRow[] = [];
     for (const result of results) {
       if (typeof result.teamId !== "string" || result.teamId.length === 0) {
         return failure("each result requires a non-empty teamId");
       }
+      const domain = domainByTeam.get(result.teamId);
+      if (domain === undefined) {
+        return failure(`unknown team ${result.teamId}`);
+      }
       if (
-        typeof result.points !== "number" ||
-        !Number.isFinite(result.points) ||
-        result.points < 0
+        !Array.isArray(result.articleViews) ||
+        !result.articleViews.every(
+          (v) => typeof v === "number" && Number.isFinite(v) && v >= 0,
+        )
       ) {
-        return failure(`invalid points for team ${result.teamId}`);
+        return failure(`invalid articleViews for team ${result.teamId}`);
+      }
+      if (
+        !Array.isArray(result.chemistryLevels) ||
+        !result.chemistryLevels.every(
+          (level) => typeof level === "string" && validLevels.has(level),
+        )
+      ) {
+        return failure(`invalid chemistryLevels for team ${result.teamId}`);
       }
       const formationSnapshot =
         typeof result.formationSnapshot === "string"
           ? result.formationSnapshot
           : "{}";
+      const points = teamDailyScore(
+        result.articleViews,
+        resolveLanguageScale(domain as Domain),
+        result.chemistryLevels,
+      );
       rows.push({
         teamId: result.teamId,
-        points: result.points,
+        points,
         formationSnapshot,
       });
     }

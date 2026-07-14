@@ -103,6 +103,8 @@ describe("/internal routes", () => {
       "Active_Article",
     ]);
 
+    // Engine posts raw signals; the backend scores them (domain "en" -> L=1.0):
+    // basePoints(64000)=5.0 + "good" synergy 0.5 = 5.5.
     const postRes = await app.request(
       "/internal/performances",
       {
@@ -113,7 +115,8 @@ describe("/internal routes", () => {
           results: [
             {
               teamId: TEAM_ID,
-              points: 12.5,
+              articleViews: [64_000],
+              chemistryLevels: ["good"],
               formationSnapshot: JSON.stringify({ ST: "Active_Article" }),
             },
           ],
@@ -128,6 +131,6 @@ describe("/internal routes", () => {
     const performance = PerformanceService.fromDb(env.db);
     const rows = await performance.getRecentForTeam(TEAM_ID, 5);
     expect(rows.ok).toBe(true);
-    if (rows.ok) expect(rows.value[0].points).toBeCloseTo(12.5);
+    if (rows.ok) expect(rows.value[0].points).toBeCloseTo(5.5);
   });
 });

@@ -1,5 +1,19 @@
 # Plan — Nightly Scoring Engine
 
+> **Amendment (2026-07-14) — single `basePoints`, engine is a pure fetcher.**
+> To guarantee exactly one `basePoints` implementation across the TS and JVM
+> runtimes, **all scoring arithmetic moved to the backend** and the engine was
+> reduced to a Wikimedia fetcher. The engine POSTs *raw facts* — per-article daily
+> views + each Chemistry Link's resolved level — and the backend computes
+> `Σ basePoints(views × L) + synergy` via the single implementation in
+> `model/scoring.ts` (which `pricing.ts` also imports). Consequences vs. the body
+> below: (1) `PerformanceResultDTO` carries `articleViews` + `chemistryLevels`, not
+> `points`; (2) `L` is resolved server-side at ingest (no `languageScale` in
+> `ScoringInputDTO`); (3) the golden-vector cross-check (§6 Testing) is **removed** —
+> there is no second implementation to guard; (4) the engine stack is **Kotest +
+> Ktor client (MockEngine)**, and the Kotlin `Scoring.kt` math is deleted. §2's math
+> is unchanged and now lives in `model/scoring.ts`.
+
 Status: **proposed**. This document captures the business requirement, the scoring
 math, the doc/code discrepancies to resolve first, and the implementation plan for
 the nightly point-calculation service.

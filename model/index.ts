@@ -7,4 +7,5 @@ export * from "./notification";
 export * from "./performances";
 export * from "./player";
 export * from "./pricing";
+export * from "./scoring";
 export * from "./team";

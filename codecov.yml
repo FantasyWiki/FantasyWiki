@@ -1,0 +1,9 @@
+coverage:
+  status:
+    # Fail only when total coverage drops below the fixed minimum.
+    project:
+      default:
+        target: 70%
+        threshold: 0%
+    # Never gate on coverage of the changed lines alone.
+    patch: off

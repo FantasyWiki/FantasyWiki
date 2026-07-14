@@ -9,6 +9,12 @@
     "signIn": "Sign In with Google",
     "signOut": "Sign Out"
   },
+  "menu": {
+    "open": "Open menu",
+    "language": "Language",
+    "darkMode": "Dark mode",
+    "userGuide": "User guide"
+  },
   "footer": {
     "technicalDocs": "Technical documentation",
     "userGuide": "User guide",

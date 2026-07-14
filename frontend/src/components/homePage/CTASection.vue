@@ -22,7 +22,7 @@
           </ion-text>
 
           <div class="ion-margin-bottom">
-            <ion-button size="large" color="light">
+            <ion-button size="large" color="light" @click="startPlaying">
               {{ $t("home.cta.createAccount") }}
               <ion-icon slot="end" :icon="arrowForward" />
             </ion-button>
@@ -40,6 +40,9 @@
 <script setup lang="ts">
 import { IonButton, IonChip, IonIcon, IonLabel, IonText } from "@ionic/vue";
 import { sparklesOutline, arrowForward } from "ionicons/icons";
+import { useAuthCta } from "@/composables/useAuthCta";
+
+const { startPlaying } = useAuthCta();
 </script>
 
 <style scoped src="src/components/homePage/home-page.css"></style>

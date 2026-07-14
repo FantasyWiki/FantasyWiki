@@ -9,6 +9,12 @@
     "signIn": "Accedi con Google",
     "signOut": "Esci"
   },
+  "menu": {
+    "open": "Apri il menu",
+    "language": "Lingua",
+    "darkMode": "Tema scuro",
+    "userGuide": "Guida utente"
+  },
   "footer": {
     "technicalDocs": "Documentazione tecnica",
     "userGuide": "Guida utente",

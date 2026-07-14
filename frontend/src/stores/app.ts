@@ -20,16 +20,36 @@ const AVAILABLE_LANGUAGES: LanguageOption[] = [
   { code: "it", label: "🇮🇹", fullName: "Italiano" },
 ];
 
+// Theme is persisted under "theme" ("dark" | "light"). Absence of the key means
+// the user never chose, so we follow the OS preference and keep following it.
+const THEME_KEY = "theme";
+const DARK_CLASS = "ion-palette-dark";
+
+function prefersDarkQuery(): MediaQueryList {
+  return window.matchMedia("(prefers-color-scheme: dark)");
+}
+
+function resolveInitialDarkMode(): boolean {
+  const saved = localStorage.getItem(THEME_KEY);
+  return saved ? saved === "dark" : prefersDarkQuery().matches;
+}
+
 /**
  * Global application store for settings that persist across navigation
- * Manages: language, theme, and other app-wide preferences
+ * Manages: language, theme, auth-modal visibility and other app-wide preferences
  */
 export const useAppStore = defineStore("app", () => {
   // ========== STATE ==========
   // Same resolver the i18n instance booted with, so store and i18n agree.
   const languageCode = ref<string>(resolveInitialLocale());
 
-  const isDarkMode = ref<boolean>(localStorage.getItem("darkMode") === "true");
+  const isDarkMode = ref<boolean>(resolveInitialDarkMode());
+
+  // Auth modals live here rather than in NavBar so that anything on the page —
+  // the landing CTAs, the settings menu — can open them without prop drilling
+  // through the layout slot.
+  const isLoginModalOpen = ref<boolean>(false);
+  const isLogoutModalOpen = ref<boolean>(false);
 
   // State - no initial user data since we need to check with server
   const isAuthenticated = ref<boolean>(false);
@@ -107,16 +127,55 @@ export const useAppStore = defineStore("app", () => {
     setLanguage(AVAILABLE_LANGUAGES[nextIndex].code);
   }
 
-  function toggleDarkMode() {
-    isDarkMode.value = !isDarkMode.value;
-    localStorage.setItem("darkMode", isDarkMode.value.toString());
-    document.body.classList.toggle("dark", isDarkMode.value);
+  function applyDarkMode() {
+    document.body.classList.toggle(DARK_CLASS, isDarkMode.value);
   }
 
+  /**
+   * Set the theme and remember the choice. Once called, the OS preference is
+   * no longer followed — an explicit choice outranks it.
+   */
   function setDarkMode(value: boolean) {
     isDarkMode.value = value;
-    localStorage.setItem("darkMode", value.toString());
-    document.body.classList.toggle("dark", value);
+    localStorage.setItem(THEME_KEY, value ? "dark" : "light");
+    applyDarkMode();
+  }
+
+  function toggleDarkMode() {
+    setDarkMode(!isDarkMode.value);
+  }
+
+  /**
+   * Track the OS theme until the user picks one explicitly. Returns the
+   * listener's teardown so App.vue can drop it on unmount.
+   */
+  function followSystemTheme(): () => void {
+    const query = prefersDarkQuery();
+    const onChange = (event: MediaQueryListEvent) => {
+      if (localStorage.getItem(THEME_KEY)) {
+        return;
+      }
+      isDarkMode.value = event.matches;
+      applyDarkMode();
+    };
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }
+
+  function openLoginModal() {
+    isLoginModalOpen.value = true;
+  }
+
+  function closeLoginModal() {
+    isLoginModalOpen.value = false;
+  }
+
+  function openLogoutModal() {
+    isLogoutModalOpen.value = true;
+  }
+
+  function closeLogoutModal() {
+    isLogoutModalOpen.value = false;
   }
 
   function setUserFromData(userData: Session) {
@@ -132,9 +191,7 @@ export const useAppStore = defineStore("app", () => {
   }
 
   // Initialize on store creation
-  if (isDarkMode.value) {
-    document.body.classList.add("dark");
-  }
+  applyDarkMode();
   document.documentElement.lang = languageCode.value;
 
   // Return public API
@@ -142,6 +199,8 @@ export const useAppStore = defineStore("app", () => {
     // State
     languageCode,
     isDarkMode,
+    isLoginModalOpen,
+    isLogoutModalOpen,
     isAuthenticated,
     currentUser,
     // Getters
@@ -154,6 +213,11 @@ export const useAppStore = defineStore("app", () => {
     cycleLanguage,
     toggleDarkMode,
     setDarkMode,
+    followSystemTheme,
+    openLoginModal,
+    closeLoginModal,
+    openLogoutModal,
+    closeLogoutModal,
     setUserFromData,
     logout,
   };

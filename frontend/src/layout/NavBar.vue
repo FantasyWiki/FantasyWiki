@@ -79,79 +79,58 @@
             </ion-list>
           </ion-popover>
 
-          <!-- Language Selector -->
+          <!-- Sign in stays a first-class button while logged out: it is the
+               only action an anonymous visitor is here to take, and the space
+               is free because there is no league selector yet. -->
           <ion-button
-            fill="solid"
-            size="small"
-            shape="round"
-            @click="openLangPopover($event)"
-          >
-            <ion-icon :icon="globeOutline" />
-            <ion-text class="ion-hide-md-down">
-              {{ appStore.currentLanguage.label }}
-              {{ appStore.currentLanguage.code }}
-            </ion-text>
-          </ion-button>
-          <ion-popover
-            :is-open="langPopoverOpen"
-            :event="langPopoverEvent"
-            side="bottom"
-            alignment="end"
-            @did-dismiss="langPopoverOpen = false"
-          >
-            <ion-list lines="none" class="ion-no-margin">
-              <ion-item
-                class="ion-no-margin"
-                :detail="false"
-                v-for="lang in appStore.availableLanguages"
-                :key="lang.code"
-                :button="true"
-                @click="selectLanguage(lang.code)"
-              >
-                <ion-label>{{ lang.label }} {{ lang.fullName }}</ion-label>
-              </ion-item>
-            </ion-list>
-          </ion-popover>
-
-          <!-- Theme Toggle -->
-          <ion-button
-            fill="solid"
-            size="small"
-            shape="round"
-            @click="toggleTheme"
-          >
-            <ion-icon
-              :icon="appStore.isDarkMode ? moonOutline : sunnyOutline"
-            />
-          </ion-button>
-
-          <!-- Sign In / Out -->
-          <ion-button
-            v-if="appStore.isAuthenticated"
-            fill="clear"
-            color="dark"
-            class="ion-hide-sm-down signout-button"
-            @click="handleAuth"
-          >
-            <ion-avatar
-              v-if="profilePicture"
-              slot="start"
-              class="profile-avatar"
-              aria-hidden="true"
-            >
-              <img :src="profilePicture" alt="" referrerpolicy="no-referrer" />
-            </ion-avatar>
-            {{ $t("nav.signOut") }}
-          </ion-button>
-          <ion-button
-            v-else
+            v-if="!appStore.isAuthenticated"
             color="primary"
             fill="solid"
-            class="ion-hide-sm-down"
-            @click="handleAuth"
+            size="small"
+            shape="round"
+            class="ion-hide-md-down"
+            @click="appStore.openLoginModal()"
           >
             {{ $t("nav.signIn") }}
           </ion-button>
+
+          <!-- One trigger in both auth states: the avatar slot holds a person
+               glyph while logged out and fills with the Google photo after
+               login. The button never changes identity or position, so the
+               menu stays findable. Mobile reaches the same menu from the
+               bottom nav, so this is desktop-only. -->
+          <ion-button
+            id="settings-menu-trigger"
+            fill="clear"
+            color="dark"
+            size="small"
+            shape="round"
+            class="ion-hide-md-down settings-trigger"
+            :aria-label="$t('menu.open')"
+            @click="openSettingsPopover($event)"
+          >
+            <ion-avatar class="profile-avatar" aria-hidden="true">
+              <img
+                v-if="profilePicture"
+                :src="profilePicture"
+                alt=""
+                referrerpolicy="no-referrer"
+              />
+              <ion-icon v-else :icon="personCircleOutline" />
+            </ion-avatar>
+            <ion-icon :icon="chevronDownOutline" class="trigger-chevron" />
+          </ion-button>
+
+          <ion-popover
+            :is-open="settingsPopoverOpen"
+            :event="settingsPopoverEvent"
+            side="bottom"
+            alignment="end"
+            class="settings-popover"
+            @did-dismiss="settingsPopoverOpen = false"
+          >
+            <settings-menu @close="settingsPopoverOpen = false" />
+          </ion-popover>
         </div>
       </ion-toolbar>
     </ion-header>
@@ -160,18 +139,32 @@
       <slot></slot>
       <info-footer></info-footer>
       <ion-modal
-        :is-open="isLoginOpen"
+        :is-open="appStore.isLoginModalOpen"
         css-class="login-modal"
-        @did-dismiss="isLoginOpen = false"
+        @did-dismiss="appStore.closeLoginModal()"
       >
         <login-page />
       </ion-modal>
       <ion-modal
-        :is-open="isLogoutOpen"
+        :is-open="appStore.isLogoutModalOpen"
         css-class="login-modal"
         @did-dismiss="onLogoutDismiss"
       >
         <logout-confirm-page />
+      </ion-modal>
+
+      <!-- Mobile reaches the settings menu as a bottom sheet: it is anchored to
+           the bottom nav, where the thumb already is. Auto-height rather than a
+           breakpoint, so the sheet is exactly as tall as its rows instead of
+           leaving dead space below them. -->
+      <ion-modal
+        :is-open="settingsSheetOpen"
+        class="settings-sheet"
+        @did-dismiss="settingsSheetOpen = false"
+      >
+        <div class="sheet-inner">
+          <settings-menu @close="settingsSheetOpen = false" />
+        </div>
       </ion-modal>
     </ion-content>
 
@@ -194,7 +187,13 @@
           >
             <ion-icon :icon="link.icon" />
           </ion-button>
-          <ion-button fill="clear" @click="handleAuth">
+          <!-- Was an auth toggle; now the entry point to the same settings menu
+               the desktop avatar opens. Sign in/out is a row inside it. -->
+          <ion-button
+            fill="clear"
+            :aria-label="$t('menu.open')"
+            @click="settingsSheetOpen = true"
+          >
             <ion-avatar
               v-if="profilePicture"
               class="profile-avatar"
@@ -202,10 +201,7 @@
             >
               <img :src="profilePicture" alt="" referrerpolicy="no-referrer" />
             </ion-avatar>
-            <ion-icon
-              v-else
-              :icon="appStore.isAuthenticated ? logOutOutline : logInOutline"
-            />
+            <ion-icon v-else :icon="personCircleOutline" />
           </ion-button>
         </div>
       </ion-toolbar>
@@ -231,21 +227,18 @@ import {
   IonList,
   IonPage,
   IonPopover,
-  IonText,
   IonToolbar,
 } from "@ionic/vue";
 import {
-  globeOutline,
+  chevronDownOutline,
   gridOutline,
-  logInOutline,
-  logOutOutline,
-  moonOutline,
+  personCircleOutline,
   storefrontOutline,
-  sunnyOutline,
   trophyOutline,
 } from "ionicons/icons";
 
 import AppLogo from "@/components/AppLogo.vue";
+import SettingsMenu from "@/components/SettingsMenu.vue";
 import InfoFooter from "@/layout/InfoFooter.vue";
 import LoginPage from "@/views/auth/LoginPage.vue";
 import LogoutConfirmPage from "@/views/auth/LogoutConfirmPage.vue";
@@ -257,8 +250,6 @@ import { LeagueDTO } from "../../../dto/leagueDTO";
 const router = useRouter();
 const route = useRoute();
 const { t } = useI18n();
-const isLoginOpen = ref(false);
-const isLogoutOpen = ref(false);
 
 // State
 const appStore = useAppStore();
@@ -277,27 +268,25 @@ const { unreadCount, unreadCountByLeague } = useNotifications();
 
 const leaguePopoverOpen = ref(false);
 const leaguePopoverEvent = ref<MouseEvent | undefined>(undefined);
-const langPopoverOpen = ref(false);
-const langPopoverEvent = ref<MouseEvent | undefined>(undefined);
+const settingsPopoverOpen = ref(false);
+const settingsPopoverEvent = ref<MouseEvent | undefined>(undefined);
+
+// Mobile opens the same menu as a bottom sheet from the bottom nav.
+const settingsSheetOpen = ref(false);
 
 function openLeaguePopover(e: MouseEvent) {
   leaguePopoverEvent.value = e;
   leaguePopoverOpen.value = true;
 }
 
-function openLangPopover(e: MouseEvent) {
-  langPopoverEvent.value = e;
-  langPopoverOpen.value = true;
+function openSettingsPopover(e: MouseEvent) {
+  settingsPopoverEvent.value = e;
+  settingsPopoverOpen.value = true;
 }
 
 function selectLeague(lg: LeagueDTO) {
   leagueStore.setCurrentLeague(lg);
   leaguePopoverOpen.value = false;
-}
-
-function selectLanguage(code: string) {
-  appStore.setLanguage(code);
-  langPopoverOpen.value = false;
 }
 
 // Google profile picture from the session; shown in the auth buttons so a
@@ -314,27 +303,11 @@ const navLinks = computed(() => [
 
 const isActive = (href: string) => route.path === href;
 
-const toggleTheme = () => {
-  appStore.toggleDarkMode();
-  document.body.classList.toggle("ion-palette-dark", appStore.isDarkMode);
-  localStorage.setItem("theme", appStore.isDarkMode ? "dark" : "light");
-};
-
 // Signing out asks for confirmation in a modal (same style as the login
 // one); the store is only touched when the modal is dismissed with the
 // "confirm" role.
-const handleAuth = () => {
-  if (appStore.isAuthenticated) {
-    isLogoutOpen.value = true;
-  } else {
-    // No route change: "/signin" was never a real route and would now hit
-    // the 404 catch-all; the modal simply opens over the current page.
-    isLoginOpen.value = true;
-  }
-};
-
 const onLogoutDismiss = (event: CustomEvent) => {
-  isLogoutOpen.value = false;
+  appStore.closeLogoutModal();
   if (event.detail.role === "confirm") {
     appStore.logout();
     router.push("/");
@@ -392,6 +365,15 @@ ion-toolbar {
   --padding-end: 16px;
 }
 
+/* Keep the bar full-width, just stop the logo and the actions sitting right on
+   the screen edge once there is room to breathe. */
+@media (min-width: 768px) {
+  ion-toolbar {
+    --padding-start: 32px;
+    --padding-end: 32px;
+  }
+}
+
 .transparent-top-layer {
   background: rgba(var(--ion-background-color-rgb), 0.8);
   backdrop-filter: blur(12px);
@@ -429,18 +411,50 @@ ion-footer {
 .profile-avatar {
   width: 1.75rem;
   height: 1.75rem;
+  color: var(--ion-color-medium);
 }
 
-.signout-button {
-  font-weight: 500;
-  text-transform: none;
+.profile-avatar ion-icon {
+  font-size: 1.75rem;
 }
 
-.signout-button .profile-avatar {
-  margin-inline-end: 0.5rem;
+/* The chevron is the whole affordance: it says "this opens" without a gear
+   claiming the menu is only settings. */
+.settings-trigger {
+  --padding-start: 4px;
+  --padding-end: 4px;
+}
+
+.trigger-chevron {
+  font-size: 0.75rem;
+  margin-inline-start: 0.25rem;
+  color: var(--ion-color-medium);
+}
+
+.settings-popover {
+  --width: 17rem;
 }
 
 ion-modal {
   --backdrop-opacity: 100%;
+}
+
+/* The sheet is a surface, not a dialog — it should not black out the page
+   behind it the way the login modal does. --height: auto makes it hug its
+   rows; align-items pins it to the bottom, where the trigger is. */
+ion-modal.settings-sheet {
+  --backdrop-opacity: 0.3;
+  --height: auto;
+  --width: 100%;
+  --border-radius: 16px 16px 0 0;
+  align-items: flex-end;
+}
+
+ion-modal.settings-sheet .sheet-inner {
+  /* Auto-height modals size to their content, so the scroll cap has to live
+     here — otherwise a long menu would grow past the viewport. */
+  max-height: 80vh;
+  overflow-y: auto;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 </style>

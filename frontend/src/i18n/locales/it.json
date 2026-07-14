@@ -9,6 +9,13 @@
     "signIn": "Accedi con Google",
     "signOut": "Esci"
   },
+  "menu": {
+    "open": "Apri il menu",
+    "language": "Lingua",
+    "darkMode": "Tema scuro",
+    "userGuide": "Guida utente",
+    "reportProblem": "Segnala un problema"
+  },
   "footer": {
     "technicalDocs": "Documentazione tecnica",
     "userGuide": "Guida utente",
@@ -16,6 +23,42 @@
     "legal": "Note legali e privacy",
     "madeBy": "creato da",
     "and": "e"
+  },
+  "report": {
+    "title": "Segnala un problema",
+    "intro": "Raccontaci cosa non ha funzionato e apriremo una issue su GitHub per te.",
+    "privacyNote": "La segnalazione diventa una issue pubblica su GitHub. La tua email non viene mai pubblicata: ti identifichiamo solo con un id interno.",
+    "submit": "Invia segnalazione",
+    "cooldown": "Hai appena inviato una segnalazione. Puoi inviarne un'altra tra {seconds}s.",
+    "categories": {
+      "broken": "Qualcosa non funziona",
+      "visual": "Qualcosa si vede male",
+      "idea": "Proponi una nuova funzionalità",
+      "language": "Richiedi una nuova lingua",
+      "rules": "Non capisco una regola",
+      "other": "Altro"
+    },
+    "fields": {
+      "category": "Che tipo di problema è?",
+      "categoryPlaceholder": "Scegli una categoria",
+      "titleLabel": "Titolo",
+      "titlePlaceholder": "Riassumilo in una riga",
+      "bodyLabel": "Descrizione",
+      "bodyPlaceholder": "Cosa è successo e cosa ti aspettavi invece?",
+      "contactConsent": "Potete contattarmi riguardo a questa segnalazione"
+    },
+    "success": {
+      "title": "Grazie — segnalazione inviata",
+      "body": "Abbiamo aperto la issue {issue} su GitHub.",
+      "screenshotHint": "Hai uno screenshot? Apri la issue e trascina l'immagine direttamente al suo interno.",
+      "openIssue": "Apri la issue"
+    },
+    "errors": {
+      "rateLimited": "Hai appena inviato una segnalazione. Aspetta un minuto prima di inviarne un'altra.",
+      "invalid": "Scegli una categoria e compila sia il titolo sia la descrizione.",
+      "submissionFailed": "Non siamo riusciti a contattare GitHub, quindi la segnalazione non è stata inviata. Il tuo testo è ancora qui.",
+      "fallbackLink": "Aprila tu su GitHub"
+    }
   },
   "notFound": {
     "title": "404: Pagina non trovata",

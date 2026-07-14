@@ -1,13 +1,12 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
+import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
 import router from "@/router/index";
-import CTASection from "@/components/homePage/CTASection.vue";
+import HeroSection from "@/components/homePage/HeroSection.vue";
 import { useAppStore } from "@/stores/app";
 
-// The store is resolved *after* mounting: installing a Pinia makes it the
-// active one, and the global test setup installs its own, so reading the store
-// before mount would seed a different instance than the component holds.
-describe("home-page/CTASection.vue", () => {
+// The store is resolved *after* mounting — see CTASection.spec.ts for why.
+describe("home-page/HeroSection.vue", () => {
   beforeEach(async () => {
     await router.push("/");
     await router.isReady();
@@ -16,12 +15,13 @@ describe("home-page/CTASection.vue", () => {
   afterEach(() => vi.restoreAllMocks());
 
   function mountSection() {
-    return mount(CTASection, { global: { plugins: [router] } });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: 0, gcTime: 0 } },
+    });
+    return mount(HeroSection, {
+      global: { plugins: [router, [VueQueryPlugin, { queryClient }]] },
+    });
   }
-
-  it("should mount without any console errors or warnings", () => {
-    expect(mountSection().exists()).toBe(true);
-  });
 
   it("opens the login modal when the visitor is signed out", async () => {
     const push = vi.spyOn(router, "push");
@@ -29,7 +29,7 @@ describe("home-page/CTASection.vue", () => {
     const appStore = useAppStore();
     appStore.isAuthenticated = false;
 
-    await wrapper.get("ion-button").trigger("click");
+    await wrapper.get(".hero-cta").trigger("click");
 
     expect(appStore.isLoginModalOpen).toBe(true);
     expect(push).not.toHaveBeenCalled();
@@ -41,7 +41,7 @@ describe("home-page/CTASection.vue", () => {
     const appStore = useAppStore();
     appStore.isAuthenticated = true;
 
-    await wrapper.get("ion-button").trigger("click");
+    await wrapper.get(".hero-cta").trigger("click");
 
     expect(push).toHaveBeenCalledWith("/dashboard");
     expect(appStore.isLoginModalOpen).toBe(false);

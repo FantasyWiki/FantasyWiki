@@ -22,8 +22,9 @@
           {{ $t("home.hero.description") }}
         </p>
         <ion-button
-          class="ion-text-capitalize ion-padding-horizontal"
+          class="hero-cta ion-text-capitalize ion-padding-horizontal"
           size="large"
+          @click="startPlaying"
         >
           <ion-text>{{ $t("home.hero.getStarted") }}</ion-text>
           <ion-icon slot="end" :icon="arrowForwardOutline"></ion-icon>
@@ -53,6 +54,9 @@ import {
 import { arrowForwardOutline, flashOutline } from "ionicons/icons";
 import AppStats from "./AppStats.vue";
 import ArticleLeaderboard from "./ArticleLeaderboard.vue";
+import { useAuthCta } from "@/composables/useAuthCta";
+
+const { startPlaying } = useAuthCta();
 </script>
 
 <style scoped src="src/components/homePage/home-page.css"></style>

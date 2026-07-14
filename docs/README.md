@@ -38,6 +38,7 @@ Seams, layers, and modules. The rules they implement live in `domain/`.
 | [Chemistry Links Rendering](./architecture/chemistry-links-rendering.md) | `computeChemistryLinks` + the SVG overlay |
 | [Lineup Editing](./architecture/lineup-editing.md) | The `DraftLineup` seam and its pure mutations |
 | [Article Ownership Resolution](./architecture/article-ownership-resolution.md) | `buildArticleDetail` + the async team-context seam |
+| [Problem Reports](./architecture/problem-reports.md) | How `/report` files a GitHub issue, and what it never publishes |
 | [Wikimedia Client Architecture](./architecture/wikimedia-client-architecture.md) | Composition root and capability modules |
 | [Wikimedia Client Behavior Extension](./architecture/wikimedia-client-behavior-extension.md) | How to add a capability |
 | [Wikimedia Client Terminology](./architecture/wikimedia-client-terminology-hierarchy.md) | Naming and hierarchy rules |

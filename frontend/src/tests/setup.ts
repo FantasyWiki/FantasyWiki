@@ -1,9 +1,28 @@
-import { beforeAll, afterEach, afterAll } from "vitest";
+import { beforeAll, afterEach, afterAll, vi } from "vitest";
 import { config } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
 import { server } from "@/mocks/server";
 import i18n from "@/i18n";
+
+// ── jsdom gaps ────────────────────────────────────────────────────────────────
+// jsdom ships no matchMedia. The app store reads it on creation to fall back to
+// the OS theme when the user has never chosen one, so without this every test
+// that touches a store throws. Reports "light" so tests get a deterministic
+// theme regardless of the machine running them.
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }),
+});
 
 // ── MSW ───────────────────────────────────────────────────────────────────────
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));

@@ -85,4 +85,38 @@ describe("NavBar.vue", () => {
     const leagueSelector = wrapper.find("#league-selector");
     expect(leagueSelector.exists()).toBe(true);
   });
+
+  // The settings menu trigger must keep its identity across auth states: only
+  // the picture inside it changes, so the menu never appears to move or vanish.
+  it("shows the settings menu trigger whether or not the user is authenticated", async () => {
+    await router.push("/");
+    await router.isReady();
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: 0, gcTime: 0 } },
+    });
+
+    const appStore = useAppStore();
+    appStore.isAuthenticated = false;
+
+    const wrapper = mount(NavBar, {
+      global: {
+        plugins: [router, pinia, [VueQueryPlugin, { queryClient }]],
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.find("#settings-menu-trigger").exists()).toBe(true);
+
+    appStore.isAuthenticated = true;
+    appStore.currentUser = {
+      sub: "test-user",
+      name: "Test User",
+      email: "test@example.com",
+      picture: "https://example.com/avatar.png",
+    };
+    await flushPromises();
+
+    expect(wrapper.find("#settings-menu-trigger").exists()).toBe(true);
+  });
 });

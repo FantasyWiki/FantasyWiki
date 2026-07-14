@@ -9,6 +9,13 @@
     "signIn": "Sign In with Google",
     "signOut": "Sign Out"
   },
+  "menu": {
+    "open": "Open menu",
+    "language": "Language",
+    "darkMode": "Dark mode",
+    "userGuide": "User guide",
+    "reportProblem": "Report a problem"
+  },
   "footer": {
     "technicalDocs": "Technical documentation",
     "userGuide": "User guide",
@@ -16,6 +23,42 @@
     "legal": "Legal & privacy",
     "madeBy": "made by",
     "and": "and"
+  },
+  "report": {
+    "title": "Report a problem",
+    "intro": "Tell us what went wrong and we'll open an issue on GitHub for you.",
+    "privacyNote": "Your report is filed as a public GitHub issue. Your email is never published — we identify you by an internal id only.",
+    "submit": "Send report",
+    "cooldown": "You just sent a report. You can send another in {seconds}s.",
+    "categories": {
+      "broken": "Something is broken",
+      "visual": "Something looks wrong",
+      "idea": "Propose a new functionality",
+      "language": "Request a new language",
+      "rules": "I don't understand a rule",
+      "other": "Something else"
+    },
+    "fields": {
+      "category": "What kind of problem is it?",
+      "categoryPlaceholder": "Choose a category",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Summarise it in one line",
+      "bodyLabel": "Description",
+      "bodyPlaceholder": "What happened, and what did you expect instead?",
+      "contactConsent": "You can contact me about this report"
+    },
+    "success": {
+      "title": "Thanks — your report is filed",
+      "body": "We opened issue {issue} on GitHub.",
+      "screenshotHint": "Have a screenshot? Open the issue and drag the image straight into it.",
+      "openIssue": "Open the issue"
+    },
+    "errors": {
+      "rateLimited": "You just sent a report. Give it a minute before sending another.",
+      "invalid": "Please choose a category and fill in both the title and the description.",
+      "submissionFailed": "We couldn't reach GitHub, so the report wasn't filed. Your text is still here.",
+      "fallbackLink": "File it on GitHub yourself"
+    }
   },
   "notFound": {
     "title": "404: Page not found",

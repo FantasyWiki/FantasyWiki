@@ -11,6 +11,10 @@ import { ContractDTO, type RawContract } from "../../../dto/contractDTO";
 import { ArticleDTO } from "../../../dto/articleDTO";
 import { PerformanceDTO } from "../../../dto/performanceDTO";
 import { LeaderboardEntryDTO } from "../../../dto/leaderboardDTO";
+import type {
+  CreateProblemReportRequest,
+  ProblemReportCreatedDTO,
+} from "../../../dto/problemReportDTO";
 import { Temporal } from "@js-temporal/polyfill";
 import {
   TIER_DAYS,
@@ -20,6 +24,23 @@ import {
 import { createWikimediaClient } from "@/services/wikimediaClient";
 
 const API_BASE_URL = "/api";
+
+/**
+ * Carries the HTTP status and the backend's error code alongside the message.
+ * Callers that only read `.message` are unaffected; the report form needs the
+ * status to tell "you just sent one" (429) apart from "GitHub is down" (502),
+ * which lead to very different offers to the user.
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code?: string
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
 
 async function apiRequest<T>(
   endpoint: string,
@@ -38,8 +59,10 @@ async function apiRequest<T>(
     const error = await response
       .json()
       .catch(() => ({ error: "Network error" }));
-    throw new Error(
-      error.error || `HTTP ${response.status}: ${response.statusText}`
+    throw new ApiError(
+      error.error || `HTTP ${response.status}: ${response.statusText}`,
+      response.status,
+      error.error
     );
   }
 
@@ -270,6 +293,17 @@ export const sessionApi = {
     apiRequest<{ success: boolean }>("/session", { method: "DELETE" }),
 };
 
+// ── Problem reports ───────────────────────────────────────────────────────────
+
+export const reportsApi = {
+  // The reporter is never sent: the backend resolves them from the session.
+  create: (request: CreateProblemReportRequest) =>
+    apiRequest<ProblemReportCreatedDTO>("/reports", {
+      method: "POST",
+      body: JSON.stringify(request),
+    }),
+};
+
 // ── Unified export ────────────────────────────────────────────────────────────
 
 export const api = {
@@ -281,6 +315,7 @@ export const api = {
   articles: articlesApi,
   dashboard: dashboardApi,
   session: sessionApi,
+  reports: reportsApi,
 };
 
 export default api;

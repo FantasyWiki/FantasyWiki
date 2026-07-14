@@ -31,6 +31,11 @@ on:
         required: true
       JWT_SECRET:
         required: true
+      # The GitHub App private key that lets the Worker file problem reports as
+      # FantasyWiki[bot]. Optional so a deploy still succeeds before it is set —
+      # the report form just answers 502 until then.
+      GH_APP_PRIVATE_KEY:
+        required: false
 
 jobs:
   deploy-backend:
@@ -49,11 +54,13 @@ jobs:
             GOOGLE_CLIENT_ID
             GOOGLE_CLIENT_SECRET
             JWT_SECRET
+            GH_APP_PRIVATE_KEY
           command: deploy --env=${{ inputs.environment }} --var FRONTEND_URL:${{ inputs.frontend_url }}
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
 
   deploy-frontend:
     runs-on: ubuntu-latest

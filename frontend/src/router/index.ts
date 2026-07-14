@@ -9,6 +9,7 @@ import TeamPage from "@/views/TeamPage.vue";
 import TeamCreationPage from "@/views/TeamCreationPage.vue";
 import MarketPage from "@/views/MarketPage.vue";
 import LegalPage from "@/views/LegalPage.vue";
+import ReportProblemPage from "@/views/ReportProblemPage.vue";
 import NotFoundPage from "@/views/NotFoundPage.vue";
 import { useAppStore } from "@/stores/app";
 
@@ -72,6 +73,13 @@ const routes: Array<RouteRecordRaw> = [
     path: "/market",
     name: "Market",
     component: MarketPage,
+  },
+  {
+    // Auth-gated (no `public` meta): the reporter is resolved from the session,
+    // which is also what keeps the endpoint from being an open spam funnel.
+    path: "/report",
+    name: "Report",
+    component: ReportProblemPage,
   },
   // Catch-all 404 — must stay last
   {

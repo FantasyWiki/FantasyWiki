@@ -514,4 +514,16 @@ export const handlers = [
     const all = performancesByLeague[leagueId] ?? [];
     return HttpResponse.json(all.filter((p) => p.teamId === myTeam.id));
   }),
+
+  // Problem reports. Nothing is really filed on GitHub in mock mode — the mock
+  // just hands back a plausible issue so the success card can be exercised.
+  http.post("*/api/reports", () =>
+    HttpResponse.json(
+      {
+        issueNumber: 1234,
+        issueUrl: "https://github.com/FantasyWiki/FantasyWiki/issues/1234",
+      },
+      { status: 201 }
+    )
+  ),
 ];

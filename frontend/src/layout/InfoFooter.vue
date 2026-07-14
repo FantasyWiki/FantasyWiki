@@ -16,7 +16,13 @@
         GitHub
       </a>
       <span aria-hidden="true">·</span>
-      <a :href="`${REPO_URL}/issues`" target="_blank" rel="noopener">
+      <!-- Signed-in players get the in-app form, which files the issue for them
+           and labels it. Anonymous visitors have no session to attribute a
+           report to, so they keep the direct link to the issue tracker. -->
+      <router-link v-if="appStore.isAuthenticated" to="/report">
+        {{ $t("footer.reportProblem") }}
+      </router-link>
+      <a v-else :href="`${REPO_URL}/issues`" target="_blank" rel="noopener">
         {{ $t("footer.reportProblem") }}
       </a>
       <span aria-hidden="true">·</span>
@@ -43,8 +49,11 @@
 <script setup lang="ts">
 import { IonIcon } from "@ionic/vue";
 import { logoGithub } from "ionicons/icons";
+import { useAppStore } from "@/stores/app";
 
 const REPO_URL = "https://github.com/FantasyWiki/FantasyWiki";
+
+const appStore = useAppStore();
 </script>
 
 <style scoped>

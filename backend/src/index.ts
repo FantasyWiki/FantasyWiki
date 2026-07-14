@@ -7,6 +7,7 @@ import session from "./routes/session";
 import leagues from "./routes/leagues";
 import notifications from "./routes/notifications";
 import player from "./routes/player";
+import reports from "./routes/reports";
 import type { ContractSettlementParams } from "./workflows/contractSettlement";
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -17,6 +18,14 @@ type Bindings = {
   GOOGLE_CLIENT_SECRET: string;
   JWT_SECRET: string;
   FRONTEND_URL: string;
+  GH_APP_ID: string;
+  GH_APP_INSTALLATION_ID: string;
+  GH_APP_PRIVATE_KEY: string;
+  GITHUB_REPO: string;
+  ENVIRONMENT: string;
+  REPORT_RATE_LIMITER: {
+    limit(o: { key: string }): Promise<{ success: boolean }>;
+  };
   CONTRACT_SETTLEMENT_WORKFLOW: Workflow<ContractSettlementParams>;
 };
 
@@ -59,6 +68,9 @@ app.route("/api/notifications", notifications);
 
 // Mount player routes
 app.route("/api/player", player);
+
+// Mount problem report routes
+app.route("/api/reports", reports);
 
 /**
  * Daily settlement Cron Trigger (ADR 0003, ~05:00 UTC): kicks off the durable

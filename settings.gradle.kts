@@ -15,4 +15,4 @@ rootProject.name = "FantasyWiki"
 
 include("frontend")
 include("backend")
-include("scoring-engine")
+include("scoring-collector")

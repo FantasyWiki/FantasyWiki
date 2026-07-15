@@ -1,0 +1,89 @@
+name: Nightly scoring
+
+# Component 3 of the scoring engine (docs/plan-scoring-engine.md): runs the
+# Kotlin :scoring-collector nightly to fetch each contracted article's daily
+# Wikimedia signals and POST them to the backend's /internal endpoints, which
+# score and persist them.
+#
+# `schedule:` only ever fires from the default branch, so the nightly run always
+# executes master's collector code and must itself fan out to both backends —
+# the collector is not per-branch deployed the way the Worker is. The matrix over
+# [production, qa] does that, each leg scoped to its own GitHub Environment so a
+# QA secret can never write production. Manual runs narrow the matrix and can
+# backfill a specific day via `date`.
+
+on:
+  schedule:
+    # ~05:00 UTC — ~2h after AQS publishes the previous UTC day; GH cron jitter
+    # (10–30 min) is absorbed by that buffer. Scores the last completed UTC day.
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Which backend(s) to score
+        type: choice
+        options: [both, production, qa]
+        default: both
+      date:
+        description: "Day to score (YYYY-MM-DD); defaults to the last completed UTC day"
+        required: false
+
+permissions:
+  contents: read
+
+# Never let two runs score the same day into the same environments at once; the
+# ingest is idempotent, but overlapping runs waste Wikimedia rate budget.
+concurrency:
+  group: scoring-${{ github.event.inputs.date || 'nightly' }}
+  cancel-in-progress: false
+
+jobs:
+  # Resolve the matrix from the dispatch input (cron always scores both).
+  targets:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - id: pick
+        shell: bash
+        run: |
+          case "${{ github.event.inputs.environment || 'both' }}" in
+            production) echo 'matrix=["production"]' >> "$GITHUB_OUTPUT" ;;
+            qa)         echo 'matrix=["qa"]' >> "$GITHUB_OUTPUT" ;;
+            *)          echo 'matrix=["production","qa"]' >> "$GITHUB_OUTPUT" ;;
+          esac
+
+  score:
+    needs: targets
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.targets.outputs.matrix) }}
+    # Scopes the per-environment SCORING_BACKEND_URL / SCORING_INGEST_SECRET so
+    # each leg writes only its own D1 (the pair fully determines the target DB).
+    environment: ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: DanySK/action-checkout@0.2.30
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Run the scoring collector
+        shell: bash
+        run: |
+          date_arg="${{ github.event.inputs.date }}"
+          if [ -n "$date_arg" ]; then
+            ./gradlew :scoring-collector:run --args="--date=$date_arg"
+          else
+            ./gradlew :scoring-collector:run
+          fi
+        env:
+          BACKEND_URL: ${{ vars.SCORING_BACKEND_URL }}
+          SCORING_INGEST_SECRET: ${{ secrets.SCORING_INGEST_SECRET }}
+          # Contact info Wikimedia requires (it 403s a request without a
+          # descriptive UA); public, so a var rather than a secret.
+          WIKIMEDIA_USER_AGENT: ${{ vars.WIKIMEDIA_USER_AGENT }}

@@ -6,6 +6,7 @@ import HomePage from "@/views/HomePage.vue";
 import AuthCallbackPage from "@/views/auth/AuthCallbackPage.vue";
 import EnvInfoPage from "@/views/EnvInfoPage.vue";
 import TeamPage from "@/views/TeamPage.vue";
+import FormationPerformancePage from "@/views/FormationPerformancePage.vue";
 import TeamCreationPage from "@/views/TeamCreationPage.vue";
 import MarketPage from "@/views/MarketPage.vue";
 import LegalPage from "@/views/LegalPage.vue";
@@ -67,6 +68,11 @@ const routes: Array<RouteRecordRaw> = [
     path: "/team-creation",
     name: "TeamCreation",
     component: TeamCreationPage,
+  },
+  {
+    path: "/performance",
+    name: "Performance",
+    component: FormationPerformancePage,
   },
   {
     path: "/market",

@@ -6,6 +6,7 @@
     "dashboard": "Dashboard",
     "leagues": "Leagues",
     "market": "Market",
+    "performance": "Performance",
     "signIn": "Sign In with Google",
     "signOut": "Sign Out"
   },
@@ -323,6 +324,17 @@
       "unsavedChanges": "Unsaved changes",
       "saveSuccess": "Lineup saved!",
       "saveFailed": "Couldn't save your lineup. Please try again.",
+      "retry": "Retry"
+    },
+    "formationPerformance": {
+      "title": "Last Night's Performance",
+      "pointsScored": "Points scored",
+      "scoredOn": "Scored on {date}",
+      "firstNight": "First scored night — no previous day to compare yet.",
+      "formationCaption": "The formation that was scored",
+      "emptyTitle": "No performance yet",
+      "emptyDetail": "Your formation hasn't been scored yet. Check back after tonight's snapshot.",
+      "failedToLoad": "Failed to load performance",
       "retry": "Retry"
     }
   },

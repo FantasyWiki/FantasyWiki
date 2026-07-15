@@ -6,6 +6,7 @@
     "dashboard": "Dashboard",
     "leagues": "Leghe",
     "market": "Mercato",
+    "performance": "Prestazione",
     "signIn": "Accedi con Google",
     "signOut": "Esci"
   },
@@ -323,6 +324,17 @@
       "unsavedChanges": "Modifiche non salvate",
       "saveSuccess": "Formazione salvata!",
       "saveFailed": "Impossibile salvare la formazione. Riprova.",
+      "retry": "Riprova"
+    },
+    "formationPerformance": {
+      "title": "Prestazione di ieri sera",
+      "pointsScored": "Punti realizzati",
+      "scoredOn": "Calcolati il {date}",
+      "firstNight": "Prima notte valutata — nessun giorno precedente da confrontare.",
+      "formationCaption": "La formazione che è stata valutata",
+      "emptyTitle": "Nessuna prestazione",
+      "emptyDetail": "La tua formazione non è ancora stata valutata. Torna dopo lo snapshot di stanotte.",
+      "failedToLoad": "Caricamento della prestazione non riuscito",
       "retry": "Riprova"
     }
   },

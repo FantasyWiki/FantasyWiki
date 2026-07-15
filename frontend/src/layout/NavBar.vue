@@ -240,6 +240,7 @@ import {
   logInOutline,
   logOutOutline,
   moonOutline,
+  pulseOutline,
   storefrontOutline,
   sunnyOutline,
   trophyOutline,
@@ -310,6 +311,7 @@ const navLinks = computed(() => [
   { name: t("nav.dashboard"), href: "/dashboard", icon: gridOutline },
   { name: t("nav.leagues"), href: "/leagues", icon: trophyOutline },
   { name: t("nav.market"), href: "/market", icon: storefrontOutline },
+  { name: t("nav.performance"), href: "/performance", icon: pulseOutline },
 ]);
 
 const isActive = (href: string) => route.path === href;

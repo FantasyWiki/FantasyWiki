@@ -137,7 +137,9 @@ export const leaguesApi = {
     const latestPts = latest?.points ?? 0;
     const previousPts = previous?.points ?? 0;
     return {
-      yesterdayPoints: latestPts,
+      // Round to one decimal for display; the raw value carries full float
+      // precision from the scoring engine.
+      yesterdayPoints: Math.round(latestPts * 10) / 10,
       pointsChange:
         previousPts > 0
           ? Math.round(((latestPts - previousPts) / previousPts) * 100)

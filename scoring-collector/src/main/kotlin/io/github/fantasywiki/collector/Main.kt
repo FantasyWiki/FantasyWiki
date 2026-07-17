@@ -7,8 +7,18 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
+import java.time.Instant
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+
+/**
+ * Minimal structured stderr logging for the nightly job — no logging framework
+ * to keep this CLI dependency-light. Each line is `ISO-8601 LEVEL message`, so CI
+ * log output is timestamped and greppable by level.
+ */
+private fun log(level: String, message: String) = System.err.println("${Instant.now()} $level $message")
+
+private fun info(message: String) = log("INFO", message)
 
 /**
  * Nightly entry point: resolve config → GET the day's inputs → fetch Wikimedia
@@ -18,6 +28,9 @@ import kotlinx.serialization.json.Json
  */
 fun main(args: Array<String>) {
     val config = Config.fromEnvAndArgs(args)
+    info(
+        "collector starting: date=${config.date} backend=${config.backendUrl} concurrency=${config.concurrency}",
+    )
 
     val http = HttpClient(CIO) {
         install(ContentNegotiation) {
@@ -34,12 +47,20 @@ fun main(args: Array<String>) {
             val wikimedia = WikimediaClient(client)
 
             val date = config.date.toString()
+
+            info("fetching scoring inputs for $date")
             val inputs = backend.getScoringInputs(date)
+            info("got ${inputs.size} teams to score")
+
+            info("collecting Wikimedia signals")
             val results = Collector.collect(inputs, wikimedia, config.concurrency, config.date) { message ->
-                System.err.println("WARN: $message")
+                log("WARN", message)
             }
+
+            info("posting ${results.size} performances for $date")
             backend.postPerformances(date, results)
 
+            info("done: scored ${results.size} teams for $date")
             println("Scored ${results.size} teams for $date")
         }
     }

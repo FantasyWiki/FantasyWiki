@@ -22,6 +22,7 @@ jobs:
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET_PRODUCTION }}
       JWT_SECRET: ${{ secrets.JWT_SECRET_PRODUCTION }}
       GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
+      SCORING_INGEST_SECRET: ${{ secrets.SCORING_INGEST_SECRET_PRODUCTION }}
 
   deploy-preview:
     if: github.ref_name == 'dev'
@@ -40,3 +41,4 @@ jobs:
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET_PREVIEW }}
       JWT_SECRET: ${{ secrets.JWT_SECRET_PREVIEW }}
       GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
+      SCORING_INGEST_SECRET: ${{ secrets.SCORING_INGEST_SECRET_PREVIEW }}

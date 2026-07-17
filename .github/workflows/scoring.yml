@@ -59,8 +59,9 @@ jobs:
       fail-fast: false
       matrix:
         target: ${{ fromJSON(needs.targets.outputs.matrix) }}
-    # Scopes the per-environment SCORING_BACKEND_URL / SCORING_INGEST_SECRET so
-    # each leg writes only its own D1 (the pair fully determines the target DB).
+    # Scopes the per-environment SCORING_BACKEND_URL var so each leg writes only
+    # its own D1; the matching ingest secret is picked by name below (qa reuses
+    # the preview secret, the same value the preview Worker is deployed with).
     environment: ${{ matrix.target }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -83,7 +84,7 @@ jobs:
           fi
         env:
           BACKEND_URL: ${{ vars.SCORING_BACKEND_URL }}
-          SCORING_INGEST_SECRET: ${{ secrets.SCORING_INGEST_SECRET }}
+          SCORING_INGEST_SECRET: ${{ matrix.target == 'production' && secrets.SCORING_INGEST_SECRET_PRODUCTION || secrets.SCORING_INGEST_SECRET_PREVIEW }}
           # Contact info Wikimedia requires (it 403s a request without a
           # descriptive UA); public, so a var rather than a secret.
           WIKIMEDIA_USER_AGENT: ${{ vars.WIKIMEDIA_USER_AGENT }}

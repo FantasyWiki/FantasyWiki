@@ -36,6 +36,8 @@ on:
       # the report form just answers 502 until then.
       GH_APP_PRIVATE_KEY:
         required: false
+      SCORING_INGEST_SECRET:
+        required: true
 
 jobs:
   deploy-backend:
@@ -55,12 +57,14 @@ jobs:
             GOOGLE_CLIENT_SECRET
             JWT_SECRET
             GH_APP_PRIVATE_KEY
+            SCORING_INGEST_SECRET
           command: deploy --env=${{ inputs.environment }} --var FRONTEND_URL:${{ inputs.frontend_url }}
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          SCORING_INGEST_SECRET: ${{ secrets.SCORING_INGEST_SECRET }}
 
   deploy-frontend:
     runs-on: ubuntu-latest

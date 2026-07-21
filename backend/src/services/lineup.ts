@@ -1,3 +1,4 @@
+import { Temporal } from "@js-temporal/polyfill";
 import { Contract, Team } from "../../../model";
 import {
   Domain,
@@ -173,11 +174,21 @@ export class LineupService {
     if (!contractsResult.ok) {
       return contractsResult;
     }
-    // Settled contracts (e.g. sold early) are no longer owned inventory: the
-    // article has returned to Free Agent, so it must drop out of both the
-    // formation and the bench even though the row is retained for its FK.
+    // A contract is only live inventory while its term is still running. It
+    // drops out of both the formation and the bench when it is either settled
+    // (e.g. sold early, or resolved at expiry by the settlement sweep — the row
+    // is retained for its FK) or past its expireDate. Expiry is derived from
+    // the date here, using the same boundary as the settlement sweep
+    // (`expireDate <= today` is due, so active means `expireDate > today`),
+    // rather than waiting for the daily sweep to flip `settled`. That way a
+    // contract whose term has ended — including one already renewed and now
+    // past its new expireDate — never lingers in the lineup between expiry and
+    // the next sweep.
+    const today = Temporal.Now.plainDateISO();
     const activeContracts = contractsResult.value.filter(
-      (contract) => !contract.settled,
+      (contract) =>
+        !contract.settled &&
+        Temporal.PlainDate.compare(contract.expireDate, today) > 0,
     );
     const contractsById = new Map(
       activeContracts.map((contract) => [contract.id, contract]),

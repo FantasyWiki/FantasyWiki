@@ -43,13 +43,20 @@ const league: League = {
   icon: "🌍",
 };
 
-function makeContract(id: string, articleId: string): Contract {
+// Active by default: `expireDate` sits a week in the future relative to the
+// test run, so the lineup's expiry filter keeps it. Pass an explicit
+// `expireDate` (e.g. a past date) to exercise the expired case.
+function makeContract(
+  id: string,
+  articleId: string,
+  expireDate: Temporal.PlainDate = Temporal.Now.plainDateISO().add({ days: 7 }),
+): Contract {
   return {
     id,
     teamId: TEAM_ID,
     articleId,
-    purchaseDate: Temporal.PlainDate.from("2026-01-01"),
-    expireDate: Temporal.PlainDate.from("2026-01-08"),
+    purchaseDate: Temporal.Now.plainDateISO().subtract({ days: 1 }),
+    expireDate,
     purchasePrice: 50,
     settled: false,
     renewalCount: 0,
@@ -164,6 +171,64 @@ describe("LineupService (unit)", () => {
       const benchIds = value.bench.map((c) => c.id);
       expect(benchIds).toContain("c-2");
       expect(benchIds).not.toContain("c-1");
+    });
+
+    it("drops a contract whose expireDate has passed from formation and bench", async () => {
+      // active in the formation, expired on the bench (settled is still false —
+      // the daily settlement sweep has not run yet, so expiry must be derived
+      // from the date, not the `settled` flag).
+      const active = makeContract("c-active", "Cat");
+      const expired = makeContract(
+        "c-expired",
+        "Dog",
+        Temporal.Now.plainDateISO().subtract({ days: 1 }),
+      );
+      const lineup = makeLineup({ GK: "c-active", ST: "c-expired" });
+
+      const service = new LineupService(
+        makeDeps({
+          lineupRepository: makeLineupRepo(lineup),
+          contractRepository: makeContractRepo([active, expired]),
+        }),
+      );
+
+      const result = await service.getLineup(PLAYER_ID, LEAGUE_ID);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      const value = result.value;
+      // The expired contract must not hold its formation slot...
+      expect(value.formation.formation["GK"]?.id).toBe("c-active");
+      expect(value.formation.formation["ST"]).toBeUndefined();
+      // ...nor fall through to the bench.
+      const benchIds = value.bench.map((c) => c.id);
+      expect(benchIds).not.toContain("c-expired");
+    });
+
+    it("treats a contract expiring today (expireDate === today) as expired", async () => {
+      // The settlement sweep counts `expireDate <= today` as due, so the lineup
+      // uses the same boundary: a contract whose term ends today is no longer
+      // live inventory.
+      const expiringToday = makeContract(
+        "c-today",
+        "Cat",
+        Temporal.Now.plainDateISO(),
+      );
+      const lineup = makeLineup({ GK: "c-today" });
+
+      const service = new LineupService(
+        makeDeps({
+          lineupRepository: makeLineupRepo(lineup),
+          contractRepository: makeContractRepo([expiringToday]),
+        }),
+      );
+
+      const result = await service.getLineup(PLAYER_ID, LEAGUE_ID);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      expect(result.value.formation.formation["GK"]).toBeUndefined();
+      expect(result.value.bench).toHaveLength(0);
     });
 
     it("silently omits stale formation slots (contract deleted after save)", async () => {

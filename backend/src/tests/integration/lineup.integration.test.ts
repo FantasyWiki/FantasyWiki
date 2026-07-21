@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   LineupService,
@@ -9,6 +10,14 @@ import {
 import { PlayerService } from "../../services/player";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
 import { insertTeam } from "../utils/d1TestUtils";
+
+// The lineup drops contracts once they are past their expireDate, so fixtures
+// that must show up in the lineup need a term that is still running relative to
+// the test run.
+const ACTIVE_PURCHASE_DATE = Temporal.Now.plainDateISO().toString();
+const ACTIVE_EXPIRE_DATE = Temporal.Now.plainDateISO()
+  .add({ days: 7 })
+  .toString();
 
 describe("LineupService Integration Tests", () => {
   let lineupService: LineupService;
@@ -64,14 +73,28 @@ describe("LineupService Integration Tests", () => {
         .prepare(
           "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
         )
-        .bind(contractId1, teamId, "Cat", "2026-01-01", "2026-01-08", 50)
+        .bind(
+          contractId1,
+          teamId,
+          "Cat",
+          ACTIVE_PURCHASE_DATE,
+          ACTIVE_EXPIRE_DATE,
+          50,
+        )
         .run();
 
       await env.db
         .prepare(
           "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
         )
-        .bind(contractId2, teamId, "Dog", "2026-01-01", "2026-01-08", 30)
+        .bind(
+          contractId2,
+          teamId,
+          "Dog",
+          ACTIVE_PURCHASE_DATE,
+          ACTIVE_EXPIRE_DATE,
+          30,
+        )
         .run();
 
       // Build a payload putting only contract1 in the formation; contract2 should end up on bench
@@ -127,6 +150,85 @@ describe("LineupService Integration Tests", () => {
       const benchIds = lineup.bench.map((c) => c.id);
       expect(benchIds).toContain(contractId2);
       expect(benchIds).not.toContain(contractId1);
+    });
+
+    it("drops an expired, unsettled contract from the formation and bench", async () => {
+      // One contract still running, one already past its expireDate but not yet
+      // settled by the daily sweep. Expiry is derived from the date, so the
+      // expired one must not appear even though `settled` is still 0 — this is
+      // the case a renewed contract hits once its rolled-forward term ends.
+      const activeId = "contract-active";
+      const expiredId = "contract-expired";
+      const pastExpire = Temporal.Now.plainDateISO()
+        .subtract({ days: 1 })
+        .toString();
+
+      await env.db
+        .prepare(
+          "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
+        )
+        .bind(
+          activeId,
+          teamId,
+          "Cat",
+          ACTIVE_PURCHASE_DATE,
+          ACTIVE_EXPIRE_DATE,
+          50,
+        )
+        .run();
+      await env.db
+        .prepare(
+          "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
+        )
+        .bind(expiredId, teamId, "Dog", "2026-01-01", pastExpire, 30)
+        .run();
+
+      const minimalContract = (id: string, articleId: string) => ({
+        id,
+        team: {
+          id: teamId,
+          name: "Lineup FC",
+          credits: 1000,
+          player: { id: playerId, name: "lineuptester" },
+        },
+        article: { id: articleId, title: articleId, domain: "en" as const },
+        startDate: "2026-01-01T00:00:00Z",
+        duration: "P7D",
+        purchasePrice: 50,
+      });
+
+      // Both are placed in the formation at save time (saveLineup only checks
+      // ownership, not expiry).
+      const saveResult = await lineupService.saveLineup(
+        playerId,
+        GLOBAL_LEAGUE_ID,
+        {
+          formation: {
+            date: new Date().toISOString(),
+            schema: "4-3-3",
+            formation: {
+              GK: minimalContract(activeId, "Cat"),
+              ST: minimalContract(expiredId, "Dog"),
+            },
+          },
+          bench: [],
+        },
+      );
+      expect(saveResult.ok).toBe(true);
+
+      const getResult = await lineupService.getLineup(
+        playerId,
+        GLOBAL_LEAGUE_ID,
+      );
+      expect(getResult.ok).toBe(true);
+      if (!getResult.ok) return;
+      const lineup = getResult.value;
+
+      // Active one keeps its slot; expired one is gone from formation...
+      expect(lineup.formation.formation["GK"]?.id).toBe(activeId);
+      expect(lineup.formation.formation["ST"]).toBeUndefined();
+      // ...and never reappears on the bench.
+      expect(lineup.bench.map((c) => c.id)).not.toContain(expiredId);
     });
 
     it("should return a failure when the player has no team in the league", async () => {
@@ -237,7 +339,14 @@ describe("LineupService Integration Tests", () => {
         .prepare(
           "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
         )
-        .bind(contractId, teamId, "Cat", "2026-01-01", "2026-01-08", 50)
+        .bind(
+          contractId,
+          teamId,
+          "Cat",
+          ACTIVE_PURCHASE_DATE,
+          ACTIVE_EXPIRE_DATE,
+          50,
+        )
         .run();
 
       const payload: RawTeamLineUp = {

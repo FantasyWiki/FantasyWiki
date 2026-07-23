@@ -337,6 +337,7 @@
     "login": {
       "subtitle": "Accedi per gestire le tue leghe e seguire la tua squadra.",
       "authFailed": "Autenticazione fallita. Riprova.",
+      "authRequired": "Quella pagina è riservata ai giocatori registrati. Accedi per continuare.",
       "signInGoogle": "Accedi con Google",
       "termsPrefix": "Accedendo accetti i nostri {terms} e la {privacy}.",
       "terms": "Termini di servizio",

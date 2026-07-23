@@ -126,6 +126,7 @@ import { closeOutline } from "ionicons/icons";
 import { ArticleDTO } from "../../../dto/articleDTO";
 import { ContractDTO } from "../../../dto/contractDTO";
 import { useArticleOwnership } from "@/composables/useArticleOwnership";
+import { useBackButtonDismiss } from "@/composables/useBackButtonDismiss";
 import ArticleDescriptionBlock from "@/components/articleDetail/ArticleDescriptionBlock.vue";
 import ArticleStatsBlock from "@/components/articleDetail/ArticleStatsBlock.vue";
 import ContractDetailsBlock from "@/components/articleDetail/ContractDetailsBlock.vue";
@@ -164,6 +165,10 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   close: [];
 }>();
+
+// Owned here rather than by each host: all four drive `is-open` from local
+// state, so the back button behaves the same everywhere for free.
+useBackButtonDismiss(toRef(props, "isOpen"), () => emit("close"));
 
 const selectedTier = ref<ContractTier>("MEDIUM");
 

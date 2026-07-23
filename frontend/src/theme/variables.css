@@ -265,9 +265,11 @@ http://ionicframework.com/docs/theming/ */
     hsl(145 70% 22%) 100%
   );
 
+  /* The variable cut is a distinct family name, so the static "Source Sans 3"
+     stays behind it for anyone who has it installed locally. */
   --ion-font-family:
-    "Source Sans 3", -apple-system, BlinkMacSystemFont, "Helvetica Neue",
-    "Roboto", sans-serif;
+    "Source Sans 3 Variable", "Source Sans 3", -apple-system,
+    BlinkMacSystemFont, "Helvetica Neue", "Roboto", sans-serif;
 }
 
 .ion-color-wiki-gold {

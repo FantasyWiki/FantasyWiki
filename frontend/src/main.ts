@@ -25,7 +25,14 @@ import "./theme/variables.css";
 import "./theme/background-and-text.css";
 import "./theme/dark-mode.css";
 
-import "@fontsource/libre-baskerville";
+// Self-hosted brand fonts, same origin as the bundle (see index.html). Source
+// Sans 3 ships as a single variable file covering the whole 200–900 range, so
+// the four static weights the UI uses cost one request; Libre Baskerville is
+// headings-only, so only the two weights headings actually render are pulled in.
+// Every subset is unicode-range gated, so an en/it visitor downloads latin only.
+import "@fontsource-variable/source-sans-3/wght.css";
+import "@fontsource/libre-baskerville/400.css";
+import "@fontsource/libre-baskerville/700.css";
 
 // ── Query client ─────────────────────────────────────────────────────────────
 const queryClient = new QueryClient({

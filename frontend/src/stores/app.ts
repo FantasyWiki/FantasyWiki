@@ -11,6 +11,13 @@ interface LanguageOption {
   fullName: string;
 }
 
+/**
+ * Why the login modal is on screen. `auth-required` means the visitor tried to
+ * reach a page the router guard turned them away from, so the modal explains
+ * the bounce instead of leaving it looking like a broken link.
+ */
+export type LoginReason = "auth-required";
+
 // Available languages configuration. Codes are lowercase to match the i18n
 // locales, the persisted `language` key, and the <html lang> attribute. Adding
 // a locale here (plus its catalog in src/i18n/locales and SUPPORTED_LOCALES)
@@ -46,10 +53,15 @@ export const useAppStore = defineStore("app", () => {
   const isDarkMode = ref<boolean>(resolveInitialDarkMode());
 
   // Auth modals live here rather than in NavBar so that anything on the page —
-  // the landing CTAs, the settings menu — can open them without prop drilling
-  // through the layout slot.
+  // the landing CTAs, the settings menu, the router's auth guard — can open
+  // them without prop drilling through the layout slot.
   const isLoginModalOpen = ref<boolean>(false);
   const isLogoutModalOpen = ref<boolean>(false);
+
+  // Why the login modal was opened, when it wasn't the visitor's own idea.
+  // A token rather than a message: the i18n lint rules only see statically
+  // written keys, so the catalog lookup has to happen in the template.
+  const loginReason = ref<LoginReason | null>(null);
 
   // State - no initial user data since we need to check with server
   const isAuthenticated = ref<boolean>(false);
@@ -162,12 +174,14 @@ export const useAppStore = defineStore("app", () => {
     return () => query.removeEventListener("change", onChange);
   }
 
-  function openLoginModal() {
+  function openLoginModal(reason: LoginReason | null = null) {
+    loginReason.value = reason;
     isLoginModalOpen.value = true;
   }
 
   function closeLoginModal() {
     isLoginModalOpen.value = false;
+    loginReason.value = null;
   }
 
   function openLogoutModal() {
@@ -201,6 +215,7 @@ export const useAppStore = defineStore("app", () => {
     isDarkMode,
     isLoginModalOpen,
     isLogoutModalOpen,
+    loginReason,
     isAuthenticated,
     currentUser,
     // Getters

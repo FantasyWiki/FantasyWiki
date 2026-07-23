@@ -97,6 +97,11 @@ const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
 // Worker's main module (referenced by class_name in wrangler.jsonc).
 export { ContractSettlementWorkflow } from "./workflows/contractSettlement";
 
+// The Worker's default export is the runtime handler ({ fetch, scheduled }), so
+// the Hono instance is also exported by name for integration tests that drive
+// the fully wired app via app.request(...).
+export { app };
+
 export default {
   fetch: app.fetch,
   scheduled,

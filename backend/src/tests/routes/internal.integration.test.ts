@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
-import app from "../../index";
+import { app } from "../../index";
 import { PerformanceService } from "../../services/performance";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
 import {

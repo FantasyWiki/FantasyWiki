@@ -58,7 +58,7 @@
       On mobile the DOM order applies: hero, pitch, attention, leaderboard.
     -->
     <template v-else>
-      <div class="dashboard-layout">
+      <page-reveal class="dashboard-layout">
         <div class="area-hero">
           <!-- Hero contains the notification bell and all top-level actions -->
           <dashboard-hero
@@ -84,7 +84,7 @@
             :slice="LEADERBOARD_SLICE"
           />
         </div>
-      </div>
+      </page-reveal>
     </template>
   </nav-bar>
 </template>
@@ -110,6 +110,7 @@ import {
 } from "ionicons/icons";
 
 import NavBar from "@/layout/NavBar.vue";
+import PageReveal from "@/components/PageReveal.vue";
 import DashboardHero from "@/components/teamDashboard/DashboardHero.vue";
 import NeededAttention from "@/components/teamDashboard/NeededAttention.vue";
 import LeagueLeaderboard from "@/components/teamDashboard/LeagueLeaderboard.vue";

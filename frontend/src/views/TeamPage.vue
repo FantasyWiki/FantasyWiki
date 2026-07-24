@@ -35,7 +35,7 @@
     </ion-card>
 
     <!-- ── Main content ────────────────────────────────────────────────── -->
-    <template v-else>
+    <page-reveal v-else>
       <!-- Page heading -->
       <div class="page-heading">
         <div class="heading-left">
@@ -90,7 +90,7 @@
         @article-click="handleArticleClick"
         @swap="handleSwap"
       />
-    </template>
+    </page-reveal>
 
     <!-- ── Article detail modal ──────────────────────────────────────── -->
     <ArticleDetail
@@ -125,6 +125,7 @@ import {
 } from "ionicons/icons";
 
 import NavBar from "@/layout/NavBar.vue";
+import PageReveal from "@/components/PageReveal.vue";
 import FormationSelector from "@/components/formation/FormationSelector.vue";
 import TeamFormation from "@/components/formation/TeamFormation.vue";
 import BenchSection from "@/components/formation/BenchSection.vue";

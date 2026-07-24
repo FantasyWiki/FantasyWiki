@@ -39,6 +39,7 @@ Seams, layers, and modules. The rules they implement live in `domain/`.
 | [Lineup Editing](./architecture/lineup-editing.md) | The `DraftLineup` seam and its pure mutations |
 | [Article Ownership Resolution](./architecture/article-ownership-resolution.md) | `buildArticleDetail` + the async team-context seam |
 | [Problem Reports](./architecture/problem-reports.md) | How `/report` files a GitHub issue, and what it never publishes |
+| [Article Genie LLM Integration](./architecture/article-genie-llm.md) | The Workers AI seam, turn protocol, and quota handling |
 | [Wikimedia Client Architecture](./architecture/wikimedia-client-architecture.md) | Composition root and capability modules |
 | [Wikimedia Client Behavior Extension](./architecture/wikimedia-client-behavior-extension.md) | How to add a capability |
 | [Wikimedia Client Terminology](./architecture/wikimedia-client-terminology-hierarchy.md) | Naming and hierarchy rules |
@@ -65,7 +66,8 @@ doc disagree, **the ADR wins**.
 [0002 Language Scale Factor](./adr/0002-language-scale-factor.md) ·
 [0003 Closed Trading Economy](./adr/0003-closed-trading-economy.md) ·
 [0004 Scoring Engine Platform](./adr/0004-scoring-engine-platform.md) ·
-[0005 Contract Pricing](./adr/0005-contract-pricing.md)
+[0005 Contract Pricing](./adr/0005-contract-pricing.md) ·
+[0006 Article Genie](./adr/0006-article-genie.md)
 
 ### `agents/` — machine-read repo metadata
 Issue tracker, triage labels, and domain-context layout. Skills read these at

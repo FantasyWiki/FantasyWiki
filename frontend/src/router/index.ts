@@ -96,7 +96,14 @@ const router = createRouter({
 });
 
 router.beforeEach((to) => {
-  if (!to.meta.public && !useAppStore().isAuthenticated) {
+  const appStore = useAppStore();
+  if (!to.meta.public && !appStore.isAuthenticated) {
+    // Bouncing to the landing page without a word was indistinguishable from a
+    // broken link. The login modal both explains the redirect and offers the
+    // way out of it; it is opened before the redirect rather than after
+    // because the blocked route never mounts, so the only NavBar that ends up
+    // rendering is the landing page's, already reading this flag.
+    appStore.openLoginModal("auth-required");
     return "/home";
   }
 });

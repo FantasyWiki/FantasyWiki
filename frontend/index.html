@@ -15,11 +15,12 @@
     <meta name="msapplication-tap-highlight" content="no" />
 
     <link rel="shortcut icon" type="image/png" href="/favicon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Both brand families are self-hosted and imported from main.ts, so they
+         ship on our own origin with the rest of the bundle. Loading them from
+         the Google Fonts CDN instead cost two extra cross-origin connections
+         (googleapis for the CSS, then gstatic for the files) before any glyph
+         could paint, which is what made the landing page re-lay out top to
+         bottom once the fonts finally landed. -->
 
     <!-- add to homescreen for ios -->
     <meta name="mobile-web-app-capable" content="yes" />

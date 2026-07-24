@@ -15,6 +15,17 @@
       {{ errorMessage }}
     </div>
 
+    <!-- Shown when the router bounced the visitor off a page instead of when
+         they opened this themselves, so the redirect reads as an explanation
+         rather than a dead link. -->
+    <div
+      v-else-if="appStore.loginReason === 'auth-required'"
+      class="notice-banner"
+    >
+      <ion-icon :icon="lockClosedOutline" />
+      {{ $t("auth.login.authRequired") }}
+    </div>
+
     <ion-button expand="block" class="google-btn" @click="signInWithGoogle">
       <ion-icon :icon="logoGoogle" slot="start" />
       <ion-text>{{ $t("auth.login.signInGoogle") }}</ion-text>
@@ -43,12 +54,19 @@
 import { IonButton, IonText, IonIcon, modalController } from "@ionic/vue";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { alertCircleOutline, closeOutline, logoGoogle } from "ionicons/icons";
+import {
+  alertCircleOutline,
+  closeOutline,
+  lockClosedOutline,
+  logoGoogle,
+} from "ionicons/icons";
 import { computed } from "vue";
 import AppLogo from "@/components/AppLogo.vue";
+import { useAppStore } from "@/stores/app";
 
 const route = useRoute();
 const { t } = useI18n();
+const appStore = useAppStore();
 
 const errorMessage = computed(() =>
   route.query.error === "auth_failed" ? t("auth.login.authFailed") : null
@@ -103,6 +121,21 @@ function signInWithGoogle() {
   border: 1px solid var(--ion-color-danger);
   border-radius: 8px;
   color: var(--ion-color-danger);
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Same shape as the error banner, in the neutral brand tone — this explains a
+   detour, it does not report a failure. */
+.notice-banner {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  border: 1px solid var(--ion-color-primary);
+  border-radius: 8px;
+  color: var(--ion-color-primary);
   font-size: 0.875rem;
   display: flex;
   align-items: center;

@@ -337,6 +337,7 @@
     "login": {
       "subtitle": "Sign in to manage your leagues and track your team.",
       "authFailed": "Authentication failed. Please try again.",
+      "authRequired": "That page is for signed-in players. Sign in to continue.",
       "signInGoogle": "Sign in with Google",
       "termsPrefix": "By signing in you agree to our {terms} and {privacy}.",
       "terms": "Terms of Service",

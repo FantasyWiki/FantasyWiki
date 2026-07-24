@@ -59,9 +59,9 @@ jobs:
       fail-fast: false
       matrix:
         target: ${{ fromJSON(needs.targets.outputs.matrix) }}
-    # Scopes the per-environment SCORING_BACKEND_URL var so each leg writes only
-    # its own D1; the matching ingest secret is picked by name below (qa reuses
-    # the preview secret, the same value the preview Worker is deployed with).
+    # Records the deployment target per leg; the backend URL and ingest secret
+    # are both selected by matrix.target in the step env below (qa reuses the
+    # preview values, the same the preview Worker is deployed with).
     environment: ${{ matrix.target }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -83,8 +83,9 @@ jobs:
             ./gradlew :scoring-collector:run
           fi
         env:
-          BACKEND_URL: ${{ vars.SCORING_BACKEND_URL }}
+          # Per-target backend Worker; both URLs are public (see deploy-strategy.md).
+          BACKEND_URL: ${{ matrix.target == 'production' && 'https://backend.luca0patrignani.workers.dev' || 'https://backend-preview.luca0patrignani.workers.dev' }}
           SCORING_INGEST_SECRET: ${{ matrix.target == 'production' && secrets.SCORING_INGEST_SECRET_PRODUCTION || secrets.SCORING_INGEST_SECRET_PREVIEW }}
           # Contact info Wikimedia requires (it 403s a request without a
-          # descriptive UA); public, so a var rather than a secret.
-          WIKIMEDIA_USER_AGENT: ${{ vars.WIKIMEDIA_USER_AGENT }}
+          # descriptive UA); public, so inlined rather than a var.
+          WIKIMEDIA_USER_AGENT: "FantasyWiki/1.0 (https://fantasywiki.pages.dev; luca0patrignani@gmail.com)"

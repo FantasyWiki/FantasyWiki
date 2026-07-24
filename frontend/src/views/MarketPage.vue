@@ -233,7 +233,7 @@
               :key="col.key"
               :color="sortKey === col.key ? 'primary' : 'medium'"
               :outline="sortKey !== col.key"
-              class="sort-chip"
+              class="sort-chip chip-clickable"
               @click="toggleSort(col.key)"
             >
               {{ col.label }}

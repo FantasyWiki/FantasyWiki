@@ -410,3 +410,11 @@ ion-button {
   --border-radius: 16px;
   --box-shadow: 0 8px 32px rgba(0, 0, 0, 0.24);
 }
+
+/* Chips are labels, not controls: strip Ionic's clickable affordance
+   (pointer cursor, hover/focus/active states) by dropping pointer events.
+   Chips that are genuinely interactive opt back in with `.chip-clickable`. */
+ion-chip:not(.chip-clickable) {
+  cursor: default;
+  pointer-events: none;
+}

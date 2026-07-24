@@ -389,33 +389,40 @@ function format(entry: LeaderboardEntryDTO): string {
    and the rank inside it stops being legible. Light mode gets the same three
    metals as solid fills, with dark ink to sit on them.
    Scoped to `body:not(.ion-palette-dark)` — the class the app store toggles — so
-   dark mode keeps exactly the treatment above, untouched. */
-:global(body:not(.ion-palette-dark)) .step--1 .step-block {
+   dark mode keeps exactly the treatment above, untouched.
+
+   Written as a plain descendant selector, never `:global(body…) .step-block`:
+   Vue's `:global()` keeps only what is inside the parentheses and throws the
+   rest of the selector away, so that spelling compiled to a bare
+   `body:not(.ion-palette-dark) { … }` and painted the whole document in the
+   third step's bronze. Scoping needs no help here — the scope attribute goes on
+   the last compound selector, and `body` is only an ancestor. */
+body:not(.ion-palette-dark) .step--1 .step-block {
   background: linear-gradient(180deg, #f0d271 0%, #dcb840 100%);
   border-color: #bf9a2c;
   color: #43340a;
 }
 
-:global(body:not(.ion-palette-dark)) .step--2 .step-block {
+body:not(.ion-palette-dark) .step--2 .step-block {
   background: linear-gradient(180deg, #dfe3e8 0%, #c1c7cf 100%);
   border-color: #9aa1aa;
   color: #333a41;
 }
 
-:global(body:not(.ion-palette-dark)) .step--3 .step-block {
+body:not(.ion-palette-dark) .step--3 .step-block {
   background: linear-gradient(180deg, #e0aa7d 0%, #c4854f 100%);
   border-color: #a06a37;
   color: #46280f;
 }
 
 /* Solid metal needs a firmer numeral than a wash does. */
-:global(body:not(.ion-palette-dark)) .step-rank {
+body:not(.ion-palette-dark) .step-rank {
   color: inherit;
   opacity: 0.75;
 }
 
 /* Brand green on solid gold is unreadable; the badge below already says "you". */
-:global(body:not(.ion-palette-dark)) .step--me .step-rank {
+body:not(.ion-palette-dark) .step--me .step-rank {
   color: inherit;
   opacity: 0.85;
 }

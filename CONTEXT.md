@@ -121,6 +121,18 @@ _Avoid_: budget cap, hard cap
 A **+10%-per-consecutive-renewal** cost premium on holding the same article, resetting after dropping it for at least one cycle (ADR 0003, retained). The economy's anti-hoard sink — unaffected by the removal of the transaction fee, since it solves a different problem (hoarding one article vs. daily churn).
 _Avoid_: tax, penalty
 
+**Article Genie**:
+The market-page assistant that finds articles a player cannot name exactly (ADR 0006). It serves two intents through one input: **chemistry scouting** ("find me a relation between OpenAI and Portugal") and **tip-of-the-tongue recall** ("the female mathematician who worked at NASA"). It never invents a title — it seeds a bounded list of real articles from search and uses an LLM only to narrow it through questions. When the daily model quota is exhausted the Genie is **asleep** and the market falls back to the ordinary search bar.
+_Avoid_: Akinator assistant, AI search, chatbot
+
+**Genie Turn**:
+One question-and-answer exchange with the **Article Genie**, carrying the surviving **Candidate Set** forward. A turn asks either a *filter* question, which partitions the set, or a *preference* question, which only re-ranks it.
+_Avoid_: prompt, message, round
+
+**Candidate Set**:
+The bounded list of real article titles the **Article Genie** narrows. Seeded from search results and, when the player names anchors, from articles linked in either direction with those anchors. Ranked by mutual links first and **Contract Price** second, so cheap well-connected articles outrank expensive ones with the same chemistry.
+_Avoid_: candidates (bare), search results, shortlist
+
 ## Relationships
 
 - A **Top Read Snapshot** belongs to exactly one **Project Domain**
@@ -139,6 +151,8 @@ _Avoid_: tax, penalty
 - A **Formation Schema** defines a set of **Positions** and **Chemistry Links**
 - A **Chemistry Link** connects exactly two **Positions**
 - A **Formation** assigns a contract to each required **Position** and carries a **Chemistry Level** for each **Chemistry Link**
+- The **Article Genie** narrows a **Candidate Set** through successive **Genie Turns**
+- A **Candidate Set** contains article titles, never invented ones, and is ranked by mutual links then **Contract Price**
 
 ## Example dialogue
 

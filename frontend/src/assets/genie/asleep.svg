@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 260" width="200" height="260" fill="none">
+  <defs>
+    <g id="lamp">
+      <path d="M152 226 C169 223 178 234 171 243 C165 250 156 252 149 249" fill="none" stroke="#171f1b" stroke-width="10" stroke-linecap="round"/>
+      <path d="M152 226 C169 223 178 234 171 243 C165 250 156 252 149 249" fill="none" stroke="#f5c842" stroke-width="5" stroke-linecap="round"/>
+      <rect x="80" y="248" width="60" height="8" rx="4" fill="#d8b03a" stroke="#171f1b" stroke-width="3"/>
+      <path d="M103 238 L117 238 C113 242 113 244 120 249 L100 249 C107 244 107 242 103 238 Z" fill="#d8b03a" stroke="#171f1b" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M67 227 L149 227 L124 248 L93 248 Z" fill="#f5c842" stroke="#171f1b" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M78 240 L138 240 L124 248 L93 248 Z" fill="rgba(23,31,27,0.2)"/>
+      <path d="M62 220 C66 217 72 215 78 215 L150 215 C154 215 157 217 157 221 C157 225 154 227 150 227 L76 227 C70 226 65 224 62 220 Z" fill="#f5c842" stroke="#171f1b" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M86 220 L118 220" stroke="rgba(251,251,247,0.6)" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <g id="lamp-lid">
+      <path d="M84 214 C84 199 124 199 124 214" fill="none" stroke="#171f1b" stroke-width="10" stroke-linecap="round"/>
+      <path d="M84 214 C84 199 124 199 124 214" fill="none" stroke="#f5c842" stroke-width="5" stroke-linecap="round"/>
+      <rect x="99" y="192" width="10" height="14" rx="5" fill="#d8b03a" stroke="#171f1b" stroke-width="3"/>
+      <path d="M92 214 C94 204 114 204 116 214 Z" fill="#f5c842" stroke="#171f1b" stroke-width="3" stroke-linejoin="round"/>
+    </g>
+  </defs>
+  <use href="#lamp"/>
+  <use href="#lamp-lid"/>
+  <path d="M66 210 C78 202 58 194 70 184 C78 178 76 172 72 168" fill="none" stroke="#737f73" stroke-width="4" stroke-linecap="round" opacity="0.45"/>
+  <text x="96" y="176" font-family="Georgia, serif" font-weight="700" font-size="20" fill="#1e7e50" opacity="0.7">z</text>
+  <text x="112" y="150" font-family="Georgia, serif" font-weight="700" font-size="30" fill="#1e7e50" opacity="0.85">z</text>
+  <text x="134" y="112" font-family="Georgia, serif" font-weight="700" font-size="42" fill="#1e7e50">z</text>
+</svg>

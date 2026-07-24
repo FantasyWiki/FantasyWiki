@@ -69,15 +69,26 @@
 
         <!-- Search + Status filter -->
         <div class="controls-row">
-          <ion-searchbar
-            class="search-bar"
-            :placeholder="t('market.searchPlaceholder')"
-            :value="searchQuery"
-            @ionInput="
-              setSearch(($event.target as HTMLIonSearchbarElement).value ?? '')
-            "
-            :debounce="200"
-          />
+          <!-- The Genie sits *beside* the search bar, sharing its line and its
+               height: it is additive, and the search bar is both the thing it
+               supplements and where a failed session hands the player back to. -->
+          <div class="search-row">
+            <ion-searchbar
+              class="search-bar"
+              :placeholder="t('market.searchPlaceholder')"
+              :value="searchQuery"
+              @ionInput="
+                setSearch(
+                  ($event.target as HTMLIonSearchbarElement).value ?? ''
+                )
+              "
+              :debounce="200"
+            />
+            <ion-button fill="outline" class="genie-trigger" @click="openGenie">
+              <ion-icon slot="start" :icon="sparklesOutline" />
+              {{ t("market.genie.trigger") }}
+            </ion-button>
+          </div>
           <ion-segment
             class="status-segment"
             :value="statusFilter"
@@ -384,6 +395,12 @@
     </div>
     <!-- /page-container -->
 
+    <article-genie
+      :is-open="isGenieOpen"
+      @results="onGenieResults"
+      @close="closeGenie"
+    />
+
     <ArticleDetail
       v-if="selectedArticle"
       :article="selectedArticle"
@@ -423,6 +440,7 @@ import {
   openOutline,
   refreshOutline,
   searchOutline,
+  sparklesOutline,
   swapVerticalOutline,
 } from "ionicons/icons";
 import { useI18n } from "vue-i18n";
@@ -431,6 +449,7 @@ import { useRouter } from "vue-router";
 import NavBar from "@/layout/NavBar.vue";
 import PageReveal from "@/components/PageReveal.vue";
 import ArticleDetail from "@/components/ArticleDetail.vue";
+import ArticleGenie from "@/components/ArticleGenie.vue";
 import { useLeagueStore } from "@/stores/league";
 import {
   useMarket,
@@ -481,8 +500,31 @@ const {
   hasSearchQuery,
   isListLoading,
   isOwnershipLoading,
+  setGenieResults,
   ITEMS_PER_PAGE,
 } = useMarket();
+
+// A full modal, owned by the component itself (as ArticleDetail does). The
+// session behind it survives being dismissed, so this is only visibility.
+const isGenieOpen = ref(false);
+
+function openGenie() {
+  isGenieOpen.value = true;
+}
+
+function closeGenie() {
+  isGenieOpen.value = false;
+}
+
+/**
+ * The findings become ordinary market rows — same price, ownership badge and
+ * buy flow as everything else. Emitted as the panel dismisses, so the table
+ * changes into view rather than behind a modal the player still has open.
+ */
+function onGenieResults(articles: MarketArticle[]) {
+  setGenieResults(articles);
+  closeGenie();
+}
 
 function statusChipColor(article: MarketArticle): string {
   if (!article.owner && isOwnershipLoading.value) return "medium";
@@ -700,6 +742,15 @@ async function handleRefresh(event: CustomEvent) {
   margin-bottom: 16px;
 }
 
+/* One line, one height. The searchbar takes what is left after the trigger,
+   which keeps its own width instead of being squeezed to its label. */
+.search-row {
+  --control-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .search-bar {
   --border-radius: 8px;
   --color: var(--ion-text-color);
@@ -708,15 +759,53 @@ async function handleRefresh(event: CustomEvent) {
   --icon-color: var(--ion-color-medium);
   --box-shadow: none;
   padding: 0;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
+/* `border-box` is load-bearing: the outline lives on this element, so without it
+   the 1.5px border sits outside the fixed height and the bottom edge is clipped
+   away. The input then fills the container rather than being sized to the same
+   number, which would overflow it by exactly those borders. */
 .search-bar :deep(.searchbar-input-container) {
   border: 1.5px solid var(--ion-color-primary);
   border-radius: 8px;
+  height: var(--control-height);
+  box-sizing: border-box;
+}
+
+.search-bar :deep(.searchbar-input) {
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .status-segment {
   width: 100%;
+}
+
+/* Sized like the balance pill it echoes across the page: a settled block of
+   chrome rather than a button shrink-wrapped to its label. */
+.genie-trigger {
+  flex: 0 0 auto;
+  min-width: 150px;
+  height: var(--control-height);
+  margin: 0;
+  --border-radius: 8px;
+  font-size: 0.8125rem;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+/* Below this the two share the line only if the label goes, and a searchbar
+   squeezed to a few characters is worse than a stacked pair. */
+@media (max-width: 480px) {
+  .search-row {
+    flex-wrap: wrap;
+  }
+
+  .genie-trigger {
+    flex: 1 0 100%;
+  }
 }
 
 /* Desktop table */

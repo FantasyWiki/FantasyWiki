@@ -15,6 +15,12 @@ import type {
   CreateProblemReportRequest,
   ProblemReportCreatedDTO,
 } from "../../../dto/problemReportDTO";
+import type {
+  GenieSeedRequest,
+  GenieSeedResponse,
+  GenieTurnRequest,
+  GenieTurnResponse,
+} from "../../../dto/genieDTO";
 import { Temporal } from "@js-temporal/polyfill";
 import {
   TIER_DAYS,
@@ -306,6 +312,28 @@ export const reportsApi = {
     }),
 };
 
+// ── Article Genie ─────────────────────────────────────────────────────────────
+
+/**
+ * The Genie's two model calls. Everything else it does — searching Wikipedia,
+ * fetching link sets, pricing — happens in the browser against the Wikimedia
+ * client's own cache, where neither the Worker's subrequest nor its CPU limit
+ * applies (ADR 0006).
+ */
+export const genieApi = {
+  /** Reads the opening text into the searches that seed the candidate set. */
+  seed: (query: string) =>
+    apiRequest<GenieSeedResponse>("/me/genie-seeds", {
+      method: "POST",
+      body: JSON.stringify({ query } satisfies GenieSeedRequest),
+    }),
+  takeTurn: (request: GenieTurnRequest) =>
+    apiRequest<GenieTurnResponse>("/me/genie-turns", {
+      method: "POST",
+      body: JSON.stringify(request),
+    }),
+};
+
 // ── Unified export ────────────────────────────────────────────────────────────
 
 export const api = {
@@ -318,6 +346,7 @@ export const api = {
   dashboard: dashboardApi,
   session: sessionApi,
   reports: reportsApi,
+  genie: genieApi,
 };
 
 export default api;

@@ -337,6 +337,9 @@ function onDismiss(/*contract: Contract*/) {
 .tier-badge {
   grid-area: tier;
   justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   white-space: nowrap;
   font-size: 0.65rem;
   min-width: fit-content;

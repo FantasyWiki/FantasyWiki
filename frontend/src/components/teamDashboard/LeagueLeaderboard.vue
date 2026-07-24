@@ -393,6 +393,9 @@ function getRankChange(entry: LeaderboardEntryDTO): {
 }
 
 .you-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.6rem;
   height: 1.1rem;
   padding: 0 6px;

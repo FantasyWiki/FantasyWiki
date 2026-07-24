@@ -636,9 +636,6 @@ async function handleRefresh(event: CustomEvent) {
 }
 
 .league-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   font-size: 11px;
 }
 

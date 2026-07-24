@@ -418,3 +418,13 @@ ion-chip:not(.chip-clickable) {
   cursor: default;
   pointer-events: none;
 }
+
+/* Ionic's Material badge ships asymmetric vertical padding
+   (--padding-top: 3px vs --padding-bottom: 4px), which lifts the label off
+   centre. Even it out so badge text sits vertically centred (#450). Badges
+   that pin a fixed height and zero their own padding instead centre their
+   content via flex at the component level. */
+ion-badge {
+  --padding-top: 4px;
+  --padding-bottom: 4px;
+}

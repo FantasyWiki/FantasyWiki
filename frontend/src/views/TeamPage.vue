@@ -297,9 +297,6 @@ function handleMoveToEmpty(fromId: string, posKey: string) {
 }
 
 .league-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   font-size: 11px;
 }
 

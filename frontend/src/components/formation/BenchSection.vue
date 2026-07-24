@@ -40,6 +40,9 @@
           class="bench-node"
           @click="$emit('articleClick', article)"
           @swap="(fromId, toId) => $emit('swap', fromId, toId)"
+          @drop-on-empty="
+            (fromId, posKey) => $emit('moveToEmpty', fromId, posKey)
+          "
         />
       </div>
     </ion-card-content>
@@ -73,6 +76,8 @@ defineEmits<{
   articleClick: [article: ContractDTO];
   /** User drag-dropped or tapped a swap target */
   swap: [fromId: string, toId: string];
+  /** User dragged a bench article onto an empty pitch slot */
+  moveToEmpty: [fromId: string, posKey: string];
 }>();
 </script>
 

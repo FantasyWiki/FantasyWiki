@@ -89,6 +89,7 @@
         :swap-source="swapSource"
         @article-click="handleArticleClick"
         @swap="handleSwap"
+        @move-to-empty="handleMoveToEmpty"
       />
     </page-reveal>
 

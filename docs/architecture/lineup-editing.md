@@ -53,6 +53,28 @@ into a `DraftLineup`, call the matching pure mutation, and write the result back
 via `applyMutation`. `TeamPage.vue` calls the same handler names, so no view API
 changed.
 
+## Touch input
+
+`ArticleNode.vue` accepts drops from two input paths that both resolve to the
+same `swap` / `dropOnEmpty` emits:
+
+- **HTML5 drag-and-drop** (mouse/desktop) — unreliable on touch devices, so it
+  stays mouse-only.
+- **Long-press-and-drag** (`frontend/src/composables/useTouchDragDrop.ts`) —
+  a long press lifts a floating clone that follows the finger; releasing over
+  another article swaps, over an empty pitch slot moves. It autoscrolls the
+  nearest `ion-content` near the viewport edges so a bench tile can reach an
+  off-screen pitch row without scrolling by hand first. The hit-test that
+  turns a drop point into a swap/move/no-op decision (`resolveDrop`) is a pure
+  function of the target element's `data-article-id`/`data-position`
+  attributes, kept separate from the gesture/DOM-geometry code so it can be
+  unit-tested directly.
+
+`TeamFormation`/`BenchSection` re-emit an ArticleNode's `dropOnEmpty` as their
+own `moveToEmpty`, so both input paths land on the exact same
+`useTeamLineup` handlers described above. An `editable` prop threads down to
+disable both paths on read-only hosts (the dashboard preview).
+
 ## Related documentation
 
 - [Lineup Rules (domain)](../domain/lineup-rules.md) — the invariants the

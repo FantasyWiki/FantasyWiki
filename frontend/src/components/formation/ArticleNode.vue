@@ -4,6 +4,7 @@
     dynamic class logic without Ionic's shadow DOM interfering.
   -->
   <button
+    ref="nodeRef"
     class="article-node fm-center-col"
     :class="{
       'article-node--swap': swapMode,
@@ -11,8 +12,9 @@
       'article-node--selected': selected,
     }"
     :aria-label="article.article.title"
-    draggable="true"
-    @click="$emit('click')"
+    :data-article-id="article.id"
+    :draggable="editable"
+    @click="onClick"
     @dragstart="onDragStart"
     @dragover.prevent="isDragOver = true"
     @dragleave="isDragOver = false"
@@ -30,29 +32,36 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import type { ContractDTO } from "../../../../dto/contractDTO";
+import { useTouchDragDrop } from "@/composables/useTouchDragDrop";
 
-const props = defineProps<{
-  /** The contract to display in this slot */
-  article: ContractDTO;
-  /** When true, applies the pulsing ring to signal swap-target availability */
-  swapMode?: boolean;
-  /** Highlights the node as the currently selected swap source */
-  selected?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    /** The contract to display in this slot */
+    article: ContractDTO;
+    /** When true, applies the pulsing ring to signal swap-target availability */
+    swapMode?: boolean;
+    /** Highlights the node as the currently selected swap source */
+    selected?: boolean;
+    /** False on read-only hosts (e.g. the dashboard preview) to disable drag-to-move */
+    editable?: boolean;
+  }>(),
+  { editable: true }
+);
 
 const emit = defineEmits<{
   /** Fired on click — parent decides whether to open detail dialog or enter swap mode */
   click: [];
   /** Fired when another article is dropped onto this node */
   swap: [fromId: string, toId: string];
+  /** Fired when this article is dropped onto an empty pitch slot */
+  dropOnEmpty: [fromId: string, posKey: string];
 }>();
 
 const isDragOver = ref(false);
 
-// ── HTML5 drag-and-drop ────────────────────────────────────────────────────
-// NOTE: HTML5 drag events are unreliable on iOS Safari.
-// When implementing touch support, replace with touchstart/touchmove/touchend
-// or integrate vue-draggable-plus.
+// ── HTML5 drag-and-drop (mouse/desktop) ─────────────────────────────────────
+// NOTE: HTML5 drag events are unreliable on touch devices, hence useTouchDragDrop
+// below for the long-press-and-drag path phones actually use.
 
 function onDragStart(e: DragEvent) {
   e.dataTransfer?.setData("articleId", props.article.id);
@@ -64,6 +73,36 @@ function onDrop(e: DragEvent) {
   if (fromId && fromId !== props.article.id) {
     emit("swap", fromId, props.article.id);
   }
+}
+
+// ── Touch long-press-and-drag ────────────────────────────────────────────────
+const nodeRef = ref<HTMLButtonElement | null>(null);
+
+// A drag that actually moved suppresses the trailing synthetic click itself
+// (that's what the touchmove preventDefault is for), so no click ever arrives
+// to clear a "just dragged" flag set on drop — it would stick forever and eat
+// the next real tap on this slot. A short time window after the drop is used
+// instead: any click within it is the (possible) stray synthetic one, and any
+// later click is a genuine, unrelated tap.
+const DRAG_CLICK_SUPPRESS_MS = 400;
+let lastDropAt = 0;
+
+useTouchDragDrop(nodeRef, {
+  articleId: () => props.article.id,
+  disabled: () => !props.editable,
+  onDrop: (decision) => {
+    lastDropAt = performance.now();
+    if (decision.kind === "swap") {
+      emit("swap", props.article.id, decision.targetId);
+    } else if (decision.kind === "moveToEmpty") {
+      emit("dropOnEmpty", props.article.id, decision.position);
+    }
+  },
+});
+
+function onClick() {
+  if (performance.now() - lastDropAt < DRAG_CLICK_SUPPRESS_MS) return;
+  emit("click");
 }
 </script>
 
@@ -82,6 +121,10 @@ function onDrop(e: DragEvent) {
   width: 100%;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  /* A long press must lift the tile, not trigger iOS's selection callout. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   transition:
     transform 180ms ease,
     box-shadow 180ms ease,
@@ -154,6 +197,11 @@ function onDrop(e: DragEvent) {
   transform: scale(1.05);
   box-shadow: 0 0 0 2px rgba(var(--ion-color-secondary-rgb), 0.8);
   background: rgba(var(--ion-color-secondary-rgb), 0.12);
+}
+
+/* ── Touch drag source — dims while its floating clone follows the finger ── */
+.article-node--drag-source {
+  opacity: 0.35;
 }
 
 @keyframes article-pulse {

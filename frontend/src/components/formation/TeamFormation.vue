@@ -121,10 +121,14 @@
               swapMode && formation.formation[posKey]?.id !== swapSource?.id
             "
             :selected="formation.formation[posKey]?.id === swapSource?.id"
+            :editable="editable"
             :style="gridStyle(posKey)"
             :data-position="posKey"
             @click="$emit('articleClick', formation.formation[posKey]!)"
             @swap="(fromId, toId) => $emit('swap', fromId, toId)"
+            @drop-on-empty="
+              (fromId, targetPos) => $emit('moveToEmpty', fromId, targetPos)
+            "
           />
 
           <!-- Empty / unfilled slot -->
@@ -217,14 +221,19 @@ import type { ContractDTO } from "../../../../dto/contractDTO";
 import ArticleNode from "./ArticleNode.vue";
 import { useI18n } from "vue-i18n";
 
-const props = defineProps<{
-  /** The current draft formation (may have missing slots) */
-  formation: DraftFormationDTO;
-  /** When true, ArticleNodes pulse to indicate they are swap targets */
-  swapMode?: boolean;
-  /** The article currently selected as the swap source (highlighted differently) */
-  swapSource?: ContractDTO | null;
-}>();
+const props = withDefaults(
+  defineProps<{
+    /** The current draft formation (may have missing slots) */
+    formation: DraftFormationDTO;
+    /** When true, ArticleNodes pulse to indicate they are swap targets */
+    swapMode?: boolean;
+    /** The article currently selected as the swap source (highlighted differently) */
+    swapSource?: ContractDTO | null;
+    /** False on read-only hosts (e.g. the dashboard preview) to disable drag-to-move */
+    editable?: boolean;
+  }>(),
+  { editable: true }
+);
 
 const emit = defineEmits<{
   /** User clicked a filled slot */

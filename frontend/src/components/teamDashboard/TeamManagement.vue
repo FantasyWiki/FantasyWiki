@@ -32,6 +32,7 @@
       <team-formation
         :formation="props.formation"
         :swap-mode="false"
+        :editable="false"
         @article-click="handleArticleClick"
       />
     </ion-card-content>

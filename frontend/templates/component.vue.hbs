@@ -1,9 +1,14 @@
 <template>
-  <div>
-    <h1>{{ name }} component works!</h1>
-  </div>
+  <nav-bar>
+    <page-reveal>
+      <h1>{{ name }} component works!</h1>
+    </page-reveal>
+  </nav-bar>
 </template>
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import NavBar from "@/layout/NavBar.vue";
+import PageReveal from "@/components/PageReveal.vue";
+</script>
 
 <style scoped></style>

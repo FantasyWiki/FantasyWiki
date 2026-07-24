@@ -38,7 +38,7 @@
       </ion-card>
 
       <!-- Main content -->
-      <template v-else>
+      <page-reveal v-else>
         <!-- Heading -->
         <div class="page-heading">
           <div class="heading-left">
@@ -368,7 +368,7 @@
             </ion-button>
           </div>
         </div>
-      </template>
+      </page-reveal>
     </div>
     <!-- /page-container -->
 
@@ -417,6 +417,7 @@ import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 
 import NavBar from "@/layout/NavBar.vue";
+import PageReveal from "@/components/PageReveal.vue";
 import ArticleDetail from "@/components/ArticleDetail.vue";
 import { useLeagueStore } from "@/stores/league";
 import {

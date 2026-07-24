@@ -55,13 +55,16 @@ describe("HomePage.vue", () => {
     const wrapper = mountPage();
 
     // Hidden, not absent: the sections are laid out all along, so the font
-    // swap they used to visibly re-run happens behind them.
-    const reveal = wrapper.get(".home-reveal");
-    expect(reveal.classes()).not.toContain("home-reveal--visible");
+    // swap they used to visibly re-run happens behind them. Home is the
+    // atypical PageReveal caller — it gates on the font signal, so the reveal
+    // stays armed until that flips rather than firing on mount.
+    const reveal = wrapper.get(".page-reveal");
+    expect(reveal.classes()).toContain("page-reveal--armed");
+    expect(reveal.classes()).not.toContain("page-reveal--revealed");
 
     fontsReady.isReady.value = true;
     await nextTick();
 
-    expect(reveal.classes()).toContain("home-reveal--visible");
+    expect(reveal.classes()).toContain("page-reveal--revealed");
   });
 });

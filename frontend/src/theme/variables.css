@@ -321,6 +321,39 @@ http://ionicframework.com/docs/theming/ */
   --font-family-headings: "Libre Baskerville", Georgia, serif;
 }
 
+/* ===================================
+       PAGE REVEAL
+       ================================== */
+
+/* Shared cadence for the staggered page entrance, so every page enters with
+   the same character. Tune here, not per page. The hide/reveal classes are
+   applied from JS by PageReveal.vue — a page that leaves them off stays plainly
+   visible rather than blank. */
+:root {
+  --reveal-duration: 0.5s;
+  --reveal-shift: 1.25rem;
+  --reveal-stagger: 90ms;
+}
+
+/* Armed = the JS-applied hidden state. It gates on this class (never on the
+   bare .page-reveal) so a failure to arm degrades to no animation, not a
+   permanently hidden page. */
+.page-reveal--armed > * {
+  opacity: 0;
+  transform: translateY(var(--reveal-shift));
+}
+
+/* Released: each child slides up into place, delayed by its DOM position. The
+   single calc() is what turns the inline --reveal-index into the stagger. */
+.page-reveal--armed.page-reveal--revealed > * {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--reveal-duration) ease-out,
+    transform var(--reveal-duration) ease-out;
+  transition-delay: calc(var(--reveal-index, 0) * var(--reveal-stagger));
+}
+
 h1 {
   font-size: 2.25rem;
   line-height: 2.5rem;

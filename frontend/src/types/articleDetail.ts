@@ -13,9 +13,7 @@ import {
 export type { ContractTier };
 
 export type ArticleAvailability =
-  | "free-agent"
-  | "owned-by-viewer"
-  | "owned-by-other";
+  "free-agent" | "owned-by-viewer" | "owned-by-other";
 
 export type TierPriceOption = {
   tier: ContractTier;
@@ -73,9 +71,7 @@ export interface OwnedByOtherDetail extends ArticleDetailBase {
 }
 
 export type ArticleDetail =
-  | FreeAgentDetail
-  | OwnedByViewerDetail
-  | OwnedByOtherDetail;
+  FreeAgentDetail | OwnedByViewerDetail | OwnedByOtherDetail;
 
 export type ArticleDetailInput = {
   article: ArticleDTO;

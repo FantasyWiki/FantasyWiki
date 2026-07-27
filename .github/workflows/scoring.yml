@@ -67,7 +67,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: DanySK/action-checkout@0.2.30
+        uses: DanySK/action-checkout@0.2.31
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:

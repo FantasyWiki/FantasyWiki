@@ -1,233 +1,169 @@
 <template>
   <nav-bar>
-    <div class="team-creation-container">
-      <ion-card class="team-card">
-        <ion-card-header class="ion-text-center">
-          <div class="league-icon-container">
-            <span class="league-icon">{{ league?.icon }}</span>
-          </div>
-          <ion-card-title>Create Your Team</ion-card-title>
-          <p class="subtitle">
-            You're joining <strong>{{ league?.title }}</strong
-            >. Choose a unique name for your team.
-          </p>
-        </ion-card-header>
+    <page-reveal class="start-layout">
+      <section class="start-intro">
+        <p class="intro-eyebrow">{{ t("onboarding.start.eyebrow") }}</p>
+        <h1 class="intro-title">{{ t("onboarding.start.title") }}</h1>
+        <p class="intro-lede">{{ t("onboarding.start.lede") }}</p>
 
-        <ion-card-content>
-          <form @submit.prevent="handleSubmit">
-            <ion-label class="team-name-label">
-              <ion-icon :icon="shieldOutline" color="primary"></ion-icon>
-              Team Name
-            </ion-label>
+        <day-loop class="intro-loop" />
 
-            <ion-item
-              class="team-input-item"
-              lines="none"
-              :color="error ? 'danger' : ''"
-            >
-              <ion-input
-                placeholder="e.g. The Wiki Wizards"
-                v-model="teamName"
-                :maxlength="30"
-                @ionInput="error = ''"
-                autofocus
-              ></ion-input>
-            </ion-item>
+        <ul class="intro-facts">
+          <li>
+            <strong>
+              {{ t("onboarding.start.creditsValue", { credits }) }}
+            </strong>
+            {{ t("onboarding.start.credits") }}
+          </li>
+          <li>
+            <strong>{{ t("onboarding.start.slotsValue") }}</strong>
+            {{ t("onboarding.start.slots") }}
+          </li>
+          <li>
+            <strong>{{ t("onboarding.start.winValue") }}</strong>
+            {{ t("onboarding.start.win") }}
+          </li>
+        </ul>
+      </section>
 
-            <div class="input-footer">
-              <ion-text
-                :color="error ? 'danger' : 'medium'"
-                class="helper-text"
-              >
-                {{ error || "Must be unique within the league" }}
-              </ion-text>
-              <ion-text color="medium" class="char-count">
-                {{ teamName.length }}/30
-              </ion-text>
-            </div>
-
-            <ion-button
-              expand="block"
-              type="submit"
-              :disabled="isSubmitting || !teamName.trim()"
-              class="submit-button"
-            >
-              <ion-icon
-                :icon="sparklesOutline"
-                slot="start"
-                v-if="!isSubmitting"
-              ></ion-icon>
-              {{ isSubmitting ? "Creating..." : "Create Team & Start Playing" }}
-            </ion-button>
-          </form>
-        </ion-card-content>
-      </ion-card>
-    </div>
+      <section class="start-form">
+        <h2 class="form-title">{{ t("onboarding.start.formTitle") }}</h2>
+        <p class="form-hint">{{ t("onboarding.start.formHint") }}</p>
+        <team-creation-form @created="startPlaying" />
+      </section>
+    </page-reveal>
   </nav-bar>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed } from "vue";
 import { useRouter } from "vue-router";
-import { useQuery } from "@tanstack/vue-query";
-import {
-  IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardContent,
-  IonItem,
-  IonInput,
-  IonButton,
-  IonIcon,
-  IonLabel,
-  IonText,
-} from "@ionic/vue";
-import { shieldOutline, sparklesOutline } from "ionicons/icons";
 import { useI18n } from "vue-i18n";
 import NavBar from "@/layout/NavBar.vue";
-import api from "@/services/api";
-import { useToast } from "@/composables/useToast";
-import { queryKeys } from "@/composables/queryKeys";
+import PageReveal from "@/components/PageReveal.vue";
+import DayLoop from "@/components/onboarding/DayLoop.vue";
+import TeamCreationForm from "@/components/TeamCreationForm.vue";
+import { useLeagueStore } from "@/stores/league";
+import { useOnboardingStore } from "@/stores/onboarding";
+import { STARTING_CREDITS } from "../../../model/team";
 
+/**
+ * First screen of a new player's game: what FantasyWiki is, next to the one
+ * form they have to fill in. The app chrome stays (so the language switcher in
+ * the NavBar is reachable here like everywhere else), and submitting the form
+ * hands straight over to the real dashboard with the guided tour running on
+ * top of it — no interstitial slideshow between signing up and playing.
+ */
+const { t, locale } = useI18n();
 const router = useRouter();
-const { t } = useI18n();
-const { showSuccess } = useToast();
+const leagueStore = useLeagueStore();
+const onboarding = useOnboardingStore();
 
-// New players aren't part of any league yet, so the league store (which only
-// holds leagues the player already has a team in) can't be used here. The
-// Global League is the league every new player joins on team creation.
-const { data: league } = useQuery({
-  queryKey: queryKeys.globalLeague(),
-  queryFn: () => api.leagues.getGlobal(),
-});
+const credits = computed(() =>
+  new Intl.NumberFormat(locale.value).format(STARTING_CREDITS)
+);
 
-const teamName = ref("");
-const isSubmitting = ref(false);
-const error = ref("");
-
-const handleSubmit = async () => {
-  const trimmed = teamName.value.trim();
-
-  if (!trimmed) {
-    error.value = "Team name is required.";
-    return;
-  }
-
-  if (trimmed.length < 3) {
-    error.value = "Team name must be at least 3 characters.";
-    return;
-  }
-
-  if (trimmed.length > 30) {
-    error.value = "Team name must be 30 characters or less.";
-    return;
-  }
-
-  error.value = "";
-  isSubmitting.value = true;
-
-  try {
-    await api.leagues.createMyTeam(league.value?.id ?? "", trimmed);
-  } catch (err) {
-    isSubmitting.value = false;
-    error.value = err instanceof Error ? err.message : "Failed to create team.";
-    return;
-  }
-
-  isSubmitting.value = false;
-
-  await showSuccess(
-    t("views.teamCreation.created", {
-      name: trimmed,
-      league: league.value?.title,
-    })
-  );
-
-  router.push("/dashboard");
-};
+async function startPlaying() {
+  // The player had no league a second ago, so the store NavBar populated on
+  // mount is empty and the dashboard would render its "no league" card.
+  // Refetching here is what makes the next screen the *populated* dashboard.
+  await leagueStore.initialize();
+  // Land on the dashboard first, then start narrating it: starting the tour
+  // while still on this page would make the dock issue the same navigation a
+  // moment before this one does.
+  await router.push("/dashboard");
+  onboarding.start();
+}
 </script>
 
 <style scoped>
-.team-creation-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100%;
+.start-layout {
+  display: grid;
+  gap: 2rem;
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 1rem 0 2rem;
 }
 
-.team-card {
-  width: 100%;
-  max-width: 450px;
-  box-shadow: none;
-  border: 1px solid var(--ion-border-color);
-  border-radius: 0.5rem;
+/* Side by side once there is room; the intro keeps reading order above the
+   form when stacked. */
+@media (min-width: 992px) {
+  .start-layout {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: 3.5rem;
+    align-items: start;
+    padding-top: 2.5rem;
+  }
 }
 
-.league-icon-container {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
-  background: rgba(var(--ion-color-primary-rgb), 0.1);
+.intro-eyebrow {
+  margin: 0 0 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ion-color-primary);
 }
 
-.league-icon {
-  font-size: 32px;
+.intro-title {
+  margin: 0 0 0.75rem;
+  font-size: 2rem;
+  line-height: 1.15;
 }
 
-ion-card-title {
-  font-size: 1.5rem;
-  line-height: 2rem;
+@media (min-width: 768px) {
+  .intro-title {
+    font-size: 2.5rem;
+  }
 }
 
-.subtitle {
+.intro-lede {
+  margin: 0 0 2rem;
+  max-width: 34rem;
+  font-size: 1.0625rem;
+  line-height: 1.55;
   color: var(--ion-color-medium);
-  font-size: 14px;
-  margin-top: 8px;
 }
 
-.team-name-label {
+.intro-loop {
+  max-width: 30rem;
+  margin-bottom: 2rem;
+}
+
+.intro-facts {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.75rem;
+  margin: 0;
+  padding: 1rem 0 0;
+  border-top: 1px solid var(--ion-border-color);
+  list-style: none;
+  font-size: 0.875rem;
+  color: var(--ion-color-medium);
 }
 
-.team-input-item {
+.intro-facts strong {
+  font-weight: 700;
+  color: var(--ion-text-color);
+}
+
+.start-form {
+  padding: 1.5rem;
   border: 1px solid var(--ion-border-color);
-  border-radius: 8px;
-  --padding-start: 16px;
-  margin-bottom: 8px;
+  border-radius: 12px;
+  background: var(--ion-background-color-step-50);
 }
 
-.team-input-item:focus-within {
-  border-color: var(--ion-color-primary);
-  box-shadow: 0 0 0 2px rgba(var(--ion-color-primary-rgb), 0.2);
+.form-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.25rem;
+  line-height: 1.3;
 }
 
-.team-input-item[color="danger"] {
-  border-color: var(--ion-color-danger);
-}
-
-.input-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding: 0 4px;
-}
-
-.helper-text,
-.char-count {
-  font-size: 12px;
-}
-
-.submit-button {
-  margin-top: 24px;
+.form-hint {
+  margin: 0 0 1.5rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--ion-color-medium);
 }
 </style>

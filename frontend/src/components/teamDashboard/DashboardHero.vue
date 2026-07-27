@@ -60,7 +60,8 @@
       </div>
 
       <!-- ── Stat ledger: label left, value right ───── -->
-      <div class="stat-list" v-if="data">
+      <!-- data-tour: the onboarding tour's first step rings this ledger. -->
+      <div class="stat-list" data-tour="stats" v-if="data">
         <div v-for="stat in allStats" :key="stat.label" class="stat-row">
           <div class="stat-row__meta">
             <div

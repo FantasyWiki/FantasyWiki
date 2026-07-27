@@ -15,6 +15,7 @@
             v-for="link in navLinks"
             :key="link.name"
             :router-link="link.href"
+            :data-tour="link.tour"
             router-direction="forward"
             fill="clear"
             class="nav-link"
@@ -27,8 +28,11 @@
 
         <!-- Right Actions -->
         <div slot="end" class="actions-container">
+          <!-- data-tour marks the elements the onboarding tour rings. They are
+               selectors on real controls, not tour-only markup. -->
           <ion-button
             id="league-selector"
+            data-tour="league"
             fill="solid"
             size="small"
             shape="round"
@@ -179,10 +183,15 @@
     >
       <ion-toolbar class="transparent-bot-layer">
         <div class="mobile-nav">
+          <!-- Same data-tour as the desktop bar: only one of the two is ever
+               laid out, and the tour rings whichever that is. Ringing the
+               mobile icons is the point — they are the least self-explanatory
+               control in the app. -->
           <ion-button
             fill="clear"
             v-for="link in navLinks"
             :key="link.name"
+            :data-tour="link.tour"
             @click="router.push(link.href)"
           >
             <ion-icon :icon="link.icon" />
@@ -295,10 +304,28 @@ const profilePicture = computed(() =>
   appStore.isAuthenticated ? appStore.currentUser?.picture : undefined
 );
 
+// `tour` is the selector hook the onboarding tour rings on this link; it is
+// carried here rather than hardcoded per template so the desktop bar and the
+// mobile footer can never disagree about which button a step means.
 const navLinks = computed(() => [
-  { name: t("nav.dashboard"), href: "/dashboard", icon: gridOutline },
-  { name: t("nav.leagues"), href: "/leagues", icon: trophyOutline },
-  { name: t("nav.market"), href: "/market", icon: storefrontOutline },
+  {
+    name: t("nav.dashboard"),
+    href: "/dashboard",
+    icon: gridOutline,
+    tour: "nav-dashboard",
+  },
+  {
+    name: t("nav.leagues"),
+    href: "/leagues",
+    icon: trophyOutline,
+    tour: "nav-leagues",
+  },
+  {
+    name: t("nav.market"),
+    href: "/market",
+    icon: storefrontOutline,
+    tour: "nav-market",
+  },
 ]);
 
 const isActive = (href: string) => route.path === href;

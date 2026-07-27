@@ -72,7 +72,9 @@
       />
 
       <!-- Pitch -->
+      <!-- data-tour: rung of the onboarding tour (chemistry step). -->
       <TeamFormation
+        data-tour="formation"
         :formation="draftFormation"
         :swap-mode="swapMode"
         :swap-source="swapSource"

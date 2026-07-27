@@ -20,7 +20,7 @@
     "g:component": "plop component"
   },
   "dependencies": {
-    "@capacitor/app": "8.1.0",
+    "@capacitor/app": "8.1.1",
     "@capacitor/core": "8.4.1",
     "@capacitor/haptics": "8.0.2",
     "@capacitor/keyboard": "8.0.5",

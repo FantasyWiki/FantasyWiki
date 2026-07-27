@@ -18,6 +18,7 @@ describe("InfoFooter.vue", () => {
       "https://github.com/FantasyWiki/FantasyWiki/issues"
     );
     expect(wrapper.find("a[href='/legal']").exists()).toBe(true);
+    expect(wrapper.find("a[href='/guide']").exists()).toBe(true);
   });
 
   it("credits both authors", async () => {

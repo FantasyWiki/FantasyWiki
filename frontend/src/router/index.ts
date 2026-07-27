@@ -9,6 +9,7 @@ import TeamPage from "@/views/TeamPage.vue";
 import TeamCreationPage from "@/views/TeamCreationPage.vue";
 import MarketPage from "@/views/MarketPage.vue";
 import LegalPage from "@/views/LegalPage.vue";
+import GuidePage from "@/views/GuidePage.vue";
 import ReportProblemPage from "@/views/ReportProblemPage.vue";
 import NotFoundPage from "@/views/NotFoundPage.vue";
 import { useAppStore } from "@/stores/app";
@@ -68,6 +69,19 @@ const routes: Array<RouteRecordRaw> = [
     path: "/team-creation",
     name: "TeamCreation",
     component: TeamCreationPage,
+  },
+  {
+    // Onboarding is no longer a place: it is the guided tour running on top of
+    // the real pages (see stores/onboarding.ts). The old path is kept as a
+    // redirect so bookmarks and older links land on the tour rather than a 404.
+    path: "/onboarding",
+    redirect: { path: "/dashboard", query: { tour: "1" } },
+  },
+  {
+    path: "/guide",
+    name: "Guide",
+    component: GuidePage,
+    meta: { public: true },
   },
   {
     path: "/market",

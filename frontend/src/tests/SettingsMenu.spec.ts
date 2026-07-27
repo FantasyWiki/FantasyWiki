@@ -1,11 +1,12 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createPinia, Pinia, setActivePinia } from "pinia";
+import router from "@/router/index";
 import SettingsMenu from "@/components/SettingsMenu.vue";
 import { useAppStore } from "@/stores/app";
 
 function mountMenu(pinia: Pinia) {
-  return mount(SettingsMenu, { global: { plugins: [pinia] } });
+  return mount(SettingsMenu, { global: { plugins: [pinia, router] } });
 }
 
 describe("SettingsMenu.vue", () => {
@@ -55,6 +56,32 @@ describe("SettingsMenu.vue", () => {
       picture: "https://example.com/avatar.png",
     };
     expect(mountMenu(pinia).find(".account-row").exists()).toBe(true);
+  });
+
+  it("opens the written guide from the user-guide row, signed in or not", async () => {
+    await router.push("/home");
+    await router.isReady();
+
+    const appStore = useAppStore();
+    // The guide is public, so someone still deciding whether to play can read
+    // the rules from the same row a player uses.
+    appStore.isAuthenticated = false;
+    expect(mountMenu(pinia).find(".user-guide-row").exists()).toBe(true);
+
+    appStore.setUserFromData({
+      sub: "player-1",
+      email: "player@example.com",
+      name: "Player One",
+      picture: "",
+    });
+    const wrapper = mountMenu(pinia);
+    // The row hands over a page to read; replaying the guided tour is a
+    // deliberate second choice, offered at the end of that page.
+    const pushSpy = vi.spyOn(router, "push");
+    await wrapper.get(".user-guide-row").trigger("click");
+
+    expect(pushSpy).toHaveBeenCalledWith("/guide");
+    expect(wrapper.emitted("close")).toHaveLength(1);
   });
 
   it("switches language from the sub-menu and returns to the root view", async () => {

@@ -48,6 +48,10 @@ onMounted(async () => {
   try {
     const response = await sessionApi.get();
     appStore.setUserFromData(response);
+    // A brand-new player has no team yet, so their first screen is the one
+    // that creates it. That page carries the welcome and the objective beside
+    // the form, and hands over to the real dashboard (with the guided tour
+    // running on it) the moment the team exists — no interstitial tour route.
     const isNewPlayer = route.query.new === "1";
     router.replace(isNewPlayer ? "/team-creation" : "/home");
   } catch {

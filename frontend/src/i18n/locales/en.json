@@ -114,7 +114,7 @@
       },
       "portfolio": {
         "title": "Build Your Portfolio",
-        "description": "Buy articles with your 1,000 starting credits. Choose contract durations from 3 to 90 days."
+        "description": "Buy articles with your 1,000 starting credits. Choose contracts of 3, 7 or 14 days."
       },
       "points": {
         "title": "Earn Points Daily",
@@ -357,7 +357,16 @@
   },
   "views": {
     "teamCreation": {
-      "created": "Team Created! 🎉 \"{name}\" is ready to compete in {league}."
+      "created": "Team Created! 🎉 \"{name}\" is ready to compete in {league}.",
+      "joining": "You are joining",
+      "nameLabel": "Team name",
+      "placeholder": "e.g. The Wiki Wizards",
+      "helper": "Must be unique within the league",
+      "submit": "Create team and start playing",
+      "creating": "Creating…",
+      "tooShort": "Team names need at least {min} characters.",
+      "tooLong": "Team names are at most {max} characters.",
+      "failed": "Could not create the team. Try again."
     },
     "teamDashboard": {
       "loading": "Loading dashboard…",
@@ -411,5 +420,121 @@
     "renewError": "Couldn't renew this contract",
     "cancelRenewalSuccess": "Renewal cancelled",
     "cancelRenewalError": "Couldn't cancel this renewal"
+  },
+  "onboarding": {
+    "start": {
+      "eyebrow": "New player",
+      "title": "Welcome to FantasyWiki",
+      "lede": "Fantasy sport played with Wikipedia. You sign contracts on real articles, and they score for you on the days people actually read them.",
+      "creditsValue": "{credits} credits",
+      "credits": "to spend in your first league",
+      "slotsValue": "11 articles",
+      "slots": "on the pitch at once",
+      "winValue": "Highest total",
+      "win": "at the end of the league wins",
+      "formTitle": "Name your team",
+      "formHint": "Next stop is your dashboard, with the tour running beside it."
+    },
+    "loop": {
+      "caption": "How a day scores",
+      "holdValue": "1 article",
+      "hold": "under contract",
+      "read": "people read it that day",
+      "scoreValue": "{points} points",
+      "score": "added to your total"
+    },
+    "tour": {
+      "label": "Guided tour",
+      "progress": "Step {current} of {total}",
+      "skip": "Skip",
+      "back": "Back",
+      "next": "Next",
+      "take": "Show me",
+      "done": "Done",
+      "guideLink": "Read the full guide",
+      "stats": {
+        "title": "Points and credits",
+        "body": "Yesterday's points, what is left of your credits, and how you stand. This ledger is your team in one glance."
+      },
+      "league": {
+        "title": "Your league",
+        "body": "You start in the Global League. Each league keeps its own budget, market and standings, and you switch between them here."
+      },
+      "market": {
+        "title": "The market",
+        "body": "Every article shows what people are reading and what a contract costs. Sign one and it scores for you from the next daily update."
+      },
+      "formation": {
+        "title": "The pitch",
+        "body": "Place your articles on the pitch. Two that link to each other on Wikipedia pay a bonus when their spots are connected."
+      },
+      "wrap": {
+        "title": "That is the tour",
+        "body": "Sign your first contracts whenever you are ready. You can replay this from the menu any time."
+      },
+      "manageTeam": {
+        "title": "Getting to your pitch",
+        "body": "Your formation lives one click away, behind this button. There is no menu entry for it, so this is the way in."
+      }
+    }
+  },
+  "guide": {
+    "title": "How FantasyWiki works",
+    "lede": "What decides your score, what decides your prices, and what you can do about either.",
+    "day": {
+      "title": "A day in the league",
+      "body": "Every morning your articles are scored on how many people read them the day before. Those daily scores stack up for the whole league, and the highest total wins it."
+    },
+    "contrast": {
+      "title": "Points follow today, prices follow the month",
+      "body": "You score on yesterday's readers. A contract costs what the last 30 days of readers say it is worth. The same article can be loud on one side and quiet on the other.",
+      "axis": "Last 30 days",
+      "pointsToday": "Points today",
+      "pricedOn": "Priced on",
+      "readersPerDay": "{views} readers a day",
+      "spike": {
+        "title": "Quiet page, big day",
+        "alt": "Thirty flat days ending in one huge spike",
+        "note": "Cheap to sign, because its price still reads a quiet month. It pays once, then goes quiet again."
+      },
+      "steady": {
+        "title": "Read every day",
+        "alt": "Thirty days of consistently high readership",
+        "note": "Priced for what it is, and it pays again tomorrow."
+      },
+      "takeaway": "Catching a rise early is the cheap way to score. Holding a favourite is the dependable one. Most teams want some of each."
+    },
+    "points": {
+      "title": "What a reader is worth",
+      "alt": "Readers in a day plotted against the points they earn",
+      "rule": "Every doubling of readers adds a point, starting at one point for 4,000 readers a day. Past 150,000 readers, each extra 50,000 adds another point.",
+      "worth": "{points} point | {points} points",
+      "floor": "Under 2,000 readers a day an article scores nothing. Those articles also cost nothing to sign, which is how a team with no credits gets back on its feet."
+    },
+    "chemistry": {
+      "title": "Chemistry between your picks",
+      "alt": "Three connected spots showing what each kind of Wikipedia link pays",
+      "mutual": "They link to each other on Wikipedia",
+      "oneway": "One of them links to the other",
+      "none": "Neither links to the other",
+      "body": "Chemistry is only counted between spots your formation connects, so where you place an article matters as much as which one you signed.",
+      "cap": "A whole formation banks at most {cap} chemistry points, so even a perfectly linked team has a ceiling on the bonus."
+    },
+    "contracts": {
+      "title": "Signing, selling, renewing",
+      "shortDays": "days, short",
+      "mediumDays": "days, medium",
+      "longDays": "days, long",
+      "holdTitle": "Hold it to the end",
+      "hold": "You get your credits back, plus or minus however the price moved while you held it.",
+      "sellTitle": "Sell it early",
+      "sell": "You are paid for the days you did not use, at today's price. The days you did use are spent.",
+      "renewTitle": "Renew or let it go",
+      "renew": "On the last day you choose. Doing nothing lets it go. Renewing the same article again costs 10% more each time you do it in a row.",
+      "budget": "You start each league with {credits} credits and room for 11 articles.",
+      "free": "Articles nobody is reading are free to sign, so running out of credits is never the end of your league."
+    },
+    "replay": "Replay the tour",
+    "signIn": "Sign in to play"
   }
 }

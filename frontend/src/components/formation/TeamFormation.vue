@@ -503,20 +503,20 @@ const chemistryLines = computed<RenderedChemistryLine[]>(() => {
 }
 
 .chem-line--excellent {
-  stroke: #2f8f5b;
+  stroke: var(--chem-excellent);
 }
 
 .chem-line--good {
-  stroke: #d6a71a;
+  stroke: var(--chem-good);
 }
 
 .chem-line--weak {
-  stroke: #d42a17;
+  stroke: var(--chem-weak);
 }
 
 .chem-line--empty {
   stroke-width: 2px;
-  stroke: rgba(var(--ion-color-medium-rgb), 0.75);
+  stroke: var(--chem-empty);
 }
 
 /* ── Swap mode banner ─────────────────────────────────────────────────────── */
@@ -675,19 +675,19 @@ const chemistryLines = computed<RenderedChemistryLine[]>(() => {
 }
 
 .chem-marker--excellent {
-  background: #2f8f5b;
+  background: var(--chem-excellent);
 }
 
 .chem-marker--good {
-  background: #d6a71a;
+  background: var(--chem-good);
 }
 
 .chem-marker--weak {
-  background: #d42a17;
+  background: var(--chem-weak);
 }
 
 .chem-marker--empty {
-  background: rgba(var(--ion-color-medium-rgb), 0.75);
+  background: var(--chem-empty);
 }
 
 /* ── Transitions ──────────────────────────────────────────────────────────── */

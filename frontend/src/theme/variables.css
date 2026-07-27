@@ -242,6 +242,15 @@ http://ionicframework.com/docs/theming/ */
          CUSTOM FANTASYWIKI VARIABLES
          ================================== */
 
+  /* Chemistry levels. The formation pitch and the guide's chemistry figure
+     read from the same three values on purpose: a player learns the colours on
+     the pitch, so the guide has to teach them in that language and not invent
+     its own. */
+  --chem-excellent: #2f8f5b;
+  --chem-good: #d6a71a;
+  --chem-weak: #d42a17;
+  --chem-empty: rgba(var(--ion-color-medium-rgb), 0.75);
+
   --ion-color-wiki-gold: #f5c842;
   --ion-color-wiki-gold-rgb: 245, 200, 66;
   --ion-color-wiki-gold-contrast: #000000;
@@ -352,6 +361,48 @@ http://ionicframework.com/docs/theming/ */
     opacity var(--reveal-duration) ease-out,
     transform var(--reveal-duration) ease-out;
   transition-delay: calc(var(--reveal-index, 0) * var(--reveal-stagger));
+}
+
+/* ===================================
+       ONBOARDING TOUR RING
+       ================================== */
+
+/* The tour draws attention to a real element on a real page, so the rule has
+   to live globally: TourDock.vue puts this class on a node it does not own,
+   and a scoped style would never match it. Outline rather than border, so
+   nothing in the highlighted component reflows while the ring is on.
+
+   It glows, and slowly breathes, because the things it has to pick out include
+   a single bare icon in the mobile navigation bar — a hairline ring there reads
+   as a rendering artefact rather than as "this one". */
+.tour-ring {
+  outline: 2px solid var(--ion-color-primary);
+  outline-offset: 4px;
+  border-radius: 12px;
+  animation: tour-ring-glow 1.8s ease-in-out infinite alternate;
+  box-shadow:
+    0 0 0 5px rgba(var(--ion-color-primary-rgb), 0.22),
+    0 0 18px 4px rgba(var(--ion-color-primary-rgb), 0.45);
+}
+
+@keyframes tour-ring-glow {
+  from {
+    box-shadow:
+      0 0 0 5px rgba(var(--ion-color-primary-rgb), 0.18),
+      0 0 14px 2px rgba(var(--ion-color-primary-rgb), 0.32);
+  }
+  to {
+    box-shadow:
+      0 0 0 7px rgba(var(--ion-color-primary-rgb), 0.28),
+      0 0 26px 8px rgba(var(--ion-color-primary-rgb), 0.6);
+  }
+}
+
+/* Reduced motion keeps the glow, drops the breathing. */
+@media (prefers-reduced-motion: reduce) {
+  .tour-ring {
+    animation: none;
+  }
 }
 
 h1 {

@@ -116,7 +116,13 @@
         </div>
 
         <!-- Desktop table -->
-        <div v-if="!isSearching" class="table-wrapper ion-hide-md-down">
+        <!-- data-tour: the onboarding tour rings the price column's table so
+             the player sees a real listing while it is explained. -->
+        <div
+          v-if="!isSearching"
+          data-tour="market"
+          class="table-wrapper ion-hide-md-down"
+        >
           <table class="market-table">
             <thead>
               <tr>
@@ -224,7 +230,9 @@
         </div>
 
         <!-- Mobile cards -->
-        <div v-if="!isSearching" class="ion-hide-md-up">
+        <!-- Carries data-tour too: only one of the two listings is ever
+             visible, and the tour rings whichever that is. -->
+        <div v-if="!isSearching" data-tour="market" class="ion-hide-md-up">
           <!-- Mobile sort chips -->
           <div class="mobile-sort-row">
             <span class="sort-label">{{ t("market.sortLabel") }}</span>

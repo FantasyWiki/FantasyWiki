@@ -58,22 +58,16 @@
         <ion-label>{{ $t("menu.reportProblem") }}</ion-label>
       </ion-item>
 
+      <!-- Signed out too: the guide is public, and someone deciding whether to
+           play is exactly who wants to read the rules first. -->
       <ion-item
         :button="true"
         :detail="false"
-        :href="USER_GUIDE_URL"
-        target="_blank"
-        rel="noopener"
-        @click="emit('close')"
+        class="user-guide-row"
+        @click="goToUserGuide"
       >
         <ion-icon :icon="bookOutline" slot="start" aria-hidden="true" />
         <ion-label>{{ $t("menu.userGuide") }}</ion-label>
-        <ion-icon
-          :icon="openOutline"
-          slot="end"
-          class="external-icon"
-          aria-hidden="true"
-        />
       </ion-item>
 
       <ion-item
@@ -145,14 +139,10 @@ import {
   logInOutline,
   logOutOutline,
   moonOutline,
-  openOutline,
   personCircleOutline,
   sunnyOutline,
 } from "ionicons/icons";
 import { useAppStore } from "@/stores/app";
-
-const USER_GUIDE_URL =
-  "https://github.com/FantasyWiki/FantasyWiki/tree/master/docs";
 
 const emit = defineEmits<{ close: [] }>();
 
@@ -162,6 +152,14 @@ const appStore = useAppStore();
 function goToReport() {
   emit("close");
   router.push("/report");
+}
+
+// Opens the written guide, not the tour. Asking for the guide should hand over
+// something you can read at your own pace; replaying the tour is a deliberate
+// second choice, offered by a button at the end of that page.
+function goToUserGuide() {
+  emit("close");
+  router.push("/guide");
 }
 
 // A nested list rather than an inline segment: adding a locale to
@@ -220,11 +218,6 @@ function onAuth() {
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.external-icon {
-  font-size: 0.875rem;
-  color: var(--ion-color-medium);
 }
 
 .auth-row {

@@ -114,7 +114,7 @@
       },
       "portfolio": {
         "title": "Costruisci il tuo portfolio",
-        "description": "Acquista articoli con i tuoi 1.000 crediti iniziali. Scegli durate dei contratti da 3 a 90 giorni."
+        "description": "Acquista articoli con i tuoi 1.000 crediti iniziali. Scegli contratti da 3, 7 o 14 giorni."
       },
       "points": {
         "title": "Guadagna punti ogni giorno",
@@ -357,7 +357,16 @@
   },
   "views": {
     "teamCreation": {
-      "created": "Squadra creata! 🎉 \"{name}\" è pronta a competere in {league}."
+      "created": "Squadra creata! 🎉 \"{name}\" è pronta a competere in {league}.",
+      "joining": "Stai entrando in",
+      "nameLabel": "Nome della squadra",
+      "placeholder": "es. I Maghi della Wiki",
+      "helper": "Deve essere unico nella lega",
+      "submit": "Crea la squadra e inizia",
+      "creating": "Creazione…",
+      "tooShort": "Il nome della squadra deve avere almeno {min} caratteri.",
+      "tooLong": "Il nome della squadra può avere al massimo {max} caratteri.",
+      "failed": "Creazione della squadra non riuscita. Riprova."
     },
     "teamDashboard": {
       "loading": "Caricamento dashboard…",
@@ -411,5 +420,121 @@
     "renewError": "Impossibile rinnovare questo contratto",
     "cancelRenewalSuccess": "Rinnovo annullato",
     "cancelRenewalError": "Impossibile annullare il rinnovo"
+  },
+  "onboarding": {
+    "start": {
+      "eyebrow": "Nuovo giocatore",
+      "title": "Benvenuto su FantasyWiki",
+      "lede": "Un fantasy giocato con Wikipedia. Firmi contratti su articoli veri, e quegli articoli segnano per te nei giorni in cui la gente li legge davvero.",
+      "creditsValue": "{credits} crediti",
+      "credits": "da spendere nella tua prima lega",
+      "slotsValue": "11 articoli",
+      "slots": "in campo insieme",
+      "winValue": "Punteggio più alto",
+      "win": "a fine lega vince",
+      "formTitle": "Dai un nome alla squadra",
+      "formHint": "Subito dopo arrivi alla tua dashboard, con il tour al fianco."
+    },
+    "loop": {
+      "caption": "Come si segna in un giorno",
+      "holdValue": "1 articolo",
+      "hold": "sotto contratto",
+      "read": "persone lo leggono quel giorno",
+      "scoreValue": "{points} punti",
+      "score": "aggiunti al tuo totale"
+    },
+    "tour": {
+      "label": "Tour guidato",
+      "progress": "Passo {current} di {total}",
+      "skip": "Salta",
+      "back": "Indietro",
+      "next": "Avanti",
+      "take": "Mostrami",
+      "done": "Fine",
+      "guideLink": "Leggi la guida completa",
+      "stats": {
+        "title": "Punti e crediti",
+        "body": "I punti di ieri, i crediti che ti restano e la tua posizione. Questo prospetto è la tua squadra in un colpo d'occhio."
+      },
+      "league": {
+        "title": "La tua lega",
+        "body": "Parti dalla Lega Globale. Ogni lega ha budget, mercato e classifica propri, e da qui passi dall'una all'altra."
+      },
+      "market": {
+        "title": "Il mercato",
+        "body": "Ogni articolo mostra quanto viene letto e quanto costa un contratto. Firmalo e segna per te dal prossimo aggiornamento giornaliero."
+      },
+      "formation": {
+        "title": "Il campo",
+        "body": "Disponi i tuoi articoli in campo. Due articoli che si citano a vicenda su Wikipedia danno un bonus quando le loro caselle sono collegate."
+      },
+      "wrap": {
+        "title": "Il tour finisce qui",
+        "body": "Firma i primi contratti quando ti senti pronto. Puoi rivedere questo tour dal menu quando vuoi."
+      },
+      "manageTeam": {
+        "title": "Come arrivare al campo",
+        "body": "La tua formazione è a un clic da qui, dietro questo pulsante. Non ha una voce di menu, quindi questa è la strada."
+      }
+    }
+  },
+  "guide": {
+    "title": "Come funziona FantasyWiki",
+    "lede": "Cosa decide il tuo punteggio, cosa decide i prezzi e cosa puoi farci.",
+    "day": {
+      "title": "Una giornata di lega",
+      "body": "Ogni mattina i tuoi articoli ricevono punti in base a quante persone li hanno letti il giorno prima. I punti giornalieri si sommano per tutta la lega, e il totale più alto la vince."
+    },
+    "contrast": {
+      "title": "I punti seguono oggi, i prezzi seguono il mese",
+      "body": "Segni con i lettori di ieri. Un contratto costa quanto dicono gli ultimi 30 giorni di letture. Lo stesso articolo può essere rumoroso da una parte e silenzioso dall'altra.",
+      "axis": "Ultimi 30 giorni",
+      "pointsToday": "Punti oggi",
+      "pricedOn": "Prezzo basato su",
+      "readersPerDay": "{views} lettori al giorno",
+      "spike": {
+        "title": "Pagina tranquilla, giornata enorme",
+        "alt": "Trenta giorni piatti che finiscono con un picco enorme",
+        "note": "Costa poco, perché il prezzo legge ancora un mese tranquillo. Paga una volta, poi torna in silenzio."
+      },
+      "steady": {
+        "title": "Letta tutti i giorni",
+        "alt": "Trenta giorni di letture costantemente alte",
+        "note": "Costa quanto vale, e paga di nuovo domani."
+      },
+      "takeaway": "Intercettare una salita in anticipo è il modo economico di segnare. Tenere una pagina molto letta è quello affidabile. Le squadre migliori usano entrambi."
+    },
+    "points": {
+      "title": "Quanto vale un lettore",
+      "alt": "Lettori in un giorno confrontati con i punti che generano",
+      "rule": "Ogni raddoppio dei lettori aggiunge un punto, a partire da un punto per 4.000 lettori al giorno. Oltre i 150.000 lettori, ogni 50.000 in più aggiungono un altro punto.",
+      "worth": "{points} punto | {points} punti",
+      "floor": "Sotto i 2.000 lettori al giorno un articolo non segna nulla. Quegli articoli però si firmano gratis, ed è così che una squadra senza crediti si rialza."
+    },
+    "chemistry": {
+      "title": "Chimica tra le tue scelte",
+      "alt": "Tre caselle collegate che mostrano quanto paga ogni tipo di collegamento su Wikipedia",
+      "mutual": "Si citano a vicenda su Wikipedia",
+      "oneway": "Uno dei due cita l'altro",
+      "none": "Nessuno dei due cita l'altro",
+      "body": "La chimica conta solo tra le caselle collegate dal tuo modulo: dove metti un articolo pesa quanto la scelta dell'articolo.",
+      "cap": "Una formazione intera accumula al massimo {cap} punti di chimica, quindi anche una squadra collegata alla perfezione ha un tetto al bonus."
+    },
+    "contracts": {
+      "title": "Firmare, vendere, rinnovare",
+      "shortDays": "giorni, breve",
+      "mediumDays": "giorni, medio",
+      "longDays": "giorni, lungo",
+      "holdTitle": "Tienilo fino alla fine",
+      "hold": "Riprendi i tuoi crediti, più o meno quanto si è mosso il prezzo mentre lo tenevi.",
+      "sellTitle": "Vendilo prima",
+      "sell": "Ti vengono pagati i giorni che non hai usato, al prezzo di oggi. I giorni usati restano spesi.",
+      "renewTitle": "Rinnova o lascialo andare",
+      "renew": "L'ultimo giorno scegli tu. Se non fai nulla, il contratto si chiude. Rinnovare lo stesso articolo di fila costa il 10% in più ogni volta.",
+      "budget": "Inizi ogni lega con {credits} crediti e spazio per 11 articoli.",
+      "free": "Gli articoli che non legge nessuno si firmano gratis, quindi restare senza crediti non è mai la fine della tua lega."
+    },
+    "replay": "Rivedi il tour",
+    "signIn": "Accedi per giocare"
   }
 }

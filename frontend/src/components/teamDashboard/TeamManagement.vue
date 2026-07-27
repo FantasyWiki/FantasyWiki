@@ -16,7 +16,10 @@
           </div>
         </div>
 
+        <!-- data-tour: the onboarding tour points here before it opens the
+             pitch, so the player learns the door as well as the room. -->
         <ion-button
+          data-tour="manage-team"
           fill="outline"
           size="small"
           color="primary"

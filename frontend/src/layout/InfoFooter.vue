@@ -7,9 +7,7 @@
         {{ $t("footer.technicalDocs") }}
       </a>
       <span aria-hidden="true">·</span>
-      <a :href="`${REPO_URL}/tree/master/docs`" target="_blank" rel="noopener">
-        {{ $t("footer.userGuide") }}
-      </a>
+      <router-link to="/guide">{{ $t("footer.userGuide") }}</router-link>
       <span aria-hidden="true">·</span>
       <a :href="REPO_URL" target="_blank" rel="noopener">
         <ion-icon :icon="logoGithub" aria-hidden="true" />

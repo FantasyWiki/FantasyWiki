@@ -332,9 +332,10 @@ jobs:
       - uses: actions/setup-java@v4
       - run: ./gradlew :scoring-engine:run --args="..."
         env:
-          BACKEND_URL: ${{ vars.SCORING_BACKEND_URL }}                # per-environment
-          SCORING_INGEST_SECRET: ${{ secrets.SCORING_INGEST_SECRET }} # per-environment
-          WIKIMEDIA_USER_AGENT: ${{ secrets.WIKIMEDIA_UA }}
+          # Backend URL + UA are public, so inlined per target (no GitHub var needed).
+          BACKEND_URL: ${{ matrix.target == 'production' && 'https://backend...' || 'https://backend-preview...' }}
+          SCORING_INGEST_SECRET: ${{ matrix.target == 'production' && secrets.SCORING_INGEST_SECRET_PRODUCTION || secrets.SCORING_INGEST_SECRET_PREVIEW }}
+          WIKIMEDIA_USER_AGENT: "FantasyWiki/1.0 (contact info)"
 ```
 
 - **Nightly** scores both environments (QA benefits from realistic daily-scored data
@@ -346,9 +347,10 @@ jobs:
   covers friends-scale. Fetch volume ~doubles across two envs (different teams/
   articles); trivial at this scale — collapse the matrix into one job to share the
   per-article view cache only if it ever matters.
-- Config: set `SCORING_INGEST_SECRET` (secret) + `SCORING_BACKEND_URL` (var) in **both**
-  the backend Worker envs (`wrangler.jsonc` per-env) and the matching GitHub
-  Environments (`production`, `qa`).
+- Config: the only per-target secret is `SCORING_INGEST_SECRET`, kept as repo secrets
+  `SCORING_INGEST_SECRET_{PRODUCTION,PREVIEW}` and set on the backend Worker envs too
+  (`wrangler.jsonc` per-env). The backend URL and Wikimedia UA are public and inlined
+  in `scoring.yml`, so they need no GitHub var/secret.
 
 ### Testing
 

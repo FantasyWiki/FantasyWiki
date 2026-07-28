@@ -438,6 +438,11 @@
       "formTitle": "Name your team",
       "formHint": "Next stop is your dashboard, with the tour running beside it."
     },
+    "teamRequired": {
+      "title": "Create your team to start playing",
+      "body": "You are signed in but have not named a team yet. Create one to join the Global League and start playing.",
+      "cta": "Create my team"
+    },
     "loop": {
       "caption": "How a day scores",
       "holdValue": "1 article",

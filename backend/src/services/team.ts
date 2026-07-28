@@ -42,6 +42,22 @@ export class TeamService {
       return failure("Team name must be between 3 and 30 characters.");
     }
 
+    // A player has at most one team per league. `UNIQUE (playerId, leagueId)`
+    // is what actually guarantees that — this check is not atomic with the
+    // insert and is not meant to be. It exists so the ordinary way of hitting
+    // the rule (asking for a second team) answers in words instead of leaking
+    // the constraint failure the repository would otherwise wrap and return.
+    const ownTeamResult = await this.teamRepository.getByPlayerAndLeague(
+      playerId,
+      leagueId,
+    );
+    if (!ownTeamResult.ok) {
+      return ownTeamResult;
+    }
+    if (ownTeamResult.value) {
+      return failure("You already have a team in this league.");
+    }
+
     const existsResult = await this.teamRepository.existsByNameInLeague(
       trimmed,
       leagueId,

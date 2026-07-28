@@ -1,10 +1,10 @@
 <template>
   <form class="team-form" @submit.prevent="handleSubmit">
     <p class="form-league">
-      <span class="league-icon" aria-hidden="true">{{ league?.icon }}</span>
+      <span class="league-icon" aria-hidden="true">{{ league.icon }}</span>
       <span>
         {{ t("views.teamCreation.joining") }}
-        <strong>{{ league?.title ?? "…" }}</strong>
+        <strong>{{ league.title }}</strong>
       </span>
     </p>
 
@@ -55,34 +55,30 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { useQuery } from "@tanstack/vue-query";
 import { IonItem, IonInput, IonButton, IonIcon, IonText } from "@ionic/vue";
 import { sparklesOutline } from "ionicons/icons";
 import { useI18n } from "vue-i18n";
 import api from "@/services/api";
 import { useToast } from "@/composables/useToast";
-import { queryKeys } from "@/composables/queryKeys";
+import { LeagueDTO } from "../../../dto/leagueDTO";
+import { TeamDTO } from "../../../dto/teamDTO";
 
 /**
- * The team-name form only — no page chrome, no post-submit navigation. The
- * page that hosts it decides what happens once the team exists (and, on the
- * first run, that decision is what starts the guided tour).
+ * The team-name form only — no page chrome, no league resolution, no
+ * post-submit navigation. Creating a team happens once per league a player
+ * enters, so the league is a prop rather than something this component looks
+ * up: the host decides *which* league is being joined (the Global League on
+ * signup, a chosen one when joining a further league) and what happens once
+ * the team exists (on the first run, that decision is what starts the tour).
  */
-const emit = defineEmits<{ created: [name: string] }>();
+const props = defineProps<{ league: LeagueDTO }>();
+const emit = defineEmits<{ created: [team: TeamDTO] }>();
 
 const MIN_NAME = 3;
 const MAX_NAME = 30;
 
 const { t } = useI18n();
 const { showSuccess } = useToast();
-
-// New players aren't part of any league yet, so the league store (which only
-// holds leagues the player already has a team in) can't be used here. The
-// Global League is the league every new player joins on team creation.
-const { data: league } = useQuery({
-  queryKey: queryKeys.globalLeague(),
-  queryFn: () => api.leagues.getGlobal(),
-});
 
 const teamName = ref("");
 const isSubmitting = ref(false);
@@ -104,8 +100,9 @@ const handleSubmit = async () => {
   error.value = "";
   isSubmitting.value = true;
 
+  let team: TeamDTO;
   try {
-    await api.leagues.createMyTeam(league.value?.id ?? "", trimmed);
+    team = await api.leagues.createMyTeam(props.league.id, trimmed);
   } catch (err) {
     isSubmitting.value = false;
     error.value =
@@ -118,11 +115,11 @@ const handleSubmit = async () => {
   await showSuccess(
     t("views.teamCreation.created", {
       name: trimmed,
-      league: league.value?.title,
+      league: props.league.title,
     })
   );
 
-  emit("created", trimmed);
+  emit("created", team);
 };
 </script>
 

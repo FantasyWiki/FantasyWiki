@@ -366,7 +366,10 @@
       "creating": "Creating…",
       "tooShort": "Team names need at least {min} characters.",
       "tooLong": "Team names are at most {max} characters.",
-      "failed": "Could not create the team. Try again."
+      "failed": "Could not create the team. Try again.",
+      "joinTitle": "Name your team",
+      "joinHint": "One team per league, so this one is new — the name you use elsewhere is free to reuse here.",
+      "leagueUnavailable": "That league could not be loaded. Check the link and try again."
     },
     "teamDashboard": {
       "loading": "Loading dashboard…",

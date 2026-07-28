@@ -366,7 +366,10 @@
       "creating": "Creazione…",
       "tooShort": "Il nome della squadra deve avere almeno {min} caratteri.",
       "tooLong": "Il nome della squadra può avere al massimo {max} caratteri.",
-      "failed": "Creazione della squadra non riuscita. Riprova."
+      "failed": "Creazione della squadra non riuscita. Riprova.",
+      "joinTitle": "Dai un nome alla squadra",
+      "joinHint": "Una squadra per lega, quindi questa è nuova: il nome che usi altrove qui è di nuovo libero.",
+      "leagueUnavailable": "Non è stato possibile caricare questa lega. Controlla il link e riprova."
     },
     "teamDashboard": {
       "loading": "Caricamento dashboard…",

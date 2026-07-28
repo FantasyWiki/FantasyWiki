@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from "@ionic/vue-router";
-import { RouteRecordRaw } from "vue-router";
+import { RouteLocationNormalized, RouteRecordRaw } from "vue-router";
 import HomeMock from "@/views/MockHome.vue";
 import TeamDashboard from "@/views/TeamDashboard.vue";
 import HomePage from "@/views/HomePage.vue";
@@ -13,6 +13,37 @@ import GuidePage from "@/views/GuidePage.vue";
 import ReportProblemPage from "@/views/ReportProblemPage.vue";
 import NotFoundPage from "@/views/NotFoundPage.vue";
 import { useAppStore } from "@/stores/app";
+import { useLeagueStore } from "@/stores/league";
+
+/**
+ * Keeps team creation out of reach of a player who has nothing left to create.
+ * A team is one-shot per league — `teams` is `UNIQUE (playerId, leagueId)` —
+ * so hand-typing the path used to end at a form whose only possible outcome
+ * was a rejected submit.
+ *
+ * It also turns the rule TeamCreationPage reads off the route into an enforced
+ * one: with no league in the path the page presents itself as signup, and this
+ * is what makes "no league in the path" actually mean "brand new player".
+ *
+ * Membership comes from the league list (the leagues the player already has a
+ * team in), fetched here when the NavBar has not populated it yet. A failed
+ * fetch leaves that list empty and lets the player through on purpose: the
+ * backend still refuses a duplicate, whereas redirecting on error would lock a
+ * genuinely new player out of the only screen that starts the game.
+ */
+async function rejectIfTeamAlreadyExists(to: RouteLocationNormalized) {
+  const leagueStore = useLeagueStore();
+  if (!leagueStore.availableLeagues.length) {
+    await leagueStore.fetchLeagues();
+  }
+
+  const leagueId = to.params.leagueId as string | undefined;
+  const alreadyPlaying = leagueId
+    ? leagueStore.availableLeagues.some((lg) => lg.id === leagueId)
+    : leagueStore.availableLeagues.length > 0;
+
+  return alreadyPlaying ? "/dashboard" : true;
+}
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -66,9 +97,21 @@ const routes: Array<RouteRecordRaw> = [
     component: TeamPage,
   },
   {
+    // Signup: no league named, so the page uses the Global League and carries
+    // the welcome. Kept as its own path because the auth callback sends brand
+    // new players straight here, before they know any league id.
     path: "/team-creation",
     name: "TeamCreation",
     component: TeamCreationPage,
+    beforeEnter: rejectIfTeamAlreadyExists,
+  },
+  {
+    // Entering a further league: same page, same form, league from the route,
+    // no welcome and no tour.
+    path: "/leagues/:leagueId/team-creation",
+    name: "LeagueTeamCreation",
+    component: TeamCreationPage,
+    beforeEnter: rejectIfTeamAlreadyExists,
   },
   {
     // Onboarding is no longer a place: it is the guided tour running on top of

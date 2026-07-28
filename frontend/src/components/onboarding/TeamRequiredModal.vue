@@ -54,9 +54,10 @@ const appStore = useAppStore();
 const leagueStore = useLeagueStore();
 
 // The team-creation routes are the way *out* of this prompt, so it must never
-// cover them; on every other authenticated screen a teamless player is stranded
-// without it. `hasTeam` is undefined until the league list has been fetched,
-// which keeps the modal from flashing on the not-yet-loaded state.
+// cover them; on every other authenticated screen a player who never finished
+// onboarding is stranded without it. `hasGlobalTeam` is undefined until the
+// league list has been fetched, which keeps the modal from flashing on the
+// not-yet-loaded state.
 const isOnTeamCreation = computed(
   () => route.name === "TeamCreation" || route.name === "LeagueTeamCreation"
 );
@@ -64,7 +65,7 @@ const isOnTeamCreation = computed(
 const isOpen = computed(
   () =>
     appStore.isAuthenticated &&
-    leagueStore.hasTeam === false &&
+    leagueStore.hasGlobalTeam === false &&
     !isOnTeamCreation.value
 );
 

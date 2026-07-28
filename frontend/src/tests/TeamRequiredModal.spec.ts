@@ -9,6 +9,7 @@ import TeamRequiredModal from "@/components/onboarding/TeamRequiredModal.vue";
 import { useAppStore } from "@/stores/app";
 import { useLeagueStore } from "@/stores/league";
 import type { LeagueDTO } from "../../../dto/leagueDTO";
+import { GLOBAL_LEAGUE_ID } from "../../../model/league";
 
 /**
  * The modal is the safety net for an interrupted first run (issue #475): a
@@ -63,6 +64,16 @@ describe("TeamRequiredModal.vue", () => {
     expect(isOpen(await mountModal())).toBe(true);
   });
 
+  it("prompts a player who is in another league but not the Global League", async () => {
+    // Forward-looking: joining further leagues is coming, and a player can hold
+    // a team elsewhere while still owing their mandatory Global League team.
+    // That player has not finished onboarding, so they are still prompted.
+    signIn();
+    setTeams([{ id: "italy" } as LeagueDTO]);
+
+    expect(isOpen(await mountModal())).toBe(true);
+  });
+
   it("stays hidden while the league list has not been fetched yet", async () => {
     // Empty-and-unloaded reads the same as empty-and-teamless; the modal must
     // wait for the fetch rather than flash on the initial state.
@@ -71,9 +82,9 @@ describe("TeamRequiredModal.vue", () => {
     expect(isOpen(await mountModal())).toBe(false);
   });
 
-  it("stays hidden for a player who already has a team", async () => {
+  it("stays hidden for a player who has their Global League team", async () => {
     signIn();
-    setTeams([{ id: "global" } as LeagueDTO]);
+    setTeams([{ id: GLOBAL_LEAGUE_ID } as LeagueDTO]);
 
     expect(isOpen(await mountModal())).toBe(false);
   });

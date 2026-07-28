@@ -31,6 +31,12 @@ export const useLeagueStore = defineStore("league", () => {
   const currentLeague = ref<LeagueDTO>();
   const availableLeagues = ref<LeagueDTO[]>([]);
   const isLoading = ref(false);
+  // Whether the league list has been fetched at least once this session. An
+  // empty `availableLeagues` is ambiguous on its own — it reads the same before
+  // the first fetch as it does for a player who genuinely has no team — so this
+  // flag is what lets callers (e.g. the "create your team" prompt) tell the two
+  // apart instead of flashing on the initial, not-yet-loaded state.
+  const hasLoaded = ref(false);
   const error = ref<string | null>(null);
 
   // ── Getters ────────────────────────────────────────────────────────────────
@@ -39,6 +45,14 @@ export const useLeagueStore = defineStore("league", () => {
 
   const currentLeagueName = computed(
     () => currentLeague.value?.title ?? "No League Selected"
+  );
+
+  // The league list holds only leagues the player already has a team in, so a
+  // non-empty list is exactly "this player has a team somewhere". Undefined
+  // until the first fetch resolves, so callers can distinguish "no team" from
+  // "not known yet".
+  const hasTeam = computed(() =>
+    hasLoaded.value ? availableLeagues.value.length > 0 : undefined
   );
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -87,6 +101,7 @@ export const useLeagueStore = defineStore("league", () => {
       console.error("Failed to fetch leagues:", err);
     } finally {
       isLoading.value = false;
+      hasLoaded.value = true;
     }
   }
 
@@ -132,10 +147,12 @@ export const useLeagueStore = defineStore("league", () => {
     currentLeague,
     availableLeagues,
     isLoading,
+    hasLoaded,
     error,
     // Getters
     currentLeagueId,
     currentLeagueName,
+    hasTeam,
     // Actions
     setCurrentLeague,
     fetchLeagues,

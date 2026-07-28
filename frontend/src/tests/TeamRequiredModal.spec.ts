@@ -104,4 +104,22 @@ describe("TeamRequiredModal.vue", () => {
 
     expect(isOpen(await mountModal("/team-creation"))).toBe(false);
   });
+
+  it("stays out of public pages like the landing page", async () => {
+    // The prompt belongs on the in-app screens a team is needed for, not the
+    // moment a teamless player lands on the marketing home.
+    signIn();
+    setTeams([]);
+
+    expect(isOpen(await mountModal("/home"))).toBe(false);
+  });
+
+  it("guards the team-scoped screens a player without a team reaches", async () => {
+    signIn();
+    setTeams([]);
+
+    for (const path of ["/dashboard", "/team", "/market", "/leagues"]) {
+      expect(isOpen(await mountModal(path)), path).toBe(true);
+    }
+  });
 });

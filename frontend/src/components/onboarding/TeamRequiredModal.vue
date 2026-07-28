@@ -53,20 +53,22 @@ const router = useRouter();
 const appStore = useAppStore();
 const leagueStore = useLeagueStore();
 
-// The team-creation routes are the way *out* of this prompt, so it must never
-// cover them; on every other authenticated screen a player who never finished
-// onboarding is stranded without it. `hasGlobalTeam` is undefined until the
-// league list has been fetched, which keeps the modal from flashing on the
-// not-yet-loaded state.
-const isOnTeamCreation = computed(
-  () => route.name === "TeamCreation" || route.name === "LeagueTeamCreation"
-);
+// Only the in-app screens that assume a team: the dashboard, the pitch, the
+// market and the league list. Public pages (landing, guide, legal) and the
+// team-creation flow itself are left alone, so the prompt reaches the player
+// where the missing team actually blocks them rather than the instant they sign
+// in. Naming the routes that opt *in* keeps a new public page from accidentally
+// inheriting the block.
+const TEAM_SCOPED_ROUTES = new Set(["Dashboard", "Leagues", "Team", "Market"]);
 
+// `hasGlobalTeam` is undefined until the league list has been fetched, which
+// keeps the modal from flashing on the not-yet-loaded state.
 const isOpen = computed(
   () =>
     appStore.isAuthenticated &&
     leagueStore.hasGlobalTeam === false &&
-    !isOnTeamCreation.value
+    typeof route.name === "string" &&
+    TEAM_SCOPED_ROUTES.has(route.name)
 );
 
 function goToTeamCreation() {

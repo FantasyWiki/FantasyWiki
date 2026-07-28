@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import api, { deserializeLeague } from "@/services/api";
 import { LeagueDTO } from "../../../dto/leagueDTO";
+import { GLOBAL_LEAGUE_ID } from "../../../model/league";
 import { Temporal } from "@js-temporal/polyfill";
 import Now = Temporal.Now;
 
@@ -47,12 +48,16 @@ export const useLeagueStore = defineStore("league", () => {
     () => currentLeague.value?.title ?? "No League Selected"
   );
 
-  // The league list holds only leagues the player already has a team in, so a
-  // non-empty list is exactly "this player has a team somewhere". Undefined
-  // until the first fetch resolves, so callers can distinguish "no team" from
-  // "not known yet".
-  const hasTeam = computed(() =>
-    hasLoaded.value ? availableLeagues.value.length > 0 : undefined
+  // Whether the player has completed onboarding: a team in the Global League,
+  // the one membership the first run creates. Deliberately *not* "is in any
+  // league" — once a player can join further leagues, someone could hold a team
+  // elsewhere while still owing their Global League team, and that player is
+  // exactly who the re-prompt is for. Undefined until the first fetch resolves,
+  // so callers can distinguish "no team" from "not known yet".
+  const hasGlobalTeam = computed(() =>
+    hasLoaded.value
+      ? availableLeagues.value.some((lg) => lg.id === GLOBAL_LEAGUE_ID)
+      : undefined
   );
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -152,7 +157,7 @@ export const useLeagueStore = defineStore("league", () => {
     // Getters
     currentLeagueId,
     currentLeagueName,
-    hasTeam,
+    hasGlobalTeam,
     // Actions
     setCurrentLeague,
     fetchLeagues,

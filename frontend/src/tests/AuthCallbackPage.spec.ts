@@ -18,9 +18,16 @@ function mockSession() {
   );
 }
 
+/** A brand-new player is in no league yet — the default fixture hands out all
+ * of them, which would make the team-creation guard bounce them. */
+function mockNoLeagues() {
+  server.use(http.get("*/api/leagues", () => HttpResponse.json([])));
+}
+
 describe("AuthCallbackPage.vue", () => {
   it("sends a brand-new player to team creation, which is where the game starts", async () => {
     mockSession();
+    mockNoLeagues();
     await router.push({ path: "/auth/callback", query: { new: "1" } });
     await router.isReady();
 

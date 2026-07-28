@@ -174,6 +174,12 @@ describe("TeamService Integration Tests", () => {
       );
 
       expect(result.ok).toBe(false);
+      // The message is asserted, not just the failure: the route hands it
+      // straight to the player, and `UNIQUE (playerId, leagueId)` firing
+      // instead would surface the D1 constraint text.
+      expect(!result.ok && result.error).toBe(
+        "You already have a team in this league.",
+      );
     });
   });
 

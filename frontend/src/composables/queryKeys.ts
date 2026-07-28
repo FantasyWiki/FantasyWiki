@@ -28,4 +28,6 @@ export const queryKeys = {
   leaderboard: (leagueId: string | null) => ["leaderboard", leagueId] as const,
   notifications: () => ["notifications"] as const,
   globalLeague: () => ["global-league"] as const,
+  /** A single league by id — including ones the player has not joined yet. */
+  league: (leagueId: string) => ["league", leagueId] as const,
 };

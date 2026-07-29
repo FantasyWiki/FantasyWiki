@@ -221,6 +221,8 @@
       "ends": "Termina {date}",
       "you": "Tu",
       "points": "{points} pti",
+      "empty": "Nessuna classifica — le posizioni compaiono dopo il primo giorno di punteggi.",
+      "gap": "Le posizioni intermedie sono nascoste",
       "viewDetails": "Visualizza dettagli lega"
     },
     "teamManagement": {

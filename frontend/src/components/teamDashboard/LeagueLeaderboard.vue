@@ -62,9 +62,9 @@
 
     <!-- ── List ─────────────────────────────────── -->
     <ion-card-content class="ion-no-padding">
-      <!-- Skeleton when loading -->
-      <div v-if="props.leaderboard.length === 0" class="skeleton-list">
-        <div v-for="i in 5" :key="i" class="skeleton-item">
+      <!-- Skeleton while the standings query is in flight -->
+      <div v-if="props.loading" class="skeleton-list">
+        <div v-for="i in props.slice" :key="i" class="skeleton-item">
           <ion-skeleton-text :animated="true" class="skeleton-rank" />
           <div class="skeleton-info">
             <ion-skeleton-text :animated="true" class="skeleton-name" />
@@ -74,67 +74,88 @@
         </div>
       </div>
 
+      <!-- Settled and still empty: nobody has been scored yet -->
+      <div v-else-if="props.leaderboard.length === 0" class="leaderboard-empty">
+        <ion-text color="medium">
+          <p class="ion-no-margin">{{ $t("dashboard.leaderboard.empty") }}</p>
+        </ion-text>
+      </div>
+
       <ion-list v-else lines="none" class="player-list">
-        <ion-item
-          v-for="(entry, rank) in props.leaderboard"
-          :key="rank"
-          class="player-item"
-          :class="{ 'player-item--me': isCurrentUser(entry) }"
-          :detail="false"
+        <template
+          v-for="row in rows"
+          :key="row.kind === 'gap' ? 'gap' : row.entry.team.id"
         >
+          <!-- Ranks skipped between the pinned leader and the window -->
           <div
-            class="player-row"
-            v-if="rank >= sliceAroundUser[0] && rank < sliceAroundUser[1]"
+            v-if="row.kind === 'gap'"
+            class="rank-gap"
+            role="separator"
+            :aria-label="$t('dashboard.leaderboard.gap')"
           >
-            <!-- Rank badge -->
-            <div
-              class="rank-badge"
-              :class="{ 'rank-badge--top': rank + 1 <= 3 }"
-            >
-              <span v-if="rank + 1 === 1">👑</span>
-              <span v-else-if="rank + 1 === 2">🥈</span>
-              <span v-else-if="rank + 1 === 3">🥉</span>
-              <span v-else>{{ rank + 1 }}</span>
-            </div>
-
-            <!-- Player info -->
-            <div class="player-info">
-              <div class="player-name-row">
-                <span
-                  class="player-name"
-                  :class="{ 'player-name--me': isCurrentUser(entry) }"
-                >
-                  {{ entry.team.name }}
-                </span>
-                <ion-badge
-                  v-if="isCurrentUser(entry)"
-                  color="primary"
-                  class="you-badge"
-                >
-                  {{ $t("dashboard.leaderboard.you") }}
-                </ion-badge>
-              </div>
-              <ion-text color="medium">
-                <p class="player-points ion-no-margin">
-                  {{
-                    $t("dashboard.leaderboard.points", {
-                      points: entry.cumulativePoints.toLocaleString(),
-                    })
-                  }}
-                </p>
-              </ion-text>
-            </div>
-
-            <!-- Change indicator -->
-            <div class="player-change" :class="getRankChange(entry).cssClass">
-              <ion-icon
-                class="player-change-icon"
-                :icon="getRankChange(entry).icon"
-              />
-              <span>{{ getRankChange(entry).label }}</span>
-            </div>
+            <span class="rank-gap-dots"> <i></i><i></i><i></i> </span>
           </div>
-        </ion-item>
+
+          <ion-item
+            v-else
+            class="player-item"
+            :class="{ 'player-item--me': isCurrentUser(row.entry) }"
+            :detail="false"
+          >
+            <div class="player-row">
+              <!-- Rank badge -->
+              <div
+                class="rank-badge"
+                :class="{ 'rank-badge--top': row.entry.rank <= 3 }"
+              >
+                <span v-if="row.entry.rank === 1">👑</span>
+                <span v-else-if="row.entry.rank === 2">🥈</span>
+                <span v-else-if="row.entry.rank === 3">🥉</span>
+                <span v-else>{{ row.entry.rank }}</span>
+              </div>
+
+              <!-- Player info -->
+              <div class="player-info">
+                <div class="player-name-row">
+                  <span
+                    class="player-name"
+                    :class="{ 'player-name--me': isCurrentUser(row.entry) }"
+                  >
+                    {{ row.entry.team.name }}
+                  </span>
+                  <ion-badge
+                    v-if="isCurrentUser(row.entry)"
+                    color="primary"
+                    class="you-badge"
+                  >
+                    {{ $t("dashboard.leaderboard.you") }}
+                  </ion-badge>
+                </div>
+                <ion-text color="medium">
+                  <p class="player-points ion-no-margin">
+                    {{
+                      $t("dashboard.leaderboard.points", {
+                        points: row.entry.cumulativePoints.toLocaleString(),
+                      })
+                    }}
+                  </p>
+                </ion-text>
+              </div>
+
+              <!-- Change indicator -->
+              <div
+                class="player-change"
+                :class="getRankChange(row.entry).cssClass"
+              >
+                <ion-icon
+                  class="player-change-icon"
+                  :icon="getRankChange(row.entry).icon"
+                />
+                <span>{{ getRankChange(row.entry).label }}</span>
+              </div>
+            </div>
+          </ion-item>
+        </template>
       </ion-list>
 
       <!-- ── Footer Actions ─────────────────────── -->
@@ -190,7 +211,11 @@ interface Props {
   currentLeague: LeagueDTO | null;
   currentTeam: TeamDTO | null;
   slice: number;
+  loading?: boolean;
 }
+
+/** A rendered line of the card: a team, or the marker for skipped ranks. */
+type Row = { kind: "entry"; entry: LeaderboardEntryDTO } | { kind: "gap" };
 
 const props = defineProps<Props>();
 const router = useRouter();
@@ -201,13 +226,46 @@ function isCurrentUser(entry: LeaderboardEntryDTO): boolean {
   return entry.team.id === props.currentTeam?.id;
 }
 
-const sliceAroundUser = computed<[number, number]>(() => {
-  const entries = props.leaderboard || [];
+/**
+ * Bounds of the `slice` entries centred on the current team, always full-width
+ * when the league is big enough: clamping at either end shifts the window
+ * instead of truncating it, so a team sitting 1st or last still sees `slice`
+ * rivals.
+ */
+const windowRange = computed<[number, number]>(() => {
+  const entries = props.leaderboard ?? [];
   const idx = entries.findIndex((e) => e.team.id === props.currentTeam?.id);
-  if (idx === -1) return [0, props.slice]; // user not found, default to top slice
-  const start = Math.max(0, idx - props.slice / 2);
-  const end = Math.min(entries.length, idx + props.slice / 2 + 1);
-  return [start, end];
+  // User not found, default to the top slice.
+  if (idx === -1) return [0, Math.min(entries.length, props.slice)];
+
+  const half = Math.floor(props.slice / 2);
+  const end = Math.min(entries.length, Math.max(0, idx - half) + props.slice);
+  return [Math.max(0, end - props.slice), end];
+});
+
+/**
+ * The window, with the league leader pinned on top once the window has moved
+ * past them — a standings card that omits 1st place reads as broken. The gap
+ * marker goes in only when ranks are actually skipped: a window starting at
+ * rank 2 already runs on from the pinned leader.
+ *
+ * A viewer sitting 1st forces `start === 0`, so the pinned row can never
+ * duplicate a row already in the window.
+ */
+const rows = computed<Row[]>(() => {
+  const entries = props.leaderboard ?? [];
+  const [start, end] = windowRange.value;
+  const windowRows: Row[] = entries
+    .slice(start, end)
+    .map((entry) => ({ kind: "entry", entry }));
+
+  if (start === 0) return windowRows;
+
+  return [
+    { kind: "entry", entry: entries[0] },
+    ...(start > 1 ? [{ kind: "gap" } as Row] : []),
+    ...windowRows,
+  ];
 });
 
 function getRankChange(entry: LeaderboardEntryDTO): {
@@ -312,6 +370,13 @@ function getRankChange(entry: LeaderboardEntryDTO): {
   border-radius: 4px;
 }
 
+/* ── Empty state ───────────────────────────────── */
+.leaderboard-empty {
+  padding: 1.25rem 1rem;
+  text-align: center;
+  font-size: 0.8rem;
+}
+
 /* ── Player list ───────────────────────────────── */
 .player-list {
   padding: 0.25rem 0;
@@ -364,6 +429,31 @@ function getRankChange(entry: LeaderboardEntryDTO): {
   background: rgba(var(--ion-color-warning-rgb), 0.15);
   color: var(--ion-color-warning);
   font-size: 1rem;
+}
+
+/* Skipped-ranks marker — dots sit in the rank-badge column, so the break in
+   the numbering reads as deliberate rather than as a missing row. */
+.rank-gap {
+  display: flex;
+  align-items: center;
+  margin: 0 0.5rem;
+  padding: 0.25rem 1rem;
+}
+
+.rank-gap-dots {
+  width: 2.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.rank-gap-dots i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--ion-color-medium);
+  opacity: 0.45;
 }
 
 /* Player info */

@@ -22,4 +22,11 @@ export interface MarketArticle {
   ownerTeamId?: string;
   /** The full contract backing `owner`, needed to open ArticleDetail correctly. */
   contract?: ContractDTO | null;
+  /**
+   * No view series yet: the row came from the top-read payload (title, rank and
+   * the snapshot day's views) before its per-article fetch landed, or that
+   * fetch came back empty. `weekViews`/`monthViews`/`yearViews`/`price` are
+   * placeholder zeros while this is set and must not be rendered as figures.
+   */
+  pending?: boolean;
 }

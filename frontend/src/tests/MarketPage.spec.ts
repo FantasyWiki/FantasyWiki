@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import { defineComponent, ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
+import { http, HttpResponse } from "msw";
+import { server } from "@/mocks/server";
 import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
 import { Temporal } from "@js-temporal/polyfill";
 import router from "@/router/index";
@@ -135,9 +137,62 @@ describe("MarketPage.vue", () => {
     await flushPromises();
     await flushPromises();
     // "Blockchain" is owned by team-2 in the league fixture — its chip shows
-    // the owning player ("Mario_Rossi", team-2's player in the mock data), not
-    // "Free Agent".
-    expect(wrapper.text()).toContain("Mario_Rossi");
+    // the Owner Team ("Global Warriors"), not "Free Agent".
+    expect(wrapper.text()).toContain("Global Warriors");
+  });
+
+  it("renders the listing from the top-read payload before the per-article views land", async () => {
+    // The top-read result is localStorage-cached, and a cache hit resolves
+    // fully-hydrated in one step — there would be no partial to observe.
+    localStorage.clear();
+
+    let releaseViews!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseViews = resolve;
+    });
+    server.use(
+      http.get(
+        "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/*",
+        async () => {
+          await gate;
+          return HttpResponse.json({
+            items: Array.from({ length: 365 }, () => ({ views: 100 })),
+          });
+        }
+      )
+    );
+
+    const { plugins } = makePlugins();
+    const wrapper = mount(MarketPage, { global: { plugins } });
+    await flushPromises();
+
+    // Every row is already on screen off the single top-read request, with its
+    // yesterday count real and the derived columns still placeholders.
+    const rows = wrapper.findAll(".market-row");
+    expect(rows.length).toBeGreaterThan(0);
+    expect(wrapper.text()).toContain("Bitcoin");
+    expect(rows[0].text()).toContain("—");
+
+    releaseViews();
+    await flushPromises();
+
+    // Same rows, now carrying figures — and each article exactly once.
+    const titles = wrapper
+      .findAll(".market-row .article-title")
+      .map((el) => el.text());
+    expect(new Set(titles).size).toBe(titles.length);
+    expect(wrapper.findAll(".market-row")[0].text()).not.toContain("—");
+  });
+
+  it("never names the player behind a rival team in the status chip", async () => {
+    const { plugins } = makePlugins(otherLeagueTeam);
+    const wrapper = mount(MarketPage, { global: { plugins } });
+    await flushPromises();
+    await flushPromises();
+
+    // team-2's player is "Mario_Rossi" in the fixture — an account's Google
+    // profile name in production, and not the market's to publish.
+    expect(wrapper.text()).not.toContain("Mario_Rossi");
   });
 
   it("opens ArticleDetail as a free agent for an unmatched row", async () => {
@@ -225,11 +280,81 @@ describe("useMarket composable", () => {
     await flushPromises();
 
     setStatusFilter("owned");
-    // "Blockchain" (team-2, mine), "GPT-4" and "Quantum computing" (team-6,
-    // another team in the "global" league fixture) are the rows backed by a
-    // real contract.
+    await flushPromises();
+    await flushPromises();
+
+    // Every contract in the "global" league fixture: "Blockchain" and "Cloud
+    // computing" (team-2, mine), "GPT-4" and "Quantum computing" (team-6).
     const titles = filteredArticles.value.map((a) => a.title).sort();
-    expect(titles).toEqual(["Blockchain", "GPT-4", "Quantum computing"].sort());
+    expect(titles).toEqual(
+      ["Blockchain", "Cloud computing", "GPT-4", "Quantum computing"].sort()
+    );
+  });
+
+  it("includes owned articles that are absent from the top-read snapshot", async () => {
+    const { plugins } = makePlugins();
+    const { filteredArticles, setStatusFilter } = withSetup(plugins, useMarket);
+    await flushPromises();
+    await flushPromises();
+
+    setStatusFilter("owned");
+    await flushPromises();
+    await flushPromises();
+
+    // "Cloud computing" is held by team-2 but is not in the mocked top-read
+    // list — the row the owned filter used to drop.
+    const cloud = filteredArticles.value.find(
+      (a) => a.title === "Cloud computing"
+    );
+    expect(cloud).toBeDefined();
+    expect(cloud!.owner).not.toBeNull();
+    // Views come from the per-article fixture (365 days at 100 views/day), so
+    // the row is priced off live pageviews — not left at the contract's
+    // purchase price (180). Sub-2,000-view articles floor at 0 (ADR 0005).
+    expect(cloud!.yearViews).toBe(36500);
+    expect(cloud!.averageViews30d).toBe(100);
+    expect(cloud!.price).toBe(0);
+  });
+
+  it("falls back to the purchase price when Wikimedia has no history for an owned article", async () => {
+    server.use(
+      http.get(
+        "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/*",
+        () => HttpResponse.json({ items: [] })
+      )
+    );
+    const { plugins } = makePlugins();
+    const { filteredArticles, setStatusFilter } = withSetup(plugins, useMarket);
+    await flushPromises();
+    await flushPromises();
+
+    setStatusFilter("owned");
+    await flushPromises();
+    await flushPromises();
+
+    // ctr-5: team-2's "Cloud computing", bought at 180. Pricing an article
+    // with no usable history at 0 would read as a free giveaway.
+    const cloud = filteredArticles.value.find(
+      (a) => a.title === "Cloud computing"
+    );
+    expect(cloud?.price).toBe(180);
+  });
+
+  it("narrows owned articles locally instead of searching Wikipedia", async () => {
+    const { plugins } = makePlugins();
+    const { filteredArticles, isSearchFallback, setStatusFilter, setSearch } =
+      withSetup(plugins, useMarket);
+    await flushPromises();
+    await flushPromises();
+
+    setStatusFilter("owned");
+    setSearch("Cloud");
+    await flushPromises();
+    await flushPromises();
+
+    expect(isSearchFallback.value).toBe(false);
+    const titles = filteredArticles.value.map((a) => a.title);
+    expect(titles).toEqual(["Cloud computing"]);
   });
 
   it("filters top-50 locally for short queries (< 3 chars)", async () => {

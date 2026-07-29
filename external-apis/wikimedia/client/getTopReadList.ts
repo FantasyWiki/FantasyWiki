@@ -5,8 +5,10 @@ import {
   WikimediaTopReadArticle,
 } from "../wikimedia";
 import {
+  MAX_CONCURRENT_REQUESTS,
   PAGEVIEWS_BASE_URL,
   fetchJsonWithRetry,
+  mapWithLimit,
   shiftUtcDays,
   toDateParts,
   toYmd,
@@ -38,6 +40,7 @@ export function createGetTopReadList(
   return async function getTopReadList(
     domain: Domain,
     limit: number,
+    onPartial?: (partial: TopReadListResult) => void,
   ): Promise<TopReadListResult> {
     const baseDate = new Date();
 
@@ -59,21 +62,45 @@ export function createGetTopReadList(
           const articles = topRead.items?.[0]?.articles ?? [];
           const entries = normalizeTopReadEntries(articles, limit, domain);
 
-          const entriesWithViews = await Promise.all(
-            entries.map(async (entry) => {
+          // The /top payload alone already carries each entry's title, rank and
+          // the snapshot day's views, so a caller that passed `onPartial` can
+          // render the whole list after this one request instead of waiting on
+          // the fan-out below. Entries not yet hydrated carry no
+          // averageViews30d/week/month/year — that absence is how a consumer
+          // tells a pending row from a resolved one.
+          const hydrated = entries.slice();
+          const emit = onPartial
+            ? () =>
+                onPartial({
+                  domain,
+                  snapshotDate: snapshotDateText,
+                  entries: hydrated.slice(),
+                })
+            : undefined;
+          emit?.();
+
+          // One per-article request per entry: capped rather than fanned out
+          // all at once, since a top-read list is 50 entries.
+          await mapWithLimit(
+            entries.map((entry, index) => ({ entry, index })),
+            MAX_CONCURRENT_REQUESTS,
+            async ({ entry, index }) => {
               const views = await resolveArticleViews(
                 domain,
                 entry.canonicalTitle,
                 snapshotDate,
               );
-              return { ...entry, ...views };
-            }),
+              hydrated[index] = { ...entry, ...views };
+              emit?.();
+            },
           );
 
+          // Only the fully hydrated list is returned — and so only it reaches
+          // the cache, never one of the partials emitted above.
           return {
             domain,
             snapshotDate: snapshotDateText,
-            entries: entriesWithViews,
+            entries: hydrated,
           };
         });
       } catch {}

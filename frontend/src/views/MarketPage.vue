@@ -107,11 +107,13 @@
           }}</span>
         </div>
 
-        <!-- Searching spinner (fallback in progress) -->
-        <div v-if="isSearching" class="state-container">
+        <!-- Listing spinner: search fallback, or the owned set still resolving -->
+        <div v-if="isListLoading" class="state-container">
           <ion-spinner name="crescent" color="primary" />
           <ion-text color="medium"
-            ><p>{{ t("market.searching") }}</p></ion-text
+            ><p>
+              {{ isSearching ? t("market.searching") : t("market.loading") }}
+            </p></ion-text
           >
         </div>
 
@@ -119,7 +121,7 @@
         <!-- data-tour: the onboarding tour rings the price column's table so
              the player sees a real listing while it is explained. -->
         <div
-          v-if="!isSearching"
+          v-if="!isListLoading"
           data-tour="market"
           class="table-wrapper ion-hide-md-down"
         >
@@ -196,27 +198,28 @@
                     :color="statusChipColor(article)"
                     outline
                     class="status-chip"
+                    :title="statusChipLabel(article)"
                   >
-                    {{ statusChipLabel(article) }}
+                    <span class="chip-label">{{
+                      statusChipLabel(article)
+                    }}</span>
                   </ion-chip>
                 </td>
                 <td class="col-num muted">
                   {{ formatViews(article.yesterdayViews) }}
                 </td>
                 <td class="col-num muted">
-                  {{ formatViews(article.weekViews) }}
+                  {{ viewsCell(article, article.weekViews) }}
                 </td>
                 <td class="col-num muted">
-                  {{ formatViews(article.monthViews) }}
+                  {{ viewsCell(article, article.monthViews) }}
                 </td>
                 <td class="col-num muted">
-                  {{ formatViews(article.yearViews) }}
+                  {{ viewsCell(article, article.yearViews) }}
                 </td>
-                <td class="col-num price">
-                  {{ formatPrice(article.price) }} Cr
-                </td>
+                <td class="col-num price">{{ priceCell(article) }}</td>
               </tr>
-              <tr v-if="filteredArticles.length === 0 && !isSearching">
+              <tr v-if="filteredArticles.length === 0 && !isListLoading">
                 <td colspan="7" class="empty-cell">
                   {{
                     isSearchFallback
@@ -232,7 +235,7 @@
         <!-- Mobile cards -->
         <!-- Carries data-tour too: only one of the two listings is ever
              visible, and the tour rings whichever that is. -->
-        <div v-if="!isSearching" data-tour="market" class="ion-hide-md-up">
+        <div v-if="!isListLoading" data-tour="market" class="ion-hide-md-up">
           <!-- Mobile sort chips -->
           <div class="mobile-sort-row">
             <span class="sort-label">{{ t("market.sortLabel") }}</span>
@@ -275,15 +278,16 @@
                     </a>
                   </div>
                   <div class="card-right">
-                    <p class="card-price">
-                      {{ formatPrice(article.price) }} Cr
-                    </p>
+                    <p class="card-price">{{ priceCell(article) }}</p>
                     <ion-chip
                       :color="statusChipColor(article)"
                       outline
                       class="status-chip-sm"
+                      :title="statusChipLabel(article)"
                     >
-                      {{ statusChipLabel(article) }}
+                      <span class="chip-label">{{
+                        statusChipLabel(article)
+                      }}</span>
                     </ion-chip>
                   </div>
                 </div>
@@ -297,19 +301,19 @@
                   <div class="stat-cell">
                     <p class="stat-label">{{ t("market.colWeek") }}</p>
                     <h6 class="stat-value">
-                      {{ formatViews(article.weekViews) }}
+                      {{ viewsCell(article, article.weekViews) }}
                     </h6>
                   </div>
                   <div class="stat-cell">
                     <p class="stat-label">{{ t("market.colMonth") }}</p>
                     <h6 class="stat-value">
-                      {{ formatViews(article.monthViews) }}
+                      {{ viewsCell(article, article.monthViews) }}
                     </h6>
                   </div>
                   <div class="stat-cell">
                     <p class="stat-label">{{ t("market.colYear") }}</p>
                     <h6 class="stat-value">
-                      {{ formatViews(article.yearViews) }}
+                      {{ viewsCell(article, article.yearViews) }}
                     </h6>
                   </div>
                 </div>
@@ -318,11 +322,11 @@
           </div>
 
           <div
-            v-if="filteredArticles.length === 0 && !isSearching"
+            v-if="filteredArticles.length === 0 && !isListLoading"
             class="empty-mobile"
           >
             {{
-              isSearchFallback
+              hasSearchQuery
                 ? t("market.noSearchResults")
                 : t("market.noArticles")
             }}
@@ -474,6 +478,8 @@ const {
   setStatusFilter,
   isSearchFallback,
   isSearching,
+  hasSearchQuery,
+  isListLoading,
   isOwnershipLoading,
   ITEMS_PER_PAGE,
 } = useMarket();
@@ -491,7 +497,25 @@ function statusChipLabel(article: MarketArticle): string {
   if (article.ownerTeamId === myTeamId.value) {
     return t("market.yourTeam");
   }
-  return article.owner.name;
+  // The Owner Team, never the player behind it: `owner.name` is the account's
+  // Google profile name (a real name for most players), and a rival's identity
+  // is not the market's to publish. Every other standings surface — the
+  // leaderboard, ArticleDetail's locked-by-other state — already names the team.
+  return article.owner.teamName;
+}
+
+// A row from the top-read payload has its yesterday count but no view series
+// yet. Its zeros are placeholders, and rendering them as "0" would read as a
+// measured value — an article nobody visited — so they show as a dash until
+// the per-article fetch lands.
+const PENDING_CELL = "—";
+
+function viewsCell(article: MarketArticle, views: number): string {
+  return article.pending ? PENDING_CELL : formatViews(views);
+}
+
+function priceCell(article: MarketArticle): string {
+  return article.pending ? PENDING_CELL : `${formatPrice(article.price)} Cr`;
 }
 
 function sortIcon(key: SortKey) {
@@ -797,6 +821,22 @@ async function handleRefresh(event: CustomEvent) {
   font-size: 12px;
   height: 24px;
   margin: 0;
+}
+
+/* Team names run to 30 characters (the creation-form limit), which would
+   stretch the status column past the view counts. The label truncates instead;
+   the chip carries the full name as a title attribute. Wide enough that no
+   fixed label ("Free Agent", "La tua squadra") is ever clipped. */
+.chip-label {
+  display: block;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-chip-sm .chip-label {
+  max-width: 8.5rem;
 }
 
 .muted {

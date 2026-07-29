@@ -109,7 +109,16 @@ export function getDefaultCache(ttlMs?: number): CacheLike | null {
  */
 export type WikimediaClient = {
     pageviews: {
-        getTopReadList(domain: Domain, limit: number): Promise<TopReadListResult>,
+        /**
+         * `onPartial` (optional) reports the list as it fills: once from the
+         * top-read payload alone, then after each article's view series lands.
+         * Callers that omit it simply await the complete result.
+         */
+        getTopReadList(
+            domain: Domain,
+            limit: number,
+            onPartial?: (partial: TopReadListResult) => void,
+        ): Promise<TopReadListResult>,
         getViewsByDomain(domain: Domain): Promise<DomainResult>;
         /** Latest views/trend for a single article, independent of the top-read list. */
         getArticleViews(domain: Domain, title: string): Promise<ArticleViews>;

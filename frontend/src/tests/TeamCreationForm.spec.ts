@@ -55,6 +55,16 @@ describe("TeamCreationForm.vue", () => {
     expect(globalWasFetched).toBe(false);
   });
 
+  // jsdom neither scrolls on focus nor runs Ionic's real input, so the visible
+  // outcome (the welcome intro staying on screen on a phone) is not observable
+  // here — the attribute that causes it is.
+  it("does not steal focus on load", async () => {
+    const wrapper = mountForm();
+    await flushPromises();
+
+    expect(wrapper.find("ion-input").attributes("autofocus")).toBeUndefined();
+  });
+
   it("posts to the league it was handed and emits the created team", async () => {
     let postedTo = "";
     server.use(

@@ -17,12 +17,15 @@
       lines="none"
       :color="error ? 'danger' : ''"
     >
+      <!-- Deliberately not autofocused: on a phone the form stacks under the
+           welcome intro, and focusing on load scrolls it into view (and raises
+           the keyboard), so the first thing a new player sees is a text field
+           instead of what the game is. -->
       <ion-input
         id="team-name"
         v-model="teamName"
         :placeholder="t('views.teamCreation.placeholder')"
         :maxlength="MAX_NAME"
-        autofocus
         @ionInput="error = ''"
       />
     </ion-item>

@@ -14,7 +14,8 @@ import type { DashboardData } from "@/types/models";
  */
 export function useDashboard() {
   const leagueStore = useLeagueStore();
-  const { leaderboard: leaderBoard } = useLeaderboard();
+  const { leaderboard: leaderBoard, isLoading: isLeaderBoardLoading } =
+    useLeaderboard();
 
   const {
     data: dashboardData,
@@ -66,5 +67,9 @@ export function useDashboard() {
     maxContracts,
     totalPlayers,
     leaderBoard,
+    // The leaderboard is its own query — its loading state is not the
+    // dashboard's, and the standings card needs it to tell "still fetching"
+    // apart from "genuinely empty".
+    isLeaderBoardLoading,
   };
 }

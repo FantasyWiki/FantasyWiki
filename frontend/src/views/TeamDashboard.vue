@@ -82,6 +82,7 @@
             :current-league="currentLeague"
             :current-team="team"
             :slice="LEADERBOARD_SLICE"
+            :loading="isLeaderBoardLoading"
           />
         </div>
       </page-reveal>
@@ -136,6 +137,7 @@ const {
   team,
   contracts,
   leaderBoard,
+  isLeaderBoardLoading,
 } = useDashboard();
 
 const { t } = useI18n();

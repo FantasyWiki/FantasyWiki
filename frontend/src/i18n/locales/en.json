@@ -221,6 +221,8 @@
       "ends": "Ends {date}",
       "you": "You",
       "points": "{points} pts",
+      "empty": "No standings yet — ranks appear after the first day of scoring.",
+      "gap": "Ranks in between are hidden",
       "viewDetails": "View League Details"
     },
     "teamManagement": {

@@ -14,6 +14,12 @@ export const queryKeys = {
   /** Market search fallback, keyed by the (trimmed) search text. */
   marketSearch: (domain: string | undefined, search: string) =>
     ["market-search", domain, search] as const,
+  /**
+   * Market rows hydrated for owned articles the Top Read Snapshot doesn't
+   * carry, keyed by the (sorted) titles being hydrated.
+   */
+  marketOwnedExtras: (domain: string | undefined, titles: readonly string[]) =>
+    ["market-owned-extras", domain, ...titles] as const,
   /** All contracts held by any team in the league (ownership badges). */
   leagueContracts: (leagueId: string | null) =>
     ["league-contracts", leagueId] as const,

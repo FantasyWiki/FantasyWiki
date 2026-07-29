@@ -73,6 +73,58 @@ export function toDateParts(date: Date): { year: string; month: string; day: str
 }
 
 /**
+ * Wikimedia asks API clients to "limit the number of concurrent requests to 3
+ * or fewer" — the ceiling ADR 0004 adopted for the scoring engine's
+ * per-article fan-out. Every fan-out in this client goes through
+ * `mapWithLimit` at this cap so the Worker, the browser and the scoring engine
+ * all treat the API the same way.
+ *
+ * @see https://www.mediawiki.org/wiki/Wikimedia_APIs/Rate_limits
+ */
+export const MAX_CONCURRENT_REQUESTS = 3;
+
+/**
+ * Runs `task` over `items` with at most `limit` in flight, preserving input
+ * order in the result.
+ *
+ * The drop-in it replaces is `Promise.all(items.map(task))`, which starts every
+ * task at once — fine for pure work, but each task here is an HTTP request, and
+ * a fan-out over a top-read list or a league's contracts would open dozens of
+ * connections in one burst.
+ *
+ * Workers claim indices off a shared cursor; the increment needs no lock
+ * because a worker only yields at its `await`. Rejection behaves like
+ * `Promise.all`: the first failure rejects the whole call (in-flight tasks
+ * still settle, as they cannot be cancelled).
+ *
+ * @typeParam T - Input item type.
+ * @typeParam R - Result type produced per item.
+ * @param items - Items to process.
+ * @param limit - Maximum number of tasks in flight at once.
+ * @param task - Async operation applied to each item.
+ * @returns Results in the same order as `items`.
+ */
+export async function mapWithLimit<T, R>(
+    items: T[],
+    limit: number,
+    task: (item: T) => Promise<R>,
+): Promise<R[]> {
+    const results = new Array<R>(items.length);
+    let cursor = 0;
+
+    const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+        while (cursor < items.length) {
+            const index = cursor;
+            cursor += 1;
+            results[index] = await task(items[index]);
+        }
+    });
+
+    await Promise.all(workers);
+    return results;
+}
+
+/**
  * Executes an HTTP GET and retries transient failures with bounded attempts.
  *
  * Retry policy:

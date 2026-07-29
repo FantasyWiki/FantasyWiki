@@ -1,6 +1,12 @@
 import type { Domain } from "../../../dto/enums";
 import { TopReadEntry, isContentArticleTitle, toDisplayTitle } from "../wikimedia";
-import { fetchJsonWithRetry, shiftUtcDays, withCache } from "./internal";
+import {
+    MAX_CONCURRENT_REQUESTS,
+    fetchJsonWithRetry,
+    mapWithLimit,
+    shiftUtcDays,
+    withCache,
+} from "./internal";
 import type { CacheLike, WikimediaHttp } from "../client";
 import type { ArticleViews } from "./articleViews";
 
@@ -46,8 +52,12 @@ export function createSearchArticles(
 
             const snapshotDate = shiftUtcDays(new Date(), -1);
 
-            const entries = await Promise.all(
-                pages.map(async (page, idx): Promise<TopReadEntry> => {
+            // One per-article request per hit — capped like every other
+            // fan-out in this client.
+            const entries = await mapWithLimit(
+                pages.map((page, idx) => ({ page, idx })),
+                MAX_CONCURRENT_REQUESTS,
+                async ({ page, idx }): Promise<TopReadEntry> => {
                     const views = await resolveArticleViews(domain, page.key, snapshotDate);
                     return {
                         canonicalTitle: page.key,
@@ -61,7 +71,7 @@ export function createSearchArticles(
                         monthViews: views.monthViews,
                         yearViews: views.yearViews,
                     };
-                }),
+                },
             );
 
             return entries;

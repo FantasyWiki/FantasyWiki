@@ -116,7 +116,7 @@
         ],
       },
       "triggers": {
-        "crons": ["0 5 * * *"],
+        "crons": ["0 7 * * *"],
       },
       "vars": {
         "frontend_url": "https://dev.fantasywiki.pages.dev",

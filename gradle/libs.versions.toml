@@ -35,5 +35,5 @@ taskTree = "com.dorongold.task-tree:4.0.1"
 node = "com.github.node-gradle.node:7.1.0"
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-kotlin-qa = "org.danilopianini.gradle-kotlin-qa:1.8.0"
+kotlin-qa = "org.danilopianini.gradle-kotlin-qa:1.8.1"
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }

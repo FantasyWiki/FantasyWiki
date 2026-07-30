@@ -75,9 +75,54 @@ own `moveToEmpty`, so both input paths land on the exact same
 `useTeamLineup` handlers described above. An `editable` prop threads down to
 disable both paths on read-only hosts (the dashboard preview).
 
+## The pitch renders placements, not contracts
+
+`TeamFormation` draws two things that are expensive to own twice: ~60 lines of
+hand-tuned SVG pitch markings, and the `ResizeObserver`-driven chemistry-link
+overlay. A second, read-only pitch would be a copy of both, so there is exactly
+one pitch component and it is shared with hosts that have no contracts at all —
+notably the historical formation of a scored day, which resolves to article
+titles and never to contract rows (see
+[Performance Snapshots](./performance-snapshots.md)).
+
+Sharing it means the pitch may only depend on what every host can supply:
+
+```
+PlacedArticle = { id: string; article: ArticleDTO }
+```
+
+That is the whole contract of a tile — something to key drag/swap on, and a
+title to show. `ArticleNode` takes a `PlacedArticle`; `DraftFormationDTO` is
+generic in its slot type with `ContractDTO` as the default, so every existing
+reference (including `lineupMutations` and its tests) keeps its current meaning:
+
+```ts
+DraftFormationDTO<S extends Schema = Schema, A = ContractDTO>
+```
+
+`TeamFormation` is a `generic="A extends PlacedArticle"` component, so
+`articleClick` emits back the same type the host passed in — the lineup editor
+still receives a real `ContractDTO`, with no cast at the call site.
+
+`BenchSection` stays `ContractDTO`: a bench only ever holds contracts a player
+currently owns, so there is nothing to generalize.
+
+### The badge is the host's decision
+
+The tile's small badge is the one thing hosts disagree about — the editor shows
+the contract tier, the historical pitch shows that day's views, and a snapshot
+has no tier to show. Rather than teach `ArticleNode` about both, the host passes
+a `badgeFor?: (a: A) => Badge | undefined` to `TeamFormation`.
+
+The alternative — a `badge` getter on `ContractDTO` — was rejected: `dto/` is
+shared with the backend and must stay framework-agnostic, and a `{ text, tone }`
+pair is presentation, with `tone` being nothing but styling.
+
 ## Related documentation
 
 - [Lineup Rules (domain)](../domain/lineup-rules.md) — the invariants the
   mutations exist to uphold.
+- [Performance Snapshots](./performance-snapshots.md) — the read-only host that
+  drove the pitch's dependency down to `PlacedArticle`.
 - [Chemistry Links Rendering](./chemistry-links-rendering.md) — chemistry
   composition for the placed formation (`computeChemistryLinks`).

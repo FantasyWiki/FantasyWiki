@@ -21,6 +21,7 @@ What the game *is*: rules, entities, and vocabulary. No code structure here.
 | [Scoring & Economy System](./domain/scoring-system.md) | How points, prices, and settlement work (canonical) |
 | [Chemistry Links](./domain/chemistry-links.md) | What a Chemistry Link is and what it scores |
 | [Lineup Rules](./domain/lineup-rules.md) | Formation, bench, and the no-contract-is-lost invariant |
+| [Formation Disclosure](./domain/formation-disclosure.md) | Why a fielded XI goes public when its scoring day closes, and the live lineup never does |
 | [Article Availability](./domain/article-availability.md) | Free Agent / Owned by Viewer / Owned by Other, and action eligibility |
 | [What Are Model Entities](./domain/what-are-model-entities.md) | Why `model/` holds normalized, framework-free entities |
 | [Shared DTO Package](./domain/shared-dto-package.md) | Why `dto/` aggregates and nests for the wire |
@@ -36,7 +37,8 @@ Seams, layers, and modules. The rules they implement live in `domain/`.
 | [Frontend Query Keys](./architecture/frontend-query-keys.md) | One module owns every TanStack Query key |
 | [DTO Dressing Pattern](./architecture/dto-dressing-pattern.md) | How FE/BE each "dress" domain data |
 | [Chemistry Links Rendering](./architecture/chemistry-links-rendering.md) | `computeChemistryLinks` + the SVG overlay |
-| [Lineup Editing](./architecture/lineup-editing.md) | The `DraftLineup` seam and its pure mutations |
+| [Lineup Editing](./architecture/lineup-editing.md) | The `DraftLineup` seam, its pure mutations, and the shared pitch |
+| [Performance Snapshots](./architecture/performance-snapshots.md) | How a scored day's formation is recorded, backfilled, and read back |
 | [Article Ownership Resolution](./architecture/article-ownership-resolution.md) | `buildArticleDetail` + the async team-context seam |
 | [Problem Reports](./architecture/problem-reports.md) | How `/report` files a GitHub issue, and what it never publishes |
 | [Wikimedia Client Architecture](./architecture/wikimedia-client-architecture.md) | Composition root and capability modules |

@@ -46,7 +46,15 @@ articles sit on linked positions — including a schema change — changes the
 **Chemistry Levels** of the formation. Chemistry is a function of the placement,
 never stored independently of it.
 
+The one exception is a **scored day**, which is a historical record rather than a
+live formation: its levels are stored as resolved, because the link graph they
+were resolved against keeps moving and re-deriving them later would answer a
+different question. See
+[Performance Snapshots](../architecture/performance-snapshots.md).
+
 ## Related
 
 - [Chemistry Links](./chemistry-links.md)
+- [Formation Disclosure](./formation-disclosure.md)
 - [Lineup Editing](../architecture/lineup-editing.md)
+- [Performance Snapshots](../architecture/performance-snapshots.md)

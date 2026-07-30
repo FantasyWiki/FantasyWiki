@@ -8,6 +8,7 @@ import EnvInfoPage from "@/views/EnvInfoPage.vue";
 import TeamPage from "@/views/TeamPage.vue";
 import TeamCreationPage from "@/views/TeamCreationPage.vue";
 import MarketPage from "@/views/MarketPage.vue";
+import LeaguePage from "@/views/LeaguePage.vue";
 import LegalPage from "@/views/LegalPage.vue";
 import GuidePage from "@/views/GuidePage.vue";
 import ReportProblemPage from "@/views/ReportProblemPage.vue";
@@ -63,6 +64,14 @@ const routes: Array<RouteRecordRaw> = [
     path: "/leagues",
     name: "Leagues",
     component: HomeMock,
+  },
+  {
+    // A league's own page: identity plus the full standings. Reached from the
+    // dashboard's standings card today, and from the league dashboard that will
+    // eventually replace HomeMock at /leagues.
+    path: "/leagues/:leagueId",
+    name: "League",
+    component: LeaguePage,
   },
   {
     path: "/community",

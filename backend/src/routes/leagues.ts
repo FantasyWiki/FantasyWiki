@@ -99,6 +99,20 @@ leagues.get("/global", async (c) => {
   return c.json(result.value);
 });
 
+// Registered after `/global` on purpose: Hono matches in registration order, so
+// the literal path has to be declared first or it would be swallowed by `:id`.
+leagues.get("/:id", async (c) => {
+  const leagueService = new LeagueService(c.env.db);
+  const result = await leagueService.getLeagueById(c.req.param("id"));
+  if (!result.ok) {
+    return c.json(
+      { error: result.error },
+      result.error === LEAGUE_ERRORS.NOT_FOUND ? 404 : 500,
+    );
+  }
+  return c.json(result.value);
+});
+
 leagues.get("/:id/leaderboard", async (c) => {
   const leagueId = c.req.param("id");
   const leaderboardService = new LeaderboardService(c.env.db);

@@ -88,6 +88,47 @@ describe("LeagueService Integration Tests", () => {
       }
     });
   });
+
+  describe("getLeagueById", () => {
+    it("should return a league the player has not necessarily joined", async () => {
+      await env.db
+        .prepare(
+          "INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(
+          "league-friends",
+          "Friday Night Wiki",
+          "system",
+          "2026-01-01T00:00:00Z",
+          "2026-03-01T00:00:00Z",
+          "it",
+          "🍕",
+        )
+        .run();
+
+      const result = await leagueService.getLeagueById("league-friends");
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value).toMatchObject({
+          id: "league-friends",
+          title: "Friday Night Wiki",
+          domain: "it",
+          icon: "🍕",
+        });
+        expect(result.value.startDate.toString()).toContain("2026-01-01");
+      }
+    });
+
+    it("should fail with NOT_FOUND for an unknown id", async () => {
+      const result = await leagueService.getLeagueById("no-such-league");
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toBe(LEAGUE_ERRORS.NOT_FOUND);
+      }
+    });
+  });
 });
 
 describe("toLeagueDTO", () => {

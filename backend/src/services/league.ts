@@ -35,7 +35,18 @@ export class LeagueService {
   }
 
   async getGlobalLeague(): Promise<Result<LeagueDTO>> {
-    const result = await this.repository.getById(GLOBAL_LEAGUE_ID);
+    return this.getLeagueById(GLOBAL_LEAGUE_ID);
+  }
+
+  /**
+   * A single league by id, for the surfaces that name one in their URL — the
+   * league page and the join-a-further-league form — rather than reading the
+   * player's selection. Deliberately not membership-scoped: the standings of a
+   * league are already served unscoped by `/:id/leaderboard`, and a private
+   * league's id is the invite.
+   */
+  async getLeagueById(id: string): Promise<Result<LeagueDTO>> {
+    const result = await this.repository.getById(id);
     if (!result.ok) {
       return result;
     }

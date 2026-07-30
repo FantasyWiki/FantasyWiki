@@ -11,7 +11,12 @@ export const leagues: LeagueDTO[] = [
     icon: "🌍",
     domain: "en",
     startDate: Instant.from("2024-01-01T00:00:00Z"),
-    endDate: Instant.from("2024-12-31T23:59:59Z"),
+    // Deliberately far out, mirroring the sentinel the real Global League is
+    // seeded with (migration 0002): it keeps this league permanently in
+    // progress, so the league page's running state — countdown and season
+    // progress — is what mock mode shows by default. The other leagues have
+    // already finished and exercise the podium.
+    endDate: Instant.from("2100-12-31T23:59:59Z"),
     // teams[1] is the current player's; the rest are filler rivals so the
     // standings card has a deep enough table to window.
     teams: [teams[1], teams[5], ...globalFillerTeams],

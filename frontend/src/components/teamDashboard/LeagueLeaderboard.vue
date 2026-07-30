@@ -164,7 +164,8 @@
           expand="block"
           fill="outline"
           class="footer-btn"
-          @click="router.push('/leagues')"
+          :disabled="!props.currentLeague"
+          @click="openLeaguePage()"
         >
           {{ $t("dashboard.leaderboard.viewDetails") }}
           <ion-icon slot="end" :icon="chevronForwardOutline" />
@@ -224,6 +225,19 @@ const { locale } = useI18n();
 
 function isCurrentUser(entry: LeaderboardEntryDTO): boolean {
   return entry.team.id === props.currentTeam?.id;
+}
+
+/**
+ * The card is a window onto the standings; the league's own page carries the
+ * whole table. Named-route push so the id lives in one place — the card renders
+ * before the league resolves, hence the guarded button.
+ */
+function openLeaguePage() {
+  if (!props.currentLeague) return;
+  router.push({
+    name: "League",
+    params: { leagueId: props.currentLeague.id },
+  });
 }
 
 /**

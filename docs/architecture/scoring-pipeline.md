@@ -164,10 +164,21 @@ backfill.
   it via `required()`, so a missing value fails the run at startup instead.
   Concurrency is capped at 3, per Wikimedia's guidance.
 
-**Errors and idempotency.** A per-article view gap is a soft warning scored as 0.
-Backend auth/5xx or network failure aborts non-zero so the job goes red. The
-collector is stateless and the backend upserts on `(teamId, date)`, so re-runs
-and backfills are safe.
+**Rate limits.** `Semaphore(3)` caps requests *in flight*, which is not a rate
+cap — three concurrent requests at ~150 ms each sustain far more than the
+200/min a compliant unauthenticated client gets, so a large enough pool will be
+throttled. On 429 (or 5xx) the client waits a minute — or `Retry-After`, when
+the response names a longer one — and retries, up to three times
+(`collectorHttpDefaults`).
+
+**Errors and idempotency.** A genuine per-article view gap (404) is a soft
+warning scored as 0. Every *other* non-2xx aborts the run: AQS answers errors
+with `application/problem+json`, which deserializes into an empty `AqsResponse`
+indistinguishable from "no data", so without an explicit status check a
+throttled article would silently score 0 and the job would still exit green.
+Backend auth/5xx or network failure aborts non-zero too. The collector is
+stateless and the backend upserts on `(teamId, date)`, so re-runs and backfills
+are safe.
 
 ## Divergence from ADR 0004
 

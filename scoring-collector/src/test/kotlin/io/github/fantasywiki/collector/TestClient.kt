@@ -21,6 +21,16 @@ fun mockJsonClient(handler: suspend MockRequestHandleScope.(HttpRequestData) -> 
         }
     }
 
+/**
+ * A client carrying production's full plugin stack ([collectorHttpDefaults]),
+ * including the 429/5xx retry — with a delay short enough that a test does not
+ * really wait out a rate limit.
+ */
+fun retryingMockClient(handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData): HttpClient =
+    HttpClient(MockEngine(handler)) {
+        collectorHttpDefaults(userAgent = "FantasyWiki-Test/1.0", rateLimitDelayMillis = 10)
+    }
+
 /** Respond with a JSON body and the `application/json` content type the client expects. */
 fun MockRequestHandleScope.respondJson(body: String, status: HttpStatusCode = HttpStatusCode.OK): HttpResponseData =
     respond(

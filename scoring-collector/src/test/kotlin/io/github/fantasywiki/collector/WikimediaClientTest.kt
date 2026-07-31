@@ -1,5 +1,6 @@
 package io.github.fantasywiki.collector
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.inspectors.forAll
 import io.kotest.matchers.ints.shouldBeLessThanOrEqual
@@ -33,6 +34,40 @@ class WikimediaClientTest : StringSpec({
     "dailyViews returns null on an empty items array" {
         val client = mockJsonClient { respondJson("""{"items":[]}""") }
         WikimediaClient(client).dailyViews("en", "Nonexistent", date) shouldBe null
+    }
+
+    "dailyViews waits out a rate limit and retries" {
+        var attempts = 0
+        val client = retryingMockClient {
+            attempts++
+            if (attempts == 1) {
+                // AQS answers errors with problem+json, which parses into an empty
+                // AqsResponse — the shape that used to read as "no data".
+                respondJson(
+                    """{"detail":"rate limit exceeded","status":429,"title":"Too Many Requests"}""",
+                    status = io.ktor.http.HttpStatusCode.TooManyRequests,
+                )
+            } else {
+                respondJson("""{"items":[{"views":4242}]}""")
+            }
+        }
+
+        WikimediaClient(client).dailyViews("en", "Lionel Messi", date) shouldBe 4242L
+        attempts shouldBe 2
+    }
+
+    "dailyViews fails loudly when the rate limit outlasts every retry" {
+        val client = retryingMockClient {
+            respondJson(
+                """{"detail":"rate limit exceeded","status":429,"title":"Too Many Requests"}""",
+                status = io.ktor.http.HttpStatusCode.TooManyRequests,
+            )
+        }
+
+        // Never 0 views: a throttled article must abort the run, not score zero.
+        shouldThrow<IllegalArgumentException> {
+            WikimediaClient(client).dailyViews("en", "Lionel Messi", date)
+        }
     }
 
     "outboundLinksAmong returns the whole directed graph from one request" {

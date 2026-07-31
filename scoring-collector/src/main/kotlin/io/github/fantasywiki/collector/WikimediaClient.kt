@@ -7,6 +7,7 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.URLBuilder
 import io.ktor.http.appendPathSegments
+import io.ktor.http.isSuccess
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlinx.serialization.SerialName
@@ -83,6 +84,11 @@ class WikimediaClient(private val http: HttpClient) {
 
         val response = http.get(url)
         if (response.status == HttpStatusCode.NotFound) return null
+        // Anything else non-2xx must not reach the parse below: AQS answers errors
+        // with `application/problem+json`, which deserializes into an *empty*
+        // AqsResponse — indistinguishable from "no data", so a rate-limited or
+        // failing article would silently score 0 instead of failing the run.
+        require(response.status.isSuccess()) { "AQS ${response.status} for $domain:$title on $date" }
         val body: AqsResponse = response.body()
         return body.items.firstOrNull()?.views
     }
@@ -149,6 +155,9 @@ class WikimediaClient(private val http: HttpClient) {
             }.buildString()
 
             val response: HttpResponse = http.get(url)
+            // As in dailyViews: an error body would parse into an empty page list,
+            // reading as "links to nothing" and downgrading every Chemistry Link.
+            require(response.status.isSuccess()) { "Action API ${response.status} for $domain" }
             val body = response.body<LinksResponse>()
             // Response titles are the API's normalized form — first character
             // upper-cased, exactly what Titles.canonical does — so these keys match

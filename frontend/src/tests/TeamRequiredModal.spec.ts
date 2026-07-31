@@ -36,14 +36,19 @@ function setTeams(leagues: LeagueDTO[]) {
   store.hasLoaded = true;
 }
 
-async function mountModal(path = "/dashboard") {
-  await router.push(path);
-  await router.isReady();
+/** Mount on whatever route the router is currently on. */
+async function mountHere() {
   const wrapper = mount(TeamRequiredModal, {
     global: { plugins: [pinia, router] },
   });
   await flushPromises();
   return wrapper;
+}
+
+async function mountModal(path = "/dashboard") {
+  await router.push(path);
+  await router.isReady();
+  return mountHere();
 }
 
 function isOpen(wrapper: Awaited<ReturnType<typeof mountModal>>) {
@@ -82,6 +87,17 @@ describe("TeamRequiredModal.vue", () => {
     expect(isOpen(await mountModal())).toBe(false);
   });
 
+  it("stays hidden when the league list could not be fetched", async () => {
+    // A failed fetch leaves the list empty, which reads exactly like "no team".
+    // Prompting on it would put an established player behind a modal they
+    // cannot dismiss, whose only exit is a form the backend then rejects.
+    server.use(http.get("*/api/leagues", () => HttpResponse.error()));
+    signIn();
+    await useLeagueStore().fetchLeagues();
+
+    expect(isOpen(await mountModal())).toBe(false);
+  });
+
   it("stays hidden for a player who has their Global League team", async () => {
     signIn();
     setTeams([{ id: GLOBAL_LEAGUE_ID } as LeagueDTO]);
@@ -90,9 +106,19 @@ describe("TeamRequiredModal.vue", () => {
   });
 
   it("stays hidden for a signed-out visitor", async () => {
+    // The route has to be a team-scoped one for this to test anything: pushing
+    // /dashboard while signed out is bounced to /home by the auth guard, and
+    // "Home" is out of TEAM_SCOPED_ROUTES anyway, so the assertion would hold
+    // with the authentication check deleted. Navigate first, sign out after.
+    signIn();
     setTeams([]);
+    await router.push("/dashboard");
+    useAppStore().isAuthenticated = false;
 
-    expect(isOpen(await mountModal())).toBe(false);
+    const wrapper = await mountHere();
+
+    expect(router.currentRoute.value.name).toBe("Dashboard");
+    expect(isOpen(wrapper)).toBe(false);
   });
 
   it("does not cover the team-creation page it sends the player to", async () => {

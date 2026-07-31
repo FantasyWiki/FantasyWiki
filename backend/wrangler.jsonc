@@ -4,6 +4,59 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-03-17",
   "env": {
+    // What the integration tests load (see vitest.config.ts). It mirrors
+    // `production` except for the `ai` binding, which is deliberately absent:
+    // Workers AI has **no local simulator**, so declaring it makes the pool open
+    // a remote proxy session and demand a CLOUDFLARE_API_TOKEN. CI runs
+    // `./gradlew check` with no Cloudflare credentials, so the whole backend
+    // suite — not just the Genie's tests — would fail to start.
+    //
+    // Nothing is lost by leaving it out. A test must never reach the real model
+    // anyway (it would spend the day's neuron allocation and assert against
+    // whatever the model happened to say), so the Genie's tests substitute
+    // `env.AI` with a stub of their own.
+    "test": {
+      "name": "backend-test",
+      "d1_databases": [
+        {
+          "binding": "db",
+          "database_name": "db",
+          "database_id": "640d7014-0bf9-44f6-8026-15bf2a18cdda",
+        },
+      ],
+      "workflows": [
+        {
+          "binding": "CONTRACT_SETTLEMENT_WORKFLOW",
+          "name": "contract-settlement",
+          "class_name": "ContractSettlementWorkflow",
+        },
+      ],
+      "unsafe": {
+        "bindings": [
+          {
+            "name": "REPORT_RATE_LIMITER",
+            "type": "ratelimit",
+            "namespace_id": "1001",
+            "simple": { "limit": 3, "period": 60 },
+          },
+          {
+            "name": "GENIE_RATE_LIMITER",
+            "type": "ratelimit",
+            "namespace_id": "1002",
+            "simple": { "limit": 20, "period": 60 },
+          },
+        ],
+      },
+      "triggers": {
+        "crons": ["0 5 * * *"],
+      },
+      "vars": {
+        "GITHUB_REPO": "FantasyWiki/FantasyWiki",
+        "ENVIRONMENT": "production",
+        "GH_APP_ID": "4298123",
+        "GH_APP_INSTALLATION_ID": "146572827",
+      },
+    },
     "production": {
       "name": "backend",
       "d1_databases": [
@@ -33,7 +86,24 @@
             "namespace_id": "1001",
             "simple": { "limit": 3, "period": 60 },
           },
+          // Sized for a real Article Genie session, not for abuse: one session
+          // is ~5 turns fired within a minute or two, so the report limiter's
+          // 3/60 would cut a legitimate player off mid-interrogation. The day's
+          // Workers AI neuron allocation is the actual ceiling and fails closed
+          // on its own (ADR 0006) — this only stops a script from spending it
+          // all in one burst.
+          {
+            "name": "GENIE_RATE_LIMITER",
+            "type": "ratelimit",
+            "namespace_id": "1002",
+            "simple": { "limit": 20, "period": 60 },
+          },
         ],
+      },
+      // Workers AI. No API key and no per-environment secret: the binding is
+      // the credential, which is most of why it was chosen over Groq/Gemini.
+      "ai": {
+        "binding": "AI",
       },
       "triggers": {
         "crons": ["0 5 * * *"],
@@ -73,7 +143,16 @@
             "namespace_id": "1001",
             "simple": { "limit": 3, "period": 60 },
           },
+          {
+            "name": "GENIE_RATE_LIMITER",
+            "type": "ratelimit",
+            "namespace_id": "1002",
+            "simple": { "limit": 20, "period": 60 },
+          },
         ],
+      },
+      "ai": {
+        "binding": "AI",
       },
       "triggers": {
         "crons": ["0 5 * * *"],
@@ -113,7 +192,16 @@
             "namespace_id": "1001",
             "simple": { "limit": 3, "period": 60 },
           },
+          {
+            "name": "GENIE_RATE_LIMITER",
+            "type": "ratelimit",
+            "namespace_id": "1002",
+            "simple": { "limit": 20, "period": 60 },
+          },
         ],
+      },
+      "ai": {
+        "binding": "AI",
       },
       "triggers": {
         "crons": ["0 7 * * *"],

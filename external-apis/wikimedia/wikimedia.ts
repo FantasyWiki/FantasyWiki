@@ -6,6 +6,22 @@ export type WikimediaTopReadArticle = {
   rank: number;
 };
 
+/**
+ * A search hit before any pageview work is done: what the search endpoint
+ * itself returns, and nothing more.
+ *
+ * `description` is the one-line blurb the search API supplies (the same text
+ * shown under a title in Wikipedia's own search box). It is what lets a
+ * consumer classify an article that postdates its own knowledge — see
+ * [ADR 0006](../../docs/adr/0006-article-genie.md) — so it is carried here
+ * rather than dropped. It is optional because not every page has one.
+ */
+export type ArticleSearchHit = {
+  canonicalTitle: string;
+  displayTitle: string;
+  description?: string;
+};
+
 export type TopReadEntry = {
   canonicalTitle: string;
   displayTitle: string;
@@ -13,6 +29,8 @@ export type TopReadEntry = {
   filteredRank: number;
   dailyViews: number;
   articleUrl: string;
+  /** Present on search-derived entries; the top-read payload carries no blurb. */
+  description?: string;
   averageViews30d?: number;
   weekViews?: number;
   monthViews?: number;

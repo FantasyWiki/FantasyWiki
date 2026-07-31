@@ -30,6 +30,14 @@ function teamResponseKey(leagueId: string): string {
   return `${leagueId}`;
 }
 
+/** Stands in for an anchor article's outbound link list. */
+const mockOutboundLinks = [
+  "Bitcoin",
+  "Blockchain",
+  "Cryptocurrency",
+  "Artificial intelligence arms race",
+];
+
 const mockTeamResponses: Record<string, TeamLineUp> = {
   [teamResponseKey("italy")]: mockTeamResponse,
   [teamResponseKey("global")]: mockTeamResponse,
@@ -513,6 +521,46 @@ export const handlers = [
     if (!myTeam) return HttpResponse.json([]);
     const all = performancesByLeague[leagueId] ?? [];
     return HttpResponse.json(all.filter((p) => p.teamId === myTeam.id));
+  }),
+
+  // MediaWiki Action API — the outbound links of an article, which the Article
+  // Genie intersects across the anchors a query names.
+  http.get("https://*.wikipedia.org/w/api.php", ({ request }) => {
+    const title = new URL(request.url).searchParams.get("titles") ?? "";
+    return HttpResponse.json({
+      query: {
+        pages: [
+          {
+            pageid: 1,
+            ns: 0,
+            title,
+            links: mockOutboundLinks.map((t) => ({ ns: 0, title: t })),
+          },
+        ],
+      },
+    });
+  }),
+
+  // The Article Genie's two model calls. No model runs in mock mode: the seed
+  // reads as a chemistry query and the turn narrows to a single survivor, which
+  // is enough to drive the panel through to its results.
+  http.post("*/api/me/genie-seeds", async ({ request }) => {
+    const { query } = (await request.json()) as { query: string };
+    return HttpResponse.json({ keywords: query, anchors: [] });
+  }),
+
+  http.post("*/api/me/genie-turns", async ({ request }) => {
+    const { candidates } = (await request.json()) as {
+      candidates: { id: number }[];
+    };
+    return HttpResponse.json({
+      utterance: "Mhh, curious — is it a person?",
+      question: "Is it a person?",
+      keep: candidates.slice(0, 3).map((c) => c.id),
+      options: ["Yes", "No"],
+      kind: "filter",
+      done: candidates.length <= 3,
+    });
   }),
 
   // Problem reports. Nothing is really filed on GitHub in mock mode — the mock

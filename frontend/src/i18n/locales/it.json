@@ -424,7 +424,22 @@
     "renewSuccess": "Rinnovo scelto",
     "renewError": "Impossibile rinnovare questo contratto",
     "cancelRenewalSuccess": "Rinnovo annullato",
-    "cancelRenewalError": "Impossibile annullare il rinnovo"
+    "cancelRenewalError": "Impossibile annullare il rinnovo",
+    "genie": {
+      "trigger": "Chiedi al genio",
+      "prompt": "Descrivi cosa cerchi — al resto penso io.",
+      "placeholder": "una relazione tra OpenAI e il Portogallo…",
+      "ask": "Chiedi",
+      "seeking": "Fruga fruga negli archivi…",
+      "thinking": "Mhh, fammi pensare…",
+      "unsure": "Non saprei",
+      "found": "Ecco — la mia ricerca è finita. Guarda cosa ho trovato.",
+      "keepGuessing": "Continua a indovinare",
+      "ok": "Mostrami",
+      "newGuess": "Nuova ricerca",
+      "asleep": "Il genio dorme. Prova con la barra di ricerca.",
+      "imageAlt": "Il genio A(k)Inator"
+    }
   },
   "league": {
     "back": "Torna alla dashboard",

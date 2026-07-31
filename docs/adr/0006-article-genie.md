@@ -6,9 +6,10 @@ tags: [llm, market, discovery, chemistry, cloudflare, decision]
 
 # Article Genie: narrowing a bounded candidate list, not generating guesses
 
-> **Status:** decided in design discussion and validated against live Workers AI + the Wikimedia
-> API; not yet implemented in code. Supersedes the flow described in issue #252, which is rewritten
-> to match this ADR.
+> **Status:** decided in design discussion, validated against live Workers AI + the Wikimedia API,
+> and implemented (#252). Supersedes the flow described in issue #252, which is rewritten to match
+> this ADR. Two things the implementation settled that this ADR had left open are recorded under
+> *What implementation changed* below.
 
 The **Article Genie** is the LLM-assisted discovery feature on the market page. This ADR records
 what it is, the two player intents it serves, and — most importantly — the alternatives that were
@@ -153,13 +154,50 @@ So descriptions are a hard requirement in the candidate listing (titles-only los
 the model has never heard of), and interrogation questions must be answerable from
 title + description (person / nation / woman / sport / century), not from deep world knowledge.
 
+## What implementation changed
+
+Two points this ADR stated at the level of intent turned out to need a decision when built. Both
+preserve the properties the ADR was protecting; neither changes what the player sees.
+
+**Reading the query is its own call, so there are two routes, not one.** Seeding needs the anchors
+a query names, and a turn is defined over a candidate list — so the parse cannot be part of the
+first turn, because there is no list until the parse has happened. Folding it in anyway would mean
+seeding a chemistry query on keywords alone, which for *"find me a relation between OpenAI and
+Portugal"* returns articles *about* OpenAI and has the Genie open with a question about the wrong
+set. `POST /api/me/genie-seeds` therefore sits beside `POST /api/me/genie-turns`. The property that
+mattered is intact: each call is one model call, one subrequest, no D1, no migration.
+
+**Candidates are ranked on link structure while narrowing, and priced only at the end.** This ADR
+ranks by `(mutual links desc, price asc)`, which reads as if price is known during the loop. It is
+not affordable there: pricing costs one 365-day pageview request per article and the Wikimedia
+client caches those only as part of a whole search result, so pricing ~40 candidates would mean ~40
+requests before the Genie's first word — for figures all but five of them never show. The loop
+therefore ranks on mutual links, and the specified `(mutual links, price)` ordering is applied to
+the survivors, where price exists and there are at most five of them. What the player sees — the
+cheap, well-connected find above the expensive obvious one — is unchanged.
+
+**Anchors are not limited to two.** The measurements here concern a pair, but nothing in the
+pipeline is written for one: `linksto:` terms are conjoined and the outbound sets intersected over
+however many anchors a query names, and a candidate is ranked by how many of them it links mutually
+with. A cap of three exists only so a pathological query cannot fan out without bound — each anchor
+costs one paginated link fetch — and hitting it narrows the seed rather than emptying it, because
+the keyword search always runs alongside. Yield does collapse past two, as the measurements below
+predict.
+
 ## Consequences
 
 - **The Genie is additive.** Its output is a title handed to the existing market search path, so
   pricing, ownership badges, and the buy flow are untouched.
-- **One new route, no schema change.** `POST /api/me/genie-turns` calls the AI binding and nothing
-  else — one subrequest, no D1, no migration. All Wikimedia work stays in the browser, where the
-  client's 7-day cache lives and neither the 50-subrequest nor the 10 ms CPU limit applies [3].
+- **Two thin routes, no schema change.** `POST /api/me/genie-seeds` and `POST /api/me/genie-turns`
+  each call the AI binding and nothing else — one subrequest, no D1, no migration (see *What
+  implementation changed* for why reading the query is its own call). All Wikimedia work stays in
+  the browser, where the client's 7-day cache lives and neither the 50-subrequest nor the 10 ms CPU
+  limit applies [3].
+- **The AI binding cannot be tested locally.** Workers AI has no local simulator, so declaring it
+  makes `@cloudflare/vitest-pool-workers` open a remote proxy session and require a
+  `CLOUDFLARE_API_TOKEN`. CI runs `./gradlew check` with no Cloudflare credentials, so the binding
+  is omitted from the `test` environment in `wrangler.jsonc` and the tests supply their own stub —
+  which they must do regardless, or they would spend real neurons.
 - **Classification error replaces hallucination as the failure mode.** The model wrongly deciding
   a surviving title does not match an answer silently deletes the right article. This is why model
   choice was settled empirically rather than by cost: 8B fails here, 24B does not. Further

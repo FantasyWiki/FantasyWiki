@@ -4,8 +4,8 @@ import {Domain} from "../../model/enums";
 import {createGetViewsByDomain, DomainResult} from "./client/getViewsByDomain";
 import {createGetLinks, articleWithLinks} from "./client/getLinks";
 import {ArticleViews, createResolveArticleViews, createResolveArticleViewsWithFallback} from "./client/articleViews";
-import {createSearchArticles} from "./client/searchArticles";
-import {TopReadEntry} from "./wikimedia";
+import {createSearchArticles, createSearchTitles} from "./client/searchArticles";
+import {ArticleSearchHit, TopReadEntry} from "./wikimedia";
 
 const DAY = 24 * 60 * 60 * 1000;
 /**
@@ -128,6 +128,13 @@ export type WikimediaClient = {
         getSummary(domain: Domain, title: string): Promise<ArticleSummary>;
         getLinkedArticles(domain: Domain, title: string): Promise<articleWithLinks>;
         search(domain: Domain, query: string, limit: number): Promise<TopReadEntry[]>;
+        /**
+         * `search` without the per-article view series: one request, titles and
+         * blurbs only. Use it when the answer needed is "which articles exist",
+         * not "what are they worth" — `search` costs one 365-day pageview
+         * request per hit on top of this.
+         */
+        searchTitles(domain: Domain, query: string, limit: number): Promise<ArticleSearchHit[]>;
     };
 };
 
@@ -165,6 +172,8 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}): Wik
         http, retryCount, averageDays, maxFallbackDays, resolveArticleViews,
     );
 
+    const searchTitles = createSearchTitles(http, setTtl(cache, 7*DAY), retryCount);
+
     return {
         pageviews: {
             getTopReadList: createGetTopReadList(
@@ -176,7 +185,10 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}): Wik
         article: {
             getSummary: createGetSummary( http, setTtl(cache,7*DAY), retryCount ),
             getLinkedArticles: createGetLinks(http, setTtl(cache, 7*DAY), retryCount),
-            search: createSearchArticles(http, setTtl(cache, 7*DAY), retryCount, resolveArticleViews),
+            search: createSearchArticles(
+                http, setTtl(cache, 7*DAY), retryCount, resolveArticleViews, searchTitles,
+            ),
+            searchTitles,
         },
     };
 }

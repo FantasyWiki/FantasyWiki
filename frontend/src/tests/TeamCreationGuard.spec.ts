@@ -53,6 +53,16 @@ describe("team creation route guard", () => {
     expect(await typePath("/team-creation")).toBe("/team-creation");
   });
 
+  it("lets a player who still owes their Global League team into signup", async () => {
+    // Signup creates in the Global League, so that is the only membership that
+    // can make it pointless. A team in another league does not — and this is
+    // the player TeamRequiredModal sends here, so turning them away would bounce
+    // them straight back into a modal they cannot dismiss.
+    mockMyLeagues(["italy"]);
+
+    expect(await typePath("/team-creation")).toBe("/team-creation");
+  });
+
   it("keeps a league the player is already in away from them", async () => {
     mockMyLeagues(["global", "italy"]);
 

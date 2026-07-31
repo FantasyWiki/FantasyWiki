@@ -15,6 +15,7 @@ import ReportProblemPage from "@/views/ReportProblemPage.vue";
 import NotFoundPage from "@/views/NotFoundPage.vue";
 import { useAppStore } from "@/stores/app";
 import { useLeagueStore } from "@/stores/league";
+import { GLOBAL_LEAGUE_ID } from "../../../model/league";
 
 /**
  * Keeps team creation out of reach of a player who has nothing left to create.
@@ -31,6 +32,12 @@ import { useLeagueStore } from "@/stores/league";
  * fetch leaves that list empty and lets the player through on purpose: the
  * backend still refuses a duplicate, whereas redirecting on error would lock a
  * genuinely new player out of the only screen that starts the game.
+ *
+ * The league the entry is checked against is the one the page will actually
+ * create in: the route's when it names one, the Global League otherwise. It is
+ * deliberately not "is in any league" — that reading would turn away a player
+ * who holds a team elsewhere but still owes their Global League one, which is
+ * exactly who TeamRequiredModal sends here.
  */
 async function rejectIfTeamAlreadyExists(to: RouteLocationNormalized) {
   const leagueStore = useLeagueStore();
@@ -38,10 +45,11 @@ async function rejectIfTeamAlreadyExists(to: RouteLocationNormalized) {
     await leagueStore.fetchLeagues();
   }
 
-  const leagueId = to.params.leagueId as string | undefined;
-  const alreadyPlaying = leagueId
-    ? leagueStore.availableLeagues.some((lg) => lg.id === leagueId)
-    : leagueStore.availableLeagues.length > 0;
+  const leagueId =
+    (to.params.leagueId as string | undefined) ?? GLOBAL_LEAGUE_ID;
+  const alreadyPlaying = leagueStore.availableLeagues.some(
+    (lg) => lg.id === leagueId
+  );
 
   return alreadyPlaying ? "/dashboard" : true;
 }

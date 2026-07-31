@@ -475,6 +475,11 @@
       "formTitle": "Dai un nome alla squadra",
       "formHint": "Subito dopo arrivi alla tua dashboard, con il tour al fianco."
     },
+    "teamRequired": {
+      "title": "Crea la tua squadra per iniziare",
+      "body": "Hai effettuato l'accesso ma non hai ancora dato un nome a una squadra. Creane una per entrare nella Lega Globale e iniziare a giocare.",
+      "cta": "Crea la mia squadra"
+    },
     "loop": {
       "caption": "Come si segna in un giorno",
       "holdValue": "1 articolo",

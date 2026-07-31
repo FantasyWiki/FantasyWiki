@@ -1,11 +1,14 @@
-import { League } from "../../../model";
+import { GLOBAL_LEAGUE_ID, League } from "../../../model";
 import { LeagueDTO } from "../../../dto/leagueDTO";
 import { Domain } from "../../../model/enums";
 import { LeagueRepository } from "../repositories/leagueRepository";
 import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
 import { Result, success } from "../repositories/result";
 
-export const GLOBAL_LEAGUE_ID = "global";
+// Re-exported for existing importers; the source of truth lives in the shared
+// model so the frontend can reason about the same league without duplicating
+// the id.
+export { GLOBAL_LEAGUE_ID };
 
 /**
  * Map a domain League to the LeagueDTO shape returned by the API.

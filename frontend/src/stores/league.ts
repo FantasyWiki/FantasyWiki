@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import api, { deserializeLeague } from "@/services/api";
 import { LeagueDTO } from "../../../dto/leagueDTO";
+import { GLOBAL_LEAGUE_ID } from "../../../model/league";
 import { Temporal } from "@js-temporal/polyfill";
 import Now = Temporal.Now;
 
@@ -31,6 +32,13 @@ export const useLeagueStore = defineStore("league", () => {
   const currentLeague = ref<LeagueDTO>();
   const availableLeagues = ref<LeagueDTO[]>([]);
   const isLoading = ref(false);
+  // Whether the league list has been fetched *successfully* at least once this
+  // session. An empty `availableLeagues` is ambiguous on its own — it reads the
+  // same before the first fetch, after a failed one, and for a player who
+  // genuinely has no team — so this flag is what lets callers (e.g. the "create
+  // your team" prompt) tell them apart instead of firing on a state they only
+  // believe because the request never came back.
+  const hasLoaded = ref(false);
   const error = ref<string | null>(null);
 
   // ── Getters ────────────────────────────────────────────────────────────────
@@ -39,6 +47,18 @@ export const useLeagueStore = defineStore("league", () => {
 
   const currentLeagueName = computed(
     () => currentLeague.value?.title ?? "No League Selected"
+  );
+
+  // Whether the player has completed onboarding: a team in the Global League,
+  // the one membership the first run creates. Deliberately *not* "is in any
+  // league" — once a player can join further leagues, someone could hold a team
+  // elsewhere while still owing their Global League team, and that player is
+  // exactly who the re-prompt is for. Undefined until the first fetch resolves,
+  // so callers can distinguish "no team" from "not known yet".
+  const hasGlobalTeam = computed(() =>
+    hasLoaded.value
+      ? availableLeagues.value.some((lg) => lg.id === GLOBAL_LEAGUE_ID)
+      : undefined
   );
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -81,6 +101,10 @@ export const useLeagueStore = defineStore("league", () => {
     try {
       availableLeagues.value = await api.leagues.getAll();
       _resolveCurrentLeague();
+      // Success only: a failed fetch leaves `availableLeagues` empty, which is
+      // indistinguishable from "player has no team". Marking that as loaded
+      // would tell an established player they own nothing — see `hasGlobalTeam`.
+      hasLoaded.value = true;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to fetch leagues";
@@ -132,10 +156,12 @@ export const useLeagueStore = defineStore("league", () => {
     currentLeague,
     availableLeagues,
     isLoading,
+    hasLoaded,
     error,
     // Getters
     currentLeagueId,
     currentLeagueName,
+    hasGlobalTeam,
     // Actions
     setCurrentLeague,
     fetchLeagues,

@@ -95,5 +95,6 @@ Workload sits at **<1%** of every relevant quota, and storage is one system (D1)
 
 ## Related
 
+- [Nightly Scoring Pipeline](../architecture/scoring-pipeline.md) — what was actually built; the **host** (GitHub Actions, not Cloud Run) and **delivery** (POST-through-backend, not direct D1 writes) decisions here were superseded, with the rationale recorded there
 - [Scoring & Economy System](../domain/scoring-system.md)
 - [Deploy Strategy & Branch Policy](../deployment/deploy-strategy.md)

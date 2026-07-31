@@ -15,7 +15,7 @@ const internal = new Hono<{ Bindings: Bindings }>();
 /**
  * Service-token guard. The scoring engine is not a user, so these routes sit
  * *outside* the /api/* Google-JWT guard and authenticate with a shared bearer
- * secret instead (docs/plan-scoring-engine.md §6). Uses Hono's `bearerAuth`
+ * secret instead (docs/architecture/scoring-pipeline.md). Uses Hono's `bearerAuth`
  * (constant-time compare, RFC-compliant 401 + WWW-Authenticate) with a dynamic
  * `verifyToken` because the secret comes from the per-request env; an
  * unset/empty secret fails closed.

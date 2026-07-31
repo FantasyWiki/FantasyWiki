@@ -10,7 +10,7 @@ import type {
 
 // D1 caps the number of bound statements per batch; a chunk well under that
 // keeps a whole-catalogue nightly sweep within limits without any single huge
-// statement (docs/plan-scoring-engine.md §6).
+// statement (docs/architecture/scoring-pipeline.md).
 const UPSERT_CHUNK_SIZE = 50;
 
 export class PerformanceRepositoryD1 implements PerformanceRepository {

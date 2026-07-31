@@ -1,5 +1,5 @@
 /**
- * Internal scoring-engine API shapes (docs/plan-scoring-engine.md §6).
+ * Internal scoring-engine API shapes (docs/architecture/scoring-pipeline.md).
  *
  * Consumed by `backend/src/routes/internal.ts`. The Kotlin scoring engine
  * re-declares equivalents on its side of the JVM boundary — ADR 0004 accepts

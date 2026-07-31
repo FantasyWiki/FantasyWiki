@@ -21,7 +21,7 @@ export interface ActiveContractRow {
 /**
  * Read side of the scoring loop: the cross-league inputs the engine needs to
  * score a day. Kept separate from the per-team/per-league repositories because
- * scoring sweeps *every* team in one shot (docs/plan-scoring-engine.md §6).
+ * scoring sweeps *every* team in one shot (docs/architecture/scoring-pipeline.md).
  */
 export interface ScoringRepository {
   getTeamLineups(): Promise<Result<TeamLineupRow[]>>;

@@ -1,6 +1,6 @@
 name: Nightly scoring
 
-# Component 3 of the scoring engine (docs/plan-scoring-engine.md): runs the
+# Component 3 of the scoring engine (docs/architecture/scoring-pipeline.md): runs the
 # Kotlin :scoring-collector nightly to fetch each contracted article's daily
 # Wikimedia signals and POST them to the backend's /internal endpoints, which
 # score and persist them.

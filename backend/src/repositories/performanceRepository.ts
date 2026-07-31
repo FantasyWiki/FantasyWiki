@@ -32,7 +32,7 @@ export interface PerformanceRepository {
   /**
    * Idempotent daily upsert keyed on (teamId, date) — safe to re-run for the
    * same day. Chunked internally so a large sweep stays within D1's per-batch
-   * statement limits (docs/plan-scoring-engine.md §6).
+   * statement limits (docs/architecture/scoring-pipeline.md).
    */
   upsertDaily(
     date: Temporal.PlainDate,

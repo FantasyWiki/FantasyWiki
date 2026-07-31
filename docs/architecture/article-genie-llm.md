@@ -20,17 +20,33 @@ all of it.
 
 ```
 BROWSER  (useGenie composable)
-  seed    S1 = search("linksto:A linksto:B" | keywords), title + description, cap ~40
-          S2 = outbound(A) ∩ outbound(B)          — from the cached link sets
-          merge + dedupe, rank by (mutual links desc, price asc)
-  loop    POST /api/me/genie-turns { history, candidates, bucket }
-          ← { utterance, keep: [ids], done }
-  finish  survivors → existing market search path → priced rows
+  parse   POST /api/me/genie-seeds { query }
+          ← { keywords, anchors: [...] }
+  seed    S1 = searchTitles("linksto:A linksto:B"), title + description
+          S2 = searchTitles(keywords)              — always, never routed away
+          S3 = outbound(A) ∩ outbound(B)           — from the cached link sets
+          merge + dedupe, rank by mutual links, cap 40
+  loop    POST /api/me/genie-turns { query, history, candidates, bucket }
+          ← { utterance, keep: [ids], options, kind, done }
+  finish  survivors → fetchMarketArticlesByTitle → priced rows,
+          re-ranked by (mutual links desc, price asc)
 
-WORKER   (one route)
+WORKER   (two routes, one model call each)
   env.AI.run("@cf/mistralai/mistral-small-3.1-24b-instruct", { messages })
   one subrequest · no D1 · no migration
 ```
+
+**Why parsing is its own call.** A turn is defined over a candidate list, and there is no candidate
+list until the query has been read — so the parse cannot ride along with the first turn. Seeding on
+keywords alone instead would have the Genie open with a question about articles *describing* OpenAI
+rather than ones relating it to Portugal.
+
+**Why price is absent from the loop.** `searchTitles` is the search call without the per-article
+view series, added for exactly this: pricing a candidate costs one 365-day pageview request, and
+the client caches those only as part of a whole search result. Pricing ~40 candidates up front
+would be ~40 requests before the first question, for figures that all but five of them never show.
+The loop ranks on link structure; `(mutual links, price)` is applied at `finish`, over at most five
+articles.
 
 The model id and the ~40 cap are not arbitrary — both were fixed by live testing; see
 [ADR 0006 → Provider and model](../adr/0006-article-genie.md). The 8B model that a cost-first
@@ -84,7 +100,25 @@ type LlmClient = { ask(messages: Message[]): Promise<string> };
 |---|---|
 | `utterance` | one sentence: flavour plus the next question |
 | `keep` | numeric ids that survive; **numbers, not titles** |
+| `options` | the taps offered for this question; the client adds its own "not sure" |
+| `kind` | `filter` or `preference` — a safety boundary, enforced server-side |
 | `done` | model signals it is confident enough to stop |
+
+**What the backend enforces rather than asks for.** Everything the model can get wrong is corrected
+against the request it was answering, because a prompt is a request and these are guarantees:
+
+- ids not in the supplied list are discarded (a made-up id has no article behind it);
+- `kind: "preference"` keeps every id, so such a question can only ever re-rank;
+- an `unsure` answer keeps every id, so a question the player could not answer never costs them the
+  article;
+- a turn that would empty the set restores it — one wasted question beats a session ending with
+  nothing;
+- a question already in the history earns one corrective retry, and if the model repeats itself
+  again the turn is forced to `done`. A set already split on an answer cannot split on it twice, so
+  a repeat is always a wasted question — and the player, who sees the same sentence twice, reads it
+  as the Genie being stuck. Comparison is on the question rather than the utterance, since the
+  flavour is display-only and never returns in the history; in practice a repeated question is what
+  makes the repeated sentence.
 
 The session is **stateless** — the client carries the history. This is safe because resetting the
 history is equivalent to starting a new game, which is already free; the abuse control is the
@@ -213,6 +247,11 @@ a tap. That keeps the injection surface to one clamped field.
 - **Backend** — inject a stub `LlmClient`; never rely on `vi.mock` under the Workers pool.
   Cover: valid JSON, malformed JSON then a successful retry, malformed twice → asleep, ids outside
   the candidate list discarded, oversized payload rejected.
+- **The AI binding is absent from the `test` environment in `wrangler.jsonc`, on purpose.** Workers
+  AI has no local simulator, so declaring it makes the pool open a remote proxy session and demand a
+  `CLOUDFLARE_API_TOKEN` — which CI, running `./gradlew check`, does not have. With the binding
+  declared the *entire* backend suite fails to start, not just the Genie's tests. Route tests supply
+  `env.AI` themselves, which is what they should do anyway.
 - **Frontend** — MSW with `onUnhandledRequest: "error"`, per `frontend/src/tests/setup.ts`.
   Cover: seeding merge and dedupe, ranking order, the asleep popup, and dismissal to the search
   bar.

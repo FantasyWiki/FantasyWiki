@@ -424,7 +424,22 @@
     "renewSuccess": "Renewal elected",
     "renewError": "Couldn't renew this contract",
     "cancelRenewalSuccess": "Renewal cancelled",
-    "cancelRenewalError": "Couldn't cancel this renewal"
+    "cancelRenewalError": "Couldn't cancel this renewal",
+    "genie": {
+      "trigger": "Ask the genie",
+      "prompt": "Describe what you're after — I'll do the rest.",
+      "placeholder": "a relation between OpenAI and Portugal…",
+      "ask": "Ask",
+      "seeking": "Rummaging through the archives…",
+      "thinking": "Mhh, let me think…",
+      "unsure": "No idea",
+      "found": "There — my hunt is done. Take a look at what I turned up.",
+      "keepGuessing": "Keep guessing",
+      "ok": "Show me",
+      "newGuess": "New guess",
+      "asleep": "The genie is asleep. Try the search bar.",
+      "imageAlt": "The A(k)Inator genie"
+    }
   },
   "league": {
     "back": "Back to dashboard",

@@ -16,7 +16,11 @@ export default defineConfig({
     cloudflareTest({
       wrangler: {
         configPath: "./wrangler.jsonc",
-        environment: "production",
+        // Mirrors `production` minus the Workers AI binding — see the comment on
+        // that environment in wrangler.jsonc. AI has no local simulator, so its
+        // presence makes the pool require Cloudflare credentials that CI does
+        // not have.
+        environment: "test",
       },
       miniflare: {
         d1Persist: false,

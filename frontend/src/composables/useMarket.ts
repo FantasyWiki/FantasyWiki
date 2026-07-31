@@ -117,6 +117,28 @@ export function useMarket() {
   const sortDir = ref<SortDir>("desc");
   const currentPage = ref(1);
 
+  /**
+   * The Genie's findings, when it has any. Held apart from the search fallback
+   * because they are not a query result: the ordering is the answer (mutual
+   * links first, price second), and re-sorting them by the table's default
+   * would throw away the part that took the whole interrogation to work out.
+   */
+  const genieResults = ref<MarketArticle[] | null>(null);
+  const isGenieOrderPristine = ref(false);
+
+  function setGenieResults(articles: MarketArticle[]) {
+    genieResults.value = articles;
+    isGenieOrderPristine.value = true;
+    currentPage.value = 1;
+  }
+
+  function clearGenieResults() {
+    genieResults.value = null;
+    isGenieOrderPristine.value = false;
+  }
+
+  const isGenieMode = computed(() => genieResults.value !== null);
+
   function toggleSort(key: SortKey) {
     if (sortKey.value === key) {
       sortDir.value = sortDir.value === "asc" ? "desc" : "asc";
@@ -124,11 +146,17 @@ export function useMarket() {
       sortKey.value = key;
       sortDir.value = "desc";
     }
+    // Sorting is the player overriding the Genie's ranking, which is theirs to
+    // do — but only once they ask for it.
+    isGenieOrderPristine.value = false;
     currentPage.value = 1;
   }
 
   function setSearch(q: string) {
     searchQuery.value = q;
+    // Typing a search is the player going back to looking for themselves, so
+    // the Genie's findings step aside rather than being filtered by it.
+    clearGenieResults();
     currentPage.value = 1;
   }
 
@@ -137,14 +165,18 @@ export function useMarket() {
     currentPage.value = 1;
   }
 
-  function applyStatusAndSort(articles: MarketArticle[]): MarketArticle[] {
-    let filtered = [...articles];
-
+  function applyStatusFilter(articles: MarketArticle[]): MarketArticle[] {
     if (statusFilter.value === "free") {
-      filtered = filtered.filter((a) => !a.owner);
-    } else if (statusFilter.value === "owned") {
-      filtered = filtered.filter((a) => !!a.owner);
+      return articles.filter((a) => !a.owner);
     }
+    if (statusFilter.value === "owned") {
+      return articles.filter((a) => !!a.owner);
+    }
+    return [...articles];
+  }
+
+  function applySort(articles: MarketArticle[]): MarketArticle[] {
+    const filtered = [...articles];
 
     filtered.sort((a, b) => {
       let cmp = 0;
@@ -175,6 +207,10 @@ export function useMarket() {
     });
 
     return filtered;
+  }
+
+  function applyStatusAndSort(articles: MarketArticle[]): MarketArticle[] {
+    return applySort(applyStatusFilter(articles));
   }
 
   function applyLocalSearch(articles: MarketArticle[]): MarketArticle[] {
@@ -270,6 +306,10 @@ export function useMarket() {
   });
 
   const filteredArticles = computed<MarketArticle[]>(() => {
+    if (genieResults.value) {
+      const rows = applyStatusFilter(mergeOwnership(genieResults.value));
+      return isGenieOrderPristine.value ? rows : applySort(rows);
+    }
     if (isOwnedMode.value) {
       return applyStatusAndSort(applyLocalSearch(ownedArticles.value));
     }
@@ -340,6 +380,9 @@ export function useMarket() {
     isListLoading,
     isOwnershipLoading,
     isOwnershipError,
+    isGenieMode,
+    setGenieResults,
+    clearGenieResults,
     ITEMS_PER_PAGE,
   };
 }

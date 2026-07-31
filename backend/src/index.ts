@@ -7,7 +7,9 @@ import session from "./routes/session";
 import leagues from "./routes/leagues";
 import notifications from "./routes/notifications";
 import player from "./routes/player";
+import me from "./routes/me";
 import reports from "./routes/reports";
+import type { WorkersAiBinding } from "./services/llmClient";
 import internal from "./routes/internal";
 import type { ContractSettlementParams } from "./workflows/contractSettlement";
 
@@ -25,6 +27,10 @@ type Bindings = {
   GITHUB_REPO: string;
   ENVIRONMENT: string;
   REPORT_RATE_LIMITER: {
+    limit(o: { key: string }): Promise<{ success: boolean }>;
+  };
+  AI: WorkersAiBinding;
+  GENIE_RATE_LIMITER: {
     limit(o: { key: string }): Promise<{ success: boolean }>;
   };
   CONTRACT_SETTLEMENT_WORKFLOW: Workflow<ContractSettlementParams>;
@@ -74,6 +80,9 @@ app.route("/api/notifications", notifications);
 
 // Mount player routes
 app.route("/api/player", player);
+
+// Mount self-scoped player routes (/api/me — identity from the JWT)
+app.route("/api/me", me);
 
 // Mount problem report routes
 app.route("/api/reports", reports);

@@ -17,7 +17,7 @@ import type {
 } from "../../../dto/scoring";
 
 /**
- * Orchestrates the internal scoring loop (docs/plan-scoring-engine.md §6):
+ * Orchestrates the internal scoring loop (docs/architecture/scoring-pipeline.md):
  * hands the engine the day's inputs and ingests the results it computes. The
  * backend stays the single writer to D1 — the engine never touches the DB
  * directly (ADR 0004 "single money-writer" boundary).

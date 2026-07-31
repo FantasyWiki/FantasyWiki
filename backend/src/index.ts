@@ -50,7 +50,7 @@ app.get("/", (c) => {
 app.route("/auth", auth);
 
 // Internal routes for the scoring engine — service-token auth (not user JWT),
-// so mounted outside the /api/* Google-JWT guard (docs/plan-scoring-engine.md §6).
+// so mounted outside the /api/* Google-JWT guard (docs/architecture/scoring-pipeline.md).
 app.route("/internal", internal);
 
 // Protected routes - apply JWT middleware

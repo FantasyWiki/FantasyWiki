@@ -2,14 +2,8 @@ package io.github.fantasywiki.collector
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.DefaultRequest
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.header
-import io.ktor.http.HttpHeaders
-import io.ktor.serialization.kotlinx.json.json
 import java.time.Instant
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.Json
 
 /**
  * Minimal structured stderr logging for the nightly job — no logging framework
@@ -32,14 +26,7 @@ fun main(args: Array<String>) {
         "collector starting: date=${config.date} backend=${config.backendUrl} concurrency=${config.concurrency}",
     )
 
-    val http = HttpClient(CIO) {
-        install(ContentNegotiation) {
-            json(Json { ignoreUnknownKeys = true })
-        }
-        install(DefaultRequest) {
-            header(HttpHeaders.UserAgent, config.userAgent)
-        }
-    }
+    val http = HttpClient(CIO) { collectorHttpDefaults(config.userAgent) }
 
     http.use { client ->
         runBlocking {

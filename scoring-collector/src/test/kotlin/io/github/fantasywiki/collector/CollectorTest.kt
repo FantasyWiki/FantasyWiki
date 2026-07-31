@@ -27,10 +27,16 @@ private fun wikimediaStub(views: Map<String, Long>, links: Map<String, List<Stri
             }
 
             url.encodedPath == "/w/api.php" -> {
-                val source = Titles.canonical(url.parameters["titles"].orEmpty())
-                val out = links[source].orEmpty()
-                val linksJson = out.joinToString(",") { """{"ns":0,"title":"$it"}""" }
-                respondJson("""{"query":{"pages":[{"title":"$source","links":[$linksJson]}]}}""")
+                // `titles` carries every source in the batch; `pltitles` filters the
+                // links each page reports, exactly as the Action API does.
+                val sources = url.parameters["titles"].orEmpty().split("|").map(Titles::canonical)
+                val candidates = url.parameters["pltitles"].orEmpty().split("|").map(Titles::canonical).toSet()
+                val pagesJson = sources.joinToString(",") { source ->
+                    val out = links[source].orEmpty().filter { Titles.canonical(it) in candidates }
+                    val linksJson = out.joinToString(",") { """{"ns":0,"title":"$it"}""" }
+                    """{"title":"$source","links":[$linksJson]}"""
+                }
+                respondJson("""{"query":{"pages":[$pagesJson]}}""")
             }
 
             else -> respondJson("{}", HttpStatusCode.NotFound)
@@ -87,6 +93,36 @@ class CollectorTest : StringSpec({
         val results = Collector.collect(inputs, WikimediaClient(client), concurrency = 3, date = date)
 
         results[0].chemistryLevels shouldContainExactly listOf(ChemistryLevel.GOOD, ChemistryLevel.WEAK)
+    }
+
+    "resolves every team's chemistry from a single link request" {
+        var linkRequests = 0
+        val client = mockJsonClient { request ->
+            if (request.url.encodedPath == "/w/api.php") {
+                linkRequests++
+                val sources = request.url.parameters["titles"].orEmpty().split("|")
+                val pages = sources.joinToString(",") { """{"title":"$it","links":[]}""" }
+                respondJson("""{"query":{"pages":[$pages]}}""")
+            } else {
+                respondJson("""{"items":[{"views":1}]}""")
+            }
+        }
+        // Three teams over an overlapping pool: the link graph is fetched once for
+        // the whole domain, not once per team and not once per article.
+        val inputs = (1..3).map { team ->
+            ScoringInput(
+                leagueId = "l1",
+                teamId = "t$team",
+                domain = "en",
+                articles = listOf("A", "B", "C$team"),
+                chemistryLinks = listOf(listOf("A", "B"), listOf("B", "C$team")),
+                formationSnapshot = "{}",
+            )
+        }
+
+        Collector.collect(inputs, WikimediaClient(client), concurrency = 3, date = date)
+
+        linkRequests shouldBe 1
     }
 
     "scores a missing article as 0 views and warns" {

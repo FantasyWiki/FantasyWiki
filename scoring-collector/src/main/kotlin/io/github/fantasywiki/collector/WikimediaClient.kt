@@ -7,8 +7,10 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.URLBuilder
 import io.ktor.http.appendPathSegments
+import io.ktor.http.isSuccess
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /** AQS per-article response: one item per day in the queried range. */
@@ -20,7 +22,14 @@ private data class AqsItem(val views: Long)
 
 /** Action API `prop=links` response (formatversion=2). */
 @Serializable
-private data class LinksResponse(val query: LinksQuery? = null)
+private data class LinksResponse(
+    val query: LinksQuery? = null,
+    @SerialName("continue") val continuation: LinksContinue? = null,
+)
+
+/** Present when the response hit `pllimit` and more link rows remain. */
+@Serializable
+private data class LinksContinue(val plcontinue: String? = null)
 
 @Serializable
 private data class LinksQuery(val pages: List<LinksPage> = emptyList())
@@ -36,14 +45,23 @@ private data class LinksPage(
 private data class LinkTarget(val title: String)
 
 /**
- * Reads the two public Wikimedia signals the collector needs, one request per
- * method (throttling/concurrency is the caller's concern — see [Main]). Every
- * comparison of titles goes through [Titles.canonical] so a link is never missed
- * on an underscore/case spelling difference.
+ * Reads the two public Wikimedia signals the collector needs: daily views, one
+ * request per article (AQS has no batch form), and the link graph, batched up to
+ * the Action API's 50-title cap. Throttling/concurrency is the caller's concern —
+ * see [Main]. Every comparison of titles goes through [Titles.canonical] so a link
+ * is never missed on an underscore/case spelling difference.
  */
 class WikimediaClient(private val http: HttpClient) {
     private companion object {
         const val AQS_HOST = "https://wikimedia.org"
+
+        /**
+         * Action API cap on `titles` and `pltitles` alike — 50 values for a client
+         * without higher limits; exceeding it is a hard `toomanyvalues` error, not a
+         * truncation. @see https://www.mediawiki.org/wiki/API:Links
+         */
+        const val MAX_TITLES_PER_REQUEST = 50
+
         val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
     }
 
@@ -66,35 +84,93 @@ class WikimediaClient(private val http: HttpClient) {
 
         val response = http.get(url)
         if (response.status == HttpStatusCode.NotFound) return null
+        // Anything else non-2xx must not reach the parse below: AQS answers errors
+        // with `application/problem+json`, which deserializes into an *empty*
+        // AqsResponse — indistinguishable from "no data", so a rate-limited or
+        // failing article would silently score 0 instead of failing the run.
+        require(response.status.isSuccess()) { "AQS ${response.status} for $domain:$title on $date" }
         val body: AqsResponse = response.body()
         return body.items.firstOrNull()?.views
     }
 
     /**
-     * Which of [candidates] the [source] article links to, as canonical titles.
-     * Uses the Action API `pltitles` filter so the response is bounded to the
-     * handful of relevant targets — never a hub's full (paginated) link list.
+     * The directed link graph *among* [articles]: canonical source → the subset of
+     * [articles] it links to. Everything a Chemistry Link needs (both directions of
+     * every pair) comes out of this one map.
+     *
+     * `prop=links` takes up to [MAX_TITLES_PER_REQUEST] values in **both** `titles`
+     * and `pltitles`, so a whole lineup — or a whole night's article pool — is one
+     * request rather than one per article. Larger pools walk the block grid of
+     * (source chunk × candidate chunk), which stays cheaper than a request per
+     * article until the pool passes 50² articles.
+     *
+     * Absent sources mean "links to nothing here": pages that are missing, or that
+     * link to none of [articles], simply have no entry.
      */
-    suspend fun outboundLinks(domain: String, source: String, candidates: Collection<String>): Set<String> {
-        if (candidates.isEmpty()) return emptySet()
-        val url = URLBuilder("https://$domain.wikipedia.org").apply {
-            appendPathSegments("w", "api.php")
-            parameters.append("action", "query")
-            parameters.append("prop", "links")
-            parameters.append("titles", source)
-            parameters.append("pltitles", candidates.joinToString("|"))
-            parameters.append("pllimit", "max")
-            parameters.append("format", "json")
-            parameters.append("formatversion", "2")
-        }.buildString()
+    suspend fun outboundLinksAmong(domain: String, articles: Collection<String>): Map<String, Set<String>> {
+        // Sorted so chunk boundaries — and therefore the requests — are deterministic.
+        val canonical = articles.map(Titles::canonical).filter { it.isNotEmpty() }.distinct().sorted()
+        // A single article has no partner in the set, so there is nothing to ask about.
+        if (canonical.size < 2) return emptyMap()
 
-        val response: HttpResponse = http.get(url)
-        val page = response.body<LinksResponse>().query?.pages?.firstOrNull()
-        return if (page == null || page.missing) {
-            emptySet()
-        } else {
-            page.links.map { Titles.canonical(it.title) }.toSet()
+        val blocks = canonical.chunked(MAX_TITLES_PER_REQUEST)
+        val graph = mutableMapOf<String, MutableSet<String>>()
+        for (sources in blocks) {
+            for (candidates in blocks) {
+                for ((source, targets) in linksBetween(domain, sources, candidates)) {
+                    graph.getOrPut(source) { mutableSetOf() }.addAll(targets)
+                }
+            }
         }
+        return graph
+    }
+
+    /**
+     * Which of [candidates] does each of [sources] link to, following continuation.
+     *
+     * `pllimit=max` is 500 link rows **per response across all pages**, well under
+     * the 50×50 a full block can produce, so a truncated page hands back a
+     * `plcontinue` token instead of the rest. Dropping it would read as "no link"
+     * and silently downgrade a Chemistry Link to Weak, so the loop drains it.
+     */
+    private suspend fun linksBetween(
+        domain: String,
+        sources: List<String>,
+        candidates: List<String>,
+    ): Map<String, Set<String>> {
+        val graph = mutableMapOf<String, MutableSet<String>>()
+        var plcontinue: String? = null
+
+        do {
+            val url = URLBuilder("https://$domain.wikipedia.org").apply {
+                appendPathSegments("w", "api.php")
+                parameters.append("action", "query")
+                parameters.append("prop", "links")
+                parameters.append("titles", sources.joinToString("|"))
+                parameters.append("pltitles", candidates.joinToString("|"))
+                parameters.append("pllimit", "max")
+                parameters.append("format", "json")
+                parameters.append("formatversion", "2")
+                plcontinue?.let { parameters.append("plcontinue", it) }
+            }.buildString()
+
+            val response: HttpResponse = http.get(url)
+            // As in dailyViews: an error body would parse into an empty page list,
+            // reading as "links to nothing" and downgrading every Chemistry Link.
+            require(response.status.isSuccess()) { "Action API ${response.status} for $domain" }
+            val body = response.body<LinksResponse>()
+            // Response titles are the API's normalized form — first character
+            // upper-cased, exactly what Titles.canonical does — so these keys match
+            // the caller's canonical article names. See classifyPair.
+            for (page in body.query?.pages.orEmpty()) {
+                if (page.missing || page.links.isEmpty()) continue
+                graph.getOrPut(Titles.canonical(page.title)) { mutableSetOf() }
+                    .addAll(page.links.map { Titles.canonical(it.title) })
+            }
+            plcontinue = body.continuation?.plcontinue
+        } while (plcontinue != null)
+
+        return graph
     }
 }
 

@@ -16,9 +16,15 @@
 > `io.github.fantasywiki.collector`), renamed from `scoring-engine` since it no
 > longer computes scores. Files: `Config`, `Model`, `Titles`, `WikimediaClient`
 > (+ `Chemistry`), `Collector` (fetch/assemble orchestration), `BackendClient`,
-> `Main`. Link resolution is **per-source with a `pltitles` filter** (one bounded
-> request per distinct paired article); the §5 connected-component *clustering* that
-> batches multiple sources per call is a documented, not-yet-needed optimization.
+> `Main`. Link resolution is **batched**, per §5's `titles = pltitles = the
+> article set` trick: `WikimediaClient.outboundLinksAmong` returns the whole
+> directed adjacency for a domain's paired articles, so the chemistry phase costs
+> ~1 request a night instead of one per article. The chunking is simpler than §5's
+> algorithm — the article set is split into ≤50 blocks and the block grid is
+> walked, rather than union-find components bin-packed into batches. Identical (one
+> call) while a domain's pool stays under 50 articles; past that, the §5 clustering
+> remains the better optimization, since it avoids the block cross-product.
+> `plcontinue` is followed, per §6(b).
 
 Status: **proposed**. Detailed design for the nightly scoring engine — the
 compute half of the loop whose backend half (Component 1) is already built and

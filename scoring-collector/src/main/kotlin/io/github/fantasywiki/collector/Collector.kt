@@ -2,6 +2,7 @@ package io.github.fantasywiki.collector
 
 import java.time.LocalDate
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -69,38 +70,36 @@ object Collector {
         }
     }
 
-    /** Per domain: canonical article → the set of canonical articles it shares a Chemistry Link with. */
-    private fun buildPartners(inputs: List<ScoringInput>): Map<String, Map<String, Set<String>>> {
-        val partners = mutableMapOf<String, MutableMap<String, MutableSet<String>>>()
+    /** Per domain: every canonical article that takes part in at least one Chemistry Link. */
+    private fun buildPartners(inputs: List<ScoringInput>): Map<String, Set<String>> {
+        val partners = mutableMapOf<String, MutableSet<String>>()
         for (input in inputs) {
-            val byDomain = partners.getOrPut(input.domain) { mutableMapOf() }
+            val byDomain = partners.getOrPut(input.domain) { mutableSetOf() }
             for (pair in input.chemistryLinks) {
                 if (pair.size != 2) continue
-                val a = Titles.canonical(pair[0])
-                val b = Titles.canonical(pair[1])
-                byDomain.getOrPut(a) { mutableSetOf() }.add(b)
-                byDomain.getOrPut(b) { mutableSetOf() }.add(a)
+                byDomain.add(Titles.canonical(pair[0]))
+                byDomain.add(Titles.canonical(pair[1]))
             }
         }
         return partners
     }
 
-    /** For each (domain, source), which of its partners it links to — one bounded request each. */
+    /**
+     * The link graph among every linked article, one batched request per domain
+     * (see [WikimediaClient.outboundLinksAmong]) rather than one per article — so
+     * this phase costs ~1 request a night instead of scaling with the article pool.
+     */
     private suspend fun fetchLinks(
-        partners: Map<String, Map<String, Set<String>>>,
+        partners: Map<String, Set<String>>,
         wikimedia: WikimediaClient,
         semaphore: Semaphore,
-    ): Map<LinkKey, Set<String>> {
-        val tasks = partners.flatMap { (domain, sources) ->
-            sources.map { (source, candidates) -> LinkKey(domain, source) to candidates }
-        }
-        return coroutineScope {
-            tasks.associate { (key, candidates) ->
-                key to async {
-                    semaphore.withPermit { wikimedia.outboundLinks(key.domain, key.source, candidates) }
-                }
-            }.mapValues { (_, deferred) -> deferred.await() }
-        }
+    ): Map<LinkKey, Set<String>> = coroutineScope {
+        partners.map { (domain, articles) ->
+            async {
+                semaphore.withPermit { wikimedia.outboundLinksAmong(domain, articles) }
+                    .mapKeys { (source, _) -> LinkKey(domain, source) }
+            }
+        }.awaitAll().reduceOrNull { a, b -> a + b }.orEmpty()
     }
 
     private fun classifyPair(domain: String, pair: List<String>, links: Map<LinkKey, Set<String>>): ChemistryLevel? {

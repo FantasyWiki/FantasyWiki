@@ -1,6 +1,5 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { Performance } from "../../../../model";
-import { STARTING_CREDITS } from "../../../../model/team";
 import { Result, success, failure } from "../result";
 import type {
   PerformanceRepository,
@@ -82,29 +81,23 @@ export class PerformanceRepositoryD1 implements PerformanceRepository {
     leagueId: string,
   ): Promise<Result<TeamCumulative[]>> {
     try {
-      // teamCredits is derived from the contracts ledger (see
-      // TeamRepositoryD1.getByPlayerAndLeague) via a CTE rather than a stored
-      // column.
+      // teamCredits comes from the team_credits view (migration 0006, ADR
+      // 0007) rather than a stored column. The view has a row for every team,
+      // including one that has never bought a contract, so this is a plain
+      // JOIN with no starting-budget fallback restated here.
       const latestRows = await this.db
         .prepare(
-          `WITH team_credits AS (
-             SELECT teamId,
-                    ? - COALESCE(SUM(purchasePrice), 0)
-                      + COALESCE(SUM(CASE WHEN settled = 1 THEN salePayout ELSE 0 END), 0) AS credits
-             FROM contracts
-             GROUP BY teamId
-           )
-           SELECT t.id AS teamId, t.name AS teamName, COALESCE(tc.credits, ?) AS teamCredits,
+          `SELECT t.id AS teamId, t.name AS teamName, tc.credits AS teamCredits,
                   pl.id AS playerId, pl.username AS playerName,
                   COALESCE(SUM(p.points), 0) AS total
            FROM teams t
            JOIN players pl ON pl.id = t.playerId
-           LEFT JOIN team_credits tc ON tc.teamId = t.id
+           JOIN team_credits tc ON tc.teamId = t.id
            LEFT JOIN performances p ON p.teamId = t.id
            WHERE t.leagueId = ?
            GROUP BY t.id, t.name, tc.credits, pl.id, pl.username`,
         )
-        .bind(STARTING_CREDITS, STARTING_CREDITS, leagueId)
+        .bind(leagueId)
         .all<{
           teamId: string;
           teamName: string;

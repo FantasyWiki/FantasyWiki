@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { LeaderboardService } from "../../services/leaderboard";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
 import { resetD1Database, insertTeam } from "../utils/d1TestUtils";
+import { STARTING_CREDITS } from "../../../../model/team";
 
 const TEAMS = [
   { id: "team-lb-1", name: "Alpha FC", playerId: "player-lb-1" },
@@ -68,6 +69,12 @@ describe("LeaderboardService.getLeaderboard", () => {
     expect(result.value.every((e) => e.cumulativePoints === 0)).toBe(true);
     expect(result.value.every((e) => e.rankDelta === null)).toBe(true);
     expect(result.value.map((e) => e.rank)).toEqual([1, 2, 3]);
+    // A team that has never bought a contract still reads its full budget
+    // straight out of the team_credits view (ADR 0007) — the view is driven
+    // from `teams`, so there is no missing row for the query to fall back on.
+    expect(result.value.every((e) => e.team.credits === STARTING_CREDITS)).toBe(
+      true,
+    );
   });
 
   it("keeps an unscored team in the table alongside scored ones", async () => {

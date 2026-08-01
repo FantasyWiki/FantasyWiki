@@ -66,7 +66,8 @@ doc disagree, **the ADR wins**.
 [0002 Language Scale Factor](./adr/0002-language-scale-factor.md) ·
 [0003 Closed Trading Economy](./adr/0003-closed-trading-economy.md) ·
 [0004 Scoring Engine Platform](./adr/0004-scoring-engine-platform.md) ·
-[0005 Contract Pricing](./adr/0005-contract-pricing.md)
+[0005 Contract Pricing](./adr/0005-contract-pricing.md) ·
+[0007 Team Credits Derived and Enforced at the Write](./adr/0007-team-credits-derived-and-enforced-at-write.md)
 
 ### `agents/` — machine-read repo metadata
 Issue tracker, triage labels, and domain-context layout. Skills read these at

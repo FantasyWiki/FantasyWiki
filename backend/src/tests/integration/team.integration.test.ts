@@ -5,7 +5,11 @@ import { PlayerService } from "../../services/player";
 import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
 import type { TeamRepository } from "../../repositories/teamRepository";
 import { success, failure } from "../../repositories/result";
-import { STARTING_CREDITS } from "../../../../model/team";
+import {
+  deriveCreditsFromLedger,
+  STARTING_CREDITS,
+  type CreditLedgerEntry,
+} from "../../../../model/team";
 import type { Team } from "../../../../model";
 
 describe("TeamService Integration Tests", () => {
@@ -258,6 +262,113 @@ describe("TeamService Integration Tests", () => {
           player: { id: playerId, name: "Bob" },
         });
       }
+    });
+  });
+
+  // The team_credits view is the single SQL statement of the Team aggregate's
+  // core invariant (ADR 0007). These assert it against the model's pure
+  // `deriveCreditsFromLedger` — spec and concurrency-safe implementation are
+  // duplicated on purpose, so tests are what keep them equal.
+  describe("team_credits view", () => {
+    const TEAM_ID = "team-credits-view";
+
+    async function creditsFromView(teamId: string): Promise<number | null> {
+      const row = await env.db
+        .prepare("SELECT credits FROM team_credits WHERE teamId = ?")
+        .bind(teamId)
+        .first<{ credits: number }>();
+      return row?.credits ?? null;
+    }
+
+    async function insertContract(
+      opts: Pick<CreditLedgerEntry, "purchasePrice" | "settled" | "salePayout">,
+    ): Promise<void> {
+      await env.db
+        .prepare(
+          `INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice, settled, salePayout)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .bind(
+          crypto.randomUUID(),
+          TEAM_ID,
+          `article-${crypto.randomUUID()}`,
+          "2026-01-01",
+          "2026-01-08",
+          opts.purchasePrice,
+          opts.settled ? 1 : 0,
+          opts.salePayout,
+        )
+        .run();
+    }
+
+    beforeEach(async () => {
+      await env.db
+        .prepare(
+          "INSERT INTO teams (id, name, playerId, leagueId) VALUES (?, ?, ?, ?)",
+        )
+        .bind(TEAM_ID, "Ledger FC", playerId, leagueId)
+        .run();
+    });
+
+    // The drift guard for the one value the view cannot bind: SQLite views
+    // take no parameters, so the starting budget is inlined in migration 0006
+    // and this is what fails if it stops matching model/team.ts.
+    it("should yield exactly STARTING_CREDITS for a team with no contracts", async () => {
+      expect(await creditsFromView(TEAM_ID)).toBe(STARTING_CREDITS);
+    });
+
+    it("should match the model's derivation for a mixed ledger", async () => {
+      const ledger: CreditLedgerEntry[] = [
+        { purchasePrice: 150, settled: false, salePayout: null },
+        { purchasePrice: 80, settled: false, salePayout: null },
+        { purchasePrice: 200, settled: true, salePayout: 260 },
+        { purchasePrice: 50, settled: true, salePayout: 10 },
+      ];
+      for (const entry of ledger) {
+        await insertContract(entry);
+      }
+
+      expect(await creditsFromView(TEAM_ID)).toBe(
+        deriveCreditsFromLedger(STARTING_CREDITS, ledger),
+      );
+    });
+
+    it("should not credit a payout until the contract is settled", async () => {
+      await insertContract({
+        purchasePrice: 150,
+        settled: false,
+        salePayout: 90,
+      });
+
+      expect(await creditsFromView(TEAM_ID)).toBe(STARTING_CREDITS - 150);
+    });
+
+    it("should treat a settled contract with a null payout as recovering nothing", async () => {
+      await insertContract({
+        purchasePrice: 150,
+        settled: true,
+        salePayout: null,
+      });
+
+      expect(await creditsFromView(TEAM_ID)).toBe(STARTING_CREDITS - 150);
+    });
+
+    it("should scope the derivation to one team", async () => {
+      const otherTeamId = "team-credits-view-other";
+      await env.db
+        .prepare(
+          "INSERT INTO teams (id, name, playerId, leagueId) VALUES (?, ?, ?, ?)",
+        )
+        .bind(otherTeamId, "Bystander FC", "system", leagueId)
+        .run();
+      await insertContract({
+        purchasePrice: 150,
+        settled: false,
+        salePayout: null,
+      });
+
+      expect(await creditsFromView(TEAM_ID)).toBe(STARTING_CREDITS - 150);
+      expect(await creditsFromView(otherTeamId)).toBe(STARTING_CREDITS);
     });
   });
 });

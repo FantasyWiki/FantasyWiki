@@ -4,7 +4,6 @@ import {
   NotificationRow,
   NOTIFICATION_ERRORS,
 } from "../notificationRepository";
-import { STARTING_CREDITS } from "../../../../model/team";
 import { Result, success, failure } from "../result";
 
 interface NotificationJoinRow {
@@ -25,18 +24,10 @@ interface NotificationJoinRow {
   playerName: string;
 }
 
-// credits is derived from the contracts ledger (see
-// TeamRepositoryD1.getByPlayerAndLeague) via a CTE rather than a stored
-// column. Its bind param (STARTING_CREDITS) must be the first `?` supplied by
-// every caller of this fragment, before their own WHERE params.
+// credits comes from the team_credits view (migration 0006, ADR 0007) rather
+// than a stored column. The view takes no parameters, so this fragment binds
+// nothing of its own and callers supply only their own WHERE params.
 const SELECT_NOTIFICATIONS = `
-  WITH team_credits AS (
-    SELECT teamId,
-           ? - COALESCE(SUM(purchasePrice), 0)
-             + COALESCE(SUM(CASE WHEN settled = 1 THEN salePayout ELSE 0 END), 0) AS credits
-    FROM contracts
-    GROUP BY teamId
-  )
   SELECT n.id, n.message, n.date, n.isRead,
          c.id AS contractId, c.articleId, c.purchaseDate, c.expireDate, c.purchasePrice,
          t.id AS teamId, t.name AS teamName, tc.credits, t.leagueId,
@@ -68,7 +59,7 @@ export class NotificationRepositoryD1 implements NotificationRepository {
         .prepare(
           `${SELECT_NOTIFICATIONS} WHERE t.playerId = ? AND t.leagueId = ? ORDER BY n.date DESC`,
         )
-        .bind(STARTING_CREDITS, playerId, leagueId)
+        .bind(playerId, leagueId)
         .all<NotificationJoinRow>();
 
       return success(result.results.map(toNotificationRow));
@@ -85,7 +76,7 @@ export class NotificationRepositoryD1 implements NotificationRepository {
         .prepare(
           `${SELECT_NOTIFICATIONS} WHERE t.playerId = ? ORDER BY n.date DESC`,
         )
-        .bind(STARTING_CREDITS, playerId)
+        .bind(playerId)
         .all<NotificationJoinRow>();
 
       return success(result.results.map(toNotificationRow));

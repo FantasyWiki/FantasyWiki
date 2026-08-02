@@ -107,7 +107,9 @@ export class ContractRepositoryD1 implements ContractRepository {
     try {
       // teamCredits comes from the team_credits view — the single SQL
       // statement of the derivation (migration 0006, ADR 0007) — never from a
-      // stored column and never re-derived here.
+      // stored column and never re-derived here. The league filter is applied
+      // to the view's own leagueId so SQLite narrows the aggregate to this
+      // league instead of building it for every team in the database.
       const result = await this.db
         .prepare(
           `SELECT c.*, t.name AS teamName, tc.credits AS teamCredits,
@@ -116,7 +118,7 @@ export class ContractRepositoryD1 implements ContractRepository {
            JOIN teams t ON c.teamId = t.id
            JOIN players p ON t.playerId = p.id
            JOIN team_credits tc ON tc.teamId = t.id
-           WHERE t.leagueId = ? AND c.settled = 0`,
+           WHERE tc.leagueId = ? AND c.settled = 0`,
         )
         .bind(leagueId)
         .all<LeagueContractQueryRow>();

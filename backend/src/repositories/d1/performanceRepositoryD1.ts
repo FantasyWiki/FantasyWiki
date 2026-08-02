@@ -84,7 +84,9 @@ export class PerformanceRepositoryD1 implements PerformanceRepository {
       // teamCredits comes from the team_credits view (migration 0006, ADR
       // 0007) rather than a stored column. The view has a row for every team,
       // including one that has never bought a contract, so this is a plain
-      // JOIN with no starting-budget fallback restated here.
+      // JOIN with no starting-budget fallback restated here. The league filter
+      // names the view's own leagueId so SQLite narrows the aggregate to this
+      // league rather than building it for every team in the database.
       const latestRows = await this.db
         .prepare(
           `SELECT t.id AS teamId, t.name AS teamName, tc.credits AS teamCredits,
@@ -94,7 +96,7 @@ export class PerformanceRepositoryD1 implements PerformanceRepository {
            JOIN players pl ON pl.id = t.playerId
            JOIN team_credits tc ON tc.teamId = t.id
            LEFT JOIN performances p ON p.teamId = t.id
-           WHERE t.leagueId = ?
+           WHERE tc.leagueId = ?
            GROUP BY t.id, t.name, tc.credits, pl.id, pl.username`,
         )
         .bind(leagueId)

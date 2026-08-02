@@ -78,12 +78,20 @@ export class TeamRepositoryD1 implements TeamRepository {
       // derivation itself lives in the team_credits view (migration 0006, ADR
       // 0007) — the one place it is written in SQL — and every team has a row
       // there, so this is a plain JOIN with no fallback.
+      //
+      // Filtered on the view's own playerId/leagueId, not on the joined teams
+      // row: the view is inlined and recomputed per statement, and SQLite only
+      // pushes a constraint down into its aggregate when the constraint names
+      // the view's GROUP BY columns. Written this way it seeks one team via
+      // UNIQUE (playerId, leagueId) and sums only that team's contracts;
+      // written as `WHERE t.playerId = ?` it would aggregate every team in the
+      // database on every dashboard load.
       const result = await this.db
         .prepare(
           `SELECT t.id, t.name, t.playerId, t.leagueId, tc.credits
-           FROM teams t
-           JOIN team_credits tc ON tc.teamId = t.id
-           WHERE t.playerId = ? AND t.leagueId = ?`,
+           FROM team_credits tc
+           JOIN teams t ON t.id = tc.teamId
+           WHERE tc.playerId = ? AND tc.leagueId = ?`,
         )
         .bind(playerId, leagueId)
         .first<Team>();

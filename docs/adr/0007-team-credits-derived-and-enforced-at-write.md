@@ -94,19 +94,21 @@ It is now stated once, as the `team_credits` view:
 ```sql
 CREATE VIEW team_credits AS
 SELECT t.id AS teamId,
+       t.playerId AS playerId,
+       t.leagueId AS leagueId,
        1000
          - COALESCE(SUM(c.purchasePrice), 0)
          + COALESCE(SUM(CASE WHEN c.settled = 1 THEN c.salePayout ELSE 0 END), 0) AS credits
 FROM teams t
 LEFT JOIN contracts c ON c.teamId = t.id
-GROUP BY t.id;
+GROUP BY t.id, t.playerId, t.leagueId;
 ```
 
 Every reader joins the view. The guarded `INSERT` reads it as a scalar
 subquery, which changes nothing about its atomicity — a view is inlined into
 the referencing statement, so it is still one statement doing the enforcing.
 
-Two shape choices are load-bearing:
+Three shape choices are load-bearing:
 
 - **Driven from `teams`, not from `contracts`.** Grouping over `contracts`
   alone gives no row at all for a team that has never bought anything, which
@@ -114,6 +116,16 @@ Two shape choices are load-bearing:
   — the duplication we are removing, in a subtler form. Driving from `teams`
   gives every team exactly one row, so a brand-new team reads
   `STARTING_CREDITS` straight out of the view.
+- **`playerId` and `leagueId` are exposed and named in the `GROUP BY`, and
+  callers filter on them.** A view is not a cache: SQLite has no materialised
+  views, so the aggregate is recomputed as part of every statement that
+  references it. What decides the cost is therefore whether SQLite can push the
+  caller's `WHERE` clause down into the aggregate, and it only does that for
+  constraints naming the view's own `GROUP BY` columns. `WHERE tc.leagueId = ?`
+  narrows the aggregate to one league; the equivalent `WHERE t.leagueId = ?` on
+  a joined `teams` row does not, and builds it for every team in the database
+  first. `EXPLAIN QUERY PLAN` is the check: the view's `CO-ROUTINE` block
+  should show a `SEARCH` on an index, not a bare `SCAN t`.
 - **The starting budget is inlined.** SQLite views cannot take parameters, so
   `1000` appears literally in the view instead of being bound from
   `STARTING_CREDITS`. This is the one piece of duplication the change does not
@@ -136,10 +148,13 @@ honest by tests that assert both produce the same number for the same ledger.
 
 ## Consequences
 
-- Reading a balance always costs an aggregate over the team's contracts. If
-  that ever shows up in profiling, the fix is a materialised summary
-  maintained by triggers — not a hand-maintained column, and not moving the
-  check into the service layer.
+- Reading a balance always costs an aggregate over the team's contracts, on
+  every read — nothing is cached. Adding a reader that filters the view on a
+  joined table's columns instead of the view's own silently turns a per-team
+  aggregate into a whole-database one, so new call sites should be checked with
+  `EXPLAIN QUERY PLAN`. If the per-read cost ever shows up in profiling, the
+  fix is a materialised summary maintained by triggers — not a hand-maintained
+  column, and not moving the check into the service layer.
 - The formula lives in a migration, and migrations are immutable history.
   Changing `STARTING_CREDITS` means a new migration redefining the view *and*
   the constant in `model/team.ts`. Note this retroactively restates every

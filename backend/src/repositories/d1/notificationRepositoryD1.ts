@@ -27,6 +27,11 @@ interface NotificationJoinRow {
 // credits comes from the team_credits view (migration 0006, ADR 0007) rather
 // than a stored column. The view takes no parameters, so this fragment binds
 // nothing of its own and callers supply only their own WHERE params.
+//
+// Callers must scope by `tc.playerId` / `tc.leagueId` rather than by the
+// joined `t.` row: the view is recomputed per statement, and only a constraint
+// on its own columns gets pushed down into the aggregate. Filtering on `t.`
+// instead would sum every team in the database before discarding all but one.
 const SELECT_NOTIFICATIONS = `
   SELECT n.id, n.message, n.date, n.isRead,
          c.id AS contractId, c.articleId, c.purchaseDate, c.expireDate, c.purchasePrice,
@@ -57,7 +62,7 @@ export class NotificationRepositoryD1 implements NotificationRepository {
     try {
       const result = await this.db
         .prepare(
-          `${SELECT_NOTIFICATIONS} WHERE t.playerId = ? AND t.leagueId = ? ORDER BY n.date DESC`,
+          `${SELECT_NOTIFICATIONS} WHERE tc.playerId = ? AND tc.leagueId = ? ORDER BY n.date DESC`,
         )
         .bind(playerId, leagueId)
         .all<NotificationJoinRow>();
@@ -74,7 +79,7 @@ export class NotificationRepositoryD1 implements NotificationRepository {
     try {
       const result = await this.db
         .prepare(
-          `${SELECT_NOTIFICATIONS} WHERE t.playerId = ? ORDER BY n.date DESC`,
+          `${SELECT_NOTIFICATIONS} WHERE tc.playerId = ? ORDER BY n.date DESC`,
         )
         .bind(playerId)
         .all<NotificationJoinRow>();

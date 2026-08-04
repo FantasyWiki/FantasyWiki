@@ -1,4 +1,4 @@
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useQuery, useQueryClient } from "@tanstack/vue-query";
 import { useLeagueStore } from "@/stores/league";
 import {
@@ -138,6 +138,15 @@ export function useMarket() {
   }
 
   const isGenieMode = computed(() => genieResults.value !== null);
+
+  // The findings are articles from one league's Wikipedia domain, priced there.
+  // The market list is keyed by domain and refetches itself, but these are held
+  // outside it — left alone they would keep the old league's rows on screen,
+  // wearing the new league's ownership badges.
+  watch(
+    () => leagueStore.currentLeagueId,
+    () => clearGenieResults()
+  );
 
   function toggleSort(key: SortKey) {
     if (sortKey.value === key) {

@@ -177,6 +177,23 @@ export const GENIE_MAX_CANDIDATES = 40;
 /** The soft cap of 10 turns plus the one optional "+5" extension. */
 export const GENIE_MAX_HISTORY = 15;
 
+/**
+ * Caps on the free text the client carries, because the count caps above bound
+ * how *many* strings arrive and not how long they are. Without these, forty
+ * candidates and fifteen exchanges are a megabyte-scale prompt, and Workers AI
+ * neurons are an **account-wide** daily allocation: one player could put the
+ * Genie to sleep for everyone, at the rate limiter's 20 requests a minute.
+ *
+ * Sized so a real session can never hit them. Titles and blurbs come from the
+ * search API — Wikipedia titles are capped at 255 bytes and a blurb is one line.
+ * The history is the model's own words fed back, and `max_tokens` is 512, so no
+ * reply it is capable of generating can exceed these.
+ */
+export const GENIE_MAX_TITLE_CHARS = 300;
+export const GENIE_MAX_DESCRIPTION_CHARS = 1000;
+export const GENIE_MAX_QUESTION_CHARS = 2000;
+export const GENIE_MAX_ANSWER_CHARS = 500;
+
 /** Survivors at or below this are worth showing rather than narrowing further. */
 export const GENIE_RESULT_THRESHOLD = 5;
 
@@ -187,6 +204,8 @@ export const GENIE_ERRORS = {
   TOO_MANY_CANDIDATES: "GENIE_TOO_MANY_CANDIDATES",
   NO_CANDIDATES: "GENIE_NO_CANDIDATES",
   HISTORY_TOO_LONG: "GENIE_HISTORY_TOO_LONG",
+  /** A candidate or an exchange carried more text than a real one ever could. */
+  TEXT_TOO_LONG: "GENIE_TEXT_TOO_LONG",
   INVALID_BUCKET: "GENIE_INVALID_BUCKET",
   DUPLICATE_CANDIDATE_ID: "GENIE_DUPLICATE_CANDIDATE_ID",
   RATE_LIMITED: "GENIE_RATE_LIMITED",

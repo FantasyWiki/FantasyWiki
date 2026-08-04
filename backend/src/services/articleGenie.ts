@@ -1,11 +1,16 @@
 import {
   GENIE_ERRORS,
   GENIE_MAX_ANCHORS,
+  GENIE_MAX_ANSWER_CHARS,
   GENIE_MAX_CANDIDATES,
+  GENIE_MAX_DESCRIPTION_CHARS,
   GENIE_MAX_HISTORY,
   GENIE_MAX_QUERY_CHARS,
+  GENIE_MAX_QUESTION_CHARS,
+  GENIE_MAX_TITLE_CHARS,
   GENIE_UNSURE_ANSWER,
   GenieCandidateDTO,
+  GenieExchangeDTO,
   GenieQuestionKind,
   GenieSeedRequest,
   GenieSeedResponse,
@@ -126,8 +131,36 @@ export class ArticleGenieService {
   }
 }
 
+/**
+ * Element-level shape checks, so a body that is the right shape at the top and
+ * wrong inside is a 400 rather than a 500. Everything below reaches string
+ * methods and prompt interpolation unguarded, and `?.` only covers null — a
+ * numeric `description` would reach `.trim()` and throw out of the route.
+ */
+function isCandidate(value: unknown): value is GenieCandidateDTO {
+  if (typeof value !== "object" || value === null) return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.id === "number" &&
+    Number.isInteger(record.id) &&
+    typeof record.title === "string" &&
+    (record.description === undefined || typeof record.description === "string")
+  );
+}
+
+function isExchange(value: unknown): value is GenieExchangeDTO {
+  if (typeof value !== "object" || value === null) return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.question === "string" && typeof record.answer === "string"
+  );
+}
+
 function validate(request: GenieTurnRequest): Result<true> {
-  const query = request?.query?.trim() ?? "";
+  if (typeof request?.query !== "string") {
+    return failure(GENIE_ERRORS.QUERY_REQUIRED);
+  }
+  const query = request.query.trim();
   if (query.length === 0) {
     return failure(GENIE_ERRORS.QUERY_REQUIRED);
   }
@@ -141,6 +174,19 @@ function validate(request: GenieTurnRequest): Result<true> {
   }
   if (candidates.length > GENIE_MAX_CANDIDATES) {
     return failure(GENIE_ERRORS.TOO_MANY_CANDIDATES);
+  }
+  if (!candidates.every(isCandidate)) {
+    return failure(GENIE_ERRORS.MALFORMED_BODY);
+  }
+  // The count caps bound how many strings arrive, never how long they are, and
+  // the prompt is billed by the token against an account-wide allocation.
+  const oversizedCandidate = candidates.some(
+    (candidate) =>
+      candidate.title.length > GENIE_MAX_TITLE_CHARS ||
+      (candidate.description?.length ?? 0) > GENIE_MAX_DESCRIPTION_CHARS,
+  );
+  if (oversizedCandidate) {
+    return failure(GENIE_ERRORS.TEXT_TOO_LONG);
   }
 
   // Duplicate ids would make `keep` ambiguous — two different articles would
@@ -156,6 +202,17 @@ function validate(request: GenieTurnRequest): Result<true> {
   }
   if (request.history.length > GENIE_MAX_HISTORY) {
     return failure(GENIE_ERRORS.HISTORY_TOO_LONG);
+  }
+  if (!request.history.every(isExchange)) {
+    return failure(GENIE_ERRORS.MALFORMED_BODY);
+  }
+  const oversizedExchange = request.history.some(
+    (exchange) =>
+      exchange.question.length > GENIE_MAX_QUESTION_CHARS ||
+      exchange.answer.length > GENIE_MAX_ANSWER_CHARS,
+  );
+  if (oversizedExchange) {
+    return failure(GENIE_ERRORS.TEXT_TOO_LONG);
   }
 
   if (!isGenieBucket(request.bucket)) {
@@ -434,8 +491,18 @@ function sanitize(
 
   const lastAnswer = request.history.at(-1)?.answer;
 
-  if (parsed.kind === "preference" || isNonCommittal(lastAnswer)) {
-    // Both promises are kept here, not in the prompt: a preference question
+  if (
+    parsed.kind === "preference" ||
+    isNonCommittal(lastAnswer) ||
+    // Nothing has been answered yet, so there is nothing to narrow *on*: the
+    // opening turn is a question, not a verdict. The prompt already says to
+    // keep every id on the first turn, and a prompt is a request — a model
+    // that returns a subset here hands the player a set it picked before they
+    // said a word, and at 40 candidates it can land straight on the result
+    // threshold and end the hunt without a single question being answered.
+    request.history.length === 0
+  ) {
+    // These promises are kept here, not in the prompt: a preference question
     // only re-ranks, and a question the player could not answer must never be
     // the reason their article disappeared.
     keep = allIds;

@@ -550,16 +550,22 @@ export const handlers = [
   }),
 
   http.post("*/api/me/genie-turns", async ({ request }) => {
-    const { candidates } = (await request.json()) as {
+    const { candidates, history } = (await request.json()) as {
       candidates: { id: number }[];
+      history: unknown[];
     };
+    // The opening turn keeps everything, exactly as the real service enforces:
+    // nothing has been answered, so there is nothing to narrow on. Narrowing
+    // here would drop the mock straight past the result threshold and show the
+    // player their findings without a single question being asked.
+    const keep = history.length === 0 ? candidates : candidates.slice(0, 3);
     return HttpResponse.json({
       utterance: "Mhh, curious — is it a person?",
       question: "Is it a person?",
-      keep: candidates.slice(0, 3).map((c) => c.id),
+      keep: keep.map((c) => c.id),
       options: ["Yes", "No"],
       kind: "filter",
-      done: candidates.length <= 3,
+      done: keep.length <= 3,
     });
   }),
 

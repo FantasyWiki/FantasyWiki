@@ -63,7 +63,10 @@ function post(app: Hono, body: unknown) {
 
 const VALID_TURN = {
   query: "find me a relation between OpenAI and Portugal",
-  history: [],
+  // One exchange already answered. The opening turn keeps the whole set by
+  // guarantee — there is no answer to narrow on yet — so a turn that means to
+  // show narrowing has to be past it.
+  history: [{ question: "Is it recent?", answer: "Yes" }],
   candidates: [
     { id: 1, title: "Google", description: "American technology company" },
     {
@@ -142,6 +145,49 @@ describe("POST /api/me/genie-turns", () => {
       error: GENIE_ERRORS.NO_CANDIDATES,
     });
     // Validation runs before the model, so a bad payload costs no neurons.
+    expect(aiCalls).toHaveLength(0);
+  });
+
+  it("keeps the whole set on the opening turn, whatever the model says", async () => {
+    stubAi(GOOD_REPLY);
+
+    const response = await post(app, { ...VALID_TURN, history: [] });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { keep: number[] };
+    // GOOD_REPLY narrows to [2]. With nothing answered there is nothing to
+    // narrow on, so the model would be picking for the player before they have
+    // said a word — and a full seed can drop straight to the result threshold,
+    // ending the hunt on a turn that asked rather than answered.
+    expect(body.keep).toEqual([1, 2]);
+  });
+
+  it("answers 400 for a candidate carrying more text than a real one could", async () => {
+    stubAi(GOOD_REPLY);
+
+    const response = await post(app, {
+      ...VALID_TURN,
+      candidates: [{ id: 1, title: "Google", description: "x".repeat(5000) }],
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: GENIE_ERRORS.TEXT_TOO_LONG,
+    });
+    // Neurons are an account-wide daily allocation, so an unbounded prompt is
+    // one player putting the Genie to sleep for everyone. Nothing is spent.
+    expect(aiCalls).toHaveLength(0);
+  });
+
+  it("answers 400, not 500, when a field is the wrong type", async () => {
+    stubAi(GOOD_REPLY);
+
+    const response = await post(app, {
+      ...VALID_TURN,
+      candidates: [{ id: 1, title: "Google", description: 7 }],
+    });
+
+    expect(response.status).toBe(400);
     expect(aiCalls).toHaveLength(0);
   });
 

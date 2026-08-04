@@ -157,7 +157,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, onUnmounted, watch } from "vue";
 import {
   IonButton,
   IonButtons,
@@ -279,11 +279,21 @@ function onDismiss() {
 
 // Asleep is a brief popup, not a state to sit in: it says its line and hands
 // the player back to the search bar.
+//
+// The timer is held and cancelled rather than left to fire: the session state
+// is module-scoped, so a player who reopens and starts a fresh hunt inside the
+// dismissal window would otherwise have the old timer close the panel out from
+// under the new one.
+let asleepTimer: number | undefined;
+
 watch(status, (value) => {
+  window.clearTimeout(asleepTimer);
   if (value === "asleep") {
-    window.setTimeout(() => emit("close"), ASLEEP_DISMISS_MS);
+    asleepTimer = window.setTimeout(() => emit("close"), ASLEEP_DISMISS_MS);
   }
 });
+
+onUnmounted(() => window.clearTimeout(asleepTimer));
 </script>
 
 <style scoped>

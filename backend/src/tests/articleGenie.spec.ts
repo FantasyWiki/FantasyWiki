@@ -2,9 +2,12 @@ import { describe, it, expect } from "vitest";
 import {
   GENIE_ERRORS,
   GENIE_MAX_ANCHORS,
+  GENIE_MAX_ANSWER_CHARS,
   GENIE_MAX_CANDIDATES,
+  GENIE_MAX_DESCRIPTION_CHARS,
   GENIE_MAX_HISTORY,
   GENIE_MAX_QUERY_CHARS,
+  GENIE_MAX_TITLE_CHARS,
   GENIE_UNSURE_ANSWER,
   GenieTurnRequest,
 } from "../../../dto/genieDTO";
@@ -60,6 +63,17 @@ function turn(overrides: Partial<GenieTurnRequest> = {}): GenieTurnRequest {
     ...overrides,
   };
 }
+
+/**
+ * One exchange already behind us, so a turn is narrowing on an answer the
+ * player actually gave. The opening turn is a different case with a guarantee
+ * of its own — nothing has been answered, so nothing may be filtered out — and
+ * a test that means to exercise narrowing has to be past it.
+ *
+ * Worded unlike anything the replies below ask, so it does not trip the
+ * repeated-question retry on its way through.
+ */
+const ANSWERED = [{ question: "Is it from this century?", answer: "Yes" }];
 
 const GOOD_REPLY = JSON.stringify({
   utterance: "A fine hunt — is it a person?",
@@ -256,6 +270,109 @@ describe("ArticleGenieService", () => {
       });
     });
 
+    it("rejects a blurb longer than any real one, without calling the model", async () => {
+      const llm = stubLlm(GOOD_REPLY);
+      const result = await new ArticleGenieService(llm).takeTurn(
+        turn({
+          candidates: [
+            {
+              id: 1,
+              title: "Katherine Johnson",
+              description: "x".repeat(GENIE_MAX_DESCRIPTION_CHARS + 1),
+            },
+          ],
+        }),
+      );
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      // The count caps bound how many strings arrive, never how long they are.
+      // Forty megabyte blurbs is a megabyte-scale prompt billed against an
+      // account-wide neuron allocation — one player putting the Genie to sleep
+      // for everybody.
+      expect(result.error).toBe(GENIE_ERRORS.TEXT_TOO_LONG);
+      expect(llm.calls).toHaveLength(0);
+    });
+
+    it("rejects a title longer than Wikipedia can even have", async () => {
+      const result = await new ArticleGenieService(
+        stubLlm(GOOD_REPLY),
+      ).takeTurn(
+        turn({
+          candidates: [{ id: 1, title: "x".repeat(GENIE_MAX_TITLE_CHARS + 1) }],
+        }),
+      );
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error).toBe(GENIE_ERRORS.TEXT_TOO_LONG);
+    });
+
+    it("rejects an exchange carrying more text than the model can generate", async () => {
+      const result = await new ArticleGenieService(
+        stubLlm(GOOD_REPLY),
+      ).takeTurn(
+        turn({
+          history: [
+            {
+              question: "Is it a person?",
+              answer: "y".repeat(GENIE_MAX_ANSWER_CHARS + 1),
+            },
+          ],
+        }),
+      );
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error).toBe(GENIE_ERRORS.TEXT_TOO_LONG);
+    });
+
+    it("rejects a candidate whose fields are the wrong type", async () => {
+      const llm = stubLlm(GOOD_REPLY);
+      const result = await new ArticleGenieService(llm).takeTurn(
+        turn({
+          // A numeric blurb reaches `.trim()` while the prompt is built, which
+          // is outside every try/catch on the path — so without this check the
+          // route answers 500 to a body it should be calling a 400.
+          candidates: [
+            { id: 1, title: "Katherine Johnson", description: 7 },
+          ] as unknown as GenieTurnRequest["candidates"],
+        }),
+      );
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error).toBe(GENIE_ERRORS.MALFORMED_BODY);
+      expect(llm.calls).toHaveLength(0);
+    });
+
+    it("rejects an exchange whose fields are the wrong type", async () => {
+      const result = await new ArticleGenieService(
+        stubLlm(GOOD_REPLY),
+      ).takeTurn(
+        turn({
+          // Reaches `.trim()` in the repeat check, equally uncaught.
+          history: [
+            { question: null, answer: "Yes" },
+          ] as unknown as GenieTurnRequest["history"],
+        }),
+      );
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error).toBe(GENIE_ERRORS.MALFORMED_BODY);
+    });
+
+    it("rejects a query that is not a string", async () => {
+      const result = await new ArticleGenieService(
+        stubLlm(GOOD_REPLY),
+      ).takeTurn(turn({ query: 42 as unknown as string }));
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error).toBe(GENIE_ERRORS.QUERY_REQUIRED);
+    });
+
     it("rejects a bucket that is not one of the agreed words", async () => {
       const result = await new ArticleGenieService(
         stubLlm(GOOD_REPLY),
@@ -293,7 +410,7 @@ describe("ArticleGenieService", () => {
     it("returns the model's utterance and the surviving ids", async () => {
       const result = await new ArticleGenieService(
         stubLlm(GOOD_REPLY),
-      ).takeTurn(turn());
+      ).takeTurn(turn({ history: ANSWERED }));
 
       expect(result.ok).toBe(true);
       if (!result.ok) return;
@@ -312,7 +429,7 @@ describe("ArticleGenieService", () => {
     it("reads the object out of a fenced or padded reply", async () => {
       const result = await new ArticleGenieService(
         stubLlm("Here you go!\n```json\n" + GOOD_REPLY + "\n```"),
-      ).takeTurn(turn());
+      ).takeTurn(turn({ history: ANSWERED }));
 
       expect(result.ok).toBe(true);
       if (!result.ok) return;
@@ -321,6 +438,21 @@ describe("ArticleGenieService", () => {
   });
 
   describe("what the model gets wrong", () => {
+    it("keeps everything on the opening turn, which answers nothing", async () => {
+      const result = await new ArticleGenieService(
+        stubLlm(GOOD_REPLY),
+      ).takeTurn(turn({ history: [] }));
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      // GOOD_REPLY narrows to [1, 3]. On turn one there is no answer to narrow
+      // on, so that is the model picking for the player before they have said a
+      // word — and with a full 40-candidate seed it can land straight on the
+      // result threshold and end the hunt without a question ever being
+      // answered. The prompt asks for every id here; this is what enforces it.
+      expect(result.value.keep).toEqual([1, 2, 3]);
+    });
+
     it("discards ids that were never in the candidate list", async () => {
       const result = await new ArticleGenieService(
         stubLlm(
@@ -332,7 +464,7 @@ describe("ArticleGenieService", () => {
             done: false,
           }),
         ),
-      ).takeTurn(turn());
+      ).takeTurn(turn({ history: ANSWERED }));
 
       expect(result.ok).toBe(true);
       if (!result.ok) return;
@@ -351,7 +483,7 @@ describe("ArticleGenieService", () => {
             done: false,
           }),
         ),
-      ).takeTurn(turn());
+      ).takeTurn(turn({ history: ANSWERED }));
 
       expect(result.ok).toBe(true);
       if (!result.ok) return;
@@ -397,7 +529,7 @@ describe("ArticleGenieService", () => {
             done: false,
           }),
         ),
-      ).takeTurn(turn());
+      ).takeTurn(turn({ history: ANSWERED }));
 
       expect(result.ok).toBe(true);
       if (!result.ok) return;
@@ -556,7 +688,9 @@ describe("ArticleGenieService", () => {
   describe("failure", () => {
     it("retries once when the reply is not JSON, and uses the retry", async () => {
       const llm = stubLlm("I think it's Katherine Johnson!", GOOD_REPLY);
-      const result = await new ArticleGenieService(llm).takeTurn(turn());
+      const result = await new ArticleGenieService(llm).takeTurn(
+        turn({ history: ANSWERED }),
+      );
 
       expect(result.ok).toBe(true);
       if (!result.ok) return;

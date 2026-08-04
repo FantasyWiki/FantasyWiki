@@ -6,6 +6,7 @@ import { ref } from "vue";
 import RenewalRiskChip from "@/components/teamDashboard/RenewalRiskChip.vue";
 import { ContractDTO } from "../../../../dto/contractDTO";
 import { computeCurrentPrice, TIER_DAYS } from "../../../../model/pricing";
+import { renewalPrice as computeRenewalPrice } from "../../../../model/contract";
 import type { TeamDTO } from "../../../../dto/teamDTO";
 import type { ArticleDTO } from "../../../../dto/articleDTO";
 
@@ -59,7 +60,13 @@ function contractWith(purchasePrice: number, renewalElected = true) {
   );
 }
 
-const renewalPrice = computeCurrentPrice(AVG_VIEWS, "en", TIER_DAYS.MEDIUM);
+// The fixture's renewalCount is 0, so renewing it is the *first* renewal and
+// already carries the +10% premium — the price to beat is not the bare
+// current price.
+const renewalPrice = computeRenewalPrice(
+  computeCurrentPrice(AVG_VIEWS, "en", TIER_DAYS.MEDIUM),
+  0
+);
 
 function mountChip(contract: ContractDTO, credits: number) {
   const pinia = createPinia();

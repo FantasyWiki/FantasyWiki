@@ -1,6 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { Contract } from "../../../../model";
-import { MAX_TEAM_CONTRACTS, STARTING_CREDITS } from "../../../../model/team";
+import { MAX_TEAM_CONTRACTS } from "../../../../model/team";
 import {
   ContractRepository,
   CONTRACT_WRITE_ERRORS,
@@ -105,19 +105,11 @@ export class ContractRepositoryD1 implements ContractRepository {
 
   async getByLeagueId(leagueId: string): Promise<Result<LeagueContractRow[]>> {
     try {
-      // teamCredits is derived from the contracts ledger (see
-      // TeamRepositoryD1.getByPlayerAndLeague), computed once per team via a
-      // CTE rather than a stored column.
+      // teamCredits comes from the team_credits view (ADR 0007), which states
+      // the derivation once rather than repeating it per query.
       const result = await this.db
         .prepare(
-          `WITH team_credits AS (
-             SELECT teamId,
-                    ? - COALESCE(SUM(purchasePrice), 0)
-                      + COALESCE(SUM(CASE WHEN settled = 1 THEN salePayout ELSE 0 END), 0) AS credits
-             FROM contracts
-             GROUP BY teamId
-           )
-           SELECT c.*, t.name AS teamName, tc.credits AS teamCredits,
+          `SELECT c.*, t.name AS teamName, tc.credits AS teamCredits,
                   p.id AS playerId, p.username AS playerName
            FROM contracts c
            JOIN teams t ON c.teamId = t.id
@@ -125,7 +117,7 @@ export class ContractRepositoryD1 implements ContractRepository {
            JOIN team_credits tc ON tc.teamId = t.id
            WHERE t.leagueId = ? AND c.settled = 0`,
         )
-        .bind(STARTING_CREDITS, leagueId)
+        .bind(leagueId)
         .all<LeagueContractQueryRow>();
 
       return success(result.results.map(toLeagueContractRow));
@@ -142,22 +134,22 @@ export class ContractRepositoryD1 implements ContractRepository {
       const purchaseDate = newContract.purchaseDate.toString();
       const expireDate = newContract.expireDate.toString();
 
-      // Single guarded write, no db.batch needed: the INSERT only applies if
-      // every purchase condition still holds at write time — derived credits
-      // (STARTING_CREDITS - everything ever spent + everything recovered from
-      // early sales) cover the price, no team in the league holds an active
-      // contract on the article, and the team is under its contract cap.
-      // Naturally atomic — SQLite/D1 guarantee single-statement atomicity
-      // against concurrent writers — so a concurrent purchase can't slip in
-      // between the service's pre-checks and this write.
+      // Single guarded write: the INSERT applies only if every purchase
+      // condition still holds at write time — credits cover the price, no team
+      // in the league holds the article, team is under its cap. D1 guarantees
+      // single-statement atomicity, so a concurrent buy can't slip between the
+      // service's pre-checks and this write. ADR 0007 explains why the check
+      // can't move to the service.
+      //
+      // The credits guard reads the team_credits view rather than its own copy
+      // of the formula. A view is macro-expanded, so this is still one atomic
+      // statement, and SQLite pushes the teamId predicate in — the plan stays
+      // an indexed lookup on idx_contracts_teamId.
       const result = await this.db
         .prepare(
           `INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice, settled, renewalCount, renewalElected)
            SELECT ?, ?, ?, ?, ?, ?, 0, 0, 0
-           WHERE (
-             ? - COALESCE((SELECT SUM(purchasePrice) FROM contracts WHERE teamId = ?), 0)
-               + COALESCE((SELECT SUM(salePayout) FROM contracts WHERE teamId = ? AND settled = 1), 0)
-           ) >= ?
+           WHERE (SELECT credits FROM team_credits WHERE teamId = ?) >= ?
            AND NOT EXISTS (
              SELECT 1
              FROM contracts c
@@ -175,8 +167,6 @@ export class ContractRepositoryD1 implements ContractRepository {
           purchaseDate,
           expireDate,
           newContract.purchasePrice,
-          STARTING_CREDITS,
-          newContract.teamId,
           newContract.teamId,
           newContract.purchasePrice,
           newContract.articleId,
@@ -241,26 +231,19 @@ export class ContractRepositoryD1 implements ContractRepository {
     today: Temporal.PlainDate,
   ): Promise<Result<DueContract[]>> {
     try {
-      // teamCredits is derived from the same ledger as getByLeagueId; domain
-      // comes from the owning team's league. The WHERE clause rides the
+      // teamCredits comes from the same team_credits view as getByLeagueId;
+      // domain comes from the owning team's league. The WHERE clause rides the
       // idx_contracts_settled_expire (settled, expireDate) index.
       const result = await this.db
         .prepare(
-          `WITH team_credits AS (
-             SELECT teamId,
-                    ? - COALESCE(SUM(purchasePrice), 0)
-                      + COALESCE(SUM(CASE WHEN settled = 1 THEN salePayout ELSE 0 END), 0) AS credits
-             FROM contracts
-             GROUP BY teamId
-           )
-           SELECT c.*, l.domain AS domain, tc.credits AS teamCredits
+          `SELECT c.*, l.domain AS domain, tc.credits AS teamCredits
            FROM contracts c
            JOIN teams t ON c.teamId = t.id
            JOIN leagues l ON t.leagueId = l.id
            JOIN team_credits tc ON tc.teamId = t.id
            WHERE c.settled = 0 AND c.expireDate <= ?`,
         )
-        .bind(STARTING_CREDITS, today.toString())
+        .bind(today.toString())
         .all<DueContractQueryRow>();
 
       return success(result.results.map(toDueContract));

@@ -9,7 +9,21 @@ import {
   normalizedViews,
   resolveLanguageScale,
 } from "../../../model/pricing";
-import { MAX_TEAM_CONTRACTS } from "../../../model/team";
+import {
+  type Contract,
+  RENEWAL_PREMIUM_RATE,
+  articleAvailability,
+  earlySellPayout,
+  isExpired,
+  isRenewalWindowOpen,
+  renewalIncrementalCost,
+  renewalPremium,
+  renewalPrice,
+  settlementDelta,
+  termDays,
+} from "../../../model/contract";
+import { type Team, MAX_TEAM_CONTRACTS } from "../../../model/team";
+import type { Player } from "../../../model/player";
 import {
   ContractRepository,
   CONTRACT_WRITE_ERRORS,
@@ -30,19 +44,15 @@ import { WikimediaClient } from "../../../external-apis/wikimedia/client";
 import { createWikimediaClient } from "./wikimediaClient";
 import { toRawContract } from "./rawContract";
 
-// Re-exported because callers of this service (routes, tests) treat the cap
-// as part of the purchase rules this module owns; it lives in the shared
-// model so the repository's guarded INSERT can enforce it too.
-export { MAX_TEAM_CONTRACTS };
-
-/** ADR 0003: +10% of currentPrice per consecutive renewal (anti-hoard sink). */
-export const RENEWAL_PREMIUM_RATE = 0.1;
+// Re-exported for callers; both live in model/ so the repository layer can
+// enforce them too.
+export { MAX_TEAM_CONTRACTS, RENEWAL_PREMIUM_RATE };
 
 /**
  * Every business failure buy/sell/renew can produce. Routes map these to HTTP
- * statuses by identity (see `contractErrorStatus` in routes/leagues.ts), so
- * the wording is display text and free to change; anything a route receives
- * that is *not* one of these is an infrastructure failure, not a client error.
+ * statuses by identity (`contractErrorStatus` in routes/leagues.ts), so the
+ * wording is free to change; anything else a route receives is infrastructure
+ * failure, not client error.
  */
 export const CONTRACT_ERRORS = {
   NO_TEAM: TEAM_ERRORS.NO_TEAM_IN_LEAGUE,
@@ -65,6 +75,15 @@ export type ContractError =
   (typeof CONTRACT_ERRORS)[keyof typeof CONTRACT_ERRORS];
 
 const VALID_TIERS: ContractTier[] = ["SHORT", "MEDIUM", "LONG"];
+
+/**
+ * Display name for a response body. The lookup is non-fatal: once the guarded
+ * write has won the operation is authoritative, so a failed name read falls
+ * back to "" (the client refetches) rather than failing the whole operation.
+ */
+function displayName(playerResult: Result<Player>): string {
+  return playerResult.ok ? playerResult.value.username : "";
+}
 
 function isContractTier(tier: string): tier is ContractTier {
   return (VALID_TIERS as string[]).includes(tier);
@@ -97,9 +116,8 @@ export class ContractService {
   }
 
   /**
-   * All contracts held by any team within a league, wire-ready. Used by the
-   * market view to show which league articles are already under contract —
-   * separate from `/my-contracts`, which is scoped to the current player.
+   * All contracts held by any team in a league — the market view's "already
+   * taken" list. Separate from `/my-contracts`, which is player-scoped.
    */
   async getLeagueContracts(leagueId: string): Promise<Result<RawContract[]>> {
     const leagueResult = await this.leagueRepo.getById(leagueId);
@@ -126,12 +144,8 @@ export class ContractService {
   }
 
   /**
-   * Buys an article contract for the current player's team in a league.
-   * Price is always computed server-side from live Wikimedia views (ADR 0005)
-   * — the client only chooses `articleId`/`tier`, never a price. Team credits
-   * are derived from the contracts ledger (never stored), so the INSERT
-   * itself is the single guarded write that decides affordability — see
-   * ContractRepository.create.
+   * Buys an article contract. The client chooses `articleId`/`tier`, never a
+   * price. Affordability is decided by the guarded INSERT, not here (ADR 0007).
    */
   async buyContract(
     playerId: string,
@@ -175,33 +189,16 @@ export class ContractService {
       return failure(rejection);
     }
 
-    let price: number;
-    try {
-      const views = await this.wikimedia.pageviews.getArticleViews(
-        domain,
-        articleId,
-      );
-      // Enforce correctness over availability: a failed views fetch leaves
-      // `averageViews30d` undefined. Never price that as 0 (which would sell the
-      // contract for free and skip the debit) — reject the buy instead. A real
-      // sub-2,000-view article still returns a defined number and legitimately
-      // prices at 0 (the intended free/broke-player mechanic, ADR 0003).
-      if (views.averageViews30d === undefined) {
-        return failure(
-          "Couldn't fetch this article's views to price the contract. Please try again.",
-        );
-      }
-      price = computeContractPrice(
-        normalizedViews(views.averageViews30d, resolveLanguageScale(domain)),
-        TIER_DAYS[tier],
-      );
-    } catch (error) {
-      return failure(
-        error instanceof Error
-          ? error.message
-          : "Failed to fetch article views",
-      );
+    const priceResult = await this.priceFromLiveViews(
+      domain,
+      articleId,
+      TIER_DAYS[tier],
+      "Couldn't fetch this article's views to price the contract. Please try again.",
+    );
+    if (!priceResult.ok) {
+      return priceResult;
     }
+    const price = priceResult.value;
 
     if (price > team.credits) {
       return failure(CONTRACT_ERRORS.NOT_ENOUGH_CREDITS);
@@ -210,12 +207,8 @@ export class ContractService {
     const purchaseDate = Temporal.Now.plainDateISO();
     const expireDate = purchaseDate.add({ days: TIER_DAYS[tier] });
 
-    // Fetch the player's display name in parallel with the write rather than
-    // up front: on the rejection paths above it's never needed, so this avoids
-    // a wasted read on every rejected buy while adding no latency to the happy
-    // path. The lookup is deliberately non-fatal — the purchase is authoritative
-    // once `create` succeeds, so a failed name read falls back to an empty name
-    // (the client refetches) rather than turning a completed buy into an error.
+    // Name fetched alongside the write, not before it: the rejection paths
+    // above never need it. See displayName for why it's non-fatal.
     const [createResult, playerResult] = await Promise.all([
       this.contractRepo.create({
         teamId: team.id,
@@ -235,19 +228,15 @@ export class ContractService {
       );
     }
 
-    // Credits are derived as STARTING_CREDITS - Σpurchases + Σpayouts
-    // (see TeamRepository.getByPlayerAndLeague), so the post-purchase value
-    // is just team.credits - price — no re-fetch needed, and nothing after
-    // the write can turn an already-successful purchase into an error. This is
-    // a point-in-time snapshot (pre-write balance minus this purchase); the
-    // authoritative balance under concurrency comes from the next team read.
+    // Point-in-time snapshot, not a re-read: nothing after a successful write
+    // may turn it into an error. Next team read is authoritative.
     return success(
       toRawContract(
         createResult.value,
         { id: team.id, name: team.name, credits: team.credits - price },
         {
           id: playerId,
-          name: playerResult.ok ? playerResult.value.username : "",
+          name: displayName(playerResult),
         },
         domain,
       ),
@@ -255,10 +244,93 @@ export class ContractService {
   }
 
   /**
-   * Names the ownership rule a purchase of `articleId` would break given the
-   * league's active contracts, or null when the buy is admissible. Shared by
-   * the pre-write fast-fail and the post-conflict classification, so both
-   * paths apply exactly the rules the repository's guarded INSERT enforces.
+   * ContractPrice (ADR 0005) from live views. Correctness over availability: a
+   * failed fetch leaves `averageViews30d` undefined and pricing that as 0 would
+   * give away a free contract, so it rejects instead. A real sub-2,000-view
+   * article returns a defined number and legitimately prices at 0 (ADR 0003).
+   */
+  private async priceFromLiveViews(
+    domain: Domain,
+    articleId: string,
+    days: number,
+    unavailableMessage: string,
+  ): Promise<Result<number>> {
+    try {
+      const views = await this.wikimedia.pageviews.getArticleViews(
+        domain,
+        articleId,
+      );
+      if (views.averageViews30d === undefined) {
+        return failure(unavailableMessage);
+      }
+      return success(
+        computeContractPrice(
+          normalizedViews(views.averageViews30d, resolveLanguageScale(domain)),
+          days,
+        ),
+      );
+    } catch (error) {
+      return failure(
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch article views",
+      );
+    }
+  }
+
+  /**
+   * Shared preamble for sell/elect/cancel: load team, league and contract in
+   * parallel, then apply the access rules in the order routes expect — team
+   * exists, contract exists, caller owns it, still unsettled. `settledError`
+   * varies (ALREADY_SOLD for a sale, ALREADY_SETTLED for the renewal paths).
+   */
+  private async loadOwnedContract(
+    playerId: string,
+    leagueId: string,
+    contractId: string,
+    settledError: ContractError,
+  ): Promise<Result<{ team: Team; domain: Domain; contract: Contract }>> {
+    const [teamResult, leagueResult, contractResult] = await Promise.all([
+      this.teamRepo.getByPlayerAndLeague(playerId, leagueId),
+      this.leagueRepo.getById(leagueId),
+      this.contractRepo.getById(contractId),
+    ]);
+    if (!teamResult.ok) {
+      return teamResult;
+    }
+    if (teamResult.value === null) {
+      return failure(CONTRACT_ERRORS.NO_TEAM);
+    }
+    if (!leagueResult.ok) {
+      return leagueResult;
+    }
+    if (!contractResult.ok) {
+      return contractResult;
+    }
+
+    const team = teamResult.value;
+    const contract = contractResult.value;
+    if (contract === null) {
+      return failure(CONTRACT_ERRORS.CONTRACT_NOT_FOUND);
+    }
+    if (contract.teamId !== team.id) {
+      return failure(CONTRACT_ERRORS.NOT_CONTRACT_OWNER);
+    }
+    if (contract.settled) {
+      return failure(settledError);
+    }
+
+    return success({
+      team,
+      domain: leagueResult.value.domain as Domain,
+      contract,
+    });
+  }
+
+  /**
+   * Names the ownership rule a purchase would break, or null if admissible.
+   * Shared by the pre-write fast-fail and the post-conflict classification so
+   * both apply exactly the rules the guarded INSERT enforces.
    */
   private static purchaseRejection(
     leagueContracts: LeagueContractRow[],
@@ -269,22 +341,23 @@ export class ContractService {
       (contract) => !contract.settled,
     );
 
-    const ownedByOtherTeam = activeLeagueContracts.some(
-      (contract) =>
-        contract.articleId === articleId && contract.teamId !== teamId,
+    // Article Availability decides the two ownership rejections, so the buy
+    // flow and the market badge answer ownership with the same function.
+    const owner = activeLeagueContracts.find(
+      (contract) => contract.articleId === articleId,
     );
-    if (ownedByOtherTeam) {
-      return CONTRACT_ERRORS.ARTICLE_TAKEN;
+    switch (articleAvailability(owner?.teamId, teamId)) {
+      case "owned-by-other":
+        return CONTRACT_ERRORS.ARTICLE_TAKEN;
+      case "owned-by-viewer":
+        return CONTRACT_ERRORS.ALREADY_OWNED;
+      case "free-agent":
+        break;
     }
 
     const activeTeamContracts = activeLeagueContracts.filter(
       (contract) => contract.teamId === teamId,
     );
-    if (
-      activeTeamContracts.some((contract) => contract.articleId === articleId)
-    ) {
-      return CONTRACT_ERRORS.ALREADY_OWNED;
-    }
     if (activeTeamContracts.length >= MAX_TEAM_CONTRACTS) {
       return CONTRACT_ERRORS.TEAM_FULL;
     }
@@ -292,10 +365,9 @@ export class ContractService {
   }
 
   /**
-   * The guarded INSERT inserted zero rows: a concurrent purchase changed the
-   * league between the pre-checks and the write. Re-read to name the rule
-   * that now fails; when every ownership rule still passes, the credits guard
-   * is the only remaining INSERT condition, so the team ran out of credits.
+   * The guarded INSERT changed zero rows — a concurrent purchase moved the
+   * league under us. Re-read to name the rule that now fails; if every
+   * ownership rule still passes, credits is the only guard left.
    */
   private async classifyPurchaseConflict(
     teamId: string,
@@ -316,103 +388,46 @@ export class ContractService {
   }
 
   /**
-   * Sells one of the current player's contracts before its term ends for a
-   * prorated payout (the story's "sell early" flow). Price is always recomputed
-   * server-side from live Wikimedia views (ADR 0005), fed the contract's *own*
-   * held tier length — never a fixed tier — so the proration is against the
-   * value actually bought:
-   *
-   *   payout = max(0, ContractPrice(liveViews, tierDays) × remainingDays / tierDays)
-   *
-   * The contract row is retained (`settled=1`), never deleted, so the sale
-   * notification's `contractId` FK stays valid. `settleSale` is a single
-   * guarded write (flips settled + persists the payout) — team credits are
-   * derived from this same ledger, so there's no separate credit write to
-   * keep in sync. The follow-up notification write is a simple, low-stakes
-   * next step: money correctness never depends on it.
+   * Early Sell: exits a contract before its term ends for a prorated payout
+   * ({@link earlySellPayout}). The row is retained (`settled=1`), never
+   * deleted, so the notification's `contractId` FK stays valid.
    */
   async sellContract(
     playerId: string,
     leagueId: string,
     contractId: string,
   ): Promise<Result<RawContract>> {
-    const [teamResult, leagueResult, contractResult] = await Promise.all([
-      this.teamRepo.getByPlayerAndLeague(playerId, leagueId),
-      this.leagueRepo.getById(leagueId),
-      this.contractRepo.getById(contractId),
-    ]);
-    if (!teamResult.ok) {
-      return teamResult;
+    const loaded = await this.loadOwnedContract(
+      playerId,
+      leagueId,
+      contractId,
+      CONTRACT_ERRORS.ALREADY_SOLD,
+    );
+    if (!loaded.ok) {
+      return loaded;
     }
-    if (teamResult.value === null) {
-      return failure(CONTRACT_ERRORS.NO_TEAM);
-    }
-    const team = teamResult.value;
+    const { team, domain, contract } = loaded.value;
 
-    if (!leagueResult.ok) {
-      return leagueResult;
-    }
-    const domain = leagueResult.value.domain as Domain;
-
-    if (!contractResult.ok) {
-      return contractResult;
-    }
-    const contract = contractResult.value;
-    if (contract === null) {
-      return failure(CONTRACT_ERRORS.CONTRACT_NOT_FOUND);
-    }
-    if (contract.teamId !== team.id) {
-      return failure(CONTRACT_ERRORS.NOT_CONTRACT_OWNER);
-    }
-    if (contract.settled) {
-      return failure(CONTRACT_ERRORS.ALREADY_SOLD);
-    }
-
-    // Tier length is the contract's own held duration; remaining is measured
-    // from today to expiry. today >= purchaseDate always, so the ratio never
-    // exceeds 1 — the formula only floors at 0 (a past-expiry contract).
-    const tierDays = contract.purchaseDate.until(contract.expireDate).days;
+    // The contract's own held duration, never a fixed tier — otherwise the
+    // proration is against value that wasn't bought.
+    const tierDays = termDays(contract);
     const today = Temporal.Now.plainDateISO();
-    const remainingDays = today.until(contract.expireDate).days;
 
-    let price: number;
-    try {
-      const views = await this.wikimedia.pageviews.getArticleViews(
-        domain,
-        contract.articleId,
-      );
-      // Same correctness-over-availability stance as buyContract: a failed
-      // views fetch leaves `averageViews30d` undefined; never price that as 0
-      // (which would hand out a free settlement). Reject the sale instead.
-      if (views.averageViews30d === undefined) {
-        return failure(
-          "Couldn't fetch this article's views to price the sale. Please try again.",
-        );
-      }
-      price = computeContractPrice(
-        normalizedViews(views.averageViews30d, resolveLanguageScale(domain)),
-        tierDays,
-      );
-    } catch (error) {
-      return failure(
-        error instanceof Error
-          ? error.message
-          : "Failed to fetch article views",
-      );
+    const priceResult = await this.priceFromLiveViews(
+      domain,
+      contract.articleId,
+      tierDays,
+      "Couldn't fetch this article's views to price the sale. Please try again.",
+    );
+    if (!priceResult.ok) {
+      return priceResult;
     }
 
-    const proratedRatio = tierDays > 0 ? remainingDays / tierDays : 0;
-    const payout = Math.max(0, Math.round(price * proratedRatio));
+    const payout = earlySellPayout(contract, priceResult.value, today);
 
     const articleTitle = contract.articleId.replace(/_/g, " ");
     const message = `Sold ${articleTitle} early for ${payout} credits`;
 
-    // Fetch the player's display name in parallel with the settlement write
-    // rather than up front: the rejection paths above never need it, so this
-    // avoids a wasted read on every rejected sale while adding no latency. The
-    // lookup is non-fatal — once `settleSale` wins, the sale is authoritative,
-    // so a failed name read falls back to an empty name (the client refetches)
-    // rather than turning a completed sale into an error.
     const [saleResult, playerResult] = await Promise.all([
       this.contractRepo.settleSale(contract.id, team.id, payout),
       this.playerRepo.getById(playerId),
@@ -424,9 +439,8 @@ export class ContractService {
       return failure(CONTRACT_ERRORS.ALREADY_SOLD);
     }
 
-    // Best-effort: the sale is already settled above, so a failure here must
-    // not turn a successful sale into an error response (that would send the
-    // client into a retry loop that only ever hits "Contract already sold").
+    // Best-effort: the sale is already settled, so failing here would send the
+    // client into a retry loop that only ever hits "Contract already sold".
     const notificationResult = await this.notificationRepo.create({
       id: crypto.randomUUID(),
       contractId: contract.id,
@@ -439,19 +453,14 @@ export class ContractService {
       );
     }
 
-    // Credits are derived as STARTING_CREDITS - Σpurchases + Σpayouts
-    // (see TeamRepository.getByPlayerAndLeague), so the post-sale value is
-    // just team.credits + payout — no re-fetch needed, and nothing after
-    // the write can turn an already-successful sale into an error. This is a
-    // point-in-time snapshot (pre-write balance plus this payout); the
-    // authoritative balance under concurrency comes from the next team read.
+    // Point-in-time snapshot, as in buyContract.
     return success(
       toRawContract(
         { ...contract, settled: true },
         { id: team.id, name: team.name, credits: team.credits + payout },
         {
           id: playerId,
-          name: playerResult.ok ? playerResult.value.username : "",
+          name: displayName(playerResult),
         },
         domain,
       ),
@@ -502,9 +511,8 @@ export class ContractService {
   }
 
   /**
-   * All unsettled contracts at or past their `expireDate` — the work list for
-   * the daily settlement sweep. Thin passthrough to the repository so the
-   * settlement Workflow depends only on the service layer.
+   * The daily settlement sweep's work list. Passthrough so the Workflow
+   * depends only on the service layer.
    */
   async getDueForSettlement(
     today: Temporal.PlainDate,
@@ -513,60 +521,32 @@ export class ContractService {
   }
 
   /**
-   * Records the current player's intent to renew one of their contracts at
-   * expiry (ADR 0003's final-24h right-of-first-refusal). This only flips
-   * `renewalElected` — the renewal is executed by the daily settlement sweep,
-   * which is the single money-writer, so no price is computed or charged here.
-   *
-   * The server stores dates only, so the window guard is coarse
-   * (`0 <= remainingDays <= 1`); the frontend applies the finer sub-24h gate.
-   * Affordability is deliberately not checked here — the price isn't known
-   * until expiry — so electing only records intent; the sweep does the
-   * authoritative affordability check and settles instead if it can't be met.
+   * Records intent to renew at expiry ({@link isRenewalWindowOpen}). Only flips
+   * `renewalElected`; the sweep is the single money-writer, so nothing is
+   * priced or charged here. Affordability isn't checked — the price isn't known
+   * until expiry, and the sweep settles instead if it can't be met.
    */
   async electRenewal(
     playerId: string,
     leagueId: string,
     contractId: string,
   ): Promise<Result<RawContract>> {
-    const [teamResult, leagueResult, contractResult] = await Promise.all([
-      this.teamRepo.getByPlayerAndLeague(playerId, leagueId),
-      this.leagueRepo.getById(leagueId),
-      this.contractRepo.getById(contractId),
-    ]);
-    if (!teamResult.ok) {
-      return teamResult;
+    const loaded = await this.loadOwnedContract(
+      playerId,
+      leagueId,
+      contractId,
+      CONTRACT_ERRORS.ALREADY_SETTLED,
+    );
+    if (!loaded.ok) {
+      return loaded;
     }
-    if (teamResult.value === null) {
-      return failure(CONTRACT_ERRORS.NO_TEAM);
-    }
-    const team = teamResult.value;
-
-    if (!leagueResult.ok) {
-      return leagueResult;
-    }
-    const domain = leagueResult.value.domain as Domain;
-
-    if (!contractResult.ok) {
-      return contractResult;
-    }
-    const contract = contractResult.value;
-    if (contract === null) {
-      return failure(CONTRACT_ERRORS.CONTRACT_NOT_FOUND);
-    }
-    if (contract.teamId !== team.id) {
-      return failure(CONTRACT_ERRORS.NOT_CONTRACT_OWNER);
-    }
-    if (contract.settled) {
-      return failure(CONTRACT_ERRORS.ALREADY_SETTLED);
-    }
+    const { team, domain, contract } = loaded.value;
 
     const today = Temporal.Now.plainDateISO();
-    const remainingDays = today.until(contract.expireDate).days;
-    if (remainingDays < 0) {
+    if (isExpired(contract, today)) {
       return failure(CONTRACT_ERRORS.EXPIRED);
     }
-    if (remainingDays > 1) {
+    if (!isRenewalWindowOpen(contract, today)) {
       return failure(CONTRACT_ERRORS.RENEWAL_WINDOW_CLOSED);
     }
 
@@ -588,7 +568,7 @@ export class ContractService {
         { id: team.id, name: team.name, credits: team.credits },
         {
           id: playerId,
-          name: playerResult.ok ? playerResult.value.username : "",
+          name: displayName(playerResult),
         },
         domain,
       ),
@@ -596,52 +576,27 @@ export class ContractService {
   }
 
   /**
-   * Withdraws a previously elected renewal, putting the contract back on course
-   * to settle at expiry.
-   *
-   * The election is only an intent — the settlement sweep is what actually
-   * renews — so it can be withdrawn right up until that sweep runs. The guard is
-   * therefore `settled`, not the final-24h window used by {@link electRenewal}:
-   * a contract past its expireDate but not yet swept is still reversible, and
-   * once the sweep has renewed it the row is no longer `renewalElected` and this
-   * fails with RENEWAL_NOT_ELECTED. No money moves either way.
+   * Withdraws an elected renewal. Guarded on `settled`, not the final-24h
+   * window {@link electRenewal} uses: the election is only intent, so it stays
+   * reversible until the sweep runs — after which the row is no longer
+   * `renewalElected` and this fails with RENEWAL_NOT_ELECTED.
    */
   async cancelRenewal(
     playerId: string,
     leagueId: string,
     contractId: string,
   ): Promise<Result<RawContract>> {
-    const [teamResult, leagueResult, contractResult] = await Promise.all([
-      this.teamRepo.getByPlayerAndLeague(playerId, leagueId),
-      this.leagueRepo.getById(leagueId),
-      this.contractRepo.getById(contractId),
-    ]);
-    if (!teamResult.ok) {
-      return teamResult;
+    const loaded = await this.loadOwnedContract(
+      playerId,
+      leagueId,
+      contractId,
+      CONTRACT_ERRORS.ALREADY_SETTLED,
+    );
+    if (!loaded.ok) {
+      return loaded;
     }
-    if (teamResult.value === null) {
-      return failure(CONTRACT_ERRORS.NO_TEAM);
-    }
-    const team = teamResult.value;
+    const { team, domain, contract } = loaded.value;
 
-    if (!leagueResult.ok) {
-      return leagueResult;
-    }
-    const domain = leagueResult.value.domain as Domain;
-
-    if (!contractResult.ok) {
-      return contractResult;
-    }
-    const contract = contractResult.value;
-    if (contract === null) {
-      return failure(CONTRACT_ERRORS.CONTRACT_NOT_FOUND);
-    }
-    if (contract.teamId !== team.id) {
-      return failure(CONTRACT_ERRORS.NOT_CONTRACT_OWNER);
-    }
-    if (contract.settled) {
-      return failure(CONTRACT_ERRORS.ALREADY_SETTLED);
-    }
     if (!contract.renewalElected) {
       return failure(CONTRACT_ERRORS.RENEWAL_NOT_ELECTED);
     }
@@ -665,7 +620,7 @@ export class ContractService {
         { id: team.id, name: team.name, credits: team.credits },
         {
           id: playerId,
-          name: playerResult.ok ? playerResult.value.username : "",
+          name: displayName(playerResult),
         },
         domain,
       ),
@@ -673,27 +628,19 @@ export class ContractService {
   }
 
   /**
-   * Resolves a single contract that has reached the end of its term (ADR 0003
-   * "sold to system" / renewal). Called once per due contract by the daily
-   * settlement Workflow, so the durable step is a thin wrapper over this.
+   * Resolves one due contract (ADR 0003), once per contract from the daily
+   * settlement Workflow:
    *
-   * - No renewal elected → **settle**: credit the full live `currentPrice`
-   *   (`settled=1`, payout into the salePayout ledger) and notify with the P&L.
-   * - Renewal elected AND affordable → **renew**: roll the window forward a
-   *   tier at `currentPrice + premium` and notify. "Affordable" means the
-   *   incremental capital `newPurchasePrice − purchasePrice` (the actual ledger
-   *   movement, since the old purchasePrice is already sunk) fits in the team's
-   *   derived credits.
-   * - Renewal elected but unaffordable → **settle instead**, with a message
-   *   saying the renewal failed for insufficient credits.
+   * - no renewal elected → settle at the full live `currentPrice`;
+   * - renewal elected and {@link renewalIncrementalCost} affordable → renew;
+   * - elected but unaffordable → settle, with a message saying why.
    *
-   * Throws on a failed/again-missing views fetch or a DB write error so the
-   * Workflow step retries; the guarded writes make a re-run a no-op, so a
-   * contract already settled/renewed by a prior run is skipped safely.
+   * Throws on a failed views fetch or DB write so the Workflow step retries;
+   * the guarded writes make a re-run a no-op.
    */
   async settleDueContract(contract: DueContract): Promise<void> {
     const domain = contract.domain as Domain;
-    const tierDays = contract.purchaseDate.until(contract.expireDate).days;
+    const tierDays = termDays(contract);
     const today = Temporal.Now.plainDateISO();
     const articleTitle = contract.articleId.replace(/_/g, " ");
 
@@ -701,9 +648,8 @@ export class ContractService {
       domain,
       contract.articleId,
     );
-    // Never settle at 0 on a failed fetch (that would hand out a free/forfeited
-    // settlement). Throw so the Workflow step retries; the contract stays
-    // settled=0 and is re-picked by the next sweep.
+    // Never settle at 0 on a failed fetch. Throw so the step retries; the
+    // contract stays settled=0 and the next sweep re-picks it.
     if (views.averageViews30d === undefined) {
       throw new Error(
         `Couldn't fetch views for ${contract.articleId}; deferring settlement`,
@@ -716,14 +662,15 @@ export class ContractService {
     );
 
     if (contract.renewalElected) {
-      const premium = Math.round(
-        currentPrice * RENEWAL_PREMIUM_RATE * contract.renewalCount,
+      const premium = renewalPremium(currentPrice, contract.renewalCount);
+      const newPurchasePrice = renewalPrice(
+        currentPrice,
+        contract.renewalCount,
       );
-      const newPurchasePrice = currentPrice + premium;
-      // Incremental cost is the real balance movement: the old purchasePrice is
-      // already sunk in the derived ledger. A drop in currentPrice can make
-      // this <= 0, i.e. always affordable.
-      const incrementalCost = newPurchasePrice - contract.purchasePrice;
+      const incrementalCost = renewalIncrementalCost(
+        newPurchasePrice,
+        contract.purchasePrice,
+      );
       if (incrementalCost <= contract.teamCredits) {
         const newExpireDate = contract.expireDate.add({ days: tierDays });
         const renewResult = await this.contractRepo.renew(
@@ -735,8 +682,7 @@ export class ContractService {
         if (!renewResult.ok) {
           throw new Error(renewResult.error);
         }
-        // Only notify when this call actually renewed the row (a re-run that
-        // finds it already renewed is a silent no-op).
+        // Only notify if this call actually renewed the row.
         if (renewResult.value) {
           await this.writeSettlementNotification(
             contract.id,
@@ -749,7 +695,8 @@ export class ContractService {
       // Unaffordable: fall through to settlement below.
     }
 
-    const delta = currentPrice - contract.purchasePrice;
+    // Credits the full currentPrice; the delta is only shown as P&L.
+    const delta = settlementDelta(contract.purchasePrice, currentPrice);
     const signed = delta >= 0 ? `+${delta}` : `−${Math.abs(delta)}`;
     const settleResult = await this.contractRepo.settleExpiry(
       contract.id,
@@ -759,8 +706,7 @@ export class ContractService {
       throw new Error(settleResult.error);
     }
     if (settleResult.value) {
-      // Reaching the settle branch with renewalElected set means the renewal
-      // was elected but couldn't be afforded.
+      // Still elected here means the renewal was unaffordable.
       const message = contract.renewalElected
         ? `Couldn't renew ${articleTitle} (not enough credits) — settled at expiry: ${signed} credits`
         : `${articleTitle} settled at expiry: ${signed} credits`;
@@ -769,10 +715,8 @@ export class ContractService {
   }
 
   /**
-   * Best-effort settlement notification: mirrors sellContract's stance — the
-   * money write already succeeded, so a failed notification is logged, never
-   * thrown (throwing would send the Workflow step into a needless retry that
-   * re-does nothing, the settlement being idempotent).
+   * Best-effort, as in sellContract: the money write already succeeded, so a
+   * failed notification is logged rather than thrown.
    */
   private async writeSettlementNotification(
     contractId: string,

@@ -262,8 +262,9 @@ describe("ContractSettlementWorkflow Integration Tests", () => {
     expect(log).toEqual(["fetch-due", "settle-wf-contract-renew"]);
 
     const currentPrice = priceFor(views, TIER_DAYS);
-    // renewalCount is 0 on the row the sweep read, so no premium is due yet.
-    const premium = Math.round(currentPrice * RENEWAL_PREMIUM_RATE * 0);
+    // renewalCount is 0 on the row the sweep read, so this is the first
+    // renewal — and the first renewal already carries the full +10%.
+    const premium = Math.round(currentPrice * RENEWAL_PREMIUM_RATE * 1);
     const row = await readContractRow("wf-contract-renew");
 
     // Rolled forward rather than settled: purchaseDate <- old expireDate, +1 tier.

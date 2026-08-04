@@ -358,7 +358,9 @@ describe("ContractService settlement sweep Integration Tests", () => {
     await runSweep(service);
 
     const currentPrice = priceFor(views, tierDays);
-    const premium = Math.round(currentPrice * 0.1 * renewalCount);
+    // renewalCount is renewals already done, so this sweep performs the
+    // (renewalCount + 1)-th — that is what the +10% multiplies.
+    const premium = Math.round(currentPrice * 0.1 * (renewalCount + 1));
     const newPurchasePrice = currentPrice + premium;
     // Affordability precondition for this scenario.
     expect(newPurchasePrice - purchasePrice).toBeLessThanOrEqual(
@@ -387,6 +389,43 @@ describe("ContractService settlement sweep Integration Tests", () => {
     expect(notifications.value[0].message).toBe(
       `Renewed Ethereum for ${tierDays} more days at ${newPurchasePrice} credits (+${premium} premium)`,
     );
+  });
+
+  it("charges the +10% premium on the very first renewal", async () => {
+    // Regression: the premium used to multiply renewalCount directly, so a
+    // contract renewing for the first time (renewalCount 0) was charged
+    // nothing — the notification even read "(+0 premium)". Every other renewal
+    // test seeded renewalCount >= 1, so nothing caught it. ADR 0003 charges
+    // +10% per consecutive renewal, and the first renewal is one.
+    const tierDays = 7;
+    await insertDueContract({
+      id: "contract-first-renewal",
+      tierDays,
+      purchasePrice: 100,
+      renewalElected: true,
+      renewalCount: 0,
+      articleId: "Ethereum",
+    });
+
+    const views = 9000;
+    await runSweep(
+      new ContractService(
+        env.db,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        wikimediaWithAvg(views),
+      ),
+    );
+
+    const currentPrice = priceFor(views, tierDays);
+    const expectedPremium = Math.round(currentPrice * 0.1);
+    expect(expectedPremium).toBeGreaterThan(0); // guard against a vacuous assertion
+
+    const row = await readContractRow("contract-first-renewal");
+    expect(row?.renewalCount).toBe(1);
+    expect(row?.purchasePrice).toBe(currentPrice + expectedPremium);
   });
 
   it("settles instead of renewing when the elected renewal is unaffordable", async () => {

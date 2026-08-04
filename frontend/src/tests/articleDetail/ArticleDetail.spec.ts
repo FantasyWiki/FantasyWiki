@@ -294,14 +294,15 @@ describe("ArticleDetail.vue", () => {
     expect(renewBtn).toBeDefined();
     expect(isRenewDisabled(wrapper)).toBe(false);
 
-    // renewalPrice = currentPrice + round(currentPrice × 0.10 × renewalCount).
+    // renewalCount is renewals already done, so the premium multiplies
+    // (renewalCount + 1) — the renewal this button would perform.
     const currentPrice = computeCurrentPrice(
       MOCK_AVG_VIEWS,
       "en",
       TIER_DAYS.MEDIUM
     );
     const renewalPrice =
-      currentPrice + Math.round(currentPrice * 0.1 * renewalCount);
+      currentPrice + Math.round(currentPrice * 0.1 * (renewalCount + 1));
     expect(renewBtn!.text()).toContain(String(renewalPrice));
   });
 

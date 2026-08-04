@@ -9,11 +9,15 @@ import {
   resolveLanguageScale,
   type ContractTier,
 } from "../../../model/pricing";
+import {
+  articleAvailability,
+  renewalIncrementalCost,
+  renewalPremium,
+  renewalPrice,
+  type ArticleAvailability,
+} from "../../../model/contract";
 
-export type { ContractTier };
-
-export type ArticleAvailability =
-  "free-agent" | "owned-by-viewer" | "owned-by-other";
+export type { ContractTier, ArticleAvailability };
 
 export type TierPriceOption = {
   tier: ContractTier;
@@ -46,18 +50,14 @@ export interface OwnedByViewerDetail extends ArticleDetailBase {
   renewalCount: number;
   /** Whether renewal has already been elected for this contract's expiry. */
   renewalElected: boolean;
-  /** currentPrice × 0.10 × renewalCount — the anti-hoard premium (ADR 0003). */
+  /** The anti-hoard premium — see `renewalPremium` in model/contract.ts. */
   renewalPremium: number;
-  /** What renewing would cost: currentPrice + renewalPremium. */
+  /** What renewing would cost outright: currentPrice + premium. */
   renewalPrice: number;
   /**
-   * What renewal actually moves on the balance at expiry: `renewalPrice −
-   * purchasePrice`. The old purchasePrice is already sunk in the derived credits
-   * ledger, so renewing tops the stake up to today's price rather than charging
-   * it again. Mirrors `incrementalCost` in the backend's settleDueContract,
-   * which is what the sweep checks affordability against — so this is the number
-   * to show the player and to test for an at-risk renewal. Negative when the
-   * article got cheaper, i.e. the renewal refunds and is always affordable.
+   * What renewal actually moves on the balance, and so the number to show and
+   * to test for an at-risk renewal: the sweep checks affordability against
+   * exactly this. Negative when the article got cheaper.
    */
   renewalIncrementalCost: number;
 }
@@ -122,11 +122,14 @@ export function buildArticleDetail(input: ArticleDetailInput): ArticleDetail {
   );
   const ownerTeamName = contract.team.name;
 
-  if (viewerTeamId && contract.team.id === viewerTeamId) {
-    const renewalPremium = Math.round(
-      currentPrice * 0.1 * contract.renewalCount
-    );
-    const renewalPrice = currentPrice + renewalPremium;
+  if (
+    articleAvailability(contract.team.id, viewerTeamId) === "owned-by-viewer"
+  ) {
+    // All three renewal figures come from model/contract.ts — the same
+    // functions the settlement sweep prices with, so the number shown here
+    // can't drift from the one the player is actually charged.
+    const premium = renewalPremium(currentPrice, contract.renewalCount);
+    const price = renewalPrice(currentPrice, contract.renewalCount);
     return {
       availability: "owned-by-viewer",
       article,
@@ -138,9 +141,12 @@ export function buildArticleDetail(input: ArticleDetailInput): ArticleDetail {
       purchasePrice: contract.purchasePrice,
       renewalCount: contract.renewalCount,
       renewalElected: contract.renewalElected,
-      renewalPremium,
-      renewalPrice,
-      renewalIncrementalCost: renewalPrice - contract.purchasePrice,
+      renewalPremium: premium,
+      renewalPrice: price,
+      renewalIncrementalCost: renewalIncrementalCost(
+        price,
+        contract.purchasePrice
+      ),
     };
   }
 

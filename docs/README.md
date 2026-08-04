@@ -68,7 +68,8 @@ doc disagree, **the ADR wins**.
 [0003 Closed Trading Economy](./adr/0003-closed-trading-economy.md) ·
 [0004 Scoring Engine Platform](./adr/0004-scoring-engine-platform.md) ·
 [0005 Contract Pricing](./adr/0005-contract-pricing.md) ·
-[0006 Article Genie](./adr/0006-article-genie.md)
+[0006 Article Genie](./adr/0006-article-genie.md) ·
+[0007 Derived Team Credits](./adr/0007-derived-team-credits.md)
 
 ### `agents/` — machine-read repo metadata
 Issue tracker, triage labels, and domain-context layout. Skills read these at

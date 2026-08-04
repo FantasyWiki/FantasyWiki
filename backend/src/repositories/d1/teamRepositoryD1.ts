@@ -74,19 +74,16 @@ export class TeamRepositoryD1 implements TeamRepository {
     leagueId: string,
   ): Promise<Result<Team | null>> {
     try {
-      // credits is derived from the contracts ledger, not stored: starting
-      // budget minus everything ever spent, plus payouts from early sales.
+      // credits is derived from the contracts ledger, not stored — the rule
+      // itself lives in the team_credits view (ADR 0007), stated once.
       const result = await this.db
         .prepare(
-          `SELECT t.id, t.name, t.playerId, t.leagueId,
-                  ? - COALESCE(SUM(c.purchasePrice), 0)
-                    + COALESCE(SUM(CASE WHEN c.settled = 1 THEN c.salePayout ELSE 0 END), 0) AS credits
+          `SELECT t.id, t.name, t.playerId, t.leagueId, tc.credits
            FROM teams t
-           LEFT JOIN contracts c ON c.teamId = t.id
-           WHERE t.playerId = ? AND t.leagueId = ?
-           GROUP BY t.id, t.name, t.playerId, t.leagueId`,
+           JOIN team_credits tc ON tc.teamId = t.id
+           WHERE t.playerId = ? AND t.leagueId = ?`,
         )
-        .bind(STARTING_CREDITS, playerId, leagueId)
+        .bind(playerId, leagueId)
         .first<Team>();
 
       return success(result ?? null);

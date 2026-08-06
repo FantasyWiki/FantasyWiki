@@ -484,6 +484,7 @@
     "actionsNote": "Entrare in una lega e crearne una sono in arrivo.",
     "mineTitle": "Le leghe in cui giochi",
     "active": "Attiva",
+    "private": "Privata",
     "participants": "1 giocatore | {count} giocatori",
     "empty": "Non sei ancora in nessuna lega. Esplora le leghe pubbliche, inserisci un codice d'invito o creane una tua.",
     "errorTitle": "Impossibile caricare le tue leghe",

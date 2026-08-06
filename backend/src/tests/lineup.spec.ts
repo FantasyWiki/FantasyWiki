@@ -13,6 +13,8 @@ import { LeagueRepository } from "../repositories/leagueRepository";
 import { PlayerRepository } from "../repositories/playerRepository";
 import { success, failure } from "../repositories/result";
 import type { Contract, Team, Lineup, League, Player } from "../../../model";
+import { LeagueInvitePolicy, LeagueVisibility } from "../../../model/enums";
+import { fakeLeagueRepository } from "./utils/fakeRepositories";
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
@@ -40,6 +42,8 @@ const league: League = {
   startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
   endDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
   domain: "en",
+  visibility: LeagueVisibility.PUBLIC,
+  invitePolicy: LeagueInvitePolicy.MEMBERS,
   icon: "🌍",
 };
 
@@ -86,9 +90,7 @@ function makePlayerRepo(p: Player = player): PlayerRepository {
 }
 
 function makeLeagueRepo(l: League = league): LeagueRepository {
-  return {
-    getById: async () => success(l),
-  };
+  return fakeLeagueRepository({ getById: async () => success(l) });
 }
 
 function makeContractRepo(contracts: Contract[]): ContractRepository {

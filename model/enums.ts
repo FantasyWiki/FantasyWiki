@@ -171,3 +171,34 @@ export type ChemistryLink<S extends Schema = Schema> = {
 };
 
 export type ChemistryLinksForSchema<S extends Schema = Schema> = ChemistryLink<S>[];
+
+/**
+ * Whether a league can be joined by anyone or only with its invitation code.
+ * See docs/domain/league-visibility.md — the rule governs *joining*, not
+ * reading: a private league's page and standings stay visible.
+ */
+export const LeagueVisibility = {
+    PUBLIC:  'public',
+    PRIVATE: 'private',
+} as const;
+
+export type LeagueVisibility = typeof LeagueVisibility[keyof typeof LeagueVisibility];
+
+export function isLeagueVisibility(value: unknown): value is LeagueVisibility {
+    return value === LeagueVisibility.PUBLIC || value === LeagueVisibility.PRIVATE;
+}
+
+/**
+ * Who may hand out a league's invitation code: anyone fielding a team in it, or
+ * only the league admin. Chosen when the league is created.
+ */
+export const LeagueInvitePolicy = {
+    MEMBERS: 'members',
+    ADMIN:   'admin',
+} as const;
+
+export type LeagueInvitePolicy = typeof LeagueInvitePolicy[keyof typeof LeagueInvitePolicy];
+
+export function isLeagueInvitePolicy(value: unknown): value is LeagueInvitePolicy {
+    return value === LeagueInvitePolicy.MEMBERS || value === LeagueInvitePolicy.ADMIN;
+}

@@ -13,6 +13,7 @@ import { useMarket } from "@/composables/useMarket";
 import type { LeagueDTO } from "../../../dto/leagueDTO";
 import type { TeamDTO } from "../../../dto/teamDTO";
 import i18n from "@/i18n";
+import { LeagueVisibility } from "../../../model/enums";
 
 vi.mock("@/composables/useArticleSummary", () => ({
   useArticleSummary: () => ({
@@ -60,6 +61,7 @@ const fakeLeague: LeagueDTO = {
   icon: "🌍",
   startDate: Temporal.Now.instant(),
   endDate: Temporal.Now.instant(),
+  visibility: LeagueVisibility.PUBLIC,
   teamCount: 0,
 };
 

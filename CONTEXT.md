@@ -133,6 +133,18 @@ _Avoid_: prompt, message, round
 The bounded list of real article titles the **Article Genie** narrows. Seeded from search results and, when the player names anchors, from articles linked in either direction with those anchors. Ranked by mutual links first and **Contract Price** second, so cheap well-connected articles outrank expensive ones with the same chemistry.
 _Avoid_: candidates (bare), search results, shortlist
 
+**League Visibility**:
+Whether a league is **public** (any player may join) or **private** (joining requires its **Invitation Code**, or being the **League Admin**). Visibility governs *joining* only — a private league's page and standings stay readable by anyone with its id. The Global League is public. See docs/domain/league-visibility.md.
+_Avoid_: league privacy, closed league, locked league
+
+**Invitation Code**:
+The five-character code that opens a **private** league: digits and capitals minus the look-alikes (`0 O 1 I L U`). Only private leagues have one — a public league is joinable by anyone, so there is nothing for a code to guard. It is a credential, so it never travels on a league DTO; only the endpoint that checks the league's **Invite Policy** serves it (ADR 0008).
+_Avoid_: invite token, join key, league password, access code
+
+**Invite Policy**:
+Who may hand out a league's **Invitation Code**: `members` (anyone fielding a team) or `admin` (only the **League Admin**). Chosen when the league is created.
+_Avoid_: invite permission, sharing setting
+
 ## Relationships
 
 - A **Top Read Snapshot** belongs to exactly one **Project Domain**
@@ -144,6 +156,9 @@ _Avoid_: candidates (bare), search results, shortlist
 - A **Top Read Entry** is built from a **Content Article Candidate** plus its **Range Average**
 - A **Top Read List** contains ordered **Top Read Entry** items
 - The landing badge metric is **Filtered Snapshot Volume**
+- A **League** has exactly one **League Visibility** and exactly one **Invite Policy**
+- A **private League** is joined only with its **Invitation Code**, or by its **League Admin**
+- An **Invitation Code** belongs to exactly one **private League** and is unique across all of them; a **public League** has none
 - A **Top Read Entry** displays **Filtered Rank** and may retain **Source Rank** for internal diagnostics
 - **Owner Team** exists only when **Article Availability** is not **Free Agent**
 - **Owner Team** and **Viewer Team Context** are both team-level concepts; ownership comparisons are team-id based, not player-id based

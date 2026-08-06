@@ -13,6 +13,8 @@ import { success, failure } from "../../repositories/result";
 import { PlayerService } from "../../services/player";
 import { insertTeam } from "../utils/d1TestUtils";
 import { League } from "../../../../model";
+import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
+import { fakeLeagueRepository } from "../utils/fakeRepositories";
 
 describe("LeagueService Integration Tests", () => {
   let leagueService: LeagueService;
@@ -49,10 +51,9 @@ describe("LeagueService Integration Tests", () => {
     });
 
     it("should propagate a failure from an injected repository", async () => {
-      const failingRepository: LeagueRepository = {
+      const failingRepository: LeagueRepository = fakeLeagueRepository({
         getById: async () => failure("boom"),
-        countTeamsByLeague: async () => success({}),
-      };
+      });
       const service = new LeagueService(failingRepository);
 
       const result = await service.getGlobalLeague();
@@ -68,13 +69,15 @@ describe("LeagueService Integration Tests", () => {
         startDate: Temporal.Now.instant(),
         endDate: Temporal.Now.instant(),
         domain: "en",
+        visibility: LeagueVisibility.PUBLIC,
+        invitePolicy: LeagueInvitePolicy.MEMBERS,
         icon: "🌍",
       };
 
-      const repository: LeagueRepository = {
+      const repository: LeagueRepository = fakeLeagueRepository({
         getById: async () => success(league),
         countTeamsByLeague: async () => success({ [GLOBAL_LEAGUE_ID]: 3 }),
-      };
+      });
       const service = new LeagueService(repository);
 
       const result = await service.getGlobalLeague();
@@ -99,14 +102,16 @@ describe("LeagueService Integration Tests", () => {
         startDate: Temporal.Now.instant(),
         endDate: Temporal.Now.instant(),
         domain: "en",
+        visibility: LeagueVisibility.PUBLIC,
+        invitePolicy: LeagueInvitePolicy.MEMBERS,
         icon: "🌍",
       };
       // A league whose size could not be read must not be reported as one
       // nobody has joined; the count failing fails the whole read.
-      const repository: LeagueRepository = {
+      const repository: LeagueRepository = fakeLeagueRepository({
         getById: async () => success(league),
         countTeamsByLeague: async () => failure("count exploded"),
-      };
+      });
 
       const result = await new LeagueService(repository).getGlobalLeague();
 
@@ -167,6 +172,8 @@ describe("toLeagueDTO", () => {
       startDate,
       endDate,
       domain: "it",
+      visibility: LeagueVisibility.PUBLIC,
+      invitePolicy: LeagueInvitePolicy.MEMBERS,
       icon: "🏆",
     };
 
@@ -179,6 +186,7 @@ describe("toLeagueDTO", () => {
       icon: "🏆",
       startDate,
       endDate,
+      visibility: LeagueVisibility.PUBLIC,
       teamCount: 12,
     });
   });

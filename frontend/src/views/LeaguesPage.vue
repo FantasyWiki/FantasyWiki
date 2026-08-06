@@ -20,10 +20,11 @@
         <p class="hero-subtitle">{{ t("leagues.subtitle") }}</p>
       </header>
 
-      <!-- The two ways into a further league. Rendered, but not yet wired: the
-           flows behind them are their own work (the public/private flag on a
-           league, then invitation codes), so they state what is coming rather
-           than leading somewhere that does not exist. -->
+      <!-- The two ways into a further league. Rendered, but not yet wired: a
+           league now carries a visibility and an invitation code, and the join
+           is gated on them, but the screens that let a player *enter* a code
+           (#7) or create a league (#4) are still to come. They state what is
+           coming rather than leading somewhere that does not exist. -->
       <div class="actions">
         <ion-button fill="outline" disabled>
           <ion-icon slot="start" :icon="keyOutline" />

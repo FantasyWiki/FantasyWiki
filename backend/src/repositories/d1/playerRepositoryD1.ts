@@ -1,7 +1,11 @@
 import { League, Player } from "../../../../model";
 import { PLAYER_ERRORS, PlayerRepository } from "../playerRepository";
 import { Result, success, failure } from "../result";
-import { LeagueRow, toLeague } from "./leagueRepositoryD1";
+import {
+  LEAGUE_COLUMNS_QUALIFIED,
+  LeagueRow,
+  toLeague,
+} from "./leagueRepositoryD1";
 
 /**
  * D1 surfaces a lost uniqueness constraint only as driver text, and it reaches
@@ -106,7 +110,7 @@ export class PlayerRepositoryD1 implements PlayerRepository {
       const results = await this.db
         .prepare(
           `
-                    SELECT DISTINCT l.id, l.name, l.adminId, l.startDate, l.endDate, l.domain, l.icon
+                    SELECT DISTINCT ${LEAGUE_COLUMNS_QUALIFIED}
                     FROM leagues l
                     INNER JOIN teams t ON l.id = t.leagueId
                     WHERE t.playerId = ?

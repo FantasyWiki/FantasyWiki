@@ -1,3 +1,5 @@
+import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
+
 // The Global League (and its system admin player/account) are seeded by
 // migration 0002_seed_global_league.sql and must survive resets so tests see
 // the same baseline as production.
@@ -15,6 +17,54 @@ export async function resetD1Database(db: D1Database): Promise<void> {
   for (const statement of RESET_STATEMENTS) {
     await db.prepare(statement).run();
   }
+}
+
+/**
+ * Inserts a league row for test setup.
+ *
+ * Defaults mirror what migration 0007 gives an existing league — public, with
+ * `members` invite policy — so a test that says nothing about visibility gets
+ * the same league it always had. Pass `visibility: "private"` to exercise the
+ * join gate.
+ *
+ * `invitationCode` is left out by default rather than generated: SQLite treats
+ * NULLs in a unique index as distinct, so any number of code-less leagues can
+ * coexist, whereas a shared default would collide on the second insert.
+ */
+export async function insertLeague(
+  db: D1Database,
+  opts: {
+    id: string;
+    name?: string;
+    adminId?: string;
+    startDate?: string;
+    endDate?: string;
+    domain?: string;
+    icon?: string;
+    visibility?: LeagueVisibility;
+    invitePolicy?: LeagueInvitePolicy;
+    invitationCode?: string;
+  },
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO leagues
+         (id, name, adminId, startDate, endDate, domain, icon, visibility, invitePolicy, invitationCode)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      opts.id,
+      opts.name ?? `League ${opts.id}`,
+      opts.adminId ?? "system",
+      opts.startDate ?? "2024-01-01T00:00:00Z",
+      opts.endDate ?? "2124-01-01T00:00:00Z",
+      opts.domain ?? "en",
+      opts.icon ?? "🏆",
+      opts.visibility ?? LeagueVisibility.PUBLIC,
+      opts.invitePolicy ?? LeagueInvitePolicy.MEMBERS,
+      opts.invitationCode ?? null,
+    )
+    .run();
 }
 
 /**

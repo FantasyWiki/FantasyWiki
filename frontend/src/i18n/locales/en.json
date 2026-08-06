@@ -484,6 +484,7 @@
     "actionsNote": "Joining and creating leagues are on the way.",
     "mineTitle": "Leagues You're Playing",
     "active": "Active",
+    "private": "Private",
     "participants": "1 player | {count} players",
     "empty": "You are not in any league yet. Browse public leagues, enter an invitation code, or create your own.",
     "errorTitle": "Couldn't load your leagues",

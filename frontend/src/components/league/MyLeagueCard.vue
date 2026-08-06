@@ -32,6 +32,13 @@
           <ion-icon :icon="globeOutline" aria-hidden="true" />
           {{ league.domain }}.wikipedia
         </span>
+        <!-- Only private is worth saying. Marking every public league "public"
+             would put a label on the unremarkable case and make the grid
+             noisier without telling anyone anything. -->
+        <span v-if="isPrivate" class="meta-item">
+          <ion-icon :icon="lockClosedOutline" aria-hidden="true" />
+          {{ t("leagues.private") }}
+        </span>
       </span>
     </span>
   </button>
@@ -40,11 +47,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IonIcon } from "@ionic/vue";
-import { globeOutline, peopleOutline } from "ionicons/icons";
+import { globeOutline, lockClosedOutline, peopleOutline } from "ionicons/icons";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { useLeagueStore } from "@/stores/league";
 import type { LeagueDTO } from "../../../../dto/leagueDTO";
+import { LeagueVisibility } from "../../../../model/enums";
 
 const props = defineProps<{ league: LeagueDTO }>();
 
@@ -56,6 +64,10 @@ const leagueStore = useLeagueStore();
 // the NavBar switcher never disagree about which one is in play.
 const isActive = computed(
   () => leagueStore.currentLeagueId === props.league.id
+);
+
+const isPrivate = computed(
+  () => props.league.visibility === LeagueVisibility.PRIVATE
 );
 </script>
 

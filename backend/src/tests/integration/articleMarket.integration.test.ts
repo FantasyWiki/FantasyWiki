@@ -7,6 +7,8 @@ import { success, failure } from "../../repositories/result";
 import { League } from "../../../../model";
 import { WikimediaClient } from "../../../../external-apis/wikimedia/client";
 import { TopReadEntry } from "../../../../external-apis/wikimedia/wikimedia";
+import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
+import { fakeLeagueRepository } from "../utils/fakeRepositories";
 
 const sampleLeague: League = {
   id: "global",
@@ -15,11 +17,13 @@ const sampleLeague: League = {
   startDate: Temporal.Now.instant(),
   endDate: Temporal.Now.instant(),
   domain: "en",
+  visibility: LeagueVisibility.PUBLIC,
+  invitePolicy: LeagueInvitePolicy.MEMBERS,
   icon: "🌍",
 };
 
 function leagueRepoReturning(league: League): LeagueRepository {
-  return { getById: async () => success(league) };
+  return fakeLeagueRepository({ getById: async () => success(league) });
 }
 
 /**
@@ -155,9 +159,13 @@ describe("ArticleMarketService.getMarket", () => {
       requestedDomain = domain;
       return { domain, snapshotDate: "2026-06-29", entries: [] };
     });
-    const service = new ArticleMarketService(env.db, wikimedia, {
-      getById: async () => success({ ...sampleLeague, domain: "it" }),
-    });
+    const service = new ArticleMarketService(
+      env.db,
+      wikimedia,
+      fakeLeagueRepository({
+        getById: async () => success({ ...sampleLeague, domain: "it" }),
+      }),
+    );
 
     const result = await service.getMarket("global");
 
@@ -169,9 +177,13 @@ describe("ArticleMarketService.getMarket", () => {
     const wikimedia = wikimediaClientWithTopRead(async () => {
       throw new Error("should not be called");
     });
-    const service = new ArticleMarketService(env.db, wikimedia, {
-      getById: async () => failure("league global not found"),
-    });
+    const service = new ArticleMarketService(
+      env.db,
+      wikimedia,
+      fakeLeagueRepository({
+        getById: async () => failure("league global not found"),
+      }),
+    );
 
     const result = await service.getMarket("global");
 

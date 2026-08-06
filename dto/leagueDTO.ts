@@ -1,5 +1,5 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { Domain } from "../model/enums";
+import { Domain, LeagueVisibility } from "../model/enums";
 
 /**
  * A league's identity, calendar and size.
@@ -19,6 +19,21 @@ export interface LeagueDTO {
   icon: string;
   startDate: Temporal.Instant;
   endDate: Temporal.Instant;
+  /** Whether the league can be joined freely or only with its invitation code. */
+  visibility: LeagueVisibility;
   /** How many teams play this league, the player's own included. */
   teamCount: number;
+}
+
+/**
+ * A league's invitation code, served *only* by the endpoint that checks the
+ * caller may have it.
+ *
+ * Pointedly not a field on `LeagueDTO`: `GET /api/leagues/:id` is unscoped by
+ * design, so a code riding on that shape could be read straight off a public
+ * endpoint and used to walk through the gate it exists to guard. See
+ * docs/adr/0008-league-invitation-codes.md.
+ */
+export interface LeagueInviteDTO {
+  code: string;
 }

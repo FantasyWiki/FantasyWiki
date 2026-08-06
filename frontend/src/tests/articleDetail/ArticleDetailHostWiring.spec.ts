@@ -11,6 +11,7 @@ import i18n from "@/i18n";
 import type { TeamDTO } from "../../../../dto/teamDTO";
 import type { LeagueDTO } from "../../../../dto/leagueDTO";
 import type { ArticleDTO } from "../../../../dto/articleDTO";
+import { LeagueVisibility } from "../../../../model/enums";
 
 vi.mock("@/composables/useArticleSummary", () => ({
   useArticleSummary: () => ({
@@ -88,6 +89,7 @@ const league: LeagueDTO = {
   icon: "L",
   startDate: Temporal.Now.instant(),
   endDate: Temporal.Now.instant().add({ hours: 1 }),
+  visibility: LeagueVisibility.PUBLIC,
   teamCount: 1,
 };
 

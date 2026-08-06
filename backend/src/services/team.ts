@@ -1,7 +1,10 @@
 import { Team } from "../../../model";
+import { normalizeInvitationCode } from "../../../model/league";
 import { TeamDTO } from "../../../dto/teamDTO";
-import { TeamRepository } from "../repositories/teamRepository";
+import { TEAM_ERRORS, TeamRepository } from "../repositories/teamRepository";
 import { TeamRepositoryD1 } from "../repositories/d1/teamRepositoryD1";
+import { LeagueRepository } from "../repositories/leagueRepository";
+import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
 import { LineupRepository } from "../repositories/lineupRepository";
 import { LineupRepositoryD1 } from "../repositories/d1/lineupRepositoryD1";
 import { Result, failure, success } from "../repositories/result";
@@ -9,11 +12,13 @@ import { Result, failure, success } from "../repositories/result";
 export type TeamServiceDeps = {
   teamRepository: TeamRepository;
   lineupRepository: LineupRepository;
+  leagueRepository: LeagueRepository;
 };
 
 export class TeamService {
   private teamRepository: TeamRepository;
   private lineupRepository: LineupRepository;
+  private leagueRepository: LeagueRepository;
 
   constructor(depsOrDb: TeamServiceDeps | D1Database) {
     const deps =
@@ -22,24 +27,35 @@ export class TeamService {
         : TeamService.d1Deps(depsOrDb as D1Database);
     this.teamRepository = deps.teamRepository;
     this.lineupRepository = deps.lineupRepository;
+    this.leagueRepository = deps.leagueRepository;
   }
 
   private static d1Deps(db: D1Database): TeamServiceDeps {
     return {
       teamRepository: new TeamRepositoryD1(db),
       lineupRepository: new LineupRepositoryD1(db),
+      leagueRepository: new LeagueRepositoryD1(db),
     };
   }
 
+  /**
+   * Join a league by naming a team in it.
+   *
+   * `invitationCode` is only consulted for a private league; a public one
+   * ignores whatever is passed. The league's entry rules are enforced by the
+   * INSERT itself (see `TeamRepositoryD1.create`) — everything before it is
+   * advisory, there to answer in words rather than to decide.
+   */
   async createTeam(
     playerId: string,
     leagueId: string,
     name: string,
+    invitationCode?: string,
   ): Promise<Result<Team>> {
     const trimmed = name.trim();
 
     if (trimmed.length < 3 || trimmed.length > 30) {
-      return failure("Team name must be between 3 and 30 characters.");
+      return failure(TEAM_ERRORS.NAME_LENGTH);
     }
 
     // A player has at most one team per league. `UNIQUE (playerId, leagueId)`
@@ -55,7 +71,7 @@ export class TeamService {
       return ownTeamResult;
     }
     if (ownTeamResult.value) {
-      return failure("You already have a team in this league.");
+      return failure(TEAM_ERRORS.ALREADY_HAS_TEAM);
     }
 
     const existsResult = await this.teamRepository.existsByNameInLeague(
@@ -66,17 +82,22 @@ export class TeamService {
       return existsResult;
     }
     if (existsResult.value) {
-      return failure(
-        "This team name is already taken in this league. Please choose another.",
-      );
+      return failure(TEAM_ERRORS.NAME_TAKEN);
     }
 
     const teamResult = await this.teamRepository.create({
       name: trimmed,
       playerId,
       leagueId,
+      invitationCode: invitationCode
+        ? normalizeInvitationCode(invitationCode)
+        : undefined,
     });
-    if (!teamResult.ok) return teamResult;
+    if (!teamResult.ok) {
+      return teamResult.error === TEAM_ERRORS.JOIN_CONFLICT
+        ? this.joinRejection(playerId, leagueId)
+        : teamResult;
+    }
 
     const lineupResult = await this.lineupRepository.upsert({
       teamId: teamResult.value.id,
@@ -87,6 +108,26 @@ export class TeamService {
     if (!lineupResult.ok) return lineupResult;
 
     return teamResult;
+  }
+
+  /**
+   * Name the reason the guarded INSERT turned a join down. It matched no row,
+   * which means either the league is not there or its entry rules said no —
+   * re-reading is the only way to tell, and it is why the repository returns a
+   * single sentinel instead of guessing.
+   */
+  private async joinRejection(
+    playerId: string,
+    leagueId: string,
+  ): Promise<Result<never>> {
+    const leagueResult = await this.leagueRepository.getById(leagueId);
+    if (!leagueResult.ok) {
+      // Includes LEAGUE_ERRORS.NOT_FOUND, which is the honest answer for a
+      // league id that does not exist. Before the gate this silently attempted
+      // an insert and surfaced a foreign-key failure as a 400.
+      return leagueResult;
+    }
+    return failure(TEAM_ERRORS.LEAGUE_IS_PRIVATE);
   }
 
   async getMyTeam(

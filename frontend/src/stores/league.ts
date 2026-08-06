@@ -5,6 +5,7 @@ import { LeagueDTO } from "../../../dto/leagueDTO";
 import { GLOBAL_LEAGUE_ID } from "../../../model/league";
 import { Temporal } from "@js-temporal/polyfill";
 import Now = Temporal.Now;
+import { LeagueVisibility } from "../../../model/enums";
 
 /**
  * Manages the player's league context.
@@ -27,6 +28,7 @@ export const useLeagueStore = defineStore("league", () => {
     icon: "",
     startDate: Now.instant(),
     endDate: Now.instant(),
+    visibility: LeagueVisibility.PUBLIC,
     teamCount: 0,
   });
   const currentLeague = ref<LeagueDTO>();

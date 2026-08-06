@@ -35,8 +35,8 @@ Existing constants and their owners:
 | Constant                | Owner                                    | Consumers                                    |
 | ----------------------- | ---------------------------------------- | -------------------------------------------- |
 | `PLAYER_ERRORS`         | `repositories/playerRepository.ts`       | `services/login.ts`, `routes/helpers.ts`     |
-| `LEAGUE_ERRORS`         | `repositories/leagueRepository.ts`       | `routes/leagues.ts`                          |
-| `TEAM_ERRORS`           | `repositories/teamRepository.ts`         | `services/contract.ts`, `services/lineup.ts` |
+| `LEAGUE_ERRORS`         | `repositories/leagueRepository.ts`       | `routes/leagues.ts`, `services/team.ts`, `services/invitationCode.ts` |
+| `TEAM_ERRORS`           | `repositories/teamRepository.ts`         | `services/contract.ts`, `services/lineup.ts`, `services/team.ts`, `routes/leagues.ts` |
 | `NOTIFICATION_ERRORS`   | `repositories/notificationRepository.ts` | `routes/notifications.ts`                    |
 | `CONTRACT_WRITE_ERRORS` | `repositories/contractRepository.ts`     | `services/contract.ts`                       |
 | `CONTRACT_ERRORS`       | `services/contract.ts`                   | `routes/leagues.ts`                          |
@@ -65,7 +65,13 @@ Rules for new code:
 
   ```ts
   const CONTRACT_ERROR_STATUS: Record<ContractError, 404 | 400> = { ... };
+  const TEAM_ERROR_STATUS: Record<TeamError, 404 | 403 | 400> = { ... };
   ```
+
+  `TEAM_ERROR_STATUS` is why `createTeam`'s three ad-hoc English strings became
+  constants when the league join gate arrived: a permission refusal is a 403
+  and a missing league a 404, and neither can be told apart from a name-length
+  complaint without an identity to compare against.
 
   Declaring the map as a total `Record` over the error union means adding a
   constant without giving it a status is a compile error. Never derive a status

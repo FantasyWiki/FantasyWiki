@@ -112,6 +112,17 @@ describe("LeaguesPage", () => {
     expect(page.find(".featured").text()).toContain("Featured Public Leagues");
   });
 
+  it("marks a private league and leaves public ones unlabelled", async () => {
+    const page = await mountPage();
+
+    const cards = page.findAll(".league-card");
+    const italia = cards.find((c) => c.text().includes("Italia League"));
+    const global = cards.find((c) => c.text().includes("Global League"));
+
+    expect(italia?.text()).toContain("Private");
+    expect(global?.text()).not.toContain("Private");
+  });
+
   it("says the first grid is the leagues the player already plays", async () => {
     const page = await mountPage();
 

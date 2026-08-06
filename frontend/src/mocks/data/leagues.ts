@@ -1,6 +1,7 @@
 import { Temporal } from "@js-temporal/polyfill";
 import type { LeagueDTO } from "../../../../dto/leagueDTO";
 import type { TeamDTO } from "../../../../dto/teamDTO";
+import { LeagueVisibility } from "../../../../model/enums";
 import { globalFillerTeams, teams } from "./teams";
 
 const Instant = Temporal.Instant;
@@ -42,6 +43,7 @@ export const leagues: LeagueDTO[] = [
     // progress — is what mock mode shows by default. The other leagues have
     // already finished and exercise the podium.
     endDate: Instant.from("2100-12-31T23:59:59Z"),
+    visibility: LeagueVisibility.PUBLIC,
     teamCount: rosterOf("global").length,
   },
   {
@@ -51,6 +53,8 @@ export const leagues: LeagueDTO[] = [
     domain: "it",
     startDate: Instant.from("2024-01-01T00:00:00Z"),
     endDate: Instant.from("2024-02-28T23:59:59Z"),
+    // The one private fixture, so mock mode shows both badges.
+    visibility: LeagueVisibility.PRIVATE,
     teamCount: rosterOf("italy").length,
   },
   {
@@ -60,6 +64,7 @@ export const leagues: LeagueDTO[] = [
     domain: "en",
     startDate: Instant.from("2024-01-01T00:00:00Z"),
     endDate: Instant.from("2024-03-15T23:59:59Z"),
+    visibility: LeagueVisibility.PUBLIC,
     teamCount: rosterOf("europe").length,
   },
   {
@@ -69,6 +74,7 @@ export const leagues: LeagueDTO[] = [
     domain: "en",
     startDate: Instant.from("2024-01-01T00:00:00Z"),
     endDate: Instant.from("2024-03-20T23:59:59Z"),
+    visibility: LeagueVisibility.PUBLIC,
     teamCount: rosterOf("americas").length,
   },
 ];

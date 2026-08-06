@@ -11,6 +11,7 @@ import i18n from "@/i18n";
 import type { TeamDTO } from "../../../../dto/teamDTO";
 import type { LeagueDTO } from "../../../../dto/leagueDTO";
 import type { ArticleDTO } from "../../../../dto/articleDTO";
+import { LeagueVisibility } from "../../../../model/enums";
 
 vi.mock("@/composables/useArticleSummary", () => ({
   useArticleSummary: () => ({
@@ -88,7 +89,8 @@ const league: LeagueDTO = {
   icon: "L",
   startDate: Temporal.Now.instant(),
   endDate: Temporal.Now.instant().add({ hours: 1 }),
-  teams: [viewerTeam],
+  visibility: LeagueVisibility.PUBLIC,
+  teamCount: 1,
 };
 
 const article: ArticleDTO = { id: "article-1", title: "ChatGPT", domain: "en" };

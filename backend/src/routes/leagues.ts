@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { JWTPayload } from "hono/utils/jwt/types";
-import { LeagueService, toLeagueDTO } from "../services/league";
+import { LeagueService } from "../services/league";
 import { LeaderboardService } from "../services/leaderboard";
 import { PerformanceService } from "../services/performance";
 import { TeamService } from "../services/team";
@@ -19,7 +19,7 @@ import {
 import { NotificationService } from "../services/notification";
 import { LEAGUE_ERRORS } from "../repositories/leagueRepository";
 import { PLAYER_ERRORS } from "../repositories/playerRepository";
-import { TEAM_ERRORS } from "../repositories/teamRepository";
+import { TEAM_ERRORS, type TeamError } from "../repositories/teamRepository";
 import { TeamDTO } from "../../../dto/teamDTO";
 import { playerErrorStatus, resolveCurrentPlayer } from "./helpers";
 
@@ -50,6 +50,36 @@ const CONTRACT_ERROR_STATUS: Record<ContractError, 404 | 400> = {
   [CONTRACT_ERRORS.RENEWAL_WINDOW_CLOSED]: 400,
   [CONTRACT_ERRORS.RENEWAL_NOT_ELECTED]: 400,
 };
+
+/**
+ * The status every join failure maps to. A permission refusal is a 403 and a
+ * missing league a 404, which the old blanket 400 could not express — and per
+ * docs/architecture/backend-error-constants.md a status may never be derived
+ * from message content. Total over `TeamError`, so a new constant without a
+ * status fails to compile.
+ *
+ * JOIN_CONFLICT is 500 by omission from the client's point of view: the
+ * service always translates it into one of the others before a route sees it,
+ * and if one ever leaked out it would mean the classifier is broken, which is
+ * ours and not the caller's.
+ */
+const TEAM_ERROR_STATUS: Record<TeamError, 404 | 403 | 400> = {
+  [TEAM_ERRORS.NO_TEAM_IN_LEAGUE]: 404,
+  [TEAM_ERRORS.NAME_LENGTH]: 400,
+  [TEAM_ERRORS.NAME_TAKEN]: 400,
+  [TEAM_ERRORS.ALREADY_HAS_TEAM]: 400,
+  [TEAM_ERRORS.LEAGUE_IS_PRIVATE]: 403,
+  [TEAM_ERRORS.JOIN_CONFLICT]: 400,
+};
+
+export function teamErrorStatus(error: string): 404 | 403 | 400 | 500 {
+  if (error in TEAM_ERROR_STATUS) {
+    return TEAM_ERROR_STATUS[error as TeamError];
+  }
+  if (error === LEAGUE_ERRORS.NOT_FOUND) return 404;
+  // Anything the service did not name — a D1 outage — is ours.
+  return 500;
+}
 
 /** Repository misses the service passes straight through to the route. */
 const NOT_FOUND_ERRORS: readonly string[] = [
@@ -87,7 +117,12 @@ leagues.get("/", async (c) => {
   if (!leaguesResult.ok) {
     return c.json({ error: leaguesResult.error }, 500);
   }
-  return c.json(leaguesResult.value.map((league) => toLeagueDTO(league)));
+  const leagueService = new LeagueService(c.env.db);
+  const dtos = await leagueService.toLeagueDTOs(leaguesResult.value);
+  if (!dtos.ok) {
+    return c.json({ error: dtos.error }, 500);
+  }
+  return c.json(dtos.value);
 });
 
 leagues.get("/global", async (c) => {
@@ -148,6 +183,49 @@ leagues.get("/:id/my-team", async (c) => {
   return c.json(teamResult.value);
 });
 
+/**
+ * The league's invitation code, for a caller its invite policy lets hand it
+ * out. Not `my-`: the code is the league's datum, not the caller's — the
+ * caller only decides whether they may see it.
+ */
+leagues.get("/:id/invite-code", async (c) => {
+  const leagueId = c.req.param("id");
+  const playerResult = await resolveCurrentPlayer(c);
+  if (!playerResult.ok) {
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
+  }
+
+  const teamService = new TeamService(c.env.db);
+  const teamResult = await teamService.getMyTeam(
+    playerResult.value.id,
+    leagueId,
+    playerResult.value.username,
+  );
+  if (!teamResult.ok) {
+    return c.json({ error: teamResult.error }, 500);
+  }
+
+  const leagueService = new LeagueService(c.env.db);
+  const result = await leagueService.getInvitationCode(
+    playerResult.value.id,
+    leagueId,
+    teamResult.value !== null,
+  );
+  if (!result.ok) {
+    return c.json(
+      { error: result.error },
+      result.error === LEAGUE_ERRORS.NOT_FOUND ||
+        result.error === LEAGUE_ERRORS.NO_INVITATION_CODE
+        ? 404
+        : 500,
+    );
+  }
+  return c.json(result.value);
+});
+
 leagues.get("/:id/my-performances", async (c) => {
   const leagueId = c.req.param("id");
   const rawLimit = parseInt(c.req.query("limit") ?? "2", 10);
@@ -195,8 +273,8 @@ leagues.post("/:id/my-team", async (c) => {
   }
 
   const body = await c.req
-    .json<{ name?: string }>()
-    .catch(() => ({ name: undefined }));
+    .json<{ name?: string; invitationCode?: string }>()
+    .catch(() => ({ name: undefined, invitationCode: undefined }));
   if (!body.name || typeof body.name !== "string") {
     return c.json({ error: "name is required" }, 400);
   }
@@ -206,9 +284,14 @@ leagues.post("/:id/my-team", async (c) => {
     playerResult.value.id,
     leagueId,
     body.name,
+    // Only consulted for a private league; a public one ignores it.
+    typeof body.invitationCode === "string" ? body.invitationCode : undefined,
   );
   if (!teamResult.ok) {
-    return c.json({ error: teamResult.error }, 400);
+    return c.json(
+      { error: teamResult.error },
+      teamErrorStatus(teamResult.error),
+    );
   }
 
   const team = teamResult.value;

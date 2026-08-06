@@ -7,6 +7,7 @@ import type { TeamRepository } from "../../repositories/teamRepository";
 import { success, failure } from "../../repositories/result";
 import { STARTING_CREDITS } from "../../../../model/team";
 import type { Team } from "../../../../model";
+import { fakeLeagueRepository } from "../utils/fakeRepositories";
 
 describe("TeamService Integration Tests", () => {
   let teamService: TeamService;
@@ -219,6 +220,7 @@ describe("TeamService Integration Tests", () => {
           getByTeamId: async () => failure("unused"),
           upsert: async () => failure("unused"),
         },
+        leagueRepository: fakeLeagueRepository(),
       });
 
       const result = await service.getMyTeam(playerId, leagueId, "Alice");
@@ -245,6 +247,7 @@ describe("TeamService Integration Tests", () => {
           getByTeamId: async () => failure("unused"),
           upsert: async () => failure("unused"),
         },
+        leagueRepository: fakeLeagueRepository(),
       });
 
       const result = await service.getMyTeam(playerId, leagueId, "Bob");

@@ -8,6 +8,7 @@ import {
   notifications,
   performancesByLeague,
   players,
+  rosterOf,
   teams,
 } from "./data";
 import { ContractDTO } from "../../../dto/contractDTO";
@@ -22,8 +23,7 @@ import Instant = Temporal.Instant;
 // =============================================================================
 
 function getMyTeam(leagueId: string): TeamDTO | undefined {
-  const league = leagues.find((l) => l.id === leagueId);
-  return league?.teams.find((t) => t.player.id === currentPlayerId);
+  return rosterOf(leagueId).find((t) => t.player.id === currentPlayerId);
 }
 
 function teamResponseKey(leagueId: string): string {
@@ -316,7 +316,7 @@ export const handlers = [
   http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {
     const league = leagues.find((l) => l.id === params.leagueId);
     if (!league) return HttpResponse.json([]);
-    const teamIds = league.teams.map((t) => t.id);
+    const teamIds = rosterOf(league.id).map((t) => t.id);
     return HttpResponse.json(
       contracts.filter((c) => teamIds.includes(c.team.id))
     );
@@ -325,7 +325,7 @@ export const handlers = [
   http.get("*/api/leagues/:leagueId/my-notifications", ({ params }) => {
     const league = leagues.find((l) => l.id === params.leagueId);
     if (!league) return HttpResponse.json([]);
-    const teamIdsInLeague = league.teams.map((t) => t.id);
+    const teamIdsInLeague = rosterOf(league.id).map((t) => t.id);
     return HttpResponse.json(
       notifications.filter((n) => teamIdsInLeague.includes(n.contract.team.id))
     );
@@ -481,7 +481,7 @@ export const handlers = [
     }
 
     // Current standings: teams sorted by cumulative points desc.
-    const ranked = [...league.teams]
+    const ranked = [...rosterOf(league.id)]
       .map((team) => ({
         team,
         cumulativePoints: cumulativeByTeam.get(team.id) ?? 0,

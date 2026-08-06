@@ -97,7 +97,7 @@ export const playerApi = {
 // ── Leagues ───────────────────────────────────────────────────────────────────
 
 export const leaguesApi = {
-  /** The current player's leagues available for selection (resolved from JWT on backend) */
+  /** The current player's leagues (resolved from JWT on backend) */
   getAll: () =>
     apiRequest<LeagueDTO[]>("/leagues").then((ls) => ls.map(deserializeLeague)),
   getById: (id: string) =>

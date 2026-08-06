@@ -1,9 +1,42 @@
 import { describe, expect, it } from "vitest";
-import { contractErrorStatus } from "../routes/leagues";
+import { contractErrorStatus, teamErrorStatus } from "../routes/leagues";
 import { playerErrorStatus } from "../routes/helpers";
 import { CONTRACT_ERRORS } from "../services/contract";
 import { LEAGUE_ERRORS } from "../repositories/leagueRepository";
 import { PLAYER_ERRORS } from "../repositories/playerRepository";
+import { TEAM_ERRORS } from "../repositories/teamRepository";
+
+describe("teamErrorStatus", () => {
+  it("maps every team business error to a client status", () => {
+    for (const error of Object.values(TEAM_ERRORS)) {
+      expect(teamErrorStatus(error)).not.toBe(500);
+    }
+  });
+
+  it("answers 403 for a league the player may not enter", () => {
+    // The refusal is a permission one. It was a 400 until the join gate
+    // existed, because every other failure really was the client's input.
+    expect(teamErrorStatus(TEAM_ERRORS.LEAGUE_IS_PRIVATE)).toBe(403);
+  });
+
+  it("answers 404 for a league that is not there", () => {
+    expect(teamErrorStatus(LEAGUE_ERRORS.NOT_FOUND)).toBe(404);
+    expect(teamErrorStatus(TEAM_ERRORS.NO_TEAM_IN_LEAGUE)).toBe(404);
+  });
+
+  it("still answers 400 for the name rules", () => {
+    // Regression guard for the status-map change: these used to be free text
+    // mapped to a blanket 400, and turning them into 500s would leave the
+    // team-creation form with nothing to say.
+    expect(teamErrorStatus(TEAM_ERRORS.NAME_LENGTH)).toBe(400);
+    expect(teamErrorStatus(TEAM_ERRORS.NAME_TAKEN)).toBe(400);
+    expect(teamErrorStatus(TEAM_ERRORS.ALREADY_HAS_TEAM)).toBe(400);
+  });
+
+  it("answers 500 for a failure no service named", () => {
+    expect(teamErrorStatus("Error creating team: D1_ERROR")).toBe(500);
+  });
+});
 
 describe("contractErrorStatus", () => {
   it("maps every contract business error to a client status", () => {

@@ -1,6 +1,11 @@
-import { Player, League } from "../../../../model";
+import { League, Player } from "../../../../model";
 import { PLAYER_ERRORS, PlayerRepository } from "../playerRepository";
 import { Result, success, failure } from "../result";
+import {
+  LEAGUE_COLUMNS_QUALIFIED,
+  LeagueRow,
+  toLeague,
+} from "./leagueRepositoryD1";
 
 /**
  * D1 surfaces a lost uniqueness constraint only as driver text, and it reaches
@@ -105,19 +110,19 @@ export class PlayerRepositoryD1 implements PlayerRepository {
       const results = await this.db
         .prepare(
           `
-                    SELECT DISTINCT l.id, l.name, l.adminId, l.startDate, l.endDate, l.domain, l.icon
+                    SELECT DISTINCT ${LEAGUE_COLUMNS_QUALIFIED}
                     FROM leagues l
                     INNER JOIN teams t ON l.id = t.leagueId
                     WHERE t.playerId = ?
                 `,
         )
         .bind(id)
-        .all<League>();
+        // Text dates, like every other `leagues` read — `toLeague` is what
+        // turns them into instants, and typing the row as `League` (as this
+        // once did) only hid that they had not been.
+        .all<LeagueRow>();
 
-      if (results.results) {
-        return success(results.results);
-      }
-      return success([]);
+      return success((results.results ?? []).map(toLeague));
     } catch (error) {
       return failure(
         `Error retrieving leagues: ${error instanceof Error ? error.message : "Unknown error"}`,

@@ -11,10 +11,12 @@ import { Result, success } from "../repositories/result";
 export { GLOBAL_LEAGUE_ID };
 
 /**
- * Map a domain League to the LeagueDTO shape returned by the API.
- * `teams` is populated by team-scoped endpoints, not here.
+ * Map a domain League and the size of its field to the LeagueDTO the API
+ * returns. The count is passed in rather than read off the league because it
+ * is derived from the `teams` table — `model/League` says what a league is,
+ * not how many have joined it.
  */
-export function toLeagueDTO(league: League): LeagueDTO {
+export function toLeagueDTO(league: League, teamCount: number): LeagueDTO {
   return {
     id: league.id,
     title: league.name,
@@ -22,7 +24,7 @@ export function toLeagueDTO(league: League): LeagueDTO {
     icon: league.icon,
     startDate: league.startDate,
     endDate: league.endDate,
-    teams: [],
+    teamCount,
   };
 }
 
@@ -53,6 +55,30 @@ export class LeagueService {
     if (!result.ok) {
       return result;
     }
-    return success(toLeagueDTO(result.value));
+    const counts = await this.repository.countTeamsByLeague([id]);
+    if (!counts.ok) {
+      return counts;
+    }
+    return success(toLeagueDTO(result.value, counts.value[id] ?? 0));
+  }
+
+  /**
+   * Dress a set of leagues the caller already holds — the player's own, which
+   * `PlayerService` resolves — as DTOs. The counts are fetched for the whole
+   * set in one read, which is the reason this takes a list rather than being
+   * called once per league.
+   */
+  async toLeagueDTOs(leagues: League[]): Promise<Result<LeagueDTO[]>> {
+    const counts = await this.repository.countTeamsByLeague(
+      leagues.map((l) => l.id),
+    );
+    if (!counts.ok) {
+      return counts;
+    }
+    return success(
+      leagues.map((league) =>
+        toLeagueDTO(league, counts.value[league.id] ?? 0),
+      ),
+    );
   }
 }

@@ -47,9 +47,9 @@ export class DashboardData {
   notifications: NotificationDTO[];
   recentPoints: TeamPointsData;
   // rank, totalPlayers, and portfolioValue are pre-computed by the caller and
-  // passed in: rank/totalPlayers come from the leaderboard response
-  // (league.teams is always empty from the backend), and portfolioValue needs
-  // live per-article pageview data that isn't on ContractDTO/ArticleDTO
+  // passed in: rank/totalPlayers come from the leaderboard response, which is
+  // the only place a *ranking* exists, and portfolioValue needs live
+  // per-article pageview data that isn't on ContractDTO/ArticleDTO
   // (ADR 0005 — see computeCurrentPrice in types/articleDetail.ts).
   private readonly _rank: number;
   private readonly _totalPlayers: number;

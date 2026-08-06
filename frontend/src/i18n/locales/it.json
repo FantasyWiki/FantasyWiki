@@ -476,6 +476,21 @@
     "podiumLive": "Top tre",
     "notStartedNote": "La lega non è ancora iniziata — queste sono le squadre iscritte."
   },
+  "leagues": {
+    "title": "Le tue leghe",
+    "subtitle": "Gestisci le tue leghe, entra in competizioni private o creane una tua.",
+    "joinPrivate": "Entra in una lega privata",
+    "createNew": "Crea una nuova lega",
+    "actionsNote": "Entrare in una lega e crearne una sono in arrivo.",
+    "mineTitle": "Le leghe in cui giochi",
+    "active": "Attiva",
+    "participants": "1 giocatore | {count} giocatori",
+    "empty": "Non sei ancora in nessuna lega. Esplora le leghe pubbliche, inserisci un codice d'invito o creane una tua.",
+    "errorTitle": "Impossibile caricare le tue leghe",
+    "retry": "Riprova",
+    "featuredTitle": "Leghe pubbliche in evidenza",
+    "featuredPlaceholder": "Qui compariranno le leghe aperte a cui chiunque può unirsi."
+  },
   "onboarding": {
     "start": {
       "eyebrow": "Nuovo giocatore",

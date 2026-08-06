@@ -1,9 +1,34 @@
 import { Temporal } from "@js-temporal/polyfill";
 import type { LeagueDTO } from "../../../../dto/leagueDTO";
+import type { TeamDTO } from "../../../../dto/teamDTO";
 import { globalFillerTeams, teams } from "./teams";
 
 const Instant = Temporal.Instant;
 
+/**
+ * Who plays in each league. Held apart from the leagues themselves because
+ * `LeagueDTO` deliberately carries no roster — the real API answers that with
+ * the leaderboard. The handlers use this as their stand-in database whenever
+ * they need to know which teams a league-scoped endpoint is talking about.
+ */
+export const rostersByLeague: Record<string, TeamDTO[]> = {
+  // teams[1] is the current player's; the rest are filler rivals so the
+  // standings card has a deep enough table to window.
+  global: [teams[1], teams[5], ...globalFillerTeams],
+  italy: [teams[0], teams[3], teams[4]],
+  europe: [teams[2], teams[6]],
+  americas: [teams[7]],
+};
+
+export function rosterOf(leagueId: string): TeamDTO[] {
+  return rostersByLeague[leagueId] ?? [];
+}
+
+/**
+ * `teamCount` is derived from the roster above rather than written out, so the
+ * number the league section renders cannot drift from the teams the standings
+ * endpoint actually returns.
+ */
 export const leagues: LeagueDTO[] = [
   {
     id: "global",
@@ -17,9 +42,7 @@ export const leagues: LeagueDTO[] = [
     // progress — is what mock mode shows by default. The other leagues have
     // already finished and exercise the podium.
     endDate: Instant.from("2100-12-31T23:59:59Z"),
-    // teams[1] is the current player's; the rest are filler rivals so the
-    // standings card has a deep enough table to window.
-    teams: [teams[1], teams[5], ...globalFillerTeams],
+    teamCount: rosterOf("global").length,
   },
   {
     id: "italy",
@@ -28,7 +51,7 @@ export const leagues: LeagueDTO[] = [
     domain: "it",
     startDate: Instant.from("2024-01-01T00:00:00Z"),
     endDate: Instant.from("2024-02-28T23:59:59Z"),
-    teams: [teams[0], teams[3], teams[4]],
+    teamCount: rosterOf("italy").length,
   },
   {
     id: "europe",
@@ -37,7 +60,7 @@ export const leagues: LeagueDTO[] = [
     domain: "en",
     startDate: Instant.from("2024-01-01T00:00:00Z"),
     endDate: Instant.from("2024-03-15T23:59:59Z"),
-    teams: [teams[2], teams[6]],
+    teamCount: rosterOf("europe").length,
   },
   {
     id: "americas",
@@ -46,6 +69,6 @@ export const leagues: LeagueDTO[] = [
     domain: "en",
     startDate: Instant.from("2024-01-01T00:00:00Z"),
     endDate: Instant.from("2024-03-20T23:59:59Z"),
-    teams: [teams[7]],
+    teamCount: rosterOf("americas").length,
   },
 ];

@@ -476,6 +476,21 @@
     "podiumLive": "Top three",
     "notStartedNote": "The league hasn't started yet — these are the teams lining up for it."
   },
+  "leagues": {
+    "title": "Your Leagues",
+    "subtitle": "Manage your leagues, join private competitions, or create your own.",
+    "joinPrivate": "Join Private League",
+    "createNew": "Create New League",
+    "actionsNote": "Joining and creating leagues are on the way.",
+    "mineTitle": "Leagues You're Playing",
+    "active": "Active",
+    "participants": "1 player | {count} players",
+    "empty": "You are not in any league yet. Browse public leagues, enter an invitation code, or create your own.",
+    "errorTitle": "Couldn't load your leagues",
+    "retry": "Try again",
+    "featuredTitle": "Featured Public Leagues",
+    "featuredPlaceholder": "Open leagues anyone can join will be listed here."
+  },
   "onboarding": {
     "start": {
       "eyebrow": "New player",

@@ -47,7 +47,7 @@ const league: LeagueDTO = {
   icon: "L",
   startDate: Temporal.Now.instant(),
   endDate: Temporal.Now.instant().add({ hours: 1 }),
-  teams: [team],
+  teamCount: 1,
 };
 
 function contract(title: string): ContractDTO {

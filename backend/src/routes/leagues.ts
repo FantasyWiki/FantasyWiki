@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { JWTPayload } from "hono/utils/jwt/types";
-import { LeagueService, toLeagueDTO } from "../services/league";
+import { LeagueService } from "../services/league";
 import { LeaderboardService } from "../services/leaderboard";
 import { PerformanceService } from "../services/performance";
 import { TeamService } from "../services/team";
@@ -87,7 +87,12 @@ leagues.get("/", async (c) => {
   if (!leaguesResult.ok) {
     return c.json({ error: leaguesResult.error }, 500);
   }
-  return c.json(leaguesResult.value.map((league) => toLeagueDTO(league)));
+  const leagueService = new LeagueService(c.env.db);
+  const dtos = await leagueService.toLeagueDTOs(leaguesResult.value);
+  if (!dtos.ok) {
+    return c.json({ error: dtos.error }, 500);
+  }
+  return c.json(dtos.value);
 });
 
 leagues.get("/global", async (c) => {

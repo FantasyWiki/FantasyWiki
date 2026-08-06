@@ -60,7 +60,7 @@ const fakeLeague: LeagueDTO = {
   icon: "🌍",
   startDate: Temporal.Now.instant(),
   endDate: Temporal.Now.instant(),
-  teams: [],
+  teamCount: 0,
 };
 
 // Matches the "global" league fixture in src/mocks/data/{leagues,teams,contracts}.ts:

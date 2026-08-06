@@ -39,9 +39,9 @@ export interface TourStep {
  * tour teaches the menu the player is about to use, in the order they read it.
  *
  * Two deliberate detours:
- *  - `league` has no route of its own. `/leagues` is still a stub, and the
- *    league switcher in the NavBar is the real thing a player needs to find, so
- *    the tour points at it in place rather than walking them into a placeholder.
+ *  - `league` has no route of its own. `/leagues` lists the player's leagues,
+ *    but the switcher in the NavBar is what actually changes the league every
+ *    other page is scoped to, so the tour points at it in place.
  *  - `manageTeam` sends the player back to the dashboard to show the button
  *    that opens the pitch *before* the pitch itself. The pitch has no
  *    navigation entry of its own, so without this step a player would learn a

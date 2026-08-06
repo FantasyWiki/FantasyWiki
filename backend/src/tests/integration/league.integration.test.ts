@@ -10,6 +10,8 @@ import { LEAGUE_ERRORS } from "../../repositories/leagueRepository";
 import { LeagueRepositoryD1 } from "../../repositories/d1/leagueRepositoryD1";
 import { LeagueRepository } from "../../repositories/leagueRepository";
 import { success, failure } from "../../repositories/result";
+import { PlayerService } from "../../services/player";
+import { insertTeam } from "../utils/d1TestUtils";
 import { League } from "../../../../model";
 
 describe("LeagueService Integration Tests", () => {
@@ -29,7 +31,6 @@ describe("LeagueService Integration Tests", () => {
         expect(result.value.title).toBe("Global League");
         expect(result.value.domain).toBe("en");
         expect(result.value.icon).toBe("🌍");
-        expect(result.value.teams).toEqual([]);
       }
     });
 
@@ -50,6 +51,7 @@ describe("LeagueService Integration Tests", () => {
     it("should propagate a failure from an injected repository", async () => {
       const failingRepository: LeagueRepository = {
         getById: async () => failure("boom"),
+        countTeamsByLeague: async () => success({}),
       };
       const service = new LeagueService(failingRepository);
 
@@ -71,6 +73,7 @@ describe("LeagueService Integration Tests", () => {
 
       const repository: LeagueRepository = {
         getById: async () => success(league),
+        countTeamsByLeague: async () => success({ [GLOBAL_LEAGUE_ID]: 3 }),
       };
       const service = new LeagueService(repository);
 
@@ -83,9 +86,31 @@ describe("LeagueService Integration Tests", () => {
           title: league.name,
           domain: league.domain,
           icon: league.icon,
-          teams: [],
+          teamCount: 3,
         });
       }
+    });
+
+    it("should fail the read when the team count cannot be read", async () => {
+      const league: League = {
+        id: GLOBAL_LEAGUE_ID,
+        name: "Global League",
+        adminId: "system",
+        startDate: Temporal.Now.instant(),
+        endDate: Temporal.Now.instant(),
+        domain: "en",
+        icon: "🌍",
+      };
+      // A league whose size could not be read must not be reported as one
+      // nobody has joined; the count failing fails the whole read.
+      const repository: LeagueRepository = {
+        getById: async () => success(league),
+        countTeamsByLeague: async () => failure("count exploded"),
+      };
+
+      const result = await new LeagueService(repository).getGlobalLeague();
+
+      expect(result).toEqual(failure("count exploded"));
     });
   });
 
@@ -145,7 +170,7 @@ describe("toLeagueDTO", () => {
       icon: "🏆",
     };
 
-    const dto = toLeagueDTO(league);
+    const dto = toLeagueDTO(league, 12);
 
     expect(dto).toEqual({
       id: "league-7",
@@ -154,8 +179,102 @@ describe("toLeagueDTO", () => {
       icon: "🏆",
       startDate,
       endDate,
-      teams: [],
+      teamCount: 12,
     });
+  });
+});
+
+describe("LeagueRepositoryD1.countTeamsByLeague", () => {
+  const repository = () => new LeagueRepositoryD1(env.db);
+
+  async function insertLeague(id: string) {
+    await env.db
+      .prepare(
+        "INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .bind(
+        id,
+        `League ${id}`,
+        "system",
+        "2026-01-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        "en",
+        "🏁",
+      )
+      .run();
+  }
+
+  async function addTeam(id: string, leagueId: string) {
+    const player = await new PlayerService(env.db).createPlayer(
+      `p-${id}`,
+      `${id}@example.com`,
+      `acct-${id}`,
+    );
+    if (!player.ok) throw new Error("setup failed");
+    await insertTeam(env.db, {
+      id,
+      name: `Team ${id}`,
+      playerId: player.value.id,
+      leagueId,
+    });
+  }
+
+  it("counts every team in each requested league", async () => {
+    await insertLeague("count-a");
+    await insertLeague("count-b");
+    await addTeam("t-a1", "count-a");
+    await addTeam("t-a2", "count-a");
+    await addTeam("t-b1", "count-b");
+
+    const result = await repository().countTeamsByLeague([
+      "count-a",
+      "count-b",
+    ]);
+
+    expect(result).toEqual(success({ "count-a": 2, "count-b": 1 }));
+  });
+
+  it("reports a league nobody has joined as 0 rather than omitting it", async () => {
+    await insertLeague("count-empty");
+
+    const result = await repository().countTeamsByLeague(["count-empty"]);
+
+    // The caller indexes by id to build a DTO; a missing key would read as
+    // undefined and render a blank where a zero belongs.
+    expect(result).toEqual(success({ "count-empty": 0 }));
+  });
+
+  it("reports an id that is not a league at all as 0", async () => {
+    const result = await repository().countTeamsByLeague(["no-such-league"]);
+
+    expect(result).toEqual(success({ "no-such-league": 0 }));
+  });
+
+  it("does not query at all for an empty id list", async () => {
+    // An empty `IN ()` is a SQLite syntax error, so the short-circuit is load
+    // bearing, not an optimisation.
+    const throwingDb = {
+      prepare: () => {
+        throw new Error("should not have been queried");
+      },
+    } as unknown as D1Database;
+
+    const result = await new LeagueRepositoryD1(throwingDb).countTeamsByLeague(
+      [],
+    );
+
+    expect(result).toEqual(success({}));
+  });
+
+  it("counts only the requested leagues", async () => {
+    await insertLeague("count-asked");
+    await insertLeague("count-unasked");
+    await addTeam("t-asked", "count-asked");
+    await addTeam("t-unasked", "count-unasked");
+
+    const result = await repository().countTeamsByLeague(["count-asked"]);
+
+    expect(result).toEqual(success({ "count-asked": 1 }));
   });
 });
 

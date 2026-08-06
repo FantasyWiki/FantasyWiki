@@ -88,7 +88,7 @@ const league: LeagueDTO = {
   icon: "L",
   startDate: Temporal.Now.instant(),
   endDate: Temporal.Now.instant().add({ hours: 1 }),
-  teams: [viewerTeam],
+  teamCount: 1,
 };
 
 const article: ArticleDTO = { id: "article-1", title: "ChatGPT", domain: "en" };

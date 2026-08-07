@@ -31,7 +31,7 @@
     "@cloudflare/vitest-pool-workers": "^0.20.0",
     "@cloudflare/workers-types": "^4.20260423.1",
     "@eslint/js": "^10.0.1",
-    "@types/node": "^25.5.0",
+    "@types/node": "^26.0.0",
     "@vitest/coverage-istanbul": "^4.1.6",
     "better-sqlite3": "^12.9.0",
     "eslint": "^10.0.3",

@@ -22,6 +22,9 @@ export function fakeLeagueRepository(
   return {
     getById: async () => failure(LEAGUE_ERRORS.NOT_FOUND),
     getInvitationCode: async () => success(null),
+    listPublic: async () => success([]),
+    createWithFoundingTeam: async () =>
+      failure("createWithFoundingTeam not stubbed"),
     countTeamsByLeague: async (ids) =>
       success(Object.fromEntries([...ids].map((id) => [id, 0]))),
     ...overrides,

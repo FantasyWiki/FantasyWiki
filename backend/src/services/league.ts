@@ -1,12 +1,121 @@
+import { Temporal } from "@js-temporal/polyfill";
 import { GLOBAL_LEAGUE_ID, League } from "../../../model";
-import { LeagueDTO, LeagueInviteDTO } from "../../../dto/leagueDTO";
-import { Domain, LeagueInvitePolicy } from "../../../model/enums";
+import {
+  CreateLeagueRequest,
+  LeagueDTO,
+  LeagueInviteDTO,
+} from "../../../dto/leagueDTO";
+import {
+  Domain,
+  LeagueInvitePolicy,
+  LeagueVisibility,
+  isLeagueInvitePolicy,
+  isLeagueVisibility,
+} from "../../../model/enums";
+import {
+  LEAGUE_NAME_MAX_LENGTH,
+  LEAGUE_NAME_MIN_LENGTH,
+  isLeagueDomain,
+  isLeagueDuration,
+  isLeagueIcon,
+  isLeagueName,
+  leagueEndDate,
+} from "../../../model/league";
+import {
+  TEAM_NAME_MAX_LENGTH,
+  TEAM_NAME_MIN_LENGTH,
+  isTeamName,
+} from "../../../model/team";
 import {
   LEAGUE_ERRORS,
   LeagueRepository,
 } from "../repositories/leagueRepository";
 import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
 import { Result, failure, success } from "../repositories/result";
+import { withUniqueInvitationCode } from "./invitationCode";
+
+/**
+ * Why a league-creation payload was turned down.
+ *
+ * Owned by this module rather than by `LEAGUE_ERRORS`, which belongs to the
+ * repository: the producer of a rejection owns its constant
+ * (docs/architecture/backend-error-constants.md §1), and nothing in the
+ * repository can tell a badly-shaped request from a good one. Same arrangement
+ * as `LINEUP_ERRORS` beside `parseLineupPayload`.
+ */
+export const LEAGUE_CREATION_ERRORS = {
+  INVALID_PAYLOAD: "Invalid league payload",
+  NAME_LENGTH: `League name must be between ${LEAGUE_NAME_MIN_LENGTH} and ${LEAGUE_NAME_MAX_LENGTH} characters`,
+  UNKNOWN_ICON: "Unknown league icon",
+  UNKNOWN_DOMAIN: "Unsupported Wikipedia edition",
+  UNKNOWN_DURATION: "Unknown league duration",
+  UNKNOWN_VISIBILITY: "Unknown league visibility",
+  UNKNOWN_INVITE_POLICY: "Unknown invite policy",
+  TEAM_NAME_LENGTH: `Team name must be between ${TEAM_NAME_MIN_LENGTH} and ${TEAM_NAME_MAX_LENGTH} characters`,
+} as const;
+
+export type LeagueCreationError =
+  (typeof LEAGUE_CREATION_ERRORS)[keyof typeof LEAGUE_CREATION_ERRORS];
+
+/**
+ * How many public leagues the featured section asks for. A browsable, searchable
+ * list is its own job (#5); this is a shelf, and a shelf has an end.
+ */
+export const PUBLIC_LEAGUES_LIMIT = 12;
+
+/**
+ * Validate an untrusted body into a {@link CreateLeagueRequest}.
+ *
+ * Every field is checked against the shared model rather than against a rule
+ * restated here, so the form that offers the choices and the endpoint that
+ * accepts them cannot drift: same icon palette, same durations, same editions
+ * (#531 will widen that last one), same name bounds.
+ */
+export function parseCreateLeaguePayload(
+  body: unknown,
+): Result<CreateLeagueRequest> {
+  if (typeof body !== "object" || body === null) {
+    return failure(LEAGUE_CREATION_ERRORS.INVALID_PAYLOAD);
+  }
+  const { name, icon, domain, duration, visibility, invitePolicy, teamName } =
+    body as Record<string, unknown>;
+
+  if (typeof name !== "string" || !isLeagueName(name)) {
+    return failure(LEAGUE_CREATION_ERRORS.NAME_LENGTH);
+  }
+  if (!isLeagueIcon(icon)) {
+    return failure(LEAGUE_CREATION_ERRORS.UNKNOWN_ICON);
+  }
+  if (!isLeagueDomain(domain)) {
+    return failure(LEAGUE_CREATION_ERRORS.UNKNOWN_DOMAIN);
+  }
+  if (!isLeagueDuration(duration)) {
+    return failure(LEAGUE_CREATION_ERRORS.UNKNOWN_DURATION);
+  }
+  if (!isLeagueVisibility(visibility)) {
+    return failure(LEAGUE_CREATION_ERRORS.UNKNOWN_VISIBILITY);
+  }
+  // Checked even for a public league, where it decides nothing today: an
+  // absent value read back out of the database would fail closed to `admin`
+  // (see `toLeague`), so a league that went private later would silently have
+  // a policy nobody chose.
+  if (!isLeagueInvitePolicy(invitePolicy)) {
+    return failure(LEAGUE_CREATION_ERRORS.UNKNOWN_INVITE_POLICY);
+  }
+  if (typeof teamName !== "string" || !isTeamName(teamName)) {
+    return failure(LEAGUE_CREATION_ERRORS.TEAM_NAME_LENGTH);
+  }
+
+  return success({
+    name: name.trim(),
+    icon,
+    domain,
+    duration,
+    visibility,
+    invitePolicy,
+    teamName: teamName.trim(),
+  });
+}
 
 // Re-exported for existing importers; the source of truth lives in the shared
 // model so the frontend can reason about the same league without duplicating
@@ -69,6 +178,74 @@ export class LeagueService {
       return counts;
     }
     return success(toLeagueDTO(result.value, counts.value[id] ?? 0));
+  }
+
+  /**
+   * Public leagues, for the section that offers somewhere else to play.
+   *
+   * Unscoped, like every other league read: it answers the same list for
+   * everyone, and the caller's own leagues are dropped by the surface that
+   * renders it rather than by the query. That keeps this cacheable and keeps
+   * "which leagues am I in" one question, asked in one place.
+   */
+  async getPublicLeagues(
+    limit: number = PUBLIC_LEAGUES_LIMIT,
+  ): Promise<Result<LeagueDTO[]>> {
+    const result = await this.repository.listPublic(limit);
+    if (!result.ok) {
+      return result;
+    }
+    return this.toLeagueDTOs(result.value);
+  }
+
+  /**
+   * Found a league, with the caller as its admin and its first team.
+   *
+   * The season starts now and runs for the requested length — the client names
+   * a duration, never an end date, so it cannot name one in the past.
+   *
+   * Only a private league is issued an invitation code, and it is drawn through
+   * `withUniqueInvitationCode`, which redraws if the unique index rejects it.
+   * A public league is written with `null`: a code guarding a league anyone can
+   * join guards nothing (docs/domain/league-visibility.md).
+   *
+   * The code is not returned. `GET /leagues/:id/invite-code` is the one
+   * endpoint that serves one, and the founder now passes its membership check
+   * — keeping that true of *every* response is what makes the rule in ADR 0008
+   * §2 something a test can pin rather than a habit.
+   */
+  async createLeague(
+    playerId: string,
+    request: CreateLeagueRequest,
+  ): Promise<Result<LeagueDTO>> {
+    const startDate = Temporal.Now.instant();
+    const write = (invitationCode: string | null) =>
+      this.repository.createWithFoundingTeam(
+        {
+          name: request.name,
+          adminId: playerId,
+          startDate,
+          endDate: leagueEndDate(startDate, request.duration),
+          domain: request.domain,
+          visibility: request.visibility,
+          invitePolicy: request.invitePolicy,
+          icon: request.icon,
+          invitationCode,
+        },
+        request.teamName,
+      );
+
+    const result =
+      request.visibility === LeagueVisibility.PRIVATE
+        ? await withUniqueInvitationCode(write)
+        : await write(null);
+    if (!result.ok) {
+      return result;
+    }
+
+    // Exactly one team: the founder's, written in the same transaction. No
+    // count query can say anything this does not already know.
+    return success(toLeagueDTO(result.value.league, 1));
   }
 
   /**

@@ -474,14 +474,17 @@
     "podiumLabelLive": "Current top three",
     "podiumFinal": "Champions",
     "podiumLive": "Top three",
-    "notStartedNote": "The league hasn't started yet — these are the teams lining up for it."
+    "notStartedNote": "The league hasn't started yet — these are the teams lining up for it.",
+    "inviteLabel": "Invitation code",
+    "inviteHint": "Share it with the friends you want in this league.",
+    "inviteCopy": "Copy invitation code"
   },
   "leagues": {
     "title": "Your Leagues",
     "subtitle": "Manage your leagues, join private competitions, or create your own.",
     "joinPrivate": "Join Private League",
     "createNew": "Create New League",
-    "actionsNote": "Joining and creating leagues are on the way.",
+    "actionsNote": "Joining a league by invitation code is on the way.",
     "mineTitle": "Leagues You're Playing",
     "active": "Active",
     "private": "Private",
@@ -491,6 +494,51 @@
     "retry": "Try again",
     "featuredTitle": "Featured Public Leagues",
     "featuredPlaceholder": "Open leagues anyone can join will be listed here."
+  },
+  "createLeague": {
+    "title": "Create a League",
+    "subtitle": "Set the rules, name your team, and invite your friends.",
+    "icon": "League badge",
+    "name": "League name",
+    "namePlaceholder": "e.g. Sunday Scholars",
+    "domain": "Wikipedia edition",
+    "domainHint": "Every article in this league comes from this edition.",
+    "domains": {
+      "en": "English",
+      "it": "Italian"
+    },
+    "duration": "Season length",
+    "durations": {
+      "2w": "2 weeks",
+      "1m": "1 month",
+      "2m": "2 months",
+      "3m": "3 months",
+      "6m": "6 months"
+    },
+    "endsOn": "Ends on {date}.",
+    "visibility": "Who can join",
+    "public": "Anyone",
+    "private": "By invitation",
+    "publicHint": "Any player can find this league and join it.",
+    "privateHint": "Only players with the invitation code can join.",
+    "invitePolicy": "Who can share the code",
+    "invitePolicyMembers": "Any member",
+    "invitePolicyAdmin": "Only me",
+    "teamName": "Your team",
+    "teamNamePlaceholder": "e.g. Wiki Wanderers",
+    "teamNameHint": "You are joining the league you create, so name your team now.",
+    "submit": "Create League",
+    "creating": "Creating…",
+    "failed": "Couldn't create the league. Try again.",
+    "created": "{name} is live.",
+    "createdTitle": "{name} is live",
+    "createdSubtitle": "You're in, playing as {team}.",
+    "codeLabel": "Invitation code",
+    "codePending": "The code isn't ready yet — you'll find it on the league page.",
+    "codeHint": "Share this with the friends you want in the league.",
+    "copy": "Copy invitation code",
+    "goToLeague": "Go to the league",
+    "backToLeagues": "Back to my leagues"
   },
   "onboarding": {
     "start": {

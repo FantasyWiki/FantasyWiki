@@ -1,5 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { Domain, LeagueVisibility } from "../model/enums";
+import { Domain, LeagueInvitePolicy, LeagueVisibility } from "../model/enums";
+import type { LeagueDuration } from "../model/league";
 
 /**
  * A league's identity, calendar and size.
@@ -36,4 +37,27 @@ export interface LeagueDTO {
  */
 export interface LeagueInviteDTO {
   code: string;
+}
+
+/**
+ * What a player fills in to found a league.
+ *
+ * `duration` rather than an end date: the season is "this long from now", and
+ * letting the client name the instant would let it name one in the past. The
+ * start is the moment the league is created, server-side.
+ *
+ * `teamName` is here because founding a league and fielding a team in it are
+ * one act, not two — the league is written together with its founder's team in
+ * a single transaction, so there is no moment where a league exists that
+ * nobody is in. `adminId` is absent for the usual reason: the founder is the
+ * caller, resolved from the session (api-naming-rules.md §4).
+ */
+export interface CreateLeagueRequest {
+  name: string;
+  icon: string;
+  domain: Domain;
+  duration: LeagueDuration;
+  visibility: LeagueVisibility;
+  invitePolicy: LeagueInvitePolicy;
+  teamName: string;
 }

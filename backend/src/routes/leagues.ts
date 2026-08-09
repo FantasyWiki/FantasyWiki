@@ -1,6 +1,11 @@
 import { Hono } from "hono";
 import { JWTPayload } from "hono/utils/jwt/types";
-import { LeagueService } from "../services/league";
+import {
+  LeagueService,
+  LEAGUE_CREATION_ERRORS,
+  parseCreateLeaguePayload,
+  type LeagueCreationError,
+} from "../services/league";
 import { LeaderboardService } from "../services/leaderboard";
 import { PerformanceService } from "../services/performance";
 import { TeamService } from "../services/team";
@@ -80,6 +85,31 @@ export function teamErrorStatus(error: string): 404 | 403 | 400 | 500 {
   return 500;
 }
 
+/**
+ * Every way founding a league can be refused. All 400: each one names a field
+ * the client sent and can fix. Total over `LeagueCreationError`, so a new
+ * rejection without a status fails to compile.
+ */
+const LEAGUE_CREATION_ERROR_STATUS: Record<LeagueCreationError, 400> = {
+  [LEAGUE_CREATION_ERRORS.INVALID_PAYLOAD]: 400,
+  [LEAGUE_CREATION_ERRORS.NAME_LENGTH]: 400,
+  [LEAGUE_CREATION_ERRORS.UNKNOWN_ICON]: 400,
+  [LEAGUE_CREATION_ERRORS.UNKNOWN_DOMAIN]: 400,
+  [LEAGUE_CREATION_ERRORS.UNKNOWN_DURATION]: 400,
+  [LEAGUE_CREATION_ERRORS.UNKNOWN_VISIBILITY]: 400,
+  [LEAGUE_CREATION_ERRORS.UNKNOWN_INVITE_POLICY]: 400,
+  [LEAGUE_CREATION_ERRORS.TEAM_NAME_LENGTH]: 400,
+};
+
+/**
+ * Running out of invitation codes is deliberately *not* in the map above: with
+ * 24.3 million of them, exhausting five draws means a stuck RNG or a broken
+ * index, which is ours to fix and not something the client can restate.
+ */
+export function leagueCreationErrorStatus(error: string): 400 | 500 {
+  return error in LEAGUE_CREATION_ERROR_STATUS ? 400 : 500;
+}
+
 /** Repository misses the service passes straight through to the route. */
 const NOT_FOUND_ERRORS: readonly string[] = [
   LEAGUE_ERRORS.NOT_FOUND,
@@ -124,6 +154,50 @@ leagues.get("/", async (c) => {
   return c.json(dtos.value);
 });
 
+/**
+ * Found a league. The founder is the caller — resolved from the session, never
+ * taken from the body — and is written into the league as both its admin and
+ * its first team, in one transaction.
+ *
+ * The response is an ordinary `LeagueDTO`, invitation code included nowhere in
+ * it: a private league's founder reads theirs from `/:id/invite-code`, which
+ * they now pass by being a member.
+ */
+leagues.post("/", async (c) => {
+  const playerResult = await resolveCurrentPlayer(c);
+  if (!playerResult.ok) {
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
+  }
+
+  const body: unknown = await c.req.json().catch(() => null);
+  const payloadResult = parseCreateLeaguePayload(body);
+  if (!payloadResult.ok) {
+    // Through the map rather than a literal 400, so the total Record is what
+    // actually decides the status here — a new rejection with no entry then
+    // fails to compile instead of quietly inheriting someone else's answer.
+    return c.json(
+      { error: payloadResult.error },
+      leagueCreationErrorStatus(payloadResult.error),
+    );
+  }
+
+  const leagueService = new LeagueService(c.env.db);
+  const result = await leagueService.createLeague(
+    playerResult.value.id,
+    payloadResult.value,
+  );
+  if (!result.ok) {
+    return c.json(
+      { error: result.error },
+      leagueCreationErrorStatus(result.error),
+    );
+  }
+  return c.json(result.value, 201);
+});
+
 leagues.get("/global", async (c) => {
   const leagueService = new LeagueService(c.env.db);
   const result = await leagueService.getGlobalLeague();
@@ -133,8 +207,25 @@ leagues.get("/global", async (c) => {
   return c.json(result.value);
 });
 
-// Registered after `/global` on purpose: Hono matches in registration order, so
-// the literal path has to be declared first or it would be swallowed by `:id`.
+/**
+ * Every public league, newest first — the shelf the league section offers a
+ * player who wants somewhere else to play.
+ *
+ * Not caller-scoped: the leagues they already play are dropped client-side,
+ * where the list of those already lives.
+ */
+leagues.get("/public", async (c) => {
+  const leagueService = new LeagueService(c.env.db);
+  const result = await leagueService.getPublicLeagues();
+  if (!result.ok) {
+    return c.json({ error: result.error }, 500);
+  }
+  return c.json(result.value);
+});
+
+// Registered after `/global` and `/public` on purpose: Hono matches in
+// registration order, so a literal path has to be declared first or it would be
+// swallowed by `:id`.
 leagues.get("/:id", async (c) => {
   const leagueService = new LeagueService(c.env.db);
   const result = await leagueService.getLeagueById(c.req.param("id"));

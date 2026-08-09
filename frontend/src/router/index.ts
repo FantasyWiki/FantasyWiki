@@ -9,6 +9,7 @@ import TeamCreationPage from "@/views/TeamCreationPage.vue";
 import MarketPage from "@/views/MarketPage.vue";
 import LeaguePage from "@/views/LeaguePage.vue";
 import LeaguesPage from "@/views/LeaguesPage.vue";
+import CreateLeaguePage from "@/views/CreateLeaguePage.vue";
 import LegalPage from "@/views/LegalPage.vue";
 import GuidePage from "@/views/GuidePage.vue";
 import ReportProblemPage from "@/views/ReportProblemPage.vue";
@@ -74,6 +75,14 @@ const routes: Array<RouteRecordRaw> = [
     path: "/leagues",
     name: "Leagues",
     component: LeaguesPage,
+  },
+  {
+    // Registered before `/leagues/:leagueId` for readability — vue-router
+    // ranks a static segment above a parameter regardless of order, but the
+    // two paths are read together and the intent should not depend on that.
+    path: "/leagues/new",
+    name: "CreateLeague",
+    component: CreateLeaguePage,
   },
   {
     // A league's own page: identity plus the full standings. Reached from the

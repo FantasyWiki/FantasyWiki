@@ -9,9 +9,10 @@ related:
 
 # League invitation codes are short, off the DTO, and checked inside the write
 
-> **Status:** decided and implemented (#253; the join-by-code UI remains #5 and #7).
+> **Status:** decided and implemented (#253, #4; the join-by-code UI remains #5 and #7).
 > Migration `0007_league_visibility_and_invitation_codes.sql` adds `visibility`, `invitePolicy` and
-> `invitationCode` to `leagues`, and `TeamRepositoryD1.create` became a guarded `INSERT`.
+> `invitationCode` to `leagues`; `TeamRepositoryD1.create` became a guarded `INSERT`; and
+> `LeagueRepositoryD1.createWithFoundingTeam` is the path that issues codes.
 
 Leagues could not be private, and joining one was ungated: any authenticated player who knew a
 league id could create a team in it. This ADR records how the invitation code is shaped, where it
@@ -65,7 +66,11 @@ disallowed caller exactly as it answers a missing league.
 `visibility` *is* on the DTO — it is not a secret and the UI must badge it.
 
 This is pinned by tests asserting no league read contains the code, in
-`backend/src/tests/routes/leagues.integration.test.ts`.
+`backend/src/tests/routes/leagues.integration.test.ts` — including the **creation** response, which
+is where bundling it in would be most tempting, since the founder is by definition entitled to it.
+They read it from `/:id/invite-code` one call later instead, which they pass by being a member of
+the league they just founded. One endpoint serves codes; that is checkable, "mostly one endpoint"
+is not.
 
 Two different failures answer 404 there — "no such league" and "this league has no code" — and
 they carry different bodies. That is deliberate and safe: the policy check runs first, so an
@@ -107,9 +112,10 @@ as `PLAYER_ERRORS.USERNAME_TAKEN`.
 It is **bounded**: with 24.3 million codes, repeated collisions mean a stuck RNG or a mis-declared
 index, and an unbounded loop would turn that into a hung request instead of an error.
 
-It has no production caller until league creation (#4) lands. That is deliberate — it exists so
-that creation states only its `INSERT` and inherits the retry policy, and it ships with unit tests
-that exercise the policy against a fake write.
+Its production caller is `LeagueService.createLeague`, which states only its write and inherits the
+retry policy — the reason the helper was written before there was anything to call it. A **public**
+league does not go through it at all: it is written with a `null` code, because there is nothing
+for one to guard.
 
 ### 5. The column is nullable, and the invariant lives in the creation path
 
@@ -119,6 +125,12 @@ the absence of a code while no two private leagues share the same one, and it le
 inserts untouched. "A private league has a code" is therefore a rule the creation path keeps, not
 one the schema enforces, and the repository types the read as `string | null` rather than
 pretending otherwise.
+
+That path is now a specific one: `LeagueService.createLeague` is the **only** writer of a league
+row, and it branches on `visibility` to decide between a drawn code and `null`. The invariant holds
+because there is one place that could break it, not because the column forbids it. A league that
+predates it — the Global League, and anything inserted by a test — is public and codeless, which is
+consistent rather than an exception.
 
 ## Consequences
 

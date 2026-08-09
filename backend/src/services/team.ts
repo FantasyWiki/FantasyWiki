@@ -1,5 +1,10 @@
 import { Team } from "../../../model";
+import { DEFAULT_SCHEMA } from "../../../model/lineup";
 import { normalizeInvitationCode } from "../../../model/league";
+import {
+  TEAM_NAME_MAX_LENGTH,
+  TEAM_NAME_MIN_LENGTH,
+} from "../../../model/team";
 import { TeamDTO } from "../../../dto/teamDTO";
 import { TEAM_ERRORS, TeamRepository } from "../repositories/teamRepository";
 import { TeamRepositoryD1 } from "../repositories/d1/teamRepositoryD1";
@@ -54,7 +59,10 @@ export class TeamService {
   ): Promise<Result<Team>> {
     const trimmed = name.trim();
 
-    if (trimmed.length < 3 || trimmed.length > 30) {
+    if (
+      trimmed.length < TEAM_NAME_MIN_LENGTH ||
+      trimmed.length > TEAM_NAME_MAX_LENGTH
+    ) {
       return failure(TEAM_ERRORS.NAME_LENGTH);
     }
 
@@ -101,7 +109,7 @@ export class TeamService {
 
     const lineupResult = await this.lineupRepository.upsert({
       teamId: teamResult.value.id,
-      schema: "4-3-3",
+      schema: DEFAULT_SCHEMA,
       formation: "{}",
       updatedAt: new Date().toISOString(),
     });

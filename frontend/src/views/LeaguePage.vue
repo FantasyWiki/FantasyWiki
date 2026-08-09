@@ -51,6 +51,11 @@
       <page-reveal v-else>
         <league-factsheet :league="league" :team-count="teamCount" />
 
+        <!-- Renders only for a private league, and only for a caller its
+             invite policy lets hand the code out. The server is what decides
+             that; this component simply has nothing to show otherwise. -->
+        <league-invite-card :league-id="leagueId" :league="league" />
+
         <!-- The top three lead the page all season, and the full table follows
              underneath. A finished season escalates the same podium into the
              result rather than introducing a different one. -->
@@ -94,6 +99,7 @@ import { useI18n } from "vue-i18n";
 import NavBar from "@/layout/NavBar.vue";
 import PageReveal from "@/components/PageReveal.vue";
 import LeagueFactsheet from "@/components/league/LeagueFactsheet.vue";
+import LeagueInviteCard from "@/components/league/LeagueInviteCard.vue";
 import LeaguePodium from "@/components/league/LeaguePodium.vue";
 import LeagueStandings from "@/components/league/LeagueStandings.vue";
 import { useLeagueCalendar } from "@/composables/useLeagueCalendar";

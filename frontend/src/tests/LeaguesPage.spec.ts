@@ -58,7 +58,7 @@ describe("LeaguesPage", () => {
   it("lists every league the player is enrolled in", async () => {
     const page = await mountPage();
 
-    const cards = page.findAll(".league-card");
+    const cards = page.findAll(".mine-grid .league-card");
     expect(cards).toHaveLength(leagues.length);
     expect(page.text()).toContain("Global League");
     expect(page.text()).toContain("Italia League");
@@ -76,7 +76,7 @@ describe("LeaguesPage", () => {
   it("opens a league when its card is clicked", async () => {
     const page = await mountPage();
 
-    await page.findAll(".league-card")[0].trigger("click");
+    await page.findAll(".mine-grid .league-card")[0].trigger("click");
     await flushPromises();
 
     expect(router.currentRoute.value.fullPath).toBe(
@@ -93,7 +93,7 @@ describe("LeaguesPage", () => {
     wrapper = mount(LeaguesPage, { global: { plugins } });
     await flushPromises();
 
-    const active = wrapper.findAll(".league-card--active");
+    const active = wrapper.findAll(".mine-grid .league-card--active");
     expect(active).toHaveLength(1);
     expect(active[0].text()).toContain(leagues[1].title);
   });
@@ -106,16 +106,22 @@ describe("LeaguesPage", () => {
     expect(actions).toContain("Create New League");
   });
 
-  it("keeps a place for the public leagues that are not listed yet", async () => {
+  it("offers public leagues the player is not already in", async () => {
     const page = await mountPage();
+    const featured = page.find(".featured");
 
-    expect(page.find(".featured").text()).toContain("Featured Public Leagues");
+    expect(featured.text()).toContain("Featured Public Leagues");
+    expect(featured.text()).toContain("Open Science League");
+    // The endpoint returns every public league, the player's own included.
+    // Leaving the Global League on a shelf captioned "somewhere new to play"
+    // is the whole reason the page filters it out.
+    expect(featured.text()).not.toContain("Global League");
   });
 
   it("marks a private league and leaves public ones unlabelled", async () => {
     const page = await mountPage();
 
-    const cards = page.findAll(".league-card");
+    const cards = page.findAll(".mine-grid .league-card");
     const italia = cards.find((c) => c.text().includes("Italia League"));
     const global = cards.find((c) => c.text().includes("Global League"));
 
@@ -137,7 +143,7 @@ describe("LeaguesPage", () => {
     const page = await mountPage();
 
     expect(page.find(".empty-state").exists()).toBe(true);
-    expect(page.find(".league-card").exists()).toBe(false);
+    expect(page.find(".mine-grid .league-card").exists()).toBe(false);
     // "Leagues You're Playing" over "you are not in any league yet" is the
     // heading contradicting the only line under it.
     expect(page.text()).not.toContain("Leagues You're Playing");
@@ -179,7 +185,9 @@ describe("LeaguesPage", () => {
     await flushPromises();
 
     expect(page.find(".state-card").exists()).toBe(false);
-    expect(page.findAll(".league-card")).toHaveLength(leagues.length);
+    expect(page.findAll(".mine-grid .league-card")).toHaveLength(
+      leagues.length
+    );
   });
 
   it("does not refetch when the store has already loaded", async () => {
@@ -200,6 +208,8 @@ describe("LeaguesPage", () => {
     await flushPromises();
 
     expect(calls).toBe(1);
-    expect(wrapper.findAll(".league-card")).toHaveLength(leagues.length);
+    expect(wrapper.findAll(".mine-grid .league-card")).toHaveLength(
+      leagues.length
+    );
   });
 });

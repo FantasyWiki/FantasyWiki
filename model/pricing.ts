@@ -19,13 +19,39 @@ export function tierToDays(tier: ContractTier): number {
 }
 
 /**
- * ADR 0002: per-language calibration constant (en = 1.0 reference).
- * Exact non-en values are still an open research item (scoring-system.md §9).
+ * ADR 0002: `L(domain) = median(en_views[i] / domain_views[i])` over rank-matched
+ * 30-day averages, lifting every edition onto the `en` reference of 1.0.
+ *
+ * These are **measured** values, not placeholders. `it = 13.9` is the figure
+ * ADR 0002 records from its rank-matched 2026-07-06 snapshot; it sat at `1.0`
+ * here for a year of code while the ADR said otherwise, which meant every
+ * Italian article under 2,000 views/day scored a flat zero — precisely the
+ * bunching the factor exists to prevent. At 13.9 that floor is 144 views/day.
+ *
+ * Changing an entry **re-rates every contract already priced in that domain**,
+ * so a value only lands here once it is measured, never as a stand-in. That is
+ * the same rule ADR 0002 states for new domains: calibration is frozen before
+ * the first price is computed, because a factor backfilled later would silently
+ * re-price contracts nobody touched. An edition absent from this table has not
+ * been measured and cannot host a league — see {@link isCalibratedDomain}.
  */
-export const LANGUAGE_SCALE: Record<Domain, number> = {
+export const LANGUAGE_SCALE: Record<string, number> = {
   en: 1.0,
-  it: 1.0,
+  it: 13.9,
 };
+
+/**
+ * Whether an edition's Language Scale Factor has actually been measured.
+ *
+ * Distinct from `resolveLanguageScale` returning a number: that one always
+ * answers, because a bad domain reaching the scoring path must not become NaN.
+ * This is the question league creation has to ask *before* the fact — an
+ * uncalibrated edition is one a league may not be founded on, rather than one
+ * that quietly plays at the English scale.
+ */
+export function isCalibratedDomain(domain: string): boolean {
+  return domain in LANGUAGE_SCALE;
+}
 
 export function normalizedViews(rawViews: number, languageScale: number): number {
   return rawViews * languageScale;

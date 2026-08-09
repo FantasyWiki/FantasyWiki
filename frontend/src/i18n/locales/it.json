@@ -474,14 +474,17 @@
     "podiumLabelLive": "Top tre attuale",
     "podiumFinal": "Campioni",
     "podiumLive": "Top tre",
-    "notStartedNote": "La lega non è ancora iniziata — queste sono le squadre iscritte."
+    "notStartedNote": "La lega non è ancora iniziata — queste sono le squadre iscritte.",
+    "inviteLabel": "Codice d'invito",
+    "inviteHint": "Condividilo con gli amici che vuoi in questa lega.",
+    "inviteCopy": "Copia il codice d'invito"
   },
   "leagues": {
     "title": "Le tue leghe",
     "subtitle": "Gestisci le tue leghe, entra in competizioni private o creane una tua.",
     "joinPrivate": "Entra in una lega privata",
     "createNew": "Crea una nuova lega",
-    "actionsNote": "Entrare in una lega e crearne una sono in arrivo.",
+    "actionsNote": "Entrare in una lega con il codice d'invito è in arrivo.",
     "mineTitle": "Le leghe in cui giochi",
     "active": "Attiva",
     "private": "Privata",
@@ -491,6 +494,51 @@
     "retry": "Riprova",
     "featuredTitle": "Leghe pubbliche in evidenza",
     "featuredPlaceholder": "Qui compariranno le leghe aperte a cui chiunque può unirsi."
+  },
+  "createLeague": {
+    "title": "Crea una lega",
+    "subtitle": "Scegli le regole, dai un nome alla tua squadra e invita i tuoi amici.",
+    "icon": "Stemma della lega",
+    "name": "Nome della lega",
+    "namePlaceholder": "es. Lega della Domenica",
+    "domain": "Edizione di Wikipedia",
+    "domainHint": "Tutti gli articoli di questa lega vengono da questa edizione.",
+    "domains": {
+      "en": "Inglese",
+      "it": "Italiano"
+    },
+    "duration": "Durata della stagione",
+    "durations": {
+      "2w": "2 settimane",
+      "1m": "1 mese",
+      "2m": "2 mesi",
+      "3m": "3 mesi",
+      "6m": "6 mesi"
+    },
+    "endsOn": "Finisce il {date}.",
+    "visibility": "Chi può entrare",
+    "public": "Chiunque",
+    "private": "Su invito",
+    "publicHint": "Qualsiasi giocatore può trovare questa lega ed entrarci.",
+    "privateHint": "Possono entrare solo i giocatori con il codice d'invito.",
+    "invitePolicy": "Chi può condividere il codice",
+    "invitePolicyMembers": "Tutti i membri",
+    "invitePolicyAdmin": "Solo io",
+    "teamName": "La tua squadra",
+    "teamNamePlaceholder": "es. Wiki Wanderers",
+    "teamNameHint": "Entri nella lega che stai creando, quindi dai subito un nome alla squadra.",
+    "submit": "Crea la lega",
+    "creating": "Creazione…",
+    "failed": "Impossibile creare la lega. Riprova.",
+    "created": "{name} è attiva.",
+    "createdTitle": "{name} è attiva",
+    "createdSubtitle": "Ci sei, giochi come {team}.",
+    "codeLabel": "Codice d'invito",
+    "codePending": "Il codice non è ancora pronto — lo trovi nella pagina della lega.",
+    "codeHint": "Condividilo con gli amici che vuoi nella lega.",
+    "copy": "Copia il codice d'invito",
+    "goToLeague": "Vai alla lega",
+    "backToLeagues": "Torna alle mie leghe"
   },
   "onboarding": {
     "start": {

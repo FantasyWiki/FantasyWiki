@@ -41,6 +41,7 @@ Existing constants and their owners:
 | `CONTRACT_WRITE_ERRORS` | `repositories/contractRepository.ts`     | `services/contract.ts`                       |
 | `CONTRACT_ERRORS`       | `services/contract.ts`                   | `routes/leagues.ts`                          |
 | `LINEUP_ERRORS`         | `services/lineup.ts`                     | `routes/leagues.ts`                          |
+| `LEAGUE_CREATION_ERRORS` | `services/league.ts`                    | `routes/leagues.ts`                          |
 | `LOGIN_ERRORS`          | `services/login.ts`                      | —                                            |
 
 Rules for new code:

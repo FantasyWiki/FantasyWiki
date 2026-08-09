@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { contractErrorStatus, teamErrorStatus } from "../routes/leagues";
+import {
+  contractErrorStatus,
+  leagueCreationErrorStatus,
+  teamErrorStatus,
+} from "../routes/leagues";
 import { playerErrorStatus } from "../routes/helpers";
 import { CONTRACT_ERRORS } from "../services/contract";
+import { LEAGUE_CREATION_ERRORS } from "../services/league";
 import { LEAGUE_ERRORS } from "../repositories/leagueRepository";
 import { PLAYER_ERRORS } from "../repositories/playerRepository";
 import { TEAM_ERRORS } from "../repositories/teamRepository";
@@ -72,6 +77,28 @@ describe("contractErrorStatus", () => {
     expect(
       contractErrorStatus("Error fetching contracts: index not found"),
     ).toBe(500);
+  });
+});
+
+describe("leagueCreationErrorStatus", () => {
+  it("maps every way a payload can be refused to 400", () => {
+    for (const error of Object.values(LEAGUE_CREATION_ERRORS)) {
+      expect(leagueCreationErrorStatus(error)).toBe(400);
+    }
+  });
+
+  it("does not blame the client for running out of invitation codes", () => {
+    // 24.3 million codes: five collisions means a stuck RNG or a broken index,
+    // and there is nothing the caller could restate to get a different answer.
+    expect(
+      leagueCreationErrorStatus(LEAGUE_ERRORS.INVITATION_CODE_UNAVAILABLE),
+    ).toBe(500);
+  });
+
+  it("answers 500 for a failure no service named", () => {
+    expect(leagueCreationErrorStatus("Error creating league: D1_ERROR")).toBe(
+      500,
+    );
   });
 });
 

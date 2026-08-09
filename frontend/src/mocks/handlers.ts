@@ -3,6 +3,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import {
   contracts,
   currentPlayerId,
+  allLeagues,
   leagues,
   articles,
   notifications,
@@ -12,6 +13,10 @@ import {
   teams,
 } from "./data";
 import { ContractDTO } from "../../../dto/contractDTO";
+import type { CreateLeagueRequest, LeagueDTO } from "../../../dto/leagueDTO";
+import { LeagueVisibility } from "../../../model/enums";
+import { isLeagueName, leagueEndDate } from "../../../model/league";
+import { isTeamName } from "../../../model/team";
 import type { TeamDTO } from "../../../dto/teamDTO";
 import type { LeaderboardEntryDTO } from "../../../dto/leaderboardDTO";
 import type { TeamLineUp } from "@/types/team";
@@ -29,6 +34,16 @@ function getMyTeam(leagueId: string): TeamDTO | undefined {
 function teamResponseKey(leagueId: string): string {
   return `${leagueId}`;
 }
+
+/**
+ * Invitation codes by league id — the mock's stand-in for the column, kept out
+ * of the league fixtures for the same reason the real one is kept off
+ * `LeagueDTO`: only the endpoint that checks the caller may have it can serve
+ * it. The Italia League is the private fixture, so it is the one with a code.
+ */
+const invitationCodes: Record<string, string> = {
+  italy: "M4RSX",
+};
 
 /** Stands in for an anchor article's outbound link list. */
 const mockOutboundLinks = [
@@ -133,6 +148,57 @@ export const handlers = [
   // ── Leagues ─────────────────────────────────────────────────────────────────
   http.get("*/api/leagues", () => HttpResponse.json(leagues)),
 
+  // Founding a league writes it into the mock's own list, so the league
+  // section and the selector show it immediately afterwards — the same thing
+  // the real `fetchLeagues` sees once the transaction commits.
+  http.post("*/api/leagues", async ({ request }) => {
+    const body = (await request.json()) as Partial<CreateLeagueRequest>;
+    if (!isLeagueName(body.name) || !isTeamName(body.teamName)) {
+      return HttpResponse.json(
+        { error: "Invalid league payload" },
+        { status: 400 }
+      );
+    }
+
+    const startDate = Temporal.Now.instant();
+    const league: LeagueDTO = {
+      id: `league-${leagues.length + 1}`,
+      title: body.name!.trim(),
+      icon: body.icon ?? "🏆",
+      domain: body.domain ?? "en",
+      startDate,
+      endDate: leagueEndDate(startDate, body.duration ?? "1m"),
+      visibility: body.visibility ?? LeagueVisibility.PRIVATE,
+      teamCount: 1,
+    };
+    leagues.push(league);
+    if (body.visibility === LeagueVisibility.PRIVATE) {
+      invitationCodes[league.id] = "ZK7QW";
+    }
+    return HttpResponse.json(league, { status: 201 });
+  }),
+
+  // Mirrors the real endpoint's two 404s: a league nobody may invite to, and a
+  // public league that simply has no code.
+  http.get("*/api/leagues/:leagueId/invite-code", ({ params }) => {
+    const code = invitationCodes[String(params.leagueId)];
+    if (!code)
+      return HttpResponse.json(
+        { error: "This league has no invitation code" },
+        { status: 404 }
+      );
+    return HttpResponse.json({ code });
+  }),
+
+  // Mirrors the real endpoint: every public league, the caller's own included.
+  // Filtering those out is the league section's job, so returning them here is
+  // what actually exercises it.
+  http.get("*/api/leagues/public", () =>
+    HttpResponse.json(
+      allLeagues().filter((l) => l.visibility === LeagueVisibility.PUBLIC)
+    )
+  ),
+
   http.get("*/api/leagues/global", () => {
     const league = leagues.find((l) => l.id === "global");
     if (!league)
@@ -141,7 +207,7 @@ export const handlers = [
   }),
 
   http.get("*/api/leagues/:leagueId", ({ params }) => {
-    const league = leagues.find((l) => l.id === params.leagueId);
+    const league = allLeagues().find((l) => l.id === params.leagueId);
     if (!league)
       return HttpResponse.json({ error: "League not found" }, { status: 404 });
     return HttpResponse.json(league);
@@ -314,7 +380,7 @@ export const handlers = [
   ),
 
   http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {
-    const league = leagues.find((l) => l.id === params.leagueId);
+    const league = allLeagues().find((l) => l.id === params.leagueId);
     if (!league) return HttpResponse.json([]);
     const teamIds = rosterOf(league.id).map((t) => t.id);
     return HttpResponse.json(
@@ -323,7 +389,7 @@ export const handlers = [
   }),
 
   http.get("*/api/leagues/:leagueId/my-notifications", ({ params }) => {
-    const league = leagues.find((l) => l.id === params.leagueId);
+    const league = allLeagues().find((l) => l.id === params.leagueId);
     if (!league) return HttpResponse.json([]);
     const teamIdsInLeague = rosterOf(league.id).map((t) => t.id);
     return HttpResponse.json(
@@ -462,7 +528,7 @@ export const handlers = [
   // ── Leaderboard ────────────────────────────────────────────────────────────────
   http.get("*/api/leagues/:leagueId/leaderboard", ({ params }) => {
     const leagueId = params.leagueId as string;
-    const league = leagues.find((l) => l.id === leagueId);
+    const league = allLeagues().find((l) => l.id === leagueId);
     if (!league) return HttpResponse.json([]);
 
     const perfs = performancesByLeague[leagueId] ?? [];

@@ -22,6 +22,7 @@ What the game *is*: rules, entities, and vocabulary. No code structure here.
 | [Chemistry Links](./domain/chemistry-links.md) | What a Chemistry Link is and what it scores |
 | [Lineup Rules](./domain/lineup-rules.md) | Formation, bench, and the no-contract-is-lost invariant |
 | [League Visibility](./domain/league-visibility.md) | Public vs private leagues, who may join, and who may invite |
+| [League Season](./domain/league-season.md) | When a season starts, how long it may run, and why |
 | [Article Availability](./domain/article-availability.md) | Free Agent / Owned by Viewer / Owned by Other, and action eligibility |
 | [What Are Model Entities](./domain/what-are-model-entities.md) | Why `model/` holds normalized, framework-free entities |
 | [Shared DTO Package](./domain/shared-dto-package.md) | Why `dto/` aggregates and nests for the wire |

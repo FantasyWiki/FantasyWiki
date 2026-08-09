@@ -36,4 +36,9 @@ export const queryKeys = {
   globalLeague: () => ["global-league"] as const,
   /** A single league by id — including ones the player has not joined yet. */
   league: (leagueId: string) => ["league", leagueId] as const,
+  /** Every public league — the same answer for every player, so no key parts. */
+  publicLeagues: () => ["public-leagues"] as const,
+  /** A private league's invitation code, for a caller its policy lets invite. */
+  invitationCode: (leagueId: string | null) =>
+    ["invitation-code", leagueId] as const,
 };

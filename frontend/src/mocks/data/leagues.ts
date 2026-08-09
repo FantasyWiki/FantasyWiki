@@ -19,6 +19,10 @@ export const rostersByLeague: Record<string, TeamDTO[]> = {
   italy: [teams[0], teams[3], teams[4]],
   europe: [teams[2], teams[6]],
   americas: [teams[7]],
+  // Nobody from the current player here, on purpose — see `publicLeagues`.
+  "open-science": globalFillerTeams.slice(0, 4),
+  "open-cinema": globalFillerTeams.slice(1, 3),
+  "open-calcio": globalFillerTeams.slice(2, 6),
 };
 
 export function rosterOf(leagueId: string): TeamDTO[] {
@@ -78,3 +82,53 @@ export const leagues: LeagueDTO[] = [
     teamCount: rosterOf("americas").length,
   },
 ];
+
+/**
+ * Public leagues the current player has **no team in** — what the featured
+ * shelf is for, and the only fixtures that exercise it. They are kept out of
+ * `leagues` because that array is the answer to `GET /api/leagues`, which means
+ * "the leagues I play"; a league appearing in both would defeat the filter the
+ * shelf applies.
+ *
+ * All still running, since a finished league is not somewhere to go.
+ */
+export const publicLeagues: LeagueDTO[] = [
+  {
+    id: "open-science",
+    title: "Open Science League",
+    icon: "🔬",
+    domain: "en",
+    startDate: Instant.from("2026-07-01T00:00:00Z"),
+    endDate: Instant.from("2027-01-01T00:00:00Z"),
+    visibility: LeagueVisibility.PUBLIC,
+    teamCount: rosterOf("open-science").length,
+  },
+  {
+    id: "open-cinema",
+    title: "Silver Screen League",
+    icon: "🎭",
+    domain: "en",
+    startDate: Instant.from("2026-06-15T00:00:00Z"),
+    endDate: Instant.from("2026-12-15T00:00:00Z"),
+    visibility: LeagueVisibility.PUBLIC,
+    teamCount: rosterOf("open-cinema").length,
+  },
+  {
+    id: "open-calcio",
+    title: "Calcio e Cultura",
+    icon: "⚽",
+    domain: "it",
+    startDate: Instant.from("2026-08-01T00:00:00Z"),
+    endDate: Instant.from("2026-11-01T00:00:00Z"),
+    visibility: LeagueVisibility.PUBLIC,
+    teamCount: rosterOf("open-calcio").length,
+  },
+];
+
+/**
+ * Every league the mock knows about, joined or not — what the by-id lookup has
+ * to search, so a featured card actually opens its league page.
+ */
+export function allLeagues(): LeagueDTO[] {
+  return [...leagues, ...publicLeagues];
+}

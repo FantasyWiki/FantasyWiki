@@ -1,5 +1,5 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { LeagueInvitePolicy, LeagueVisibility } from "./enums";
+import { Domain, LeagueInvitePolicy, LeagueVisibility } from "./enums";
 
 /**
  * The league every player is enrolled in by naming their first team; it is the
@@ -46,6 +46,98 @@ export function isInvitationCode(value: unknown): value is string {
     value.length === INVITATION_CODE_LENGTH &&
     [...value].every((c) => INVITATION_CODE_ALPHABET.includes(c))
   );
+}
+
+/**
+ * What a league may be called. Longer than a team name (30) because a league
+ * name is read in a list and a share message rather than on a scoreboard row.
+ */
+export const LEAGUE_NAME_MIN_LENGTH = 3;
+export const LEAGUE_NAME_MAX_LENGTH = 50;
+
+export function isLeagueName(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  return (
+    trimmed.length >= LEAGUE_NAME_MIN_LENGTH &&
+    trimmed.length <= LEAGUE_NAME_MAX_LENGTH
+  );
+}
+
+/**
+ * The badges a league can be created with. A closed palette rather than free
+ * text: `leagues.icon` is `NOT NULL TEXT` that every league list renders
+ * literally, so accepting whatever a request sends would put arbitrary strings
+ * on screen for a field that only ever wanted a glyph.
+ */
+export const LEAGUE_ICONS = [
+  "🏆", "⚽", "🌍", "📚", "🔬", "🎮", "🏀", "🎯",
+  "⭐", "🦁", "🐉", "🔥", "💎", "🛡️", "⚔️", "🎪",
+  "🚀", "🌟", "🏅", "👑", "🦅", "🐺", "🎭", "🌊",
+] as const;
+
+export function isLeagueIcon(value: unknown): value is string {
+  return (
+    typeof value === "string" && (LEAGUE_ICONS as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * The Wikipedia editions a league can currently be created in.
+ *
+ * A deliberately narrow list, and a temporary one: nothing below the type layer
+ * is restricted to two editions — `buildArticleUrl` interpolates any language
+ * code, and `resolveLanguageScale` already falls back to the `en` reference for
+ * a domain it has no calibration for. Issue #531 replaces this constant with
+ * the live Wikipedia edition list above a pageview floor; until then this is
+ * the one place the restriction is stated, so that swap is a one-function
+ * change rather than a hunt.
+ */
+export const LEAGUE_DOMAINS = ["en", "it"] as const satisfies readonly Domain[];
+
+export function isLeagueDomain(value: unknown): value is Domain {
+  return (
+    typeof value === "string" && (LEAGUE_DOMAINS as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * How long a season runs, as the choices a player is actually offered.
+ *
+ * A closed set rather than a free number, and floored at two weeks, because a
+ * season shorter than `TIER_DAYS.LONG` (14) could not hold a LONG contract to
+ * expiry — the league would end mid-settlement for anyone who bought one. The
+ * upper end is six months, past which a Top Read Snapshot's article mix has
+ * turned over enough that the market a player joined is not the one they end in.
+ */
+export const LEAGUE_DURATION_DAYS = {
+  "2w": 14,
+  "1m": 30,
+  "2m": 60,
+  "3m": 90,
+  "6m": 180,
+} as const;
+
+export type LeagueDuration = keyof typeof LEAGUE_DURATION_DAYS;
+
+export function isLeagueDuration(value: unknown): value is LeagueDuration {
+  return typeof value === "string" && value in LEAGUE_DURATION_DAYS;
+}
+
+/**
+ * When a season started now would end.
+ *
+ * Counted in hours rather than days on purpose: `Temporal.Instant` rejects
+ * date units outright (`Duration field day not supported by Temporal.Instant`)
+ * because a day is only a calendar's idea of one. An instant plus a fixed
+ * number of hours is exactly what a season length means here — the league ends
+ * at the same clock time it began, wherever the players are.
+ */
+export function leagueEndDate(
+  start: Temporal.Instant,
+  duration: LeagueDuration,
+): Temporal.Instant {
+  return start.add({ hours: LEAGUE_DURATION_DAYS[duration] * 24 });
 }
 
 /**

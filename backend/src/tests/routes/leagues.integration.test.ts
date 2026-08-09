@@ -4,7 +4,9 @@ import { describe, it, expect, beforeEach } from "vitest";
 import leagues from "../../routes/leagues";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
 import { LEAGUE_ERRORS } from "../../repositories/leagueRepository";
-import { LeagueVisibility } from "../../../../model/enums";
+import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
+import { LEAGUE_ICONS } from "../../../../model/league";
+import { PlayerService } from "../../services/player";
 import { insertLeague, resetD1Database } from "../utils/d1TestUtils";
 
 const LEAGUE_ID = "league-route-1";
@@ -77,6 +79,89 @@ describe("GET /leagues/:id", () => {
  * walk straight through the gate it guards. These assertions are what would
  * catch someone adding it to the DTO "for convenience".
  */
+describe("POST /leagues", () => {
+  // This route, unlike the reads above, resolves the founder from the session,
+  // so the payload the JWT middleware would have set is stood in for here.
+  const GOOGLE_ACCOUNT_ID = "acct-route-founder";
+  const authed = new Hono<{ Bindings: { db: D1Database } }>()
+    .use("*", async (c, next) => {
+      c.set("jwtPayload", { sub: GOOGLE_ACCOUNT_ID });
+      await next();
+    })
+    .route("/leagues", leagues);
+
+  function body(overrides: Record<string, unknown> = {}) {
+    return {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Friday Night Wiki",
+        icon: LEAGUE_ICONS[0],
+        domain: "en",
+        duration: "1m",
+        visibility: LeagueVisibility.PRIVATE,
+        invitePolicy: LeagueInvitePolicy.MEMBERS,
+        teamName: "Wiki Wanderers",
+        ...overrides,
+      }),
+    };
+  }
+
+  beforeEach(async () => {
+    await resetD1Database(env.db);
+    const player = await new PlayerService(env.db).createPlayer(
+      "route-founder",
+      "route-founder@example.com",
+      GOOGLE_ACCOUNT_ID,
+    );
+    if (!player.ok) throw new Error("setup failed");
+  });
+
+  it("answers 201 with the new league", async () => {
+    const response = await authed.request("/leagues", body(), env);
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({
+      title: "Friday Night Wiki",
+      visibility: LeagueVisibility.PRIVATE,
+      teamCount: 1,
+    });
+  });
+
+  it("keeps the invitation code out of the creation response too", async () => {
+    const response = await authed.request("/leagues", body(), env);
+    const created = (await response.json()) as { id: string };
+
+    const stored = await env.db
+      .prepare("SELECT invitationCode FROM leagues WHERE id = ?")
+      .bind(created.id)
+      .first<{ invitationCode: string }>();
+
+    expect(stored?.invitationCode).toBeTruthy();
+    expect(JSON.stringify(created)).not.toContain(stored!.invitationCode);
+  });
+
+  it("answers 400, not 500, for a payload it cannot accept", async () => {
+    const response = await authed.request(
+      "/leagues",
+      body({ duration: "10y" }),
+      env,
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("answers 400 for a body that is not JSON at all", async () => {
+    const response = await authed.request(
+      "/leagues",
+      { method: "POST", body: "not json" },
+      env,
+    );
+
+    expect(response.status).toBe(400);
+  });
+});
+
 describe("the invitation code never rides on a league read", () => {
   beforeEach(async () => {
     await resetD1Database(env.db);

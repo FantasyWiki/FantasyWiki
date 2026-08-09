@@ -20,17 +20,15 @@
         <p class="hero-subtitle">{{ t("leagues.subtitle") }}</p>
       </header>
 
-      <!-- The two ways into a further league. Rendered, but not yet wired: a
-           league now carries a visibility and an invitation code, and the join
-           is gated on them, but the screens that let a player *enter* a code
-           (#7) or create a league (#4) are still to come. They state what is
-           coming rather than leading somewhere that does not exist. -->
+      <!-- The two ways into a further league. Creating one works; entering an
+           invitation code (#7) does not yet, so that button still states what
+           is coming rather than leading somewhere that does not exist. -->
       <div class="actions">
         <ion-button fill="outline" disabled>
           <ion-icon slot="start" :icon="keyOutline" />
           {{ t("leagues.joinPrivate") }}
         </ion-button>
-        <ion-button disabled>
+        <ion-button router-link="/leagues/new">
           <ion-icon slot="start" :icon="addOutline" />
           {{ t("leagues.createNew") }}
         </ion-button>
@@ -83,8 +81,11 @@
             <ion-icon :icon="flagOutline" class="section-icon mine" />
             <h2 class="section-title">{{ t("leagues.mineTitle") }}</h2>
           </div>
-          <div class="league-grid">
-            <my-league-card
+          <!-- `mine-grid` marks this as the enrolled set: the featured shelf
+               below renders the same card, so "a league card exists" stopped
+               being enough to say which grid it is in. -->
+          <div class="league-grid mine-grid">
+            <league-card
               v-for="league in leagues"
               :key="league.id"
               :league="league"
@@ -100,7 +101,17 @@
             <ion-icon :icon="starOutline" class="section-icon" />
             <h2 class="section-title">{{ t("leagues.featuredTitle") }}</h2>
           </div>
-          <p class="featured-placeholder">
+          <!-- Leagues the player already plays are dropped here rather than by
+               the query: the endpoint answers the same list for everyone, and
+               which leagues are mine is a question the store already holds. -->
+          <div v-if="featuredLeagues.length" class="league-grid">
+            <league-card
+              v-for="league in featuredLeagues"
+              :key="league.id"
+              :league="league"
+            />
+          </div>
+          <p v-else class="featured-placeholder">
             {{ t("leagues.featuredPlaceholder") }}
           </p>
         </section>
@@ -133,14 +144,27 @@ import { useI18n } from "vue-i18n";
 
 import NavBar from "@/layout/NavBar.vue";
 import PageReveal from "@/components/PageReveal.vue";
-import MyLeagueCard from "@/components/league/MyLeagueCard.vue";
+import LeagueCard from "@/components/league/LeagueCard.vue";
 import { useLeagueStore } from "@/stores/league";
+import { usePublicLeagues } from "@/composables/usePublicLeagues";
 
 const { t } = useI18n();
 const leagueStore = useLeagueStore();
 
 const leagues = computed(() => leagueStore.availableLeagues);
 const error = computed(() => leagueStore.error);
+
+const { publicLeagues } = usePublicLeagues();
+
+/**
+ * The public leagues worth offering: the ones the player is not already in.
+ * Without the filter the Global League — which every player is enrolled in —
+ * would head a shelf captioned as somewhere new to go.
+ */
+const featuredLeagues = computed(() => {
+  const mine = new Set(leagues.value.map((l) => l.id));
+  return publicLeagues.value.filter((l) => !mine.has(l.id));
+});
 
 /**
  * Only a *first* load gets the skeleton. A refetch keeps the list on screen and

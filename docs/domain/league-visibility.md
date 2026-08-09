@@ -35,11 +35,27 @@ invitation code is the credential.
 
 ## Who may hand the code out
 
-Each league carries an **invite policy**, chosen when the league is created. It
-only means anything for a private league, since a public one has no code:
+Each league carries an **invite policy**, chosen on the creation form. It only
+means anything for a private league, since a public one has no code:
 
 - `members` — any player fielding a team in the league can share the code.
 - `admin` — only the league admin can.
+
+A public league still stores a policy, and creation still insists on one. It
+decides nothing today, but a league that later turned private with no policy
+recorded would be read as `admin` — a rule nobody chose, arrived at by omission.
+
+## The founder is a member
+
+Creating a league and fielding a team in it are **one act**: the league row and
+its founder's team are written in the same transaction, so there is no moment at
+which a league exists that nobody is in. This matters beyond tidiness — the
+league list is scoped to the leagues a player has a team in, so a league written
+without its founder would be invisible to everyone, and a private one would hold
+an invitation code nobody could reach.
+
+The founder is the league's **admin**, which is what lets them back in without
+presenting the code to their own league.
 
 A caller the policy does not allow is answered exactly as if the league did not
 exist. Telling a stranger that a code exists tells them there is something
@@ -47,6 +63,8 @@ worth guessing at.
 
 ## Related
 
+- [League Season](./league-season.md) — the other thing fixed at creation: when
+  the season starts and how long it may run.
 - [ADR 0008: League Invitation Codes](../adr/0008-league-invitation-codes.md) —
   the code's format, where it may travel, and how the join is enforced.
 - [FantaWiki Requirements](./fantawiki-requirements.md) — the original

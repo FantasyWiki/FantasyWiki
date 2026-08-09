@@ -1,7 +1,11 @@
 // frontend/src/services/api.ts
 import { DashboardData, Session, TeamPointsData } from "@/types/models";
 import { PlayerDTO } from "../../../dto/playerDTO";
-import { LeagueDTO } from "../../../dto/leagueDTO";
+import {
+  CreateLeagueRequest,
+  LeagueDTO,
+  LeagueInviteDTO,
+} from "../../../dto/leagueDTO";
 import {
   RawNotification,
   deserializeNotification,
@@ -102,6 +106,30 @@ export const leaguesApi = {
     apiRequest<LeagueDTO[]>("/leagues").then((ls) => ls.map(deserializeLeague)),
   getById: (id: string) =>
     apiRequest<LeagueDTO>(`/leagues/${id}`).then(deserializeLeague),
+  /**
+   * Found a league. The founder is resolved from the session, and the founding
+   * team named in the request is created with it in one transaction.
+   */
+  create: (request: CreateLeagueRequest) =>
+    apiRequest<LeagueDTO>("/leagues", {
+      method: "POST",
+      body: JSON.stringify(request),
+    }).then(deserializeLeague),
+  /**
+   * A league's invitation code. Only a private league has one — a public league
+   * answers 404, by design — so call it on the strength of `visibility`, not
+   * hopefully.
+   */
+  getInviteCode: (id: string) =>
+    apiRequest<LeagueInviteDTO>(`/leagues/${id}/invite-code`),
+  /**
+   * Every public league, newest first. Not caller-scoped — the leagues the
+   * player already plays are dropped where they are rendered.
+   */
+  getPublic: () =>
+    apiRequest<LeagueDTO[]>("/leagues/public").then((ls) =>
+      ls.map(deserializeLeague)
+    ),
   /** The Global League, joinable by any player regardless of locale */
   getGlobal: () =>
     apiRequest<LeagueDTO>("/leagues/global").then(deserializeLeague),

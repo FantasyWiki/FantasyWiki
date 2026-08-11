@@ -150,6 +150,80 @@ describe("LineupService Integration Tests", () => {
     });
   });
 
+  describe("getRivalLineup", () => {
+    it("returns another team's lineup addressed by team id", async () => {
+      // A second player fielding a team in the same league, with one contract
+      // placed in the formation. getRivalLineup must surface exactly that team's
+      // line-up, resolved from the team id in the path rather than the session.
+      const rivalPlayerResult = await playerService.createPlayer(
+        "rivalowner",
+        "rival@example.com",
+        "account-rival-1",
+      );
+      expect(rivalPlayerResult.ok).toBe(true);
+      if (!rivalPlayerResult.ok) throw new Error("setup failed: rival player");
+
+      const rivalTeamId = "team-rival-1";
+      await insertTeam(env.db, {
+        id: rivalTeamId,
+        name: "Rival FC",
+        playerId: rivalPlayerResult.value.id,
+        leagueId: GLOBAL_LEAGUE_ID,
+      });
+
+      const rivalContractId = "contract-rival-1";
+      await env.db
+        .prepare(
+          "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
+        )
+        .bind(
+          rivalContractId,
+          rivalTeamId,
+          "Cat",
+          "2026-01-01",
+          "2026-01-08",
+          50,
+        )
+        .run();
+
+      await env.db
+        .prepare(
+          "INSERT INTO lineups (teamId, schema, formation, updatedAt) VALUES (?, ?, ?, ?)",
+        )
+        .bind(
+          rivalTeamId,
+          "4-3-3",
+          JSON.stringify({ GK: rivalContractId }),
+          new Date().toISOString(),
+        )
+        .run();
+
+      const result = await lineupService.getRivalLineup(
+        GLOBAL_LEAGUE_ID,
+        rivalTeamId,
+      );
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.formation.schema).toBe("4-3-3");
+      expect(result.value.formation.formation["GK"]?.id).toBe(rivalContractId);
+      // The contract carries the rival's team identity, not the caller's.
+      expect(result.value.formation.formation["GK"]?.team.id).toBe(rivalTeamId);
+    });
+
+    it("reports a team that is not in the league as NO_TEAM, not an error", async () => {
+      const result = await lineupService.getRivalLineup(
+        GLOBAL_LEAGUE_ID,
+        "team-not-in-this-league",
+      );
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toBe(LINEUP_ERRORS.NO_TEAM);
+      }
+    });
+  });
+
   describe("saveLineup", () => {
     it("should return a failure when a contractId in the formation does not belong to the team", async () => {
       // Insert a contract for a different team

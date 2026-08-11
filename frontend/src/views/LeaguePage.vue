@@ -67,6 +67,7 @@
           :loading="isLeaderboardLoading"
           :errored="isLeaderboardError"
           :phase="phase"
+          @open-team="openTeam"
         />
       </page-reveal>
     </div>
@@ -122,6 +123,17 @@ const {
 // Scoped to the league in the route, not the selected one: this page is
 // reachable for any league, and "You" has to mark the right row.
 const { myTeamId } = useMyTeam(leagueId);
+
+/**
+ * Opens a rival's line-up. Pushed, not replaced: it is a step down from the
+ * standings, and Back has to come straight back to the row it was opened from.
+ */
+function openTeam(teamId: string) {
+  router.push({
+    name: "RivalTeam",
+    params: { leagueId: leagueId.value, teamId },
+  });
+}
 
 /**
  * Keeps the URL and the NavBar's league switcher saying the same thing. Two

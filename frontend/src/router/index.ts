@@ -9,6 +9,7 @@ import TeamPage from "@/views/TeamPage.vue";
 import TeamCreationPage from "@/views/TeamCreationPage.vue";
 import MarketPage from "@/views/MarketPage.vue";
 import LeaguePage from "@/views/LeaguePage.vue";
+import RivalTeamPage from "@/views/RivalTeamPage.vue";
 import LegalPage from "@/views/LegalPage.vue";
 import GuidePage from "@/views/GuidePage.vue";
 import ReportProblemPage from "@/views/ReportProblemPage.vue";
@@ -80,6 +81,14 @@ const routes: Array<RouteRecordRaw> = [
     path: "/leagues/:leagueId",
     name: "League",
     component: LeaguePage,
+  },
+  {
+    // Another team's line-up, read-only. Nested under the league because a team
+    // is only ever meaningful inside one — the same standings row is what leads
+    // here, and the league in the path is what the page compares against.
+    path: "/leagues/:leagueId/teams/:teamId",
+    name: "RivalTeam",
+    component: RivalTeamPage,
   },
   {
     path: "/community",

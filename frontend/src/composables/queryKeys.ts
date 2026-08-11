@@ -36,4 +36,11 @@ export const queryKeys = {
   globalLeague: () => ["global-league"] as const,
   /** A single league by id — including ones the player has not joined yet. */
   league: (leagueId: string) => ["league", leagueId] as const,
+  /**
+   * Another team's line-up, read-only. Deliberately not under `teamLineup`:
+   * that key is the viewer's own and every lineup mutation invalidates it,
+   * which would evict rivals the player is only looking at.
+   */
+  rivalLineup: (leagueId: string | null, teamId: string | null) =>
+    ["rival-lineup", leagueId, teamId] as const,
 };

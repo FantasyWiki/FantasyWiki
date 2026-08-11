@@ -188,6 +188,21 @@ export const handlers = [
     return HttpResponse.json(response);
   }),
 
+  // Another team's line-up. The fixture is the same XI for every team id: the
+  // mock exists so the rival page is navigable, and inventing a distinct squad
+  // per team would be fixture data pretending to be a scouting feature.
+  http.get("*/api/leagues/:leagueId/teams/:teamId/lineup", ({ params }) => {
+    const response =
+      mockTeamResponses[teamResponseKey(String(params.leagueId))];
+    if (!response) {
+      return HttpResponse.json(
+        { error: "Team layout not found" },
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json(response);
+  }),
+
   http.put("*/api/leagues/:leagueId/lineup", async ({ params, request }) => {
     const leagueId = String(params.leagueId);
     const key = teamResponseKey(leagueId);

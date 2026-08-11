@@ -43,11 +43,21 @@
           <span class="col-trend">{{ t("league.colTrend") }}</span>
         </div>
 
-        <div
+        <!-- Every row but the viewer's own opens that team's line-up, and does
+             it as a real button so the board stays keyboard-reachable. Your own
+             row stays inert: your team page is where you edit the line-up, and
+             routing you to the read-only copy of it would be a dead end. -->
+        <component
+          :is="isMine(entry) ? 'div' : 'button'"
           v-for="entry in visible"
           :key="entry.team.id"
+          :type="isMine(entry) ? undefined : 'button'"
           class="standings-row"
-          :class="{ 'standings-row--me': isMine(entry) }"
+          :class="{
+            'standings-row--me': isMine(entry),
+            'standings-row--link': !isMine(entry),
+          }"
+          @click="isMine(entry) || emit('openTeam', entry.team.id)"
         >
           <div class="col-rank">
             <span
@@ -76,7 +86,7 @@
             <ion-icon :icon="trend(entry).icon" class="trend-icon" />
             <span class="trend-label">{{ trend(entry).label }}</span>
           </div>
-        </div>
+        </component>
 
         <!-- A failed fetch is not an empty league. Saying "no teams" for a
              network error would be a claim about the league that nothing
@@ -140,6 +150,11 @@ const props = defineProps<{
   errored?: boolean;
   /** Where the league sits in its calendar; only the pre-scoring note reads it. */
   phase?: LeaguePhase | null;
+}>();
+
+const emit = defineEmits<{
+  /** A row other than the viewer's own was activated. */
+  openTeam: [teamId: string];
 }>();
 
 const { t, locale } = useI18n();
@@ -289,6 +304,29 @@ function trend(entry: LeaderboardEntryDTO): {
 
 .standings-row--me {
   background: rgba(var(--ion-color-primary-rgb), 0.08);
+}
+
+/* Rows that navigate are <button>: strip the UA chrome so they stay visually
+   identical to the inert one, and keep the grid the row layout depends on. */
+.standings-row--link {
+  width: 100%;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.standings-row--link:hover {
+  background: var(--ion-background-color-step-50);
+}
+
+.standings-row--link:focus-visible {
+  outline: 2px solid var(--ion-color-primary);
+  outline-offset: -2px;
 }
 
 .col-points,

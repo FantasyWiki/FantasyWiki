@@ -11,6 +11,11 @@ import { TeamRepository } from "../repositories/teamRepository";
 import { ContractRepository } from "../repositories/contractRepository";
 import { LeagueRepository } from "../repositories/leagueRepository";
 import { PlayerRepository } from "../repositories/playerRepository";
+import {
+  PerformanceRepository,
+  TeamCumulative,
+} from "../repositories/performanceRepository";
+import { LeaderboardService } from "../services/leaderboard";
 import { success, failure } from "../repositories/result";
 import type { Contract, Team, Lineup, League, Player } from "../../../model";
 
@@ -116,6 +121,34 @@ function makeLineupRepo(stored: Lineup | null = null): LineupRepository {
       current = { ...data };
       return success(undefined);
     },
+  };
+}
+
+/**
+ * A LeaderboardService whose standings are exactly `teams`. Only
+ * getLeagueCumulatives is exercised; the other repo methods are unused here.
+ */
+function makeLeaderboardService(
+  cumulatives: TeamCumulative[],
+): LeaderboardService {
+  const repo: PerformanceRepository = {
+    getRecentByTeam: async () => failure("unused"),
+    getLeagueCumulatives: async () => success(cumulatives),
+    upsertDaily: async () => failure("unused"),
+  };
+  return new LeaderboardService(repo);
+}
+
+function cumulative(overrides: Partial<TeamCumulative> = {}): TeamCumulative {
+  return {
+    teamId: TEAM_ID,
+    teamName: "Test FC",
+    teamCredits: 1000,
+    playerId: PLAYER_ID,
+    playerName: "testuser",
+    cumulativeLatest: 0,
+    cumulativePrevious: 0,
+    ...overrides,
   };
 }
 
@@ -296,6 +329,57 @@ describe("LineupService (unit)", () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       expect(result.value.formation.formation["GK"]?.article.domain).toBe("it");
+    });
+  });
+
+  describe("getRivalLineup", () => {
+    it("resolves the team's owner from the standings and returns its lineup", async () => {
+      const c1 = makeContract("c-1", "Cat");
+      const lineup = makeLineup({ GK: "c-1" });
+
+      const service = new LineupService(
+        makeDeps({
+          lineupRepository: makeLineupRepo(lineup),
+          contractRepository: makeContractRepo([c1]),
+          leaderboardService: makeLeaderboardService([cumulative()]),
+        }),
+      );
+
+      const result = await service.getRivalLineup(LEAGUE_ID, TEAM_ID);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.formation.formation["GK"]?.id).toBe("c-1");
+    });
+
+    it("returns NO_TEAM when the team is not on the standings", async () => {
+      const service = new LineupService(
+        makeDeps({
+          leaderboardService: makeLeaderboardService([
+            cumulative({ teamId: "some-other-team" }),
+          ]),
+        }),
+      );
+
+      const result = await service.getRivalLineup(LEAGUE_ID, TEAM_ID);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBe(LINEUP_ERRORS.NO_TEAM);
+    });
+
+    it("propagates a standings failure rather than reporting not-found", async () => {
+      const failingBoard: PerformanceRepository = {
+        getRecentByTeam: async () => failure("unused"),
+        getLeagueCumulatives: async () => failure("db error"),
+        upsertDaily: async () => failure("unused"),
+      };
+      const service = new LineupService(
+        makeDeps({
+          leaderboardService: new LeaderboardService(failingBoard),
+        }),
+      );
+
+      const result = await service.getRivalLineup(LEAGUE_ID, TEAM_ID);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBe("db error");
     });
   });
 

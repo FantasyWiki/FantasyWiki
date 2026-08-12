@@ -236,6 +236,45 @@ describe("TeamService Integration Tests", () => {
     });
   });
 
+  describe("getPlayerTeamInLeague", () => {
+    it("returns the domain model, not the wire shape getMyTeam dresses", async () => {
+      const created = await teamService.createTeam(
+        playerId,
+        leagueId,
+        "The Wiki Wizards",
+      );
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed: team");
+
+      const result = await teamService.getPlayerTeamInLeague(
+        playerId,
+        leagueId,
+      );
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      // playerId and leagueId are what callers go on to resolve the owner and
+      // the league by; TeamDTO carries neither.
+      expect(result.value).toEqual({
+        id: created.value.id,
+        name: "The Wiki Wizards",
+        playerId,
+        leagueId,
+        credits: STARTING_CREDITS,
+      });
+    });
+
+    it("returns null when the player fields no team in the league", async () => {
+      const result = await teamService.getPlayerTeamInLeague(
+        playerId,
+        leagueId,
+      );
+
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value).toBeNull();
+    });
+  });
+
   describe("getMyTeam", () => {
     it("should return null when the player has no team in the league", async () => {
       const result = await teamService.getMyTeam(playerId, leagueId, "Alice");

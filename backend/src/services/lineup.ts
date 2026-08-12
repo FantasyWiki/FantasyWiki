@@ -11,8 +11,7 @@ import {
 import { RawContract } from "../../../dto/contractDTO";
 import { LineupRepository } from "../repositories/lineupRepository";
 import { LineupRepositoryD1 } from "../repositories/d1/lineupRepositoryD1";
-import { TEAM_ERRORS, TeamRepository } from "../repositories/teamRepository";
-import { TeamRepositoryD1 } from "../repositories/d1/teamRepositoryD1";
+import { TEAM_ERRORS } from "../repositories/teamRepository";
 import { ContractRepository } from "../repositories/contractRepository";
 import { ContractRepositoryD1 } from "../repositories/d1/contractRepositoryD1";
 import { LeagueRepository } from "../repositories/leagueRepository";
@@ -31,12 +30,12 @@ export const LINEUP_ERRORS = {
 
 export type LineupServiceDeps = {
   lineupRepository: LineupRepository;
-  teamRepository: TeamRepository;
   /**
-   * The door to teams the caller does not own. TeamService, not TeamRepository,
-   * because whatever it comes to decide about who is readable as a rival —
-   * dressing, derived fields, absence — should apply here without this service
-   * learning about it (docs/architecture/backend-architecture.md).
+   * The one door to teams, self-scoped and rival alike. TeamService rather than
+   * TeamRepository because whatever it comes to decide about teams — dressing,
+   * derived fields, what counts as absent — should reach the line-up views
+   * without this service learning about it
+   * (docs/architecture/backend-architecture.md).
    */
   teamService: TeamService;
   contractRepository: ContractRepository;
@@ -112,7 +111,6 @@ export function parseLineupPayload(body: unknown): Result<RawTeamLineUp> {
 
 export class LineupService {
   private lineupRepository: LineupRepository;
-  private teamRepository: TeamRepository;
   private teamService: TeamService;
   private contractRepository: ContractRepository;
   private leagueRepository: LeagueRepository;
@@ -120,7 +118,6 @@ export class LineupService {
 
   constructor(deps: LineupServiceDeps) {
     this.lineupRepository = deps.lineupRepository;
-    this.teamRepository = deps.teamRepository;
     this.teamService = deps.teamService;
     this.contractRepository = deps.contractRepository;
     this.leagueRepository = deps.leagueRepository;
@@ -131,7 +128,6 @@ export class LineupService {
   static fromDb(db: D1Database): LineupService {
     return new LineupService({
       lineupRepository: new LineupRepositoryD1(db),
-      teamRepository: new TeamRepositoryD1(db),
       teamService: new TeamService(db),
       contractRepository: new ContractRepositoryD1(db),
       leagueRepository: new LeagueRepositoryD1(db),
@@ -144,7 +140,7 @@ export class LineupService {
     leagueId: string,
   ): Promise<Result<RawTeamLineUp>> {
     return this.lineupOfTeam(
-      this.teamRepository.getByPlayerAndLeague(playerId, leagueId),
+      this.teamService.getPlayerTeamInLeague(playerId, leagueId),
       leagueId,
     );
   }
@@ -268,7 +264,7 @@ export class LineupService {
     leagueId: string,
     payload: RawTeamLineUp,
   ): Promise<Result<void>> {
-    const teamResult = await this.teamRepository.getByPlayerAndLeague(
+    const teamResult = await this.teamService.getPlayerTeamInLeague(
       playerId,
       leagueId,
     );

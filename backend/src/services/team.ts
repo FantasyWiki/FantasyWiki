@@ -102,15 +102,28 @@ export class TeamService {
     return this.teamRepository.getByIdAndLeague(teamId, leagueId);
   }
 
+  /**
+   * The team this player fields in this league, or null when they field none.
+   * The self-scoped counterpart to {@link getTeamInLeague}: the caller holds a
+   * player id from the session rather than a team id from a URL.
+   *
+   * Returns the domain model, so callers that must go on to resolve things the
+   * team only points at — its owner's name, its contracts — have what they need.
+   * {@link getMyTeam} is this read dressed for the wire.
+   */
+  async getPlayerTeamInLeague(
+    playerId: string,
+    leagueId: string,
+  ): Promise<Result<Team | null>> {
+    return this.teamRepository.getByPlayerAndLeague(playerId, leagueId);
+  }
+
   async getMyTeam(
     playerId: string,
     leagueId: string,
     playerName: string,
   ): Promise<Result<TeamDTO | null>> {
-    const result = await this.teamRepository.getByPlayerAndLeague(
-      playerId,
-      leagueId,
-    );
+    const result = await this.getPlayerTeamInLeague(playerId, leagueId);
     if (!result.ok) {
       return result;
     }

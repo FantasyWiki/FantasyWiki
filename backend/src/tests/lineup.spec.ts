@@ -146,7 +146,6 @@ function makeDeps(
 ): LineupServiceDeps {
   return {
     lineupRepository: makeLineupRepo(),
-    teamRepository: makeTeamRepo(),
     teamService: makeTeamService(),
     contractRepository: makeContractRepo([]),
     leagueRepository: makeLeagueRepo(),
@@ -211,13 +210,13 @@ describe("LineupService (unit)", () => {
       expect(value.bench).toHaveLength(0);
     });
 
-    it("returns a failure when the team repo returns an error", async () => {
+    it("returns a failure when the team read returns an error", async () => {
       const service = new LineupService(
         makeDeps({
-          teamRepository: {
+          teamService: makeTeamService({
             ...makeTeamRepo(),
             getByPlayerAndLeague: async () => failure("db error"),
-          },
+          }),
         }),
       );
 
@@ -228,7 +227,7 @@ describe("LineupService (unit)", () => {
 
     it("returns failure when the player has no team in the league", async () => {
       const service = new LineupService(
-        makeDeps({ teamRepository: makeTeamRepo(null) }),
+        makeDeps({ teamService: makeTeamService(makeTeamRepo(null)) }),
       );
 
       const result = await service.getLineup(PLAYER_ID, LEAGUE_ID);
@@ -482,7 +481,7 @@ describe("LineupService (unit)", () => {
 
     it("returns a failure when the team is not found", async () => {
       const service = new LineupService(
-        makeDeps({ teamRepository: makeTeamRepo(null) }),
+        makeDeps({ teamService: makeTeamService(makeTeamRepo(null)) }),
       );
 
       const result = await service.saveLineup(PLAYER_ID, LEAGUE_ID, {

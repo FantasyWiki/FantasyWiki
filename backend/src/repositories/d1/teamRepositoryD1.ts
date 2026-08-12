@@ -73,17 +73,36 @@ export class TeamRepositoryD1 implements TeamRepository {
     playerId: string,
     leagueId: string,
   ): Promise<Result<Team | null>> {
+    return this.getByKeyInLeague("playerId", playerId, leagueId);
+  }
+
+  async getByIdAndLeague(
+    teamId: string,
+    leagueId: string,
+  ): Promise<Result<Team | null>> {
+    return this.getByKeyInLeague("id", teamId, leagueId);
+  }
+
+  /**
+   * The single team-row read, differing only in which column addresses the team
+   * — a closed set of two, so nothing caller-supplied reaches the SQL text.
+   * credits is derived from the contracts ledger, not stored: the rule itself
+   * lives in the team_credits view (ADR 0007), stated once.
+   */
+  private async getByKeyInLeague(
+    key: "id" | "playerId",
+    value: string,
+    leagueId: string,
+  ): Promise<Result<Team | null>> {
     try {
-      // credits is derived from the contracts ledger, not stored — the rule
-      // itself lives in the team_credits view (ADR 0007), stated once.
       const result = await this.db
         .prepare(
           `SELECT t.id, t.name, t.playerId, t.leagueId, tc.credits
            FROM teams t
            JOIN team_credits tc ON tc.teamId = t.id
-           WHERE t.playerId = ? AND t.leagueId = ?`,
+           WHERE t.${key} = ? AND t.leagueId = ?`,
         )
-        .bind(playerId, leagueId)
+        .bind(value, leagueId)
         .first<Team>();
 
       return success(result ?? null);

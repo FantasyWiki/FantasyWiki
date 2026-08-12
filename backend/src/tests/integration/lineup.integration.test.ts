@@ -8,7 +8,7 @@ import {
 } from "../../services/lineup";
 import { PlayerService } from "../../services/player";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
-import { insertTeam } from "../utils/d1TestUtils";
+import { insertLineup, insertTeam } from "../utils/d1TestUtils";
 
 describe("LineupService Integration Tests", () => {
   let lineupService: LineupService;
@@ -215,6 +215,54 @@ describe("LineupService Integration Tests", () => {
       const result = await lineupService.getRivalLineup(
         GLOBAL_LEAGUE_ID,
         "team-not-in-this-league",
+      );
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toBe(LINEUP_ERRORS.NO_TEAM);
+      }
+    });
+
+    // The team id alone would find this row; the league is the other half of
+    // the key, so a line-up from a league the caller did not ask about must be
+    // unreadable through it rather than merely unlikely to be requested.
+    it("does not serve a team that exists in another league", async () => {
+      const otherLeagueId = "league-elsewhere";
+      await env.db
+        .prepare(
+          "INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(
+          otherLeagueId,
+          "Elsewhere League",
+          playerId,
+          "2026-01-01T00:00:00Z",
+          "2026-12-31T00:00:00Z",
+          "en",
+          "🌍",
+        )
+        .run();
+
+      const outsiderPlayerResult = await playerService.createPlayer(
+        "outsider",
+        "outsider@example.com",
+        "account-outsider-1",
+      );
+      expect(outsiderPlayerResult.ok).toBe(true);
+      if (!outsiderPlayerResult.ok) throw new Error("setup failed: outsider");
+
+      const outsiderTeamId = "team-outsider-1";
+      await insertTeam(env.db, {
+        id: outsiderTeamId,
+        name: "Outsider FC",
+        playerId: outsiderPlayerResult.value.id,
+        leagueId: otherLeagueId,
+      });
+      await insertLineup(env.db, outsiderTeamId, "4-3-3", {});
+
+      const result = await lineupService.getRivalLineup(
+        GLOBAL_LEAGUE_ID,
+        outsiderTeamId,
       );
 
       expect(result.ok).toBe(false);

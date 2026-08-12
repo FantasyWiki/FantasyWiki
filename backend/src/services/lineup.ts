@@ -21,7 +21,6 @@ import { PlayerRepository } from "../repositories/playerRepository";
 import { PlayerRepositoryD1 } from "../repositories/d1/playerRepositoryD1";
 import { Result, success, failure } from "../repositories/result";
 import { toRawContract } from "./rawContract";
-import { LeaderboardService } from "./leaderboard";
 
 export const LINEUP_ERRORS = {
   NO_TEAM: TEAM_ERRORS.NO_TEAM_IN_LEAGUE,
@@ -35,11 +34,6 @@ export type LineupServiceDeps = {
   contractRepository: ContractRepository;
   leagueRepository: LeagueRepository;
   playerRepository: PlayerRepository;
-  /**
-   * Only `getRivalLineup` needs it — to name which teams a league contains and
-   * who owns each — so it is optional: the self-scoped reads work without it.
-   */
-  leaderboardService?: LeaderboardService;
 };
 
 export type RawTeamLineUp = {
@@ -114,7 +108,6 @@ export class LineupService {
   private contractRepository: ContractRepository;
   private leagueRepository: LeagueRepository;
   private playerRepository: PlayerRepository;
-  private leaderboardService?: LeaderboardService;
 
   constructor(deps: LineupServiceDeps) {
     this.lineupRepository = deps.lineupRepository;
@@ -122,7 +115,6 @@ export class LineupService {
     this.contractRepository = deps.contractRepository;
     this.leagueRepository = deps.leagueRepository;
     this.playerRepository = deps.playerRepository;
-    this.leaderboardService = deps.leaderboardService;
   }
 
   /** Build a D1-backed instance — the production/route construction path. */
@@ -133,7 +125,6 @@ export class LineupService {
       contractRepository: new ContractRepositoryD1(db),
       leagueRepository: new LeagueRepositoryD1(db),
       playerRepository: new PlayerRepositoryD1(db),
-      leaderboardService: new LeaderboardService(db),
     });
   }
 
@@ -141,10 +132,41 @@ export class LineupService {
     playerId: string,
     leagueId: string,
   ): Promise<Result<RawTeamLineUp>> {
-    const teamResult = await this.teamRepository.getByPlayerAndLeague(
-      playerId,
+    return this.lineupOfTeam(
+      this.teamRepository.getByPlayerAndLeague(playerId, leagueId),
       leagueId,
     );
+  }
+
+  /**
+   * A rival team's line-up, read-only, addressed by team id rather than by the
+   * caller's session. Unlike {@link getLineup} this is not self-scoped: the
+   * viewer does not own the team, so the team is named in the path.
+   *
+   * The league is half the key the team is looked up by, so a team id from
+   * another league is absent rather than readable, and a wrong id is reported
+   * as not-found instead of as a failed request.
+   */
+  async getRivalLineup(
+    leagueId: string,
+    teamId: string,
+  ): Promise<Result<RawTeamLineUp>> {
+    return this.lineupOfTeam(
+      this.teamRepository.getByIdAndLeague(teamId, leagueId),
+      leagueId,
+    );
+  }
+
+  /**
+   * The one line-up read, over whichever team the caller resolved. Both entry
+   * points differ only in how they address the team — everything downstream,
+   * including whose name dresses the contracts, comes from the team row itself.
+   */
+  private async lineupOfTeam(
+    pendingTeam: Promise<Result<Team | null>>,
+    leagueId: string,
+  ): Promise<Result<RawTeamLineUp>> {
+    const teamResult = await pendingTeam;
     if (!teamResult.ok) {
       return teamResult;
     }
@@ -154,7 +176,7 @@ export class LineupService {
     const team = teamResult.value;
 
     const [playerResult, leagueResult] = await Promise.all([
-      this.playerRepository.getById(playerId),
+      this.playerRepository.getById(team.playerId),
       this.leagueRepository.getById(leagueId),
     ]);
     if (!playerResult.ok) return playerResult;
@@ -227,45 +249,6 @@ export class LineupService {
       },
       bench,
     });
-  }
-
-  /**
-   * A rival team's line-up, read-only, addressed by team id rather than by the
-   * caller's session. Unlike {@link getLineup} this is not self-scoped: the
-   * viewer does not own the team, so the team is named in the path.
-   *
-   * Which teams a league contains, and who owns each, is resolved from the
-   * league standings rather than a fresh team lookup — the standings are this
-   * feature's own source of truth for exactly that, and are what the client
-   * already reads the rival's name and rank from. Resolving through them keeps
-   * one definition of "the teams in this league" (every team appears, scored or
-   * not; a team outside the league is simply absent) and lets a wrong team id
-   * be reported as not-found rather than as a failed request. This makes a
-   * service depend on another service, which docs/architecture/backend-architecture.md
-   * frames as a repository's job; the reuse is the deliberate trade for not
-   * restating that membership query here.
-   */
-  async getRivalLineup(
-    leagueId: string,
-    teamId: string,
-  ): Promise<Result<RawTeamLineUp>> {
-    if (!this.leaderboardService) {
-      return failure("Leaderboard service is not configured");
-    }
-
-    const boardResult = await this.leaderboardService.getLeaderboard(leagueId);
-    if (!boardResult.ok) {
-      return boardResult;
-    }
-
-    const entry = boardResult.value.find((e) => e.team.id === teamId);
-    if (!entry) {
-      return failure(LINEUP_ERRORS.NO_TEAM);
-    }
-
-    // The owner resolved above is the team's, so getLineup addresses that same
-    // team — the rival's line-up is built by exactly the self-scoped path.
-    return this.getLineup(entry.team.player.id, leagueId);
   }
 
   async saveLineup(

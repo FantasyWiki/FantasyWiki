@@ -390,9 +390,9 @@ leagues.get("/:id/lineup", async (c) => {
 // Another team's line-up, read-only. The team is named in the path because the
 // viewer does not own it — unlike `/:id/lineup`, which is self-scoped from the
 // JWT. Teams on a league's standings are shareably visible (api-naming-rules.md),
-// so the id in the URL is not a security control: the standings this reads from
-// are already served to every member. A team id outside the league resolves to
-// NO_TEAM → 404, so a wrong link is reported as not-found, not as a failure.
+// so the id in the URL is not a security control: the standings already name
+// every team in the league to every member. A team id outside the league
+// resolves to NO_TEAM → 404, so a wrong link is reported as not-found.
 leagues.get("/:id/teams/:teamId/lineup", async (c) => {
   const leagueId = c.req.param("id");
   const teamId = c.req.param("teamId");

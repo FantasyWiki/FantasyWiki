@@ -11,11 +11,6 @@ import { TeamRepository } from "../repositories/teamRepository";
 import { ContractRepository } from "../repositories/contractRepository";
 import { LeagueRepository } from "../repositories/leagueRepository";
 import { PlayerRepository } from "../repositories/playerRepository";
-import {
-  PerformanceRepository,
-  TeamCumulative,
-} from "../repositories/performanceRepository";
-import { LeaderboardService } from "../services/leaderboard";
 import { success, failure } from "../repositories/result";
 import type { Contract, Team, Lineup, League, Player } from "../../../model";
 
@@ -78,6 +73,15 @@ function makeTeamRepo(result: Team | null = team): TeamRepository {
     create: async () => failure("unused"),
     existsByNameInLeague: async () => failure("unused"),
     getByPlayerAndLeague: async () => success(result),
+    // Addressed by id, so unlike the self-scoped read this stub cannot ignore
+    // its arguments: it answers with the fixture only when both halves of the
+    // key match, which is what makes "team from another league" absent.
+    getByIdAndLeague: async (teamId, leagueId) =>
+      success(
+        result !== null && teamId === result.id && leagueId === result.leagueId
+          ? result
+          : null,
+      ),
   };
 }
 
@@ -121,34 +125,6 @@ function makeLineupRepo(stored: Lineup | null = null): LineupRepository {
       current = { ...data };
       return success(undefined);
     },
-  };
-}
-
-/**
- * A LeaderboardService whose standings are exactly `teams`. Only
- * getLeagueCumulatives is exercised; the other repo methods are unused here.
- */
-function makeLeaderboardService(
-  cumulatives: TeamCumulative[],
-): LeaderboardService {
-  const repo: PerformanceRepository = {
-    getRecentByTeam: async () => failure("unused"),
-    getLeagueCumulatives: async () => success(cumulatives),
-    upsertDaily: async () => failure("unused"),
-  };
-  return new LeaderboardService(repo);
-}
-
-function cumulative(overrides: Partial<TeamCumulative> = {}): TeamCumulative {
-  return {
-    teamId: TEAM_ID,
-    teamName: "Test FC",
-    teamCredits: 1000,
-    playerId: PLAYER_ID,
-    playerName: "testuser",
-    cumulativeLatest: 0,
-    cumulativePrevious: 0,
-    ...overrides,
   };
 }
 
@@ -225,8 +201,7 @@ describe("LineupService (unit)", () => {
       const service = new LineupService(
         makeDeps({
           teamRepository: {
-            create: async () => failure("unused"),
-            existsByNameInLeague: async () => failure("unused"),
+            ...makeTeamRepo(),
             getByPlayerAndLeague: async () => failure("db error"),
           },
         }),
@@ -333,7 +308,7 @@ describe("LineupService (unit)", () => {
   });
 
   describe("getRivalLineup", () => {
-    it("resolves the team's owner from the standings and returns its lineup", async () => {
+    it("returns the line-up of the team named in the path", async () => {
       const c1 = makeContract("c-1", "Cat");
       const lineup = makeLineup({ GK: "c-1" });
 
@@ -341,7 +316,6 @@ describe("LineupService (unit)", () => {
         makeDeps({
           lineupRepository: makeLineupRepo(lineup),
           contractRepository: makeContractRepo([c1]),
-          leaderboardService: makeLeaderboardService([cumulative()]),
         }),
       );
 
@@ -351,30 +325,49 @@ describe("LineupService (unit)", () => {
       expect(result.value.formation.formation["GK"]?.id).toBe("c-1");
     });
 
-    it("returns NO_TEAM when the team is not on the standings", async () => {
+    it("dresses the contracts with the team's own owner, not the viewer", async () => {
+      const c1 = makeContract("c-1", "Cat");
       const service = new LineupService(
         makeDeps({
-          leaderboardService: makeLeaderboardService([
-            cumulative({ teamId: "some-other-team" }),
-          ]),
+          lineupRepository: makeLineupRepo(makeLineup({ GK: "c-1" })),
+          contractRepository: makeContractRepo([c1]),
         }),
       );
 
       const result = await service.getRivalLineup(LEAGUE_ID, TEAM_ID);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.formation.formation["GK"]?.team).toEqual({
+        id: TEAM_ID,
+        name: "Test FC",
+        credits: 1000,
+        player: { id: PLAYER_ID, name: "testuser" },
+      });
+    });
+
+    it("returns NO_TEAM for a team id the league does not contain", async () => {
+      const service = new LineupService(makeDeps());
+
+      const result = await service.getRivalLineup(LEAGUE_ID, "some-other-team");
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error).toBe(LINEUP_ERRORS.NO_TEAM);
     });
 
-    it("propagates a standings failure rather than reporting not-found", async () => {
-      const failingBoard: PerformanceRepository = {
-        getRecentByTeam: async () => failure("unused"),
-        getLeagueCumulatives: async () => failure("db error"),
-        upsertDaily: async () => failure("unused"),
+    it("returns NO_TEAM for a team that exists in another league", async () => {
+      const service = new LineupService(makeDeps());
+
+      const result = await service.getRivalLineup("other-league", TEAM_ID);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBe(LINEUP_ERRORS.NO_TEAM);
+    });
+
+    it("propagates a repository failure rather than reporting not-found", async () => {
+      const failingTeams: TeamRepository = {
+        ...makeTeamRepo(),
+        getByIdAndLeague: async () => failure("db error"),
       };
       const service = new LineupService(
-        makeDeps({
-          leaderboardService: new LeaderboardService(failingBoard),
-        }),
+        makeDeps({ teamRepository: failingTeams }),
       );
 
       const result = await service.getRivalLineup(LEAGUE_ID, TEAM_ID);

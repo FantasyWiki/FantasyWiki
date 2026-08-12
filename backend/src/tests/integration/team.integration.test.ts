@@ -212,6 +212,7 @@ describe("TeamService Integration Tests", () => {
         create: async () => failure("boom"),
         existsByNameInLeague: async () => failure("boom"),
         getByPlayerAndLeague: async () => failure("db error"),
+        getByIdAndLeague: async () => failure("boom"),
       };
       const service = new TeamService({
         teamRepository: failingRepository,
@@ -238,6 +239,7 @@ describe("TeamService Integration Tests", () => {
         create: async () => failure("unused"),
         existsByNameInLeague: async () => failure("unused"),
         getByPlayerAndLeague: async () => success(team),
+        getByIdAndLeague: async () => failure("unused"),
       };
       const service = new TeamService({
         teamRepository: repository,
@@ -296,6 +298,16 @@ describe("TeamRepositoryD1 error handling", () => {
   it("should return a failure from getByPlayerAndLeague when D1 throws", async () => {
     const repository = new TeamRepositoryD1(throwingDb);
     const result = await repository.getByPlayerAndLeague("p1", "l1");
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain("D1 unavailable");
+    }
+  });
+
+  it("should return a failure from getByIdAndLeague when D1 throws", async () => {
+    const repository = new TeamRepositoryD1(throwingDb);
+    const result = await repository.getByIdAndLeague("t1", "l1");
 
     expect(result.ok).toBe(false);
     if (!result.ok) {

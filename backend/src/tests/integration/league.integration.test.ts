@@ -71,6 +71,7 @@ describe("LeagueService Integration Tests", () => {
         domain: "en",
         visibility: LeagueVisibility.PUBLIC,
         invitePolicy: LeagueInvitePolicy.MEMBERS,
+        closedAt: null,
         icon: "🌍",
       };
 
@@ -104,6 +105,7 @@ describe("LeagueService Integration Tests", () => {
         domain: "en",
         visibility: LeagueVisibility.PUBLIC,
         invitePolicy: LeagueInvitePolicy.MEMBERS,
+        closedAt: null,
         icon: "🌍",
       };
       // A league whose size could not be read must not be reported as one
@@ -174,6 +176,7 @@ describe("toLeagueDTO", () => {
       domain: "it",
       visibility: LeagueVisibility.PUBLIC,
       invitePolicy: LeagueInvitePolicy.MEMBERS,
+      closedAt: null,
       icon: "🏆",
     };
 
@@ -188,6 +191,7 @@ describe("toLeagueDTO", () => {
       endDate,
       visibility: LeagueVisibility.PUBLIC,
       teamCount: 12,
+      closedAt: null,
     });
   });
 });

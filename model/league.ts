@@ -157,4 +157,33 @@ export interface League {
   visibility: LeagueVisibility;
   invitePolicy: LeagueInvitePolicy;
   icon: string;
+  /**
+   * When the admin closed the league early, or `null` while it is still open.
+   * Never unset once written, and never accompanied by a delete — see
+   * `isLeagueInactive` and migration 0008.
+   */
+  closedAt: Temporal.Instant | null;
+}
+
+/**
+ * Whether a league has stopped being somewhere a player can play.
+ *
+ * Two ways in and no others: the season instant passes, or the admin closes it
+ * early. Both are terminal, and neither erases anything — an inactive league
+ * still has its teams, its contracts and its winner sitting behind it; it is
+ * only that no click leads back into play. Stated here rather than in either
+ * the frontend or the backend because both decide it: the ended-leagues section
+ * and the league picker filter on it, and the join gate refuses on it.
+ *
+ * `now` is a parameter rather than `Temporal.Now.instant()` so the rule can be
+ * pinned in a test without moving the machine's clock.
+ */
+export function isLeagueInactive(
+  league: Pick<League, "endDate" | "closedAt">,
+  now: Temporal.Instant,
+): boolean {
+  return (
+    league.closedAt !== null ||
+    Temporal.Instant.compare(now, league.endDate) > 0
+  );
 }

@@ -24,6 +24,14 @@ export interface LeagueDTO {
   visibility: LeagueVisibility;
   /** How many teams play this league, the player's own included. */
   teamCount: number;
+  /**
+   * When the admin closed the league early, or `null` if they never did. A
+   * `Temporal.Instant` like the two dates above it, so `isLeagueInactive` in
+   * model/league.ts reads a DTO and a domain League through the same rule —
+   * and, like them, it must be put back through `Temporal.Instant.from` on the
+   * frontend (`deserializeLeague`).
+   */
+  closedAt: Temporal.Instant | null;
 }
 
 /**

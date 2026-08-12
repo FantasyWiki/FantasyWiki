@@ -84,6 +84,12 @@ export function deserializeLeague(l: LeagueDTO): LeagueDTO {
     ...l,
     startDate: Temporal.Instant.from(l.startDate as unknown as string),
     endDate: Temporal.Instant.from(l.endDate as unknown as string),
+    // Null for every open league, which is most of them — so this is the one
+    // date on the shape that has to survive the wire as an absence.
+    closedAt:
+      l.closedAt === null || l.closedAt === undefined
+        ? null
+        : Temporal.Instant.from(l.closedAt as unknown as string),
   };
 }
 

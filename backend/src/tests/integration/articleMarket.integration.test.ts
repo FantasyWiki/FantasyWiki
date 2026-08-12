@@ -19,6 +19,7 @@ const sampleLeague: League = {
   domain: "en",
   visibility: LeagueVisibility.PUBLIC,
   invitePolicy: LeagueInvitePolicy.MEMBERS,
+  closedAt: null,
   icon: "🌍",
 };
 

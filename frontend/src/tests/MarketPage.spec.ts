@@ -63,6 +63,7 @@ const fakeLeague: LeagueDTO = {
   endDate: Temporal.Now.instant(),
   visibility: LeagueVisibility.PUBLIC,
   teamCount: 0,
+  closedAt: null,
 };
 
 // Matches the "global" league fixture in src/mocks/data/{leagues,teams,contracts}.ts:

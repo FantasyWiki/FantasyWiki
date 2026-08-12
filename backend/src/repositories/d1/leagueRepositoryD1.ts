@@ -47,6 +47,7 @@ export interface LeagueRow {
   visibility: string;
   invitePolicy: string;
   icon: string;
+  closedAt: string | null;
 }
 
 /**
@@ -64,6 +65,7 @@ const LEAGUE_COLUMN_NAMES = [
   "visibility",
   "invitePolicy",
   "icon",
+  "closedAt",
 ] as const;
 
 export const LEAGUE_COLUMNS = LEAGUE_COLUMN_NAMES.join(", ");
@@ -88,6 +90,10 @@ export function toLeague(row: LeagueRow): League {
     invitePolicy: isLeagueInvitePolicy(row.invitePolicy)
       ? row.invitePolicy
       : LeagueInvitePolicy.ADMIN,
+    // Null is the ordinary case — a league nobody has closed — so this is a
+    // conversion, not a fallback.
+    closedAt:
+      row.closedAt === null ? null : Temporal.Instant.from(row.closedAt),
   };
 }
 
@@ -153,7 +159,7 @@ export class LeagueRepositoryD1 implements LeagueRepository {
         this.db
           .prepare(
             `INSERT INTO leagues (${LEAGUE_COLUMNS}, invitationCode)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .bind(
             leagueId,
@@ -165,6 +171,9 @@ export class LeagueRepositoryD1 implements LeagueRepository {
             league.visibility,
             league.invitePolicy,
             league.icon,
+            // A league is born open. Written explicitly rather than left to the
+            // column default so the bind list stays in step with LEAGUE_COLUMNS.
+            null,
             league.invitationCode,
           ),
         // A plain INSERT, not the gated one `TeamRepositoryD1.create` uses:
@@ -204,6 +213,7 @@ export class LeagueRepositoryD1 implements LeagueRepository {
         visibility: league.visibility,
         invitePolicy: league.invitePolicy,
         icon: league.icon,
+        closedAt: null,
       },
       // A brand-new team holds no contracts, so its derived credits is
       // trivially STARTING_CREDITS — the same shortcut `TeamRepositoryD1` takes.

@@ -44,13 +44,15 @@ export async function insertLeague(
     visibility?: LeagueVisibility;
     invitePolicy?: LeagueInvitePolicy;
     invitationCode?: string;
+    /** An ISO instant to seed a league the admin already closed early. */
+    closedAt?: string;
   },
 ): Promise<void> {
   await db
     .prepare(
       `INSERT INTO leagues
-         (id, name, adminId, startDate, endDate, domain, icon, visibility, invitePolicy, invitationCode)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, name, adminId, startDate, endDate, domain, icon, visibility, invitePolicy, invitationCode, closedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       opts.id,
@@ -63,6 +65,7 @@ export async function insertLeague(
       opts.visibility ?? LeagueVisibility.PUBLIC,
       opts.invitePolicy ?? LeagueInvitePolicy.MEMBERS,
       opts.invitationCode ?? null,
+      opts.closedAt ?? null,
     )
     .run();
 }

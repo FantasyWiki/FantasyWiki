@@ -30,6 +30,7 @@ export const useLeagueStore = defineStore("league", () => {
     endDate: Now.instant(),
     visibility: LeagueVisibility.PUBLIC,
     teamCount: 0,
+    closedAt: null,
   });
   const currentLeague = ref<LeagueDTO>();
   const availableLeagues = ref<LeagueDTO[]>([]);

@@ -170,6 +170,7 @@ export const handlers = [
       endDate: leagueEndDate(startDate, body.duration ?? "1m"),
       visibility: body.visibility ?? LeagueVisibility.PRIVATE,
       teamCount: 1,
+      closedAt: null,
     };
     leagues.push(league);
     if (body.visibility === LeagueVisibility.PRIVATE) {

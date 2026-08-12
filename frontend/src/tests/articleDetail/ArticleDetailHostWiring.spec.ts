@@ -91,6 +91,7 @@ const league: LeagueDTO = {
   endDate: Temporal.Now.instant().add({ hours: 1 }),
   visibility: LeagueVisibility.PUBLIC,
   teamCount: 1,
+  closedAt: null,
 };
 
 const article: ArticleDTO = { id: "article-1", title: "ChatGPT", domain: "en" };

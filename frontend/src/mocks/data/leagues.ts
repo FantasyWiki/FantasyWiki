@@ -49,6 +49,7 @@ export const leagues: LeagueDTO[] = [
     endDate: Instant.from("2100-12-31T23:59:59Z"),
     visibility: LeagueVisibility.PUBLIC,
     teamCount: rosterOf("global").length,
+    closedAt: null,
   },
   {
     id: "italy",
@@ -60,6 +61,7 @@ export const leagues: LeagueDTO[] = [
     // The one private fixture, so mock mode shows both badges.
     visibility: LeagueVisibility.PRIVATE,
     teamCount: rosterOf("italy").length,
+    closedAt: null,
   },
   {
     id: "europe",
@@ -70,6 +72,7 @@ export const leagues: LeagueDTO[] = [
     endDate: Instant.from("2024-03-15T23:59:59Z"),
     visibility: LeagueVisibility.PUBLIC,
     teamCount: rosterOf("europe").length,
+    closedAt: null,
   },
   {
     id: "americas",
@@ -80,6 +83,7 @@ export const leagues: LeagueDTO[] = [
     endDate: Instant.from("2024-03-20T23:59:59Z"),
     visibility: LeagueVisibility.PUBLIC,
     teamCount: rosterOf("americas").length,
+    closedAt: null,
   },
 ];
 
@@ -102,6 +106,7 @@ export const publicLeagues: LeagueDTO[] = [
     endDate: Instant.from("2027-01-01T00:00:00Z"),
     visibility: LeagueVisibility.PUBLIC,
     teamCount: rosterOf("open-science").length,
+    closedAt: null,
   },
   {
     id: "open-cinema",
@@ -112,6 +117,7 @@ export const publicLeagues: LeagueDTO[] = [
     endDate: Instant.from("2026-12-15T00:00:00Z"),
     visibility: LeagueVisibility.PUBLIC,
     teamCount: rosterOf("open-cinema").length,
+    closedAt: null,
   },
   {
     id: "open-calcio",
@@ -122,6 +128,7 @@ export const publicLeagues: LeagueDTO[] = [
     endDate: Instant.from("2026-11-01T00:00:00Z"),
     visibility: LeagueVisibility.PUBLIC,
     teamCount: rosterOf("open-calcio").length,
+    closedAt: null,
   },
 ];
 

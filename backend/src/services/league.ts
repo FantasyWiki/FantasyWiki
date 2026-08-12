@@ -138,6 +138,7 @@ export function toLeagueDTO(league: League, teamCount: number): LeagueDTO {
     endDate: league.endDate,
     visibility: league.visibility,
     teamCount,
+    closedAt: league.closedAt,
   };
 }
 

@@ -89,6 +89,19 @@ export class TeamService {
     return teamResult;
   }
 
+  /**
+   * The team a league contains under this id, or null when it contains no such
+   * team. The league is half the key rather than a filter applied to the
+   * answer, so a team belonging to another league is absent here rather than
+   * readable — this serves reads whose team id comes from the client.
+   */
+  async getTeamInLeague(
+    teamId: string,
+    leagueId: string,
+  ): Promise<Result<Team | null>> {
+    return this.teamRepository.getByIdAndLeague(teamId, leagueId);
+  }
+
   async getMyTeam(
     playerId: string,
     leagueId: string,

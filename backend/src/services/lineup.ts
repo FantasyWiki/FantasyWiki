@@ -21,6 +21,7 @@ import { PlayerRepository } from "../repositories/playerRepository";
 import { PlayerRepositoryD1 } from "../repositories/d1/playerRepositoryD1";
 import { Result, success, failure } from "../repositories/result";
 import { toRawContract } from "./rawContract";
+import { TeamService } from "./team";
 
 export const LINEUP_ERRORS = {
   NO_TEAM: TEAM_ERRORS.NO_TEAM_IN_LEAGUE,
@@ -31,6 +32,13 @@ export const LINEUP_ERRORS = {
 export type LineupServiceDeps = {
   lineupRepository: LineupRepository;
   teamRepository: TeamRepository;
+  /**
+   * The door to teams the caller does not own. TeamService, not TeamRepository,
+   * because whatever it comes to decide about who is readable as a rival —
+   * dressing, derived fields, absence — should apply here without this service
+   * learning about it (docs/architecture/backend-architecture.md).
+   */
+  teamService: TeamService;
   contractRepository: ContractRepository;
   leagueRepository: LeagueRepository;
   playerRepository: PlayerRepository;
@@ -105,6 +113,7 @@ export function parseLineupPayload(body: unknown): Result<RawTeamLineUp> {
 export class LineupService {
   private lineupRepository: LineupRepository;
   private teamRepository: TeamRepository;
+  private teamService: TeamService;
   private contractRepository: ContractRepository;
   private leagueRepository: LeagueRepository;
   private playerRepository: PlayerRepository;
@@ -112,6 +121,7 @@ export class LineupService {
   constructor(deps: LineupServiceDeps) {
     this.lineupRepository = deps.lineupRepository;
     this.teamRepository = deps.teamRepository;
+    this.teamService = deps.teamService;
     this.contractRepository = deps.contractRepository;
     this.leagueRepository = deps.leagueRepository;
     this.playerRepository = deps.playerRepository;
@@ -122,6 +132,7 @@ export class LineupService {
     return new LineupService({
       lineupRepository: new LineupRepositoryD1(db),
       teamRepository: new TeamRepositoryD1(db),
+      teamService: new TeamService(db),
       contractRepository: new ContractRepositoryD1(db),
       leagueRepository: new LeagueRepositoryD1(db),
       playerRepository: new PlayerRepositoryD1(db),
@@ -143,16 +154,17 @@ export class LineupService {
    * caller's session. Unlike {@link getLineup} this is not self-scoped: the
    * viewer does not own the team, so the team is named in the path.
    *
-   * The league is half the key the team is looked up by, so a team id from
-   * another league is absent rather than readable, and a wrong id is reported
-   * as not-found instead of as a failed request.
+   * The team comes from TeamService, which owns what a team is to someone who
+   * does not own it. The league is half the key it is looked up by, so a team
+   * id from another league is absent rather than readable, and a wrong id is
+   * reported as not-found instead of as a failed request.
    */
   async getRivalLineup(
     leagueId: string,
     teamId: string,
   ): Promise<Result<RawTeamLineUp>> {
     return this.lineupOfTeam(
-      this.teamRepository.getByIdAndLeague(teamId, leagueId),
+      this.teamService.getTeamInLeague(teamId, leagueId),
       leagueId,
     );
   }

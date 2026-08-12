@@ -183,6 +183,59 @@ describe("TeamService Integration Tests", () => {
     });
   });
 
+  describe("getTeamInLeague", () => {
+    it("returns the league's team under that id, credits included", async () => {
+      const created = await teamService.createTeam(
+        playerId,
+        leagueId,
+        "The Wiki Wizards",
+      );
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed: team");
+
+      const result = await teamService.getTeamInLeague(
+        created.value.id,
+        leagueId,
+      );
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value?.name).toBe("The Wiki Wizards");
+      expect(result.value?.playerId).toBe(playerId);
+      expect(result.value?.credits).toBe(STARTING_CREDITS);
+    });
+
+    it("returns null for an id no team carries", async () => {
+      const result = await teamService.getTeamInLeague(
+        "no-such-team",
+        leagueId,
+      );
+
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value).toBeNull();
+    });
+
+    // The id alone would find the row: the league is the other half of the key,
+    // so a team is unreadable through a league that does not contain it.
+    it("returns null for a team that belongs to another league", async () => {
+      const created = await teamService.createTeam(
+        playerId,
+        leagueId,
+        "The Wiki Wizards",
+      );
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed: team");
+
+      const result = await teamService.getTeamInLeague(
+        created.value.id,
+        "some-other-league",
+      );
+
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value).toBeNull();
+    });
+  });
+
   describe("getMyTeam", () => {
     it("should return null when the player has no team in the league", async () => {
       const result = await teamService.getMyTeam(playerId, leagueId, "Alice");

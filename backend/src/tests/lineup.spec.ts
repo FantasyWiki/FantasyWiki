@@ -11,6 +11,7 @@ import { TeamRepository } from "../repositories/teamRepository";
 import { ContractRepository } from "../repositories/contractRepository";
 import { LeagueRepository } from "../repositories/leagueRepository";
 import { PlayerRepository } from "../repositories/playerRepository";
+import { TeamService } from "../services/team";
 import { success, failure } from "../repositories/result";
 import type { Contract, Team, Lineup, League, Player } from "../../../model";
 
@@ -128,12 +129,25 @@ function makeLineupRepo(stored: Lineup | null = null): LineupRepository {
   };
 }
 
+/**
+ * A real TeamService over a stub repository — the seam under test is which
+ * door LineupService knocks on, so faking the service itself would assert
+ * nothing about the team read actually reaching the repository behind it.
+ */
+function makeTeamService(teamRepository = makeTeamRepo()): TeamService {
+  return new TeamService({
+    teamRepository,
+    lineupRepository: makeLineupRepo(),
+  });
+}
+
 function makeDeps(
   overrides: Partial<LineupServiceDeps> = {},
 ): LineupServiceDeps {
   return {
     lineupRepository: makeLineupRepo(),
     teamRepository: makeTeamRepo(),
+    teamService: makeTeamService(),
     contractRepository: makeContractRepo([]),
     leagueRepository: makeLeagueRepo(),
     playerRepository: makePlayerRepo(),
@@ -361,13 +375,13 @@ describe("LineupService (unit)", () => {
       if (!result.ok) expect(result.error).toBe(LINEUP_ERRORS.NO_TEAM);
     });
 
-    it("propagates a repository failure rather than reporting not-found", async () => {
+    it("propagates a team-read failure rather than reporting not-found", async () => {
       const failingTeams: TeamRepository = {
         ...makeTeamRepo(),
         getByIdAndLeague: async () => failure("db error"),
       };
       const service = new LineupService(
-        makeDeps({ teamRepository: failingTeams }),
+        makeDeps({ teamService: makeTeamService(failingTeams) }),
       );
 
       const result = await service.getRivalLineup(LEAGUE_ID, TEAM_ID);

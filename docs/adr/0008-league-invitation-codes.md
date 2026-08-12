@@ -9,10 +9,13 @@ related:
 
 # League invitation codes are short, off the DTO, and checked inside the write
 
-> **Status:** decided and implemented (#253, #4; the join-by-code UI remains #5 and #7).
+> **Status:** decided and implemented (#253, #4, #7).
 > Migration `0007_league_visibility_and_invitation_codes.sql` adds `visibility`, `invitePolicy` and
 > `invitationCode` to `leagues`; `TeamRepositoryD1.create` became a guarded `INSERT`; and
 > `LeagueRepositoryD1.createWithFoundingTeam` is the path that issues codes.
+> The join-by-code flow (#7) landed with `GET /api/leagues/by-code/:code`,
+> `LeagueRepository.findIdByInvitationCode`, the `/leagues/join` page and invitation links — and
+> with the rate limiting §1 left as the one accepted risk's outstanding mitigation.
 
 Leagues could not be private, and joining one was ungated: any authenticated player who knew a
 league id could create a team in it. This ADR records how the invitation code is shaped, where it
@@ -44,12 +47,36 @@ to every league "for a uniform share link", which is what a URL already is. Migr
 therefore backfills nothing: every league that exists comes out public and codeless, the Global
 League included.
 
-**Accepted risk.** 24.3 million codes is ≈24.5 bits. Collisions are a non-issue — the unique index
-plus a bounded retry handles them. *Guessability* is the open flank: at ten thousand private
-leagues, roughly one in 2,400 random guesses would hit some league. The impact is a stranger
-joining a fantasy league, which does not justify a longer code that nobody can read aloud. The
-mitigation is rate-limiting the redeem path, which belongs with the join-by-code UI (#5). Codes are
-rotatable — the code is not the league's identity, so a `UPDATE` is safe.
+**Accepted risk, and its mitigation.** 24.3 million codes is ≈24.5 bits. Collisions are a
+non-issue — the unique index plus a bounded retry handles them. *Guessability* is the open flank:
+at ten thousand private leagues, roughly one in 2,400 random guesses would hit some league. The
+impact is a stranger joining a fantasy league, which does not justify a longer code that nobody can
+read aloud.
+
+The mitigation is the `JOIN_RATE_LIMITER` binding (namespace `1003`, **5 requests per 60 seconds**),
+keyed on the **player id** — every caller here is authenticated, and an account is the more
+expensive thing to mint than an IP.
+
+**One bucket covers both code-bearing paths**: `GET /leagues/by-code/:code` and the
+`POST /leagues/:id/my-team` requests that present an `invitationCode`. Two limiters would let a
+guesser alternate between resolving and redeeming and spend twice the budget, so the shared
+namespace is the decision, not an implementation detail — and it is pinned by a test that exhausts
+the limit through resolve and then asserts redeem answers 429.
+
+A join that presents **no** code is deliberately not charged. That keeps the limiter off signup and
+off the public-league shelf, neither of which is a guessing surface, and it closes no loophole: a
+codeless request to a private league is answered with `LEAGUE_IS_PRIVATE`, the same sentence for
+every private league in the database, so there is nothing there to grind.
+
+What this buys is honest but bounded: the platform's rate limiter only supports a 10s or 60s
+period, so this caps the *rate*, not a daily total. It converts "grind the code space as fast as
+HTTP allows" into "five attempts a minute per authenticated account", which is the difference
+between a script and a nuisance. Codes are also rotatable — the code is not the league's identity,
+so an `UPDATE` is safe, and that is the answer if one is ever known to have leaked.
+
+The resolve endpoint is the one that most needed this. It is the cheapest possible probe — one GET,
+no body, no write — so it, not the join, is what a guesser would grind, and it answers a wrong
+code, an unused code and a malformed one with one identical 404 for the reason §3 gives.
 
 ### 2. The code is never a field on `LeagueDTO`
 
@@ -59,9 +86,16 @@ public endpoint and used to walk straight through the gate it exists to guard.
 
 So it is not on the DTO, and it is not on `model/League` either — that shape is handed to five
 services every time one looks a league up for its Wikipedia domain, and one stray spread in a
-future mapper would leak it. It is read only by `LeagueRepository.getInvitationCode`, and served
-only by `GET /api/leagues/:id/invite-code`, which applies the league's invite policy and answers a
-disallowed caller exactly as it answers a missing league.
+future mapper would leak it. It is served only by `GET /api/leagues/:id/invite-code`, which applies
+the league's invite policy and answers a disallowed caller exactly as it answers a missing league.
+
+Exactly two repository calls touch the column, and neither can carry it out by accident:
+`getInvitationCode(leagueId)` takes an id and returns a code, and `findIdByInvitationCode(code)`
+takes a code and returns **an id, not a league**. The second is what
+`GET /api/leagues/by-code/:code` resolves an invitation through, and returning only the id is what
+forces it back through the ordinary unscoped `getById` — so the preview a player sees is the same
+codeless `LeagueDTO` every other league read produces, reached by a different key. A call that
+answered with a league would have been the obvious place for the code to hitch a ride out.
 
 `visibility` *is* on the DTO — it is not a secret and the UI must badge it.
 
@@ -100,6 +134,24 @@ league that is not there is `LEAGUE_ERRORS.NOT_FOUND` (404), anything else is
 
 "Code missing" and "code wrong" are deliberately the same error. Distinguishing them tells someone
 holding a guess whether they are close.
+
+The preview endpoint holds the same line, and had to be built so it could not quietly break it:
+`GET /api/leagues/by-code/:code` answers a malformed code, a well-formed code no league carries,
+and a league that is not there with **one** 404 carrying **one** body — byte-identical, which is
+what its test asserts rather than merely checking three 404s. Splitting them would have handed back
+through the front door the oracle the join path refuses at the back: "right shape, no league" tells
+a guesser their generator is aimed correctly, which is most of what they want to know.
+
+One join refusal is deliberately *not* hidden. A league whose season has ended, or that its admin
+closed early, answers `TEAM_ERRORS.LEAGUE_INACTIVE` (409) — the rule is `isLeagueInactive` in
+`model/league.ts` and is not respelled anywhere else. It is safe to be plain about because it is
+not about the caller: a valid code and the league's own admin are turned away by it too, and the
+league's dates are already readable by anyone with its id. Telling someone holding a real
+invitation that the season is over, rather than that their code is bad, is the difference between
+an explanation and a dead link. This one check sits in the service rather than inside the guarded
+`INSERT`, because moving it there would mean writing the model function out a second time as SQL;
+what that costs is a race one request wide, and one extra team in a league that has stopped scoring
+is not the failure the guarded write exists to prevent.
 
 ### 4. Uniqueness is an index plus a bounded retry
 
@@ -141,6 +193,17 @@ consistent rather than an exception.
   may never be derived from message content.
 - Joining a league that does not exist now answers 404 instead of silently attempting an insert and
   surfacing a foreign-key failure as a 400.
+- `TEAM_ERROR_STATUS` gained 409 as a possible answer, for `LEAGUE_INACTIVE`. It is the first join
+  refusal that is about the league's state rather than the caller's standing, and 403 would have
+  invited the client to read it as "get permission and retry".
+- The code now travels in a URL, in the invitation link `/leagues/join?code=…`. That is a genuine
+  widening — a link is forwardable in a way a spoken code is not — and it is the point of a link.
+  It changes nothing about what the code can do, and the join page keeps it in the query string
+  rather than trading it for the league id, so the URL a player was sent is one they can resend.
+- An invitation link opened while logged out is **lost**: `router.beforeEach` bounces any
+  non-public route to `/home` and the query string goes with it. That is consistent with every
+  other deep link in the app rather than specific to invitations, and surviving OAuth would mean
+  carrying intent through the round trip — worth doing, and not part of this decision.
 
 ## Related
 

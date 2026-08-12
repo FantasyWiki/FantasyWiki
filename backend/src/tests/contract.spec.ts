@@ -19,7 +19,10 @@ import {
 import { Result, success, failure } from "../repositories/result";
 import type { Contract, Team, Player, League } from "../../../model";
 import { LeagueInvitePolicy, LeagueVisibility } from "../../../model/enums";
-import { fakeLeagueRepository } from "./utils/fakeRepositories";
+import {
+  fakeLeagueRepository,
+  fakeTeamRepository,
+} from "./utils/fakeRepositories";
 
 /** Mirror the service's server-side price computation for `en` (league domain). */
 function priceFor(averageViews30d: number, tierDays: number): number {
@@ -82,11 +85,7 @@ function makeContract(overrides: Partial<Contract> = {}): Contract {
 function makeTeamRepo(
   result: Result<Team | null> = success(team),
 ): TeamRepository {
-  return {
-    create: async () => failure("unused"),
-    existsByNameInLeague: async () => failure("unused"),
-    getByPlayerAndLeague: async () => result,
-  };
+  return fakeTeamRepository({ getByPlayerAndLeague: async () => result });
 }
 
 function makeLeagueRepo(

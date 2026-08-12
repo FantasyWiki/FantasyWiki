@@ -127,12 +127,20 @@ export class LeagueRepositoryD1 implements LeagueRepository {
     try {
       const results = await this.db
         .prepare(
+          // Only leagues that can actually be entered. Both halves of
+          // `isLeagueInactive` are spelled here rather than filtered by the
+          // caller because this endpoint answers "somewhere to go": an ended
+          // league offered on the shelf sends a player to a join that can only
+          // refuse (TEAM_ERRORS.LEAGUE_INACTIVE). The dates are ISO-8601 UTC
+          // text throughout the column, so `>` compares them in order.
           `SELECT ${LEAGUE_COLUMNS} FROM leagues
             WHERE visibility = ?
+              AND closedAt IS NULL
+              AND endDate > ?
             ORDER BY startDate DESC
             LIMIT ?`,
         )
-        .bind(LeagueVisibility.PUBLIC, limit)
+        .bind(LeagueVisibility.PUBLIC, Temporal.Now.instant().toString(), limit)
         .all<LeagueRow>();
 
       return success((results.results ?? []).map(toLeague));
@@ -252,6 +260,24 @@ export class LeagueRepositoryD1 implements LeagueRepository {
     }
   }
 
+  async findIdByInvitationCode(code: string): Promise<Result<string | null>> {
+    try {
+      // Only the id. Selecting the league here would put a second way to read
+      // one beside `getById`, and the point of this call is to hand the caller
+      // back onto that one.
+      const row = await this.db
+        .prepare("SELECT id FROM leagues WHERE invitationCode = ?")
+        .bind(code)
+        .first<{ id: string }>();
+
+      return success(row?.id ?? null);
+    } catch (error) {
+      return failure(
+        `Error resolving invitation code: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
   async countTeamsByLeague(
     leagueIds: readonly string[],
   ): Promise<Result<Record<string, number>>> {
@@ -260,9 +286,14 @@ export class LeagueRepositoryD1 implements LeagueRepository {
       const placeholders = leagueIds.map(() => "?").join(", ");
       const results = await this.db
         .prepare(
+          // Teams still playing, not teams that ever played: a league's size is
+          // how many are in it now, and a departed team is counted nowhere but
+          // in the standings its season earned it
+          // (docs/domain/league-lifecycle.md).
           `SELECT leagueId, COUNT(*) AS teamCount
            FROM teams
            WHERE leagueId IN (${placeholders})
+             AND leftAt IS NULL
            GROUP BY leagueId`,
         )
         .bind(...leagueIds)
@@ -280,6 +311,52 @@ export class LeagueRepositoryD1 implements LeagueRepository {
     } catch (error) {
       return failure(
         `Error counting league teams: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  async close(
+    leagueId: string,
+    adminId: string,
+    closedAt: Temporal.Instant,
+  ): Promise<Result<void>> {
+    try {
+      // Who may close, and that a league closes once, are both conditions of
+      // the write rather than checks before it. One statement is one implicit
+      // transaction (docs/architecture/backend-error-constants.md §2), so no
+      // second request can slip a close in between reading `closedAt` and
+      // stamping it — which would silently move the recorded end of the season
+      // to whichever request happened to land last.
+      const result = await this.db
+        .prepare(
+          `UPDATE leagues
+              SET closedAt = ?
+            WHERE id = ?
+              AND adminId = ?
+              AND closedAt IS NULL`,
+        )
+        .bind(closedAt.toString(), leagueId, adminId)
+        .run();
+
+      if (!result.success) {
+        const error =
+          "error" in result && typeof result.error === "string"
+            ? result.error
+            : "Unknown D1 error";
+        return failure(`Failed to close league: ${error}`);
+      }
+
+      // Matched nothing: no such league, not this caller's to close, or closed
+      // already. Which one is not knowable from here and is not this layer's to
+      // guess — the service re-reads to say.
+      if (result.meta.changes === 0) {
+        return failure(LEAGUE_ERRORS.CLOSE_CONFLICT);
+      }
+
+      return success(undefined);
+    } catch (error) {
+      return failure(
+        `Error closing league: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
   }

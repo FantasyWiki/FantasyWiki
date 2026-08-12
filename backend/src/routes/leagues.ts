@@ -3,8 +3,10 @@ import { JWTPayload } from "hono/utils/jwt/types";
 import {
   LeagueService,
   LEAGUE_CREATION_ERRORS,
+  LEAGUE_CLOSURE_ERRORS,
   parseCreateLeaguePayload,
   type LeagueCreationError,
+  type LeagueClosureError,
 } from "../services/league";
 import { LeaderboardService } from "../services/leaderboard";
 import { PerformanceService } from "../services/performance";
@@ -28,9 +30,40 @@ import { TEAM_ERRORS, type TeamError } from "../repositories/teamRepository";
 import { TeamDTO } from "../../../dto/teamDTO";
 import { playerErrorStatus, resolveCurrentPlayer } from "./helpers";
 
+/**
+ * Cloudflare's rate limiting binding, declared structurally rather than pulled
+ * from `cf-typegen` — the same shape `routes/reports.ts` declares, for the same
+ * reason: the routes that use one should not have to be regenerated into
+ * existence.
+ */
+interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
+}
+
 type Bindings = {
   db: D1Database;
+  /**
+   * Guards the two paths that accept an invitation code. ADR 0008 accepted a
+   * 24.5-bit code as guessable-in-principle and named rate limiting as the
+   * mitigation; this is it.
+   *
+   * One binding for both `GET /by-code/:code` and the code-bearing
+   * `POST /:id/my-team`, so the two share a single bucket per player: separate
+   * limiters would let a grinder alternate between them and spend twice the
+   * budget. Resolve is the cheaper oracle of the two and would otherwise be the
+   * one to grind.
+   */
+  JOIN_RATE_LIMITER: RateLimiter;
 };
+
+/**
+ * The answer to a caller who has spent their code attempts. A bare code rather
+ * than one of the `LEAGUE_ERRORS`/`TEAM_ERRORS` constants, matching
+ * `REPORT_RATE_LIMITED`: it is not a way *joining* can fail — it is the
+ * request never having been considered — so it has no place in a status map
+ * over the join errors.
+ */
+export const JOIN_RATE_LIMITED = "JOIN_RATE_LIMITED";
 
 const leagues = new Hono<{ Bindings: Bindings }>();
 
@@ -67,16 +100,32 @@ const CONTRACT_ERROR_STATUS: Record<ContractError, 404 | 400> = {
  * it into one of the others. It is mapped rather than omitted only because the
  * Record is total; 400 is the harmless answer if the classifier ever misses one.
  */
-const TEAM_ERROR_STATUS: Record<TeamError, 404 | 403 | 400> = {
+const TEAM_ERROR_STATUS: Record<TeamError, 404 | 409 | 403 | 400> = {
   [TEAM_ERRORS.NO_TEAM_IN_LEAGUE]: 404,
   [TEAM_ERRORS.NAME_LENGTH]: 400,
   [TEAM_ERRORS.NAME_TAKEN]: 400,
   [TEAM_ERRORS.ALREADY_HAS_TEAM]: 400,
   [TEAM_ERRORS.LEAGUE_IS_PRIVATE]: 403,
+  // 409, not 403: the refusal is about the state of the league, not about who
+  // is asking. Nobody can join an ended league — a valid code and the admin
+  // themselves are turned away too — and 403 would invite the client to read it
+  // as "get permission and retry".
+  [TEAM_ERRORS.LEAGUE_INACTIVE]: 409,
   [TEAM_ERRORS.JOIN_CONFLICT]: 400,
+  // The lifecycle refusals. 403 where the answer would be the same however many
+  // times it is asked — this caller may not do this, ever — and 409 where the
+  // request lost to the state of the world: a season that has stopped (that is
+  // LEAGUE_INACTIVE above, which serves leaving as well as joining), or a
+  // departure already on the record.
+  [TEAM_ERRORS.ALREADY_LEFT]: 409,
+  [TEAM_ERRORS.ADMIN_CANNOT_LEAVE]: 403,
+  [TEAM_ERRORS.CANNOT_LEAVE_GLOBAL]: 403,
+  // As with JOIN_CONFLICT: the classifier should have replaced it, and 409 is
+  // the harmless answer if it ever misses one.
+  [TEAM_ERRORS.LEAVE_CONFLICT]: 409,
 };
 
-export function teamErrorStatus(error: string): 404 | 403 | 400 | 500 {
+export function teamErrorStatus(error: string): 404 | 409 | 403 | 400 | 500 {
   if (error in TEAM_ERROR_STATUS) {
     return TEAM_ERROR_STATUS[error as TeamError];
   }
@@ -223,9 +272,60 @@ leagues.get("/public", async (c) => {
   return c.json(result.value);
 });
 
-// Registered after `/global` and `/public` on purpose: Hono matches in
-// registration order, so a literal path has to be declared first or it would be
-// swallowed by `:id`.
+/**
+ * The league an invitation code opens — the preview that lets a player see what
+ * they have been invited to before naming a team in it, which
+ * docs/domain/league-visibility.md says they should be able to do.
+ *
+ * Rate limited, and this is the endpoint that most needs it: it is the cheapest
+ * possible probe of the code space — one GET, no body, no write — so it, not
+ * the join, is what a guesser would grind. It shares its bucket with the
+ * redeem path so the two cannot be alternated for double the budget.
+ *
+ * The code is in the path rather than a query string because it *is* the
+ * resource being addressed here (api-naming-rules.md §2). It never reaches a
+ * log we keep, and it is already travelling in the invitation link that led the
+ * player here.
+ *
+ * A caller who has run out of attempts is told so (429). That is not a leak:
+ * they learn about their own quota, never about the code they sent.
+ */
+leagues.get("/by-code/:code", async (c) => {
+  const playerResult = await resolveCurrentPlayer(c);
+  if (!playerResult.ok) {
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
+  }
+
+  // Keyed on the player, not the IP: every caller here is authenticated, and an
+  // account is the more expensive thing to mint.
+  const { success } = await c.env.JOIN_RATE_LIMITER.limit({
+    key: playerResult.value.id,
+  });
+  if (!success) {
+    return c.json({ error: JOIN_RATE_LIMITED }, 429);
+  }
+
+  const leagueService = new LeagueService(c.env.db);
+  const result = await leagueService.getLeagueByInvitationCode(
+    c.req.param("code"),
+  );
+  if (!result.ok) {
+    // One answer for a malformed code, an unused code and a missing league —
+    // see `getLeagueByInvitationCode`. Anything else is a D1 failure and ours.
+    return c.json(
+      { error: result.error },
+      result.error === LEAGUE_ERRORS.NOT_FOUND ? 404 : 500,
+    );
+  }
+  return c.json(result.value);
+});
+
+// Registered after `/global`, `/public` and `/by-code/:code` on purpose: Hono
+// matches in registration order, so a literal path has to be declared first or
+// it would be swallowed by `:id`.
 leagues.get("/:id", async (c) => {
   const leagueService = new LeagueService(c.env.db);
   const result = await leagueService.getLeagueById(c.req.param("id"));
@@ -369,13 +469,32 @@ leagues.post("/:id/my-team", async (c) => {
     return c.json({ error: "name is required" }, 400);
   }
 
+  const presentedCode =
+    typeof body.invitationCode === "string" ? body.invitationCode : undefined;
+
+  // Only a request that presents a code spends from the bucket, which is what
+  // keeps the limiter off signup and off the public-league shelf — neither
+  // carries one, and neither is a guessing surface. Nothing escapes through the
+  // gap: a request *without* a code learns only "this league is private",
+  // which is the same sentence for every private league in the database, so
+  // there is nothing there to grind. Shared with `GET /by-code/:code`, so
+  // alternating between the two buys no extra attempts.
+  if (presentedCode !== undefined) {
+    const { success } = await c.env.JOIN_RATE_LIMITER.limit({
+      key: playerResult.value.id,
+    });
+    if (!success) {
+      return c.json({ error: JOIN_RATE_LIMITED }, 429);
+    }
+  }
+
   const teamService = new TeamService(c.env.db);
   const teamResult = await teamService.createTeam(
     playerResult.value.id,
     leagueId,
     body.name,
     // Only consulted for a private league; a public one ignores it.
-    typeof body.invitationCode === "string" ? body.invitationCode : undefined,
+    presentedCode,
   );
   if (!teamResult.ok) {
     return c.json(
@@ -607,6 +726,135 @@ leagues.get("/:id/my-notifications", async (c) => {
     return c.json({ error: result.error }, 500);
   }
   return c.json(result.value);
+});
+
+/**
+ * The status every close refusal maps to. Total over `LeagueClosureError`, so a
+ * new rejection without a status fails to compile.
+ *
+ * `NOT_ADMIN` is a 403 rather than the 404 the invite-code endpoint answers a
+ * caller it does not trust: there is nothing to conceal here. A league's page,
+ * dates and standings are readable by anyone holding its id
+ * (docs/domain/league-visibility.md), so "this league exists and you are not
+ * its admin" tells a caller nothing they could not already see, and telling
+ * them plainly is worth more than a refusal they would have to interpret.
+ */
+const LEAGUE_CLOSURE_ERROR_STATUS: Record<LeagueClosureError, 403 | 409> = {
+  [LEAGUE_CLOSURE_ERRORS.NOT_ADMIN]: 403,
+  [LEAGUE_CLOSURE_ERRORS.ALREADY_CLOSED]: 409,
+};
+
+export function leagueClosureErrorStatus(error: string): 404 | 403 | 409 | 500 {
+  if (error in LEAGUE_CLOSURE_ERROR_STATUS) {
+    return LEAGUE_CLOSURE_ERROR_STATUS[error as LeagueClosureError];
+  }
+  if (error === LEAGUE_ERRORS.NOT_FOUND) return 404;
+  // Should never arrive — the service re-reads and names the cause — but the
+  // sentinel is a conflict if the classifier ever fails to place it.
+  if (error === LEAGUE_ERRORS.CLOSE_CONFLICT) return 409;
+  // Anything nobody named is ours.
+  return 500;
+}
+
+/**
+ * What the caller is in this league. `my-` because it is entirely about them
+ * (api-naming-rules.md §3) — the league itself is served, unscoped, by
+ * `GET /leagues/:id`, and this is the caller-specific half kept off that shape.
+ *
+ * It exists so the page can offer the right two actions, not to authorize
+ * either: both are settled again inside their own write.
+ */
+leagues.get("/:id/my-role", async (c) => {
+  const leagueId = c.req.param("id");
+  const playerResult = await resolveCurrentPlayer(c);
+  if (!playerResult.ok) {
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
+  }
+
+  const teamService = new TeamService(c.env.db);
+  const teamResult = await teamService.getMyTeam(
+    playerResult.value.id,
+    leagueId,
+    playerResult.value.username,
+  );
+  if (!teamResult.ok) {
+    return c.json({ error: teamResult.error }, 500);
+  }
+
+  const leagueService = new LeagueService(c.env.db);
+  const result = await leagueService.getMyRole(
+    playerResult.value.id,
+    leagueId,
+    teamResult.value !== null,
+  );
+  if (!result.ok) {
+    return c.json(
+      { error: result.error },
+      result.error === LEAGUE_ERRORS.NOT_FOUND ? 404 : 500,
+    );
+  }
+  return c.json(result.value);
+});
+
+/**
+ * Close a league early. The admin is the caller, resolved from the session, and
+ * the rule that only they may is enforced inside the write.
+ *
+ * A noun, and `POST` rather than `DELETE /leagues/:id`, because nothing is
+ * removed: this creates the league's closure and leaves the league itself —
+ * teams, contracts, standings — entirely readable. There is no endpoint that
+ * deletes a league, and there should not be one
+ * (docs/domain/league-lifecycle.md).
+ */
+leagues.post("/:id/closure", async (c) => {
+  const leagueId = c.req.param("id");
+  const playerResult = await resolveCurrentPlayer(c);
+  if (!playerResult.ok) {
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
+  }
+
+  const leagueService = new LeagueService(c.env.db);
+  const result = await leagueService.closeLeague(
+    playerResult.value.id,
+    leagueId,
+  );
+  if (!result.ok) {
+    return c.json(
+      { error: result.error },
+      leagueClosureErrorStatus(result.error),
+    );
+  }
+  return c.json(result.value);
+});
+
+/**
+ * Leave a league. `my-` because it is the caller's own participation being
+ * ended and no `playerId` is taken from the client (api-naming-rules.md §3),
+ * and a departure rather than a deletion because the team stays: it keeps its
+ * contracts and its place in the final table.
+ */
+leagues.post("/:id/my-departure", async (c) => {
+  const leagueId = c.req.param("id");
+  const playerResult = await resolveCurrentPlayer(c);
+  if (!playerResult.ok) {
+    return c.json(
+      { error: playerResult.error },
+      playerErrorStatus(playerResult.error),
+    );
+  }
+
+  const teamService = new TeamService(c.env.db);
+  const result = await teamService.leaveLeague(playerResult.value.id, leagueId);
+  if (!result.ok) {
+    return c.json({ error: result.error }, teamErrorStatus(result.error));
+  }
+  return c.json({ success: true });
 });
 
 export default leagues;

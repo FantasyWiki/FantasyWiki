@@ -14,11 +14,25 @@
         fill="clear"
         size="small"
         :aria-label="t('league.inviteCopy')"
-        @click="copy"
+        @click="copy('code')"
       >
         <ion-icon
           slot="icon-only"
-          :icon="copied ? checkmarkOutline : copyOutline"
+          :icon="copied === 'code' ? checkmarkOutline : copyOutline"
+        />
+      </ion-button>
+      <!-- The link, beside the code rather than instead of it. Both are how
+           these actually get shared: a code survives being read down a phone,
+           a link saves the recipient typing it. -->
+      <ion-button
+        fill="clear"
+        size="small"
+        :aria-label="t('joinLeague.copyLink')"
+        @click="copy('link')"
+      >
+        <ion-icon
+          slot="icon-only"
+          :icon="copied === 'link' ? checkmarkOutline : linkOutline"
         />
       </ion-button>
     </div>
@@ -28,7 +42,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { IonButton, IonIcon } from "@ionic/vue";
-import { checkmarkOutline, copyOutline } from "ionicons/icons";
+import { checkmarkOutline, copyOutline, linkOutline } from "ionicons/icons";
 import { useI18n } from "vue-i18n";
 import { useInvitationCode } from "@/composables/useInvitationCode";
 import type { LeagueDTO } from "../../../../dto/leagueDTO";
@@ -44,13 +58,28 @@ const { code } = useInvitationCode(
   () => props.league
 );
 
-const copied = ref(false);
+/** Which of the two buttons last confirmed, so only that one shows the tick. */
+const copied = ref<"code" | "link" | null>(null);
 
-async function copy() {
+/**
+ * The invitation link: the join page, carrying the code.
+ *
+ * Built from `location.origin` rather than a configured base URL because the
+ * link has to work wherever this build is actually being served from —
+ * production, the QA Pages deploy and a dev server are three different origins
+ * and none of them is written down here.
+ */
+function invitationLink(value: string): string {
+  return `${window.location.origin}/leagues/join?code=${encodeURIComponent(value)}`;
+}
+
+async function copy(what: "code" | "link") {
   if (!code.value) return;
-  await navigator.clipboard.writeText(code.value);
-  copied.value = true;
-  setTimeout(() => (copied.value = false), 2000);
+  await navigator.clipboard.writeText(
+    what === "code" ? code.value : invitationLink(code.value)
+  );
+  copied.value = what;
+  setTimeout(() => (copied.value = null), 2000);
 }
 </script>
 

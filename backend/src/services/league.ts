@@ -4,6 +4,7 @@ import {
   CreateLeagueRequest,
   LeagueDTO,
   LeagueInviteDTO,
+  LeagueRoleDTO,
 } from "../../../dto/leagueDTO";
 import {
   Domain,
@@ -15,11 +16,13 @@ import {
 import {
   LEAGUE_NAME_MAX_LENGTH,
   LEAGUE_NAME_MIN_LENGTH,
+  isInvitationCode,
   isLeagueDomain,
   isLeagueDuration,
   isLeagueIcon,
   isLeagueName,
   leagueEndDate,
+  normalizeInvitationCode,
 } from "../../../model/league";
 import {
   TEAM_NAME_MAX_LENGTH,
@@ -309,4 +312,158 @@ export class LeagueService {
       ),
     );
   }
+
+  /**
+   * The league an invitation code opens — the preview a player gets *before*
+   * committing, so an invitation is something you can look at rather than a
+   * button you press in the dark. It is the same `LeagueDTO` `getLeagueById`
+   * serves, reached by a different key.
+   *
+   * **Every way of failing answers `LEAGUE_ERRORS.NOT_FOUND`, and that is the
+   * point.** A code that is the wrong shape, a code no league carries, and a
+   * league that vanished between the two reads are indistinguishable from each
+   * other and from a league id that does not exist. ADR 0008 §3 refuses to
+   * separate "code missing" from "code wrong" on the join path for exactly this
+   * reason, and a preview endpoint that separated them would hand back the
+   * oracle the join path declines to be: "wrong shape" vs "right shape, no
+   * league" tells a guesser their generator is aimed correctly.
+   *
+   * `isInvitationCode` is checked here rather than trusted from the client, and
+   * it is the *shared* predicate — the same one the form uses — so a malformed
+   * code costs no query at all. It is a cheap rejection, not a different one.
+   *
+   * What this deliberately does **not** check is whether the league is still
+   * running. An ended league resolves normally, carrying the `endDate` and
+   * `closedAt` that say so, and the surface showing the preview reaches the
+   * same verdict through `isLeagueInactive`. Refusing here would leave someone
+   * holding a real invitation staring at "no such code".
+   */
+  async getLeagueByInvitationCode(rawCode: string): Promise<Result<LeagueDTO>> {
+    // Normalized in the service, exactly where `TeamService.createTeam`
+    // normalizes the code it is handed, so the two paths cannot come to
+    // different conclusions about what " zk7-qw " is.
+    const code = normalizeInvitationCode(rawCode);
+    if (!isInvitationCode(code)) {
+      return failure(LEAGUE_ERRORS.NOT_FOUND);
+    }
+
+    const idResult = await this.repository.findIdByInvitationCode(code);
+    if (!idResult.ok) {
+      // A D1 outage, which is ours: passed through so the route answers 500
+      // rather than telling the player their invitation is bad.
+      return idResult;
+    }
+    if (idResult.value === null) {
+      return failure(LEAGUE_ERRORS.NOT_FOUND);
+    }
+
+    return this.getLeagueById(idResult.value);
+  }
+
+  /**
+   * Close a league early, on its admin's say-so.
+   *
+   * This is what the product calls deleting a league, and it deletes nothing:
+   * the league, its teams, their contracts and the final table all stay exactly
+   * where they are, and the page that showed them keeps working. Only the way
+   * back into play is shut (docs/domain/league-lifecycle.md).
+   *
+   * The admin rule is enforced inside the `UPDATE`, so this method does no
+   * permission check of its own before the write — see
+   * `LeagueRepository.close`. On rejection it re-reads to say which of the
+   * statement's conditions refused.
+   */
+  async closeLeague(
+    playerId: string,
+    leagueId: string,
+  ): Promise<Result<LeagueDTO>> {
+    const closeResult = await this.repository.close(
+      leagueId,
+      playerId,
+      Temporal.Now.instant(),
+    );
+    if (!closeResult.ok) {
+      if (closeResult.error !== LEAGUE_ERRORS.CLOSE_CONFLICT) {
+        return closeResult; // a real persistence failure — pass it through
+      }
+      return this.closeRejection(playerId, leagueId);
+    }
+
+    // Read back rather than patching a league object together here: the caller
+    // gets the same shape `GET /leagues/:id` serves, closure included, so the
+    // page it came from can simply replace what it holds.
+    return this.getLeagueById(leagueId);
+  }
+
+  /**
+   * Where a caller stands in a league — member, admin, both or neither.
+   *
+   * `isMember` is passed in rather than read here because the route already
+   * has it: the same `getMyTeam` call every other league-scoped endpoint makes,
+   * and the same arrangement as `getInvitationCode` above.
+   *
+   * Nothing here is a permission check. It answers what a caller *is*, so the
+   * page can offer the two actions that apply to them; whether either is
+   * allowed is settled again, for real, inside the write.
+   */
+  async getMyRole(
+    playerId: string,
+    leagueId: string,
+    isMember: boolean,
+  ): Promise<Result<LeagueRoleDTO>> {
+    const leagueResult = await this.repository.getById(leagueId);
+    if (!leagueResult.ok) {
+      return leagueResult;
+    }
+    return success({
+      isMember,
+      isAdmin: leagueResult.value.adminId === playerId,
+    });
+  }
+
+  /**
+   * Name the reason the guarded close matched no row. Three conditions, three
+   * answers, re-read in the statement's own order — and the sentinel passes
+   * through if somehow none of them explains it, rather than a guess.
+   */
+  private async closeRejection(
+    playerId: string,
+    leagueId: string,
+  ): Promise<Result<never>> {
+    const leagueResult = await this.repository.getById(leagueId);
+    if (!leagueResult.ok) {
+      return leagueResult; // LEAGUE_ERRORS.NOT_FOUND, honestly
+    }
+    const league = leagueResult.value;
+
+    if (league.adminId !== playerId) {
+      return failure(LEAGUE_CLOSURE_ERRORS.NOT_ADMIN);
+    }
+    if (league.closedAt !== null) {
+      return failure(LEAGUE_CLOSURE_ERRORS.ALREADY_CLOSED);
+    }
+    return failure(LEAGUE_ERRORS.CLOSE_CONFLICT);
+  }
 }
+
+/**
+ * Why a close was refused, once the write has been re-read to find out.
+ *
+ * Owned here rather than by `LEAGUE_ERRORS` because this service is what
+ * produces them: the repository returns one sentinel and deliberately knows
+ * nothing more (docs/architecture/backend-error-constants.md §1). Same
+ * arrangement as `LEAGUE_CREATION_ERRORS` above.
+ *
+ * `ALREADY_CLOSED` rather than a silent second success, because `closedAt`
+ * records *when* a season stopped. Letting a repeat close through would either
+ * overwrite that moment — rewriting the one fact the column exists to keep — or
+ * report a close that never happened. Neither is worth sparing an admin an
+ * error they can only reach by acting on a stale page.
+ */
+export const LEAGUE_CLOSURE_ERRORS = {
+  NOT_ADMIN: "Only the league admin can close this league",
+  ALREADY_CLOSED: "This league is already closed",
+} as const;
+
+export type LeagueClosureError =
+  (typeof LEAGUE_CLOSURE_ERRORS)[keyof typeof LEAGUE_CLOSURE_ERRORS];

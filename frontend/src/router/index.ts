@@ -10,6 +10,7 @@ import MarketPage from "@/views/MarketPage.vue";
 import LeaguePage from "@/views/LeaguePage.vue";
 import LeaguesPage from "@/views/LeaguesPage.vue";
 import CreateLeaguePage from "@/views/CreateLeaguePage.vue";
+import JoinLeaguePage from "@/views/JoinLeaguePage.vue";
 import LegalPage from "@/views/LegalPage.vue";
 import GuidePage from "@/views/GuidePage.vue";
 import ReportProblemPage from "@/views/ReportProblemPage.vue";
@@ -83,6 +84,15 @@ const routes: Array<RouteRecordRaw> = [
     path: "/leagues/new",
     name: "CreateLeague",
     component: CreateLeaguePage,
+  },
+  {
+    // Entering a league by invitation code, and the landing site of an
+    // invitation link — `?code=` prefills the field and resolves it on arrival.
+    // Static, so it is ranked above `/leagues/:leagueId` and a player is never
+    // sent looking for a league whose id is "join".
+    path: "/leagues/join",
+    name: "JoinLeague",
+    component: JoinLeaguePage,
   },
   {
     // A league's own page: identity plus the full standings. Reached from the

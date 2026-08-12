@@ -15,7 +15,11 @@ import {
 import { ContractDTO } from "../../../dto/contractDTO";
 import type { CreateLeagueRequest, LeagueDTO } from "../../../dto/leagueDTO";
 import { LeagueVisibility } from "../../../model/enums";
-import { isLeagueName, leagueEndDate } from "../../../model/league";
+import {
+  isLeagueName,
+  leagueEndDate,
+  normalizeInvitationCode,
+} from "../../../model/league";
 import { isTeamName } from "../../../model/team";
 import type { TeamDTO } from "../../../dto/teamDTO";
 import type { LeaderboardEntryDTO } from "../../../dto/leaderboardDTO";
@@ -44,6 +48,17 @@ function teamResponseKey(leagueId: string): string {
 const invitationCodes: Record<string, string> = {
   italy: "M4RSX",
 };
+
+/**
+ * The leagues the mock player founded, and therefore administers — the mock's
+ * stand-in for `leagues.adminId`, kept out of the fixtures for the same reason
+ * as the codes above: it is caller-scoped, and `LeagueDTO` is not.
+ *
+ * Europe is seeded so mock mode shows an admin's league (close, no leave) next
+ * to a member's (leave, no close) without founding one first. Founding one adds
+ * it here, which is what the real transaction does by writing `adminId`.
+ */
+const adminLeagueIds = new Set<string>(["europe"]);
 
 /** Stands in for an anchor article's outbound link list. */
 const mockOutboundLinks = [
@@ -173,6 +188,7 @@ export const handlers = [
       closedAt: null,
     };
     leagues.push(league);
+    adminLeagueIds.add(league.id);
     if (body.visibility === LeagueVisibility.PRIVATE) {
       invitationCodes[league.id] = "ZK7QW";
     }
@@ -189,6 +205,24 @@ export const handlers = [
         { status: 404 }
       );
     return HttpResponse.json({ code });
+  }),
+
+  // The preview an invitation code resolves to. Registered before
+  // `/api/leagues/:leagueId` for the same reason the real route is registered
+  // before its own wildcard — and it answers a wrong, unused or malformed code
+  // with the one 404 the backend gives all three, so nothing here can teach the
+  // UI to tell them apart when the server will not.
+  http.get("*/api/leagues/by-code/:code", ({ params }) => {
+    const code = normalizeInvitationCode(String(params.code));
+    const leagueId = Object.keys(invitationCodes).find(
+      (id) => invitationCodes[id] === code
+    );
+    const league = leagueId
+      ? allLeagues().find((l) => l.id === leagueId)
+      : undefined;
+    if (!league)
+      return HttpResponse.json({ error: "League not found" }, { status: 404 });
+    return HttpResponse.json(league);
   }),
 
   // Mirrors the real endpoint: every public league, the caller's own included.
@@ -214,10 +248,67 @@ export const handlers = [
     return HttpResponse.json(league);
   }),
 
-  http.post("*/api/leagues/:leagueId/my-team", async ({ request }) => {
-    const body = (await request.json()) as { name?: string };
+  http.get("*/api/leagues/:leagueId/my-role", ({ params }) => {
+    const leagueId = String(params.leagueId);
+    if (!allLeagues().some((l) => l.id === leagueId))
+      return HttpResponse.json({ error: "League not found" }, { status: 404 });
+    return HttpResponse.json({
+      isMember: getMyTeam(leagueId) !== undefined,
+      isAdmin: adminLeagueIds.has(leagueId),
+    });
+  }),
+
+  // Closing writes `closedAt` onto the mock's own league, exactly as the real
+  // endpoint writes the column — nothing is removed from the list, so the
+  // league page keeps rendering afterwards, which is the behaviour worth
+  // exercising (docs/domain/league-lifecycle.md).
+  http.post("*/api/leagues/:leagueId/closure", ({ params }) => {
+    const league = leagues.find((l) => l.id === params.leagueId);
+    if (!league)
+      return HttpResponse.json({ error: "League not found" }, { status: 404 });
+    if (league.closedAt !== null)
+      return HttpResponse.json(
+        { error: "This league is already closed" },
+        { status: 409 }
+      );
+    league.closedAt = Temporal.Now.instant();
+    return HttpResponse.json(league);
+  }),
+
+  // The team is not taken out of `rostersByLeague`: a departed team keeps its
+  // place in the standings, and pretending otherwise here would let the page
+  // pass a test the real API would fail.
+  http.post("*/api/leagues/:leagueId/my-departure", ({ params }) => {
+    const team = getMyTeam(String(params.leagueId));
+    if (!team)
+      return HttpResponse.json(
+        { error: "No team found for this league" },
+        { status: 404 }
+      );
+    return HttpResponse.json({ success: true });
+  }),
+
+  http.post("*/api/leagues/:leagueId/my-team", async ({ params, request }) => {
+    const body = (await request.json()) as {
+      name?: string;
+      invitationCode?: string;
+    };
     if (!body.name || typeof body.name !== "string") {
       return HttpResponse.json({ error: "name is required" }, { status: 400 });
+    }
+
+    // The join gate, as far as devMock can honour it: a league with a code
+    // wants that code. Without this the mock would let a wrong code through and
+    // the flow would only look right until it met the real backend.
+    const required = invitationCodes[String(params.leagueId)];
+    if (
+      required &&
+      normalizeInvitationCode(body.invitationCode ?? "") !== required
+    ) {
+      return HttpResponse.json(
+        { error: "This league is private. An invitation code is required." },
+        { status: 403 }
+      );
     }
 
     const player = players.find((p) => p.id === currentPlayerId);

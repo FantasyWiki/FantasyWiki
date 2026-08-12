@@ -65,6 +65,9 @@ worth guessing at.
 
 - [League Season](./league-season.md) — the other thing fixed at creation: when
   the season starts and how long it may run.
+- [League Lifecycle](./league-lifecycle.md) — the other gate on joining (a
+  league that has ended or been closed admits nobody), and the admin's other
+  privilege: closing the league they own.
 - [ADR 0008: League Invitation Codes](../adr/0008-league-invitation-codes.md) —
   the code's format, where it may travel, and how the join is enforced.
 - [FantaWiki Requirements](./fantawiki-requirements.md) — the original

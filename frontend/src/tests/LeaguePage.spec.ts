@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { http, HttpResponse } from "msw";
 import { server } from "@/mocks/server";
 import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
+import { alertController } from "@ionic/vue";
 import { Temporal } from "@js-temporal/polyfill";
 import router from "@/router/index";
 import LeaguePage from "@/views/LeaguePage.vue";
@@ -96,6 +97,30 @@ async function scrollToEnd(wrapper: VueWrapper) {
   el.complete = vi.fn().mockResolvedValue(undefined);
   el.dispatchEvent(new CustomEvent("ionInfinite"));
   await flushPromises();
+}
+
+/**
+ * Ionic's alert element never upgrades in jsdom, so the controller is stubbed
+ * with the smallest object the composable actually drives: it presents, and it
+ * reports a dismissal. `dismissed: false` leaves that promise pending, which is
+ * the state a dialog is in while the player is still looking at it.
+ */
+function fakeAlert({ dismissed = false } = {}) {
+  return {
+    present: vi.fn().mockResolvedValue(undefined),
+    onDidDismiss: vi
+      .fn()
+      .mockReturnValue(dismissed ? Promise.resolve({}) : new Promise(() => {})),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+}
+
+/** The handler behind the alert's destructive button. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function confirmOf(opts: any): (() => void) | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const button = opts?.buttons?.find((b: any) => b.role === "destructive");
+  return button?.handler;
 }
 
 /** A synthetic board deep enough to need more than one reveal batch. */
@@ -421,5 +446,151 @@ describe("LeaguePage.vue", () => {
 
     expect(push).toHaveBeenCalledWith({ name: "Dashboard" });
     push.mockRestore();
+  });
+
+  // ── Lifecycle controls ────────────────────────────────────────────────────
+  //
+  // Who is offered what is the server's answer (`my-role`), not something the
+  // page works out — see docs/domain/league-lifecycle.md. Every fixture league
+  // but Global has already finished, so these run the clock forward to a league
+  // that is still being played.
+
+  /** A running season, so the footer is offered at all. */
+  function runningLeague(overrides: Record<string, unknown> = {}) {
+    const today = Temporal.Now.plainDateISO("UTC");
+    return http.get("*/api/leagues/:leagueId", () =>
+      HttpResponse.json({
+        ...leagues[1],
+        startDate: `${today.subtract({ days: 3 })}T00:00:00Z`,
+        endDate: `${today.add({ days: 20 })}T23:59:59Z`,
+        ...overrides,
+      })
+    );
+  }
+
+  function roleIs(isMember: boolean, isAdmin: boolean) {
+    return http.get("*/api/leagues/:leagueId/my-role", () =>
+      HttpResponse.json({ isMember, isAdmin })
+    );
+  }
+
+  it("offers a member the way out, and not the admin's", async () => {
+    server.use(runningLeague(), roleIs(true, false));
+
+    const wrapper = await mountAt("/leagues/italy");
+
+    const footer = wrapper.find(".lifecycle");
+    expect(footer.exists()).toBe(true);
+    expect(footer.text()).toContain("Leave this league");
+    expect(footer.text()).not.toContain("Close this league");
+  });
+
+  it("offers the admin the close, and not the leave", async () => {
+    // An admin who left would leave a league nobody could end.
+    server.use(runningLeague(), roleIs(true, true));
+
+    const wrapper = await mountAt("/leagues/italy");
+
+    const footer = wrapper.find(".lifecycle");
+    expect(footer.text()).toContain("Close this league");
+    expect(footer.text()).not.toContain("Leave this league");
+  });
+
+  it("offers nothing to someone who only watches the league", async () => {
+    server.use(runningLeague(), roleIs(false, false));
+
+    const wrapper = await mountAt("/leagues/italy");
+
+    expect(wrapper.find(".lifecycle").exists()).toBe(false);
+  });
+
+  it("never offers to leave the Global League", async () => {
+    // First run enrols every player into it and would route them straight
+    // back, so there is no way out to offer.
+    server.use(roleIs(true, false));
+
+    const wrapper = await mountAt("/leagues/global");
+
+    expect(wrapper.find(".lifecycle").exists()).toBe(false);
+  });
+
+  it("says a closed league is closed, and offers neither action", async () => {
+    server.use(
+      runningLeague({ closedAt: "2026-08-01T00:00:00Z" }),
+      roleIs(true, true)
+    );
+
+    const wrapper = await mountAt("/leagues/italy");
+
+    const footer = wrapper.find(".lifecycle");
+    expect(footer.text()).toContain("closed early");
+    expect(footer.findAll(".lifecycle-btn")).toHaveLength(0);
+  });
+
+  it("confirms through Ionic rather than a blocking native dialog", async () => {
+    // `confirm()` freezes the page and the automation harness with it, and
+    // cannot be read the way the rest of the app can.
+    server.use(runningLeague(), roleIs(true, false));
+    const nativeConfirm = vi.spyOn(window, "confirm");
+    const create = vi
+      .spyOn(alertController, "create")
+      .mockResolvedValue(fakeAlert());
+
+    const wrapper = await mountAt("/leagues/italy");
+    await wrapper.find(".lifecycle-btn").trigger("click");
+    await flushPromises();
+
+    expect(create).toHaveBeenCalled();
+    expect(nativeConfirm).not.toHaveBeenCalled();
+    create.mockRestore();
+    nativeConfirm.mockRestore();
+  });
+
+  it("leaves the league once the confirmation is accepted", async () => {
+    server.use(runningLeague(), roleIs(true, false));
+    let left = false;
+    server.use(
+      http.post("*/api/leagues/:leagueId/my-departure", () => {
+        left = true;
+        return HttpResponse.json({ success: true });
+      })
+    );
+    // Take the destructive button's handler off the alert and press it, which
+    // is what a player tapping "Leave" in the dialog does.
+    const create = vi
+      .spyOn(alertController, "create")
+      .mockImplementation(async (opts) => {
+        confirmOf(opts)?.();
+        return fakeAlert();
+      });
+
+    const wrapper = await mountAt("/leagues/italy");
+    await wrapper.find(".lifecycle-btn").trigger("click");
+    await flushPromises();
+
+    expect(left).toBe(true);
+    create.mockRestore();
+  });
+
+  it("does not leave when the confirmation is dismissed", async () => {
+    server.use(runningLeague(), roleIs(true, false));
+    let left = false;
+    server.use(
+      http.post("*/api/leagues/:leagueId/my-departure", () => {
+        left = true;
+        return HttpResponse.json({ success: true });
+      })
+    );
+    // Neither button pressed — the dialog was dismissed by backdrop or Escape.
+    const create = vi
+      .spyOn(alertController, "create")
+      .mockResolvedValue(fakeAlert({ dismissed: true }));
+
+    const wrapper = await mountAt("/leagues/italy");
+    await wrapper.find(".lifecycle-btn").trigger("click");
+    await flushPromises();
+
+    expect(left).toBe(false);
+    create.mockRestore();
   });
 });

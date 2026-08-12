@@ -4,6 +4,7 @@ type: domain
 tags: [league, season, contracts, creation]
 related:
   - ./league-visibility.md
+  - ./league-lifecycle.md
   - ./scoring-system.md
 ---
 
@@ -51,5 +52,7 @@ number of hours means.
 
 - [League Visibility](./league-visibility.md) — the other thing chosen at
   creation, and who may join once the season is running.
+- [League Lifecycle](./league-lifecycle.md) — what happens when the season
+  reaches this end date, and the other way a league can stop before it.
 - [Scoring & Economy System](./scoring-system.md) — contract tiers, and the
   settlement the floor above exists to protect.

@@ -19,7 +19,7 @@ const EMPTY: LeagueDTO[] = [];
  * cacheable list quietly per-player.
  */
 export function usePublicLeagues() {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.publicLeagues(),
     queryFn: () => api.leagues.getPublic(),
     staleTime: 5 * 60 * 1000,
@@ -29,5 +29,6 @@ export function usePublicLeagues() {
     publicLeagues: computed(() => data.value ?? EMPTY),
     isLoading,
     isError,
+    refetch,
   };
 }

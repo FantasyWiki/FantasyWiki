@@ -24,6 +24,15 @@ export const LEAGUE_ERRORS = {
    * is missing when it is only uninvitable.
    */
   NO_INVITATION_CODE: "This league has no invitation code",
+  /**
+   * The guarded close `UPDATE` matched no row. Three conditions ride in that
+   * statement — the league exists, the caller is its admin, it is not already
+   * closed — and at write time it cannot know which of them failed, so it
+   * returns this one sentinel rather than guessing. `LeagueService` re-reads to
+   * name the cause, the same protocol as `TEAM_ERRORS.JOIN_CONFLICT` and
+   * `CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT`.
+   */
+  CLOSE_CONFLICT: "Close conditions no longer hold",
 } as const;
 
 /**
@@ -84,6 +93,27 @@ export interface LeagueRepository {
    */
   getInvitationCode(leagueId: string): Promise<Result<string | null>>;
   /**
+   * The id of the league a code opens, or `null` for a code that opens none.
+   *
+   * The inverse of `getInvitationCode`, and deliberately as narrow: it answers
+   * with an *id*, not a league, so the caller has to go through the ordinary
+   * unscoped read to say anything about it. That keeps one shape — `League`,
+   * which carries no code — as the only thing a code can be turned into, and
+   * leaves this the single query in the repository that reads the column
+   * without being handed the league it belongs to.
+   *
+   * `null` rather than a failure: "no league has this code" is an ordinary
+   * answer on a path whose whole job is to be asked about codes that may not
+   * exist. Naming it a failure here would push the caller into telling a
+   * missing league apart from a wrong code, which is exactly the distinction
+   * ADR 0008 refuses to draw.
+   *
+   * The code must already be normalized — the comparison is a plain `=` on the
+   * stored uppercase form. A codeless league can never match: SQL's `NULL` is
+   * equal to nothing, the empty string included.
+   */
+  findIdByInvitationCode(code: string): Promise<Result<string | null>>;
+  /**
    * How many teams play each of the given leagues, keyed by league id; a
    * league with no teams maps to 0 rather than being absent.
    *
@@ -96,4 +126,24 @@ export interface LeagueRepository {
   countTeamsByLeague(
     leagueIds: readonly string[],
   ): Promise<Result<Record<string, number>>>;
+  /**
+   * Stamp `closedAt` on a league, ending it before its season runs out.
+   *
+   * Nothing is deleted — the league, its teams and their whole ledger stay
+   * exactly as they are (docs/domain/league-lifecycle.md). All this does is
+   * shut the door.
+   *
+   * Both conditions are evaluated *inside* the `UPDATE`: that only
+   * `leagues.adminId` may close a league, and that a league closes once. A
+   * service-side check followed by a write would be a race on the second one —
+   * two concurrent closes would both read `closedAt IS NULL` and the later
+   * write would overwrite the moment the season actually stopped, which is the
+   * one fact this column exists to record. Rejection surfaces as
+   * `LEAGUE_ERRORS.CLOSE_CONFLICT`.
+   */
+  close(
+    leagueId: string,
+    adminId: string,
+    closedAt: Temporal.Instant,
+  ): Promise<Result<void>>;
 }

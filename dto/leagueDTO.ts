@@ -48,6 +48,26 @@ export interface LeagueInviteDTO {
 }
 
 /**
+ * Where the calling player stands in one league: whether they field a team in
+ * it, and whether they are its admin.
+ *
+ * Its own caller-scoped shape rather than two more fields on `LeagueDTO`, for
+ * the reason `LeagueDTO` has no `adminId` today: that shape is the *league*,
+ * the same answer for everyone, and the surfaces that hold it treat it as
+ * such. Folding "…and you are its admin" into it would make a cacheable,
+ * unscoped read quietly depend on who asked.
+ *
+ * It exists because the two lifecycle controls need it — only a member may
+ * leave, only the admin may close — and the client cannot work either out on
+ * its own. As with the invitation code, the server decides and the page simply
+ * renders nothing it is not offered.
+ */
+export interface LeagueRoleDTO {
+  isMember: boolean;
+  isAdmin: boolean;
+}
+
+/**
  * What a player fills in to found a league.
  *
  * `duration` rather than an end date: the season is "this long from now", and

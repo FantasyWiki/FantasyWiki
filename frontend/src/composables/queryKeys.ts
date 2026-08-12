@@ -41,4 +41,12 @@ export const queryKeys = {
   /** A private league's invitation code, for a caller its policy lets invite. */
   invitationCode: (leagueId: string | null) =>
     ["invitation-code", leagueId] as const,
+  /**
+   * The league an invitation code resolves to. Keyed by the *normalized* code,
+   * so the same invitation pasted three different ways is one cache entry and
+   * one request — which matters when the request is rate limited.
+   */
+  leagueByCode: (code: string) => ["league-by-code", code] as const,
+  /** Whether the caller plays this league, and whether they are its admin. */
+  leagueRole: (leagueId: string | null) => ["league-role", leagueId] as const,
 };

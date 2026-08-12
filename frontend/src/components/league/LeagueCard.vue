@@ -39,6 +39,10 @@
           <ion-icon :icon="lockClosedOutline" aria-hidden="true" />
           {{ t("leagues.private") }}
         </span>
+        <!-- An extension point, not a prop: the card itself has no notion of
+             "ended" or "winner" — only the caller building an ended-leagues
+             row knows to fill this in. -->
+        <slot name="footer" />
       </span>
     </span>
   </button>

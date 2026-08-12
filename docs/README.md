@@ -19,6 +19,7 @@ What the game *is*: rules, entities, and vocabulary. No code structure here.
 | Doc | What it answers |
 |---|---|
 | [Scoring & Economy System](./domain/scoring-system.md) | How points, prices, and settlement work (canonical) |
+| [League Lifecycle](./domain/league-lifecycle.md) | Active / ended / closed / left, and why nothing is ever deleted |
 | [Chemistry Links](./domain/chemistry-links.md) | What a Chemistry Link is and what it scores |
 | [Lineup Rules](./domain/lineup-rules.md) | Formation, bench, and the no-contract-is-lost invariant |
 | [League Visibility](./domain/league-visibility.md) | Public vs private leagues, who may join, and who may invite |

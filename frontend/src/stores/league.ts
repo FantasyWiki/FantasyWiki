@@ -2,10 +2,8 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import api, { deserializeLeague } from "@/services/api";
 import { LeagueDTO } from "../../../dto/leagueDTO";
-import { GLOBAL_LEAGUE_ID } from "../../../model/league";
+import { GLOBAL_LEAGUE_ID, isLeagueInactive } from "../../../model/league";
 import { Temporal } from "@js-temporal/polyfill";
-import Now = Temporal.Now;
-import { LeagueVisibility } from "../../../model/enums";
 
 /**
  * Manages the player's league context.
@@ -21,17 +19,6 @@ import { LeagueVisibility } from "../../../model/enums";
  */
 export const useLeagueStore = defineStore("league", () => {
   // ── State ──────────────────────────────────────────────────────────────────
-  const emptyLeague = (): LeagueDTO => ({
-    id: "",
-    title: "No League Selected",
-    domain: "en",
-    icon: "",
-    startDate: Now.instant(),
-    endDate: Now.instant(),
-    visibility: LeagueVisibility.PUBLIC,
-    teamCount: 0,
-    closedAt: null,
-  });
   const currentLeague = ref<LeagueDTO>();
   const availableLeagues = ref<LeagueDTO[]>([]);
   const isLoading = ref(false);
@@ -64,28 +51,63 @@ export const useLeagueStore = defineStore("league", () => {
       : undefined
   );
 
+  /**
+   * Leagues still worth playing — what the NavBar picker offers and the
+   * "mine" grid on /leagues renders. `availableLeagues` itself stays
+   * unfiltered (other readers, e.g. the league-detail placeholder, still
+   * need to find an ended league by id), so this and `endedLeagues` are the
+   * split every selectability decision should read instead.
+   */
+  const activeLeagues = computed(() =>
+    availableLeagues.value.filter(
+      (l) => !isLeagueInactive(l, Temporal.Now.instant())
+    )
+  );
+
+  /**
+   * The other half of the same split: leagues whose season is over or that
+   * their admin closed early. Kept visible rather than dropped — a league
+   * going inactive doesn't erase the fact that the player was in it, it only
+   * takes it out of the set a click can lead back into.
+   */
+  const endedLeagues = computed(() =>
+    availableLeagues.value.filter((l) =>
+      isLeagueInactive(l, Temporal.Now.instant())
+    )
+  );
+
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   /**
-   * Validate `currentLeague` against the fetched `availableLeagues` list.
-   * If the stored league id is not found (e.g. stale localStorage entry),
-   * fall back to the first available league and persist the correction.
-   * Returns the resolved league so callers can act on it immediately.
+   * Validate `currentLeague` against the leagues still selectable.
+   * Resolved against `activeLeagues`, not the raw fetch: an ended league has
+   * already left the NavBar picker, so a selection still pointing at one — a
+   * stale localStorage entry, or a league that simply finished under the
+   * player while it was selected — must not survive the next fetch. Falls
+   * back to the first still-active league, or clears the selection entirely
+   * if none is left, rather than fabricating a placeholder league to point
+   * at (`currentLeagueName` already has its own "No League Selected"
+   * fallback for that). `currentLeague` being reactive is what lets every
+   * league-scoped screen notice the reassignment instead of going on serving
+   * the dead one.
    */
-  function _resolveCurrentLeague(): LeagueDTO {
-    if (!availableLeagues.value.length) return emptyLeague();
-
+  function _resolveCurrentLeague(): LeagueDTO | undefined {
     const candidate = currentLeague.value;
     const found = candidate
-      ? (availableLeagues.value.find((l) => l.id === candidate.id) ?? null)
+      ? (activeLeagues.value.find((l) => l.id === candidate.id) ?? null)
       : null;
 
-    const resolved = found ?? availableLeagues.value[0];
+    const resolved = found ?? activeLeagues.value[0];
 
-    if (resolved.id !== candidate?.id) {
-      // The stored league was absent or stale — correct and persist.
+    if (resolved?.id !== candidate?.id) {
+      // The stored league was absent, stale, or has since gone inactive —
+      // correct and persist, or clear if nothing is left to fall into.
       currentLeague.value = resolved;
-      localStorage.setItem("currentLeague", JSON.stringify(resolved));
+      if (resolved) {
+        localStorage.setItem("currentLeague", JSON.stringify(resolved));
+      } else {
+        localStorage.removeItem("currentLeague");
+      }
     }
 
     return resolved;
@@ -165,6 +187,8 @@ export const useLeagueStore = defineStore("league", () => {
     currentLeagueId,
     currentLeagueName,
     hasGlobalTeam,
+    activeLeagues,
+    endedLeagues,
     // Actions
     setCurrentLeague,
     fetchLeagues,

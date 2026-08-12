@@ -42,6 +42,7 @@ Existing constants and their owners:
 | `CONTRACT_ERRORS`       | `services/contract.ts`                   | `routes/leagues.ts`                          |
 | `LINEUP_ERRORS`         | `services/lineup.ts`                     | `routes/leagues.ts`                          |
 | `LEAGUE_CREATION_ERRORS` | `services/league.ts`                    | `routes/leagues.ts`                          |
+| `LEAGUE_CLOSURE_ERRORS` | `services/league.ts`                     | `routes/leagues.ts`                          |
 | `LOGIN_ERRORS`          | `services/login.ts`                      | —                                            |
 
 Rules for new code:
@@ -96,6 +97,20 @@ WHERE <derived credits cover the price>
 (`contractRepositoryD1.create`; `settleSale` uses the same idea with a guarded
 `UPDATE ... WHERE settled = 0`.)
 
+Four more writes follow the same shape: `teamRepositoryD1.create` (the join
+gate), `leagueRepositoryD1.close` and `teamRepositoryD1.leave` (the two
+lifecycle endings, see
+[League Lifecycle](../domain/league-lifecycle.md)). Each returns exactly one
+sentinel — `TEAM_ERRORS.JOIN_CONFLICT`, `LEAGUE_ERRORS.CLOSE_CONFLICT`,
+`TEAM_ERRORS.LEAVE_CONFLICT` — and each has a service-side classifier that
+re-reads to name the cause.
+
+A condition only belongs in the statement if it can **change while the request
+is in flight**. `leagues.closedAt` can, so the join and leave writes both carry
+it; `leagues.endDate` cannot, so the "season ran out" half of the same rule is
+checked in the service through `isLeagueInactive`, where it is stated once for
+both frontend and backend instead of being spelled a second time in SQL.
+
 The calling service keeps its pre-checks — they exist to give the user a
 precise error without paying for a write — but they are advisory. The INSERT
 is the arbiter. The protocol on rejection (`meta.changes === 0`):
@@ -134,6 +149,15 @@ none should come back:
   served D1 outages to clients as 404s and every other infrastructure failure
   as a 400. Now `CONTRACT_ERROR_STATUS` + a 500 default, with `playerErrorStatus`
   doing the same for session-player resolution.
+
+**Not every string a route returns belongs in one of these maps.** A rate-limit
+refusal — `REPORT_RATE_LIMITED` in `routes/reports.ts`, `JOIN_RATE_LIMITED` in
+`routes/leagues.ts` — is not a way the operation can fail; it is the operation
+never having been attempted. Neither comes out of a `Result`, so neither can be
+mapped by identity from one, and adding them to `TEAM_ERROR_STATUS` would make
+a total `Record` over the join errors stop meaning "every way joining fails".
+They are short screaming-case codes rather than prose because the frontend
+branches on the **status** (429) and shows its own message.
 
 Still free text, and fine as such: messages nobody branches on (e.g. the
 Wikimedia views-fetch failures in `services/contract.ts`). They reach the

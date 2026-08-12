@@ -45,6 +45,12 @@
             "namespace_id": "1002",
             "simple": { "limit": 20, "period": 60 },
           },
+          {
+            "name": "JOIN_RATE_LIMITER",
+            "type": "ratelimit",
+            "namespace_id": "1003",
+            "simple": { "limit": 5, "period": 60 },
+          },
         ],
       },
       "triggers": {
@@ -98,6 +104,20 @@
             "namespace_id": "1002",
             "simple": { "limit": 20, "period": 60 },
           },
+          // The mitigation ADR 0008 accepted the 24.5-bit code's guessability
+          // against. One namespace covers *both* code-bearing paths — resolving
+          // a code to its league and redeeming one to join — because two
+          // buckets would let a grinder alternate and spend double. Five a
+          // minute is generous for a human (a preview, a join, and three
+          // mistypes) and turns an unbounded grind into an authenticated,
+          // per-account trickle. The platform only offers a 10s or 60s period,
+          // so this bounds the *rate*, not a daily total.
+          {
+            "name": "JOIN_RATE_LIMITER",
+            "type": "ratelimit",
+            "namespace_id": "1003",
+            "simple": { "limit": 5, "period": 60 },
+          },
         ],
       },
       // Workers AI. No API key and no per-environment secret: the binding is
@@ -149,6 +169,12 @@
             "namespace_id": "1002",
             "simple": { "limit": 20, "period": 60 },
           },
+          {
+            "name": "JOIN_RATE_LIMITER",
+            "type": "ratelimit",
+            "namespace_id": "1003",
+            "simple": { "limit": 5, "period": 60 },
+          },
         ],
       },
       "ai": {
@@ -197,6 +223,12 @@
             "type": "ratelimit",
             "namespace_id": "1002",
             "simple": { "limit": 20, "period": 60 },
+          },
+          {
+            "name": "JOIN_RATE_LIMITER",
+            "type": "ratelimit",
+            "namespace_id": "1003",
+            "simple": { "limit": 5, "period": 60 },
           },
         ],
       },

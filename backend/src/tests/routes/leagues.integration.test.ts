@@ -2,8 +2,9 @@ import { env } from "cloudflare:workers";
 import { Hono } from "hono";
 import { describe, it, expect, beforeEach } from "vitest";
 import leagues from "../../routes/leagues";
-import { GLOBAL_LEAGUE_ID } from "../../services/league";
+import { GLOBAL_LEAGUE_ID, LEAGUE_CLOSURE_ERRORS } from "../../services/league";
 import { LEAGUE_ERRORS } from "../../repositories/leagueRepository";
+import { TEAM_ERRORS } from "../../repositories/teamRepository";
 import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
 import { LEAGUE_ICONS } from "../../../../model/league";
 import { PlayerService } from "../../services/player";
@@ -193,6 +194,200 @@ describe("the invitation code never rides on a league read", () => {
     await expect(response.json()).resolves.toMatchObject({
       id: "leaky",
       visibility: LeagueVisibility.PRIVATE,
+    });
+  });
+});
+
+/**
+ * The two lifecycle endpoints, exercised for the one thing only a route test
+ * can see: the status each named error maps to. The rules themselves are
+ * pinned in `leagueLifecycle.integration.test.ts`.
+ *
+ * Both are a `POST` on a noun rather than a `DELETE`, because neither removes
+ * anything (docs/domain/league-lifecycle.md).
+ */
+describe("league lifecycle endpoints", () => {
+  const ADMIN_ACCOUNT = "acct-route-admin";
+  const MEMBER_ACCOUNT = "acct-route-member";
+  let adminId: string;
+  let memberId: string;
+
+  function authedAs(accountId: string) {
+    return new Hono<{ Bindings: { db: D1Database } }>()
+      .use("*", async (c, next) => {
+        c.set("jwtPayload", { sub: accountId });
+        await next();
+      })
+      .route("/leagues", leagues);
+  }
+
+  async function addTeam(id: string, name: string, playerId: string) {
+    await env.db
+      .prepare(
+        "INSERT INTO teams (id, name, playerId, leagueId) VALUES (?, ?, ?, ?)",
+      )
+      .bind(id, name, playerId, "lifecycle-lg")
+      .run();
+  }
+
+  beforeEach(async () => {
+    await resetD1Database(env.db);
+    const players = new PlayerService(env.db);
+    const admin = await players.createPlayer(
+      "route-admin",
+      "route-admin@example.com",
+      ADMIN_ACCOUNT,
+    );
+    const member = await players.createPlayer(
+      "route-member",
+      "route-member@example.com",
+      MEMBER_ACCOUNT,
+    );
+    if (!admin.ok || !member.ok) throw new Error("setup failed");
+    adminId = admin.value.id;
+    memberId = member.value.id;
+
+    await insertLeague(env.db, { id: "lifecycle-lg", adminId });
+    await addTeam("lifecycle-admin-team", "Founders", adminId);
+    await addTeam("lifecycle-member-team", "Challengers", memberId);
+  });
+
+  it("answers 200 with the closed league for its admin", async () => {
+    const response = await authedAs(ADMIN_ACCOUNT).request(
+      "/leagues/lifecycle-lg/closure",
+      { method: "POST" },
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { closedAt: string | null };
+    expect(body.closedAt).not.toBeNull();
+  });
+
+  it("answers 403 when someone other than the admin tries to close", async () => {
+    const response = await authedAs(MEMBER_ACCOUNT).request(
+      "/leagues/lifecycle-lg/closure",
+      { method: "POST" },
+      env,
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: LEAGUE_CLOSURE_ERRORS.NOT_ADMIN,
+    });
+  });
+
+  it("answers 409 on a second close", async () => {
+    const app = authedAs(ADMIN_ACCOUNT);
+    await app.request("/leagues/lifecycle-lg/closure", { method: "POST" }, env);
+
+    const response = await app.request(
+      "/leagues/lifecycle-lg/closure",
+      { method: "POST" },
+      env,
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: LEAGUE_CLOSURE_ERRORS.ALREADY_CLOSED,
+    });
+  });
+
+  it("answers 404 when closing a league that is not there", async () => {
+    const response = await authedAs(ADMIN_ACCOUNT).request(
+      "/leagues/no-such-league/closure",
+      { method: "POST" },
+      env,
+    );
+
+    expect(response.status).toBe(404);
+  });
+
+  it("answers 200 when a member leaves", async () => {
+    const response = await authedAs(MEMBER_ACCOUNT).request(
+      "/leagues/lifecycle-lg/my-departure",
+      { method: "POST" },
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ success: true });
+  });
+
+  it("answers 403 when the admin tries to leave their own league", async () => {
+    const response = await authedAs(ADMIN_ACCOUNT).request(
+      "/leagues/lifecycle-lg/my-departure",
+      { method: "POST" },
+      env,
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: TEAM_ERRORS.ADMIN_CANNOT_LEAVE,
+    });
+  });
+
+  it("answers 409 on a second departure", async () => {
+    const app = authedAs(MEMBER_ACCOUNT);
+    await app.request(
+      "/leagues/lifecycle-lg/my-departure",
+      { method: "POST" },
+      env,
+    );
+
+    const response = await app.request(
+      "/leagues/lifecycle-lg/my-departure",
+      { method: "POST" },
+      env,
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: TEAM_ERRORS.ALREADY_LEFT,
+    });
+  });
+
+  it("answers 404 when a non-member tries to leave", async () => {
+    await insertLeague(env.db, { id: "lifecycle-other" });
+
+    const response = await authedAs(MEMBER_ACCOUNT).request(
+      "/leagues/lifecycle-other/my-departure",
+      { method: "POST" },
+      env,
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: TEAM_ERRORS.NO_TEAM_IN_LEAGUE,
+    });
+  });
+
+  it("answers 409 when joining a closed league", async () => {
+    await authedAs(ADMIN_ACCOUNT).request(
+      "/leagues/lifecycle-lg/closure",
+      { method: "POST" },
+      env,
+    );
+    const outsider = await new PlayerService(env.db).createPlayer(
+      "route-outsider",
+      "route-outsider@example.com",
+      "acct-route-outsider",
+    );
+    if (!outsider.ok) throw new Error("setup failed");
+
+    const response = await authedAs("acct-route-outsider").request(
+      "/leagues/lifecycle-lg/my-team",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Too Late FC" }),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: TEAM_ERRORS.LEAGUE_INACTIVE,
     });
   });
 });

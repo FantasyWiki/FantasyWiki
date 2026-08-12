@@ -179,6 +179,39 @@ describe("LeagueService.getPublicLeagues", () => {
     expect(result.value.find((l) => l.id === "counted")?.teamCount).toBe(1);
   });
 
+  // The shelf is captioned as somewhere to go. Both halves of
+  // `isLeagueInactive` are filtered in the query rather than by whoever renders
+  // it, so the endpoint cannot offer a league whose join can only answer
+  // TEAM_ERRORS.LEAGUE_INACTIVE (docs/domain/league-lifecycle.md).
+  it("leaves out a public league whose season has run out", async () => {
+    await insertLeague(env.db, {
+      id: "last-season",
+      startDate: "2024-01-01T00:00:00Z",
+      endDate: "2024-03-01T00:00:00Z",
+    });
+
+    const result = await service.getPublicLeagues();
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.map((l) => l.id)).not.toContain("last-season");
+  });
+
+  it("leaves out a public league its admin closed early", async () => {
+    // Season still running — only `closedAt` puts it out, so this pins the
+    // other half of the filter rather than re-testing the end date.
+    await insertLeague(env.db, {
+      id: "shut-early",
+      closedAt: "2026-01-01T00:00:00Z",
+    });
+
+    const result = await service.getPublicLeagues();
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.map((l) => l.id)).not.toContain("shut-early");
+  });
+
   it("never carries an invitation code, private or not", async () => {
     await insertLeague(env.db, { id: "leaky-shelf" });
 

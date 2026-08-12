@@ -134,6 +134,15 @@ describe("TeamCreationPage.vue", () => {
 
   describe("entering a further league (league in the route)", () => {
     const joinPath = "/leagues/italy/team-creation";
+    /**
+     * This route is the *public* way in: it carries no invitation code, so a
+     * private league would answer 403 here and the join-by-code page
+     * (`/leagues/join`) is what a private league's page links to instead. The
+     * tests above only render Italia — reading a private league is allowed —
+     * but the one that actually submits has to target a league anyone may
+     * enter.
+     */
+    const publicJoinPath = "/leagues/open-science/team-creation";
 
     // A player already in the Global League, not yet in Italia.
     beforeEach(() => mockMyLeagues(["global"]));
@@ -175,10 +184,10 @@ describe("TeamCreationPage.vue", () => {
       );
       await leagueStore.initialize();
 
-      const wrapper = await mountPage(joinPath);
+      const wrapper = await mountPage(publicJoinPath);
       await submitName(wrapper, "The Wiki Wizards");
 
-      expect(leagueStore.currentLeague?.id).toBe("italy");
+      expect(leagueStore.currentLeague?.id).toBe("open-science");
       expect(onboarding.isActive).toBe(false);
       expect(router.currentRoute.value.path).toBe("/dashboard");
     });

@@ -479,12 +479,28 @@
     "inviteHint": "Share it with the friends you want in this league.",
     "inviteCopy": "Copy invitation code"
   },
+  "leagueLifecycle": {
+    "leaveAction": "Leave this league",
+    "closeAction": "Close this league",
+    "closedNote": "This league was closed early by its admin.",
+    "cancel": "Cancel",
+    "leaveTitle": "Leave this league?",
+    "leaveMessage": "Your team stays in the standings with everything it has earned — you simply stop playing, and can come back to it later.",
+    "leaveCta": "Leave",
+    "leaveDone": "You have left this league.",
+    "leaveFailed": "Could not leave the league. Try again.",
+    "closeTitle": "Close this league?",
+    "closeMessage": "The season ends now, for everyone. Nothing is deleted: the final table, every team and every contract stay readable. This cannot be undone.",
+    "closeCta": "Close league",
+    "closeDone": "The league is closed.",
+    "closeFailed": "Could not close the league. Try again."
+  },
   "leagues": {
     "title": "Your Leagues",
     "subtitle": "Manage your leagues, join private competitions, or create your own.",
     "joinPrivate": "Join Private League",
     "createNew": "Create New League",
-    "actionsNote": "Joining a league by invitation code is on the way.",
+    "actionsNote": "Browse public leagues, enter an invitation code, or create your own.",
     "mineTitle": "Leagues You're Playing",
     "active": "Active",
     "private": "Private",
@@ -493,7 +509,27 @@
     "errorTitle": "Couldn't load your leagues",
     "retry": "Try again",
     "featuredTitle": "Featured Public Leagues",
-    "featuredPlaceholder": "Open leagues anyone can join will be listed here."
+    "featuredPlaceholder": "Open leagues anyone can join will be listed here.",
+    "featuredErrorTitle": "Couldn't load public leagues",
+    "endedTitle": "Ended Leagues",
+    "endedNote": "A day-by-day audit trail for each league is coming in a future update.",
+    "winner": "Winner: {name}"
+  },
+  "joinLeague": {
+    "title": "Join a league",
+    "hint": "Enter the invitation code a friend sent you. You'll see the league before you commit to it.",
+    "codeLabel": "Invitation code",
+    "codePlaceholder": "ABC12",
+    "codeHelper": "{length} letters and numbers, however your friend sent it.",
+    "notFound": "No league opens with that code. Check it and try again.",
+    "rateLimited": "Too many attempts. Wait a minute and try again.",
+    "ended": "This league's season is over, so there is no longer a way in.",
+    "ctaLabel": "Not playing this league",
+    "ctaHint": "Name a team and you're in.",
+    "ctaHintPrivate": "This league is private. You'll need its invitation code.",
+    "ctaPublic": "Join league",
+    "ctaPrivate": "Enter code",
+    "copyLink": "Copy invitation link"
   },
   "createLeague": {
     "title": "Create a League",

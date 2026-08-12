@@ -20,11 +20,11 @@
         <p class="hero-subtitle">{{ t("leagues.subtitle") }}</p>
       </header>
 
-      <!-- The two ways into a further league. Creating one works; entering an
-           invitation code (#7) does not yet, so that button still states what
-           is coming rather than leading somewhere that does not exist. -->
+      <!-- The two ways into a further league: enter an invitation code, or
+           found one. Browsing to a public league is the third, and it lives on
+           the shelf below rather than up here. -->
       <div class="actions">
-        <ion-button fill="outline" disabled>
+        <ion-button fill="outline" router-link="/leagues/join">
           <ion-icon slot="start" :icon="keyOutline" />
           {{ t("leagues.joinPrivate") }}
         </ion-button>
@@ -76,7 +76,7 @@
              standing above the whole block, so it never captions an error or
              an empty state — both of which say the opposite of "you're
              playing". -->
-        <template v-if="leagues.length">
+        <template v-if="activeLeagues.length">
           <div class="section-head">
             <ion-icon :icon="flagOutline" class="section-icon mine" />
             <h2 class="section-title">{{ t("leagues.mineTitle") }}</h2>
@@ -86,14 +86,19 @@
                being enough to say which grid it is in. -->
           <div class="league-grid mine-grid">
             <league-card
-              v-for="league in leagues"
+              v-for="league in activeLeagues"
               :key="league.id"
               :league="league"
             />
           </div>
         </template>
 
-        <p v-else class="empty-state">{{ t("leagues.empty") }}</p>
+        <!-- Only when there is truly nothing, active or ended: a player whose
+             leagues have all wrapped up still has a history below, so telling
+             them to go find one would contradict the section under it. -->
+        <p v-else-if="!endedLeagues.length" class="empty-state">
+          {{ t("leagues.empty") }}
+        </p>
 
         <!-- Featured public leagues ────────────────── -->
         <section class="featured">
@@ -104,7 +109,43 @@
           <!-- Leagues the player already plays are dropped here rather than by
                the query: the endpoint answers the same list for everyone, and
                which leagues are mine is a question the store already holds. -->
-          <div v-if="featuredLeagues.length" class="league-grid">
+          <div v-if="isFeaturedLoading" class="league-grid" :aria-busy="true">
+            <div v-for="i in 3" :key="i" class="skeleton-card">
+              <ion-skeleton-text :animated="true" class="skeleton-line" />
+            </div>
+          </div>
+
+          <!-- Same confusion the enrolled grid above was built to avoid: a
+               failed `GET /api/leagues/public` used to fall straight through
+               to the "will be listed here" placeholder, reporting a server
+               error as "there is simply nothing to join". -->
+          <ion-card
+            v-else-if="isFeaturedError"
+            color="danger"
+            class="state-card"
+          >
+            <ion-card-content>
+              <div class="error-row">
+                <ion-icon :icon="alertCircleOutline" />
+                <div>
+                  <p class="ion-no-margin error-title">
+                    {{ t("leagues.featuredErrorTitle") }}
+                  </p>
+                  <ion-button
+                    fill="outline"
+                    color="light"
+                    size="small"
+                    @click="refetchPublicLeagues()"
+                  >
+                    <ion-icon slot="start" :icon="refreshOutline" />
+                    {{ t("leagues.retry") }}
+                  </ion-button>
+                </div>
+              </div>
+            </ion-card-content>
+          </ion-card>
+
+          <div v-else-if="featuredLeagues.length" class="league-grid">
             <league-card
               v-for="league in featuredLeagues"
               :key="league.id"
@@ -114,6 +155,26 @@
           <p v-else class="featured-placeholder">
             {{ t("leagues.featuredPlaceholder") }}
           </p>
+        </section>
+
+        <!-- Ended leagues ───────────────────────────── -->
+        <!-- Only rendered when there is one: an empty section here is just
+             nothing to show, not the loading/error ambiguity the grids above
+             guard against, since it derives from a fetch that already
+             succeeded. -->
+        <section v-if="endedLeagues.length" class="ended">
+          <div class="section-head">
+            <ion-icon :icon="archiveOutline" class="section-icon ended" />
+            <h2 class="section-title">{{ t("leagues.endedTitle") }}</h2>
+          </div>
+          <div class="league-grid">
+            <ended-league-card
+              v-for="league in endedLeagues"
+              :key="league.id"
+              :league="league"
+            />
+          </div>
+          <p class="ended-note">{{ t("leagues.endedNote") }}</p>
         </section>
       </page-reveal>
     </div>
@@ -134,6 +195,7 @@ import {
 import {
   addOutline,
   alertCircleOutline,
+  archiveOutline,
   flagOutline,
   keyOutline,
   refreshOutline,
@@ -145,6 +207,7 @@ import { useI18n } from "vue-i18n";
 import NavBar from "@/layout/NavBar.vue";
 import PageReveal from "@/components/PageReveal.vue";
 import LeagueCard from "@/components/league/LeagueCard.vue";
+import EndedLeagueCard from "@/components/league/EndedLeagueCard.vue";
 import { useLeagueStore } from "@/stores/league";
 import { usePublicLeagues } from "@/composables/usePublicLeagues";
 
@@ -152,9 +215,16 @@ const { t } = useI18n();
 const leagueStore = useLeagueStore();
 
 const leagues = computed(() => leagueStore.availableLeagues);
+const activeLeagues = computed(() => leagueStore.activeLeagues);
+const endedLeagues = computed(() => leagueStore.endedLeagues);
 const error = computed(() => leagueStore.error);
 
-const { publicLeagues } = usePublicLeagues();
+const {
+  publicLeagues,
+  isLoading: isFeaturedLoading,
+  isError: isFeaturedError,
+  refetch: refetchPublicLeagues,
+} = usePublicLeagues();
 
 /**
  * The public leagues worth offering: the ones the player is not already in.
@@ -343,6 +413,23 @@ async function handleRefresh(event: CustomEvent) {
   color: var(--ion-color-medium);
   border: 1px dashed var(--ion-border-color);
   border-radius: 12px;
+}
+
+/* ── Ended ─────────────────────────────────────── */
+.ended {
+  margin-top: 2.5rem;
+}
+
+/* Muted rather than gold or primary: this section is a record, not
+   somewhere the page wants to draw the eye. */
+.section-icon.ended {
+  color: var(--ion-color-medium);
+}
+
+.ended-note {
+  margin: 0.75rem 0 0;
+  font-size: 0.75rem;
+  color: var(--ion-color-medium);
 }
 
 /* ── Error ─────────────────────────────────────── */

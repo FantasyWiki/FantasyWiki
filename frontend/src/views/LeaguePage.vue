@@ -56,6 +56,16 @@
              that; this component simply has nothing to show otherwise. -->
         <league-invite-card :league-id="leagueId" :league="league" />
 
+        <!-- The mirror of the card above: that one is for a member handing the
+             league out, this one is for a visitor who has not joined it yet.
+             They are mutually exclusive by construction — you cannot both hold
+             a team here and be offered one. -->
+        <league-join-card
+          :league="league"
+          :my-team-id="myTeamId"
+          :is-pending="isMyTeamPending"
+        />
+
         <!-- The top three lead the page all season, and the full table follows
              underneath. A finished season escalates the same podium into the
              result rather than introducing a different one. -->
@@ -73,6 +83,39 @@
           :errored="isLeaderboardError"
           :phase="phase"
         />
+
+        <!-- Ending the league, or your part in it. Last on the page and
+             deliberately quiet: these are not what anyone came here to do, and
+             nothing they do is undoable. Absent rather than disabled when they
+             do not apply — the server says which, if either, is the caller's
+             to take. -->
+        <footer v-if="showLifecycle" class="lifecycle">
+          <p v-if="isClosed" class="lifecycle-note">
+            {{ t("leagueLifecycle.closedNote") }}
+          </p>
+          <ion-button
+            v-if="canLeave"
+            fill="clear"
+            size="small"
+            color="medium"
+            class="lifecycle-btn"
+            :disabled="isWorking"
+            @click="leave()"
+          >
+            {{ t("leagueLifecycle.leaveAction") }}
+          </ion-button>
+          <ion-button
+            v-if="canClose"
+            fill="clear"
+            size="small"
+            color="medium"
+            class="lifecycle-btn"
+            :disabled="isWorking"
+            @click="close()"
+          >
+            {{ t("leagueLifecycle.closeAction") }}
+          </ion-button>
+        </footer>
       </page-reveal>
     </div>
   </nav-bar>
@@ -100,10 +143,12 @@ import NavBar from "@/layout/NavBar.vue";
 import PageReveal from "@/components/PageReveal.vue";
 import LeagueFactsheet from "@/components/league/LeagueFactsheet.vue";
 import LeagueInviteCard from "@/components/league/LeagueInviteCard.vue";
+import LeagueJoinCard from "@/components/league/LeagueJoinCard.vue";
 import LeaguePodium from "@/components/league/LeaguePodium.vue";
 import LeagueStandings from "@/components/league/LeagueStandings.vue";
 import { useLeagueCalendar } from "@/composables/useLeagueCalendar";
 import { useLeagueDetail } from "@/composables/useLeagueDetail";
+import { useLeagueLifecycle } from "@/composables/useLeagueLifecycle";
 import { useMyTeam } from "@/composables/useMyTeam";
 import { useLeagueStore } from "@/stores/league";
 
@@ -127,7 +172,7 @@ const {
 
 // Scoped to the league in the route, not the selected one: this page is
 // reachable for any league, and "You" has to mark the right row.
-const { myTeamId } = useMyTeam(leagueId);
+const { myTeamId, isPending: isMyTeamPending } = useMyTeam(leagueId);
 
 /**
  * Keeps the URL and the NavBar's league switcher saying the same thing. Two
@@ -201,6 +246,21 @@ const showPodium = computed(
 
 const podiumVariant = computed<"live" | "final">(() =>
   phase.value === "ended" ? "final" : "live"
+);
+
+const { canClose, canLeave, isClosed, isWorking, close, leave } =
+  useLeagueLifecycle(leagueId, league);
+
+/**
+ * The whole footer, not each button: an ended season offers neither action —
+ * there is nothing left to close and nothing left to walk out of — but a league
+ * closed early still says so. `phase` is read here rather than inside the
+ * composable so the page has exactly one idea of when a season is over.
+ */
+const showLifecycle = computed(
+  () =>
+    isClosed.value ||
+    (phase.value !== "ended" && (canLeave.value || canClose.value))
 );
 
 async function handleRefresh(event: CustomEvent) {
@@ -286,5 +346,34 @@ async function handleRefresh(event: CustomEvent) {
   font-size: 13px;
   opacity: 0.85;
   margin: 0 0 8px;
+}
+
+/* ── Lifecycle ─────────────────────────────────── */
+/* Quieter than the invite card, which is quieter than the factsheet: this is
+   the bottom of the page and the least of what anyone came for. A hairline and
+   muted text, no card and no heading — the buttons name themselves. */
+.lifecycle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin-top: 2rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--ion-border-color);
+}
+
+.lifecycle-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--ion-color-medium);
+}
+
+.lifecycle-btn {
+  --padding-start: 0;
+  --padding-end: 0;
+  margin-inline-end: 0.75rem;
+  font-size: 0.78rem;
+  text-transform: none;
+  letter-spacing: 0;
 }
 </style>

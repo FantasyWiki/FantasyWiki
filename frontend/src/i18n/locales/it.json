@@ -479,12 +479,28 @@
     "inviteHint": "Condividilo con gli amici che vuoi in questa lega.",
     "inviteCopy": "Copia il codice d'invito"
   },
+  "leagueLifecycle": {
+    "leaveAction": "Abbandona questa lega",
+    "closeAction": "Chiudi questa lega",
+    "closedNote": "Questa lega è stata chiusa in anticipo dal suo admin.",
+    "cancel": "Annulla",
+    "leaveTitle": "Abbandonare questa lega?",
+    "leaveMessage": "La tua squadra resta in classifica con tutto ciò che ha conquistato: smetti soltanto di giocare e potrai rientrare più tardi.",
+    "leaveCta": "Abbandona",
+    "leaveDone": "Hai abbandonato questa lega.",
+    "leaveFailed": "Non è stato possibile abbandonare la lega. Riprova.",
+    "closeTitle": "Chiudere questa lega?",
+    "closeMessage": "La stagione finisce adesso, per tutti. Non viene cancellato nulla: la classifica finale, ogni squadra e ogni contratto restano consultabili. L'operazione non è reversibile.",
+    "closeCta": "Chiudi la lega",
+    "closeDone": "La lega è chiusa.",
+    "closeFailed": "Non è stato possibile chiudere la lega. Riprova."
+  },
   "leagues": {
     "title": "Le tue leghe",
     "subtitle": "Gestisci le tue leghe, entra in competizioni private o creane una tua.",
     "joinPrivate": "Entra in una lega privata",
     "createNew": "Crea una nuova lega",
-    "actionsNote": "Entrare in una lega con il codice d'invito è in arrivo.",
+    "actionsNote": "Sfoglia le leghe pubbliche, inserisci un codice d'invito o creane una tua.",
     "mineTitle": "Le leghe in cui giochi",
     "active": "Attiva",
     "private": "Privata",
@@ -493,7 +509,27 @@
     "errorTitle": "Impossibile caricare le tue leghe",
     "retry": "Riprova",
     "featuredTitle": "Leghe pubbliche in evidenza",
-    "featuredPlaceholder": "Qui compariranno le leghe aperte a cui chiunque può unirsi."
+    "featuredPlaceholder": "Qui compariranno le leghe aperte a cui chiunque può unirsi.",
+    "featuredErrorTitle": "Impossibile caricare le leghe pubbliche",
+    "endedTitle": "Leghe concluse",
+    "endedNote": "Uno storico giorno per giorno per ogni lega arriverà in un prossimo aggiornamento.",
+    "winner": "Vincitore: {name}"
+  },
+  "joinLeague": {
+    "title": "Entra in una lega",
+    "hint": "Inserisci il codice d'invito che ti ha mandato un amico. Vedrai la lega prima di decidere.",
+    "codeLabel": "Codice d'invito",
+    "codePlaceholder": "ABC12",
+    "codeHelper": "{length} tra lettere e numeri, comunque te l'abbia mandato il tuo amico.",
+    "notFound": "Nessuna lega si apre con questo codice. Controllalo e riprova.",
+    "rateLimited": "Troppi tentativi. Aspetta un minuto e riprova.",
+    "ended": "La stagione di questa lega è finita, quindi non si può più entrare.",
+    "ctaLabel": "Non giochi questa lega",
+    "ctaHint": "Dai un nome alla tua squadra e sei dentro.",
+    "ctaHintPrivate": "Questa lega è privata. Ti serve il suo codice d'invito.",
+    "ctaPublic": "Entra nella lega",
+    "ctaPrivate": "Inserisci il codice",
+    "copyLink": "Copia il link d'invito"
   },
   "createLeague": {
     "title": "Crea una lega",

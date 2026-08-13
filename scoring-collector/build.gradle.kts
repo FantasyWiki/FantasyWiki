@@ -2,10 +2,10 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 
 plugins {
-    alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.kotlin.qa)
-    alias(libs.plugins.kover)
+    alias(collectorLibs.plugins.kotlin.jvm)
+    alias(collectorLibs.plugins.kotlin.serialization)
+    alias(collectorLibs.plugins.kotlin.qa)
+    alias(collectorLibs.plugins.kover)
     application
 }
 
@@ -17,9 +17,8 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib"))
-    implementation(libs.bundles.collector.runtime)
-    testImplementation(libs.bundles.kotlin.testing)
-    testImplementation(libs.bundles.collector.testing)
+    implementation(collectorLibs.bundles.runtime)
+    testImplementation(collectorLibs.bundles.testing)
 }
 
 application {

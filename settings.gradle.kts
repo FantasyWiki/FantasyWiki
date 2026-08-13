@@ -11,6 +11,17 @@ gitHooks {
     createHooks()
 }
 
+dependencyResolutionManagement {
+    versionCatalogs {
+        // The JVM dependencies belong to scoring-collector alone, so they are
+        // catalogued apart from the shared `libs` rather than sitting next to
+        // entries every subproject can reach for.
+        create("collectorLibs") {
+            from(files("gradle/collector.versions.toml"))
+        }
+    }
+}
+
 rootProject.name = "FantasyWiki"
 
 include("frontend")

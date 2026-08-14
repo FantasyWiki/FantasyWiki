@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { CreateProblemReportRequest } from "../../../dto/problemReportDTO";
 import { GitHubAppClient } from "../services/githubClient";
 import { REPORT_ERRORS, ProblemReportService } from "../services/problemReport";
-import { playerErrorStatus, resolveCurrentPlayer } from "./helpers";
+import { AuthedVariables } from "../appEnv";
+import { currentPlayer } from "./currentPlayer";
 
 /**
  * Cloudflare's rate limiting binding. The platform only supports a 10s or 60s
@@ -17,7 +18,6 @@ interface RateLimiter {
 }
 
 type Bindings = {
-  db: D1Database;
   /**
    * GitHub App credentials. The App is what makes issues appear as
    * `FantasyWiki[bot]` instead of under a maintainer's own account, and it
@@ -33,7 +33,10 @@ type Bindings = {
   REPORT_RATE_LIMITER: RateLimiter;
 };
 
-const reports = new Hono<{ Bindings: Bindings }>();
+const reports = new Hono<{
+  Bindings: Bindings;
+  Variables: AuthedVariables;
+}>();
 
 const VALIDATION_ERRORS: string[] = [
   REPORT_ERRORS.INVALID_CATEGORY,
@@ -42,16 +45,9 @@ const VALIDATION_ERRORS: string[] = [
   REPORT_ERRORS.BODY_REQUIRED,
 ];
 
-reports.post("/", async (c) => {
-  // Identity comes from the session, never from the body (api-naming-rules).
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-  const player = playerResult.value;
+// Identity comes from the session, never from the body (api-naming-rules).
+reports.post("/", currentPlayer, async (c) => {
+  const player = c.var.player;
 
   const { success } = await c.env.REPORT_RATE_LIMITER.limit({
     key: player.id,

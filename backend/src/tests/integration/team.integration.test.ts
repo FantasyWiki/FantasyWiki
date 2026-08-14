@@ -6,6 +6,7 @@ import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
 import type { TeamRepository } from "../../repositories/teamRepository";
 import { success, failure } from "../../repositories/result";
 import { STARTING_CREDITS } from "../../../../model/team";
+import { repositories } from "../support/target";
 import type { Team } from "../../../../model";
 import {
   fakeLeagueRepository,
@@ -20,8 +21,8 @@ describe("TeamService Integration Tests", () => {
   let playerId: string;
 
   beforeEach(async () => {
-    teamService = new TeamService(env.db);
-    playerService = new PlayerService(env.db);
+    teamService = new TeamService(repositories());
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "leagueadmin",
@@ -293,12 +294,12 @@ describe("TeamService Integration Tests", () => {
         getByPlayerAndLeague: async () => failure("db error"),
       });
       const service = new TeamService({
-        teamRepository: failingRepository,
-        lineupRepository: {
+        teams: failingRepository,
+        lineups: {
           getByTeamId: async () => failure("unused"),
           upsert: async () => failure("unused"),
         },
-        leagueRepository: fakeLeagueRepository(),
+        leagues: fakeLeagueRepository(),
       });
 
       const result = await service.getMyTeam(playerId, leagueId, "Alice");
@@ -318,12 +319,12 @@ describe("TeamService Integration Tests", () => {
         getByPlayerAndLeague: async () => success(team),
       });
       const service = new TeamService({
-        teamRepository: repository,
-        lineupRepository: {
+        teams: repository,
+        lineups: {
           getByTeamId: async () => failure("unused"),
           upsert: async () => failure("unused"),
         },
-        leagueRepository: fakeLeagueRepository(),
+        leagues: fakeLeagueRepository(),
       });
 
       const result = await service.getMyTeam(playerId, leagueId, "Bob");

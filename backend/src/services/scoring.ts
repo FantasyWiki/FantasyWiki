@@ -2,8 +2,6 @@ import { Temporal } from "@js-temporal/polyfill";
 import { CHEMISTRY_LINKS, ChemistryLevel } from "../../../model/enums";
 import { normalizeLanguageScale } from "../../../model/languageScale";
 import { teamDailyScore } from "../../../model/scoring";
-import { ScoringRepositoryD1 } from "../repositories/d1/scoringRepositoryD1";
-import { PerformanceRepositoryD1 } from "../repositories/d1/performanceRepositoryD1";
 import type { ScoringRepository } from "../repositories/scoringRepository";
 import type {
   PerformanceRepository,
@@ -22,17 +20,15 @@ import type {
  * directly (ADR 0004 "single money-writer" boundary).
  */
 export class ScoringService {
-  constructor(
-    private scoringRepository: ScoringRepository,
-    private performanceRepository: PerformanceRepository,
-  ) {}
+  private scoringRepository: ScoringRepository;
+  private performanceRepository: PerformanceRepository;
 
-  /** Build a D1-backed instance — the production/route construction path. */
-  static fromDb(db: D1Database): ScoringService {
-    return new ScoringService(
-      new ScoringRepositoryD1(db),
-      new PerformanceRepositoryD1(db),
-    );
+  constructor(deps: {
+    scoring: ScoringRepository;
+    performances: PerformanceRepository;
+  }) {
+    this.scoringRepository = deps.scoring;
+    this.performanceRepository = deps.performances;
   }
 
   /**

@@ -9,6 +9,7 @@ import {
 import { NotificationService } from "../../services/notification";
 import { LineupService, RawTeamLineUp } from "../../services/lineup";
 import { PlayerService } from "../../services/player";
+import { TeamService } from "../../services/team";
 import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
 import { ContractRepositoryD1 } from "../../repositories/d1/contractRepositoryD1";
 import {
@@ -26,6 +27,8 @@ import {
   normalizedViews,
 } from "../../../../model/pricing";
 import { REFERENCE_SCALE } from "../../../../model/languageScale";
+import { createWikimediaClient } from "../../services/wikimediaClient";
+import { repositories } from "../support/target";
 import { insertTeam } from "../utils/d1TestUtils";
 
 /**
@@ -79,8 +82,11 @@ describe("ContractService.getLeagueContracts Integration Tests", () => {
   let teamId: string;
 
   beforeEach(async () => {
-    contractService = new ContractService(env.db);
-    playerService = new PlayerService(env.db);
+    contractService = new ContractService({
+      ...repositories(),
+      wikimedia: createWikimediaClient(),
+    });
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "contracttester",
@@ -265,7 +271,7 @@ describe("ContractService.buyContract Integration Tests", () => {
   }
 
   beforeEach(async () => {
-    playerService = new PlayerService(env.db);
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "buyertester",
@@ -303,14 +309,10 @@ describe("ContractService.buyContract Integration Tests", () => {
   });
 
   it("creates a contract and debits the exact ADR 0005 price from the team's credits", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -344,14 +346,10 @@ describe("ContractService.buyContract Integration Tests", () => {
   });
 
   it("reflects the debited credits on a subsequent read of the team's contracts", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const buyResult = await service.buyContract(
       playerId,
@@ -366,7 +364,10 @@ describe("ContractService.buyContract Integration Tests", () => {
 
     // Re-query the system through a fresh call rather than trusting the buy
     // result: the remaining credits must have been persisted.
-    const readService = new ContractService(env.db);
+    const readService = new ContractService({
+      ...repositories(),
+      wikimedia: createWikimediaClient(),
+    });
     const contractsResult = await readService.getMyContracts(
       playerId,
       leagueId,
@@ -381,14 +382,10 @@ describe("ContractService.buyContract Integration Tests", () => {
   });
 
   it("fails with 'No team found for this league' when the player has no team there", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -404,14 +401,10 @@ describe("ContractService.buyContract Integration Tests", () => {
   });
 
   it("rejects an invalid tier", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -453,14 +446,10 @@ describe("ContractService.buyContract Integration Tests", () => {
       )
       .run();
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -490,14 +479,10 @@ describe("ContractService.buyContract Integration Tests", () => {
       )
       .run();
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -529,14 +514,10 @@ describe("ContractService.buyContract Integration Tests", () => {
         .run();
     }
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -568,14 +549,10 @@ describe("ContractService.buyContract Integration Tests", () => {
       )
       .run();
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -597,13 +574,9 @@ describe("ContractService.buyContract Integration Tests", () => {
   });
 
   it("rejects the buy when the views fetch omits averageViews30d", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaClientWithArticleViews(async () => ({
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaClientWithArticleViews(async () => ({
         latestDayViews: undefined,
         averageViews30d: undefined,
         weekViews: undefined,
@@ -611,7 +584,7 @@ describe("ContractService.buyContract Integration Tests", () => {
         monthViews: undefined,
         yearViews: undefined,
       })),
-    );
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -628,16 +601,12 @@ describe("ContractService.buyContract Integration Tests", () => {
   });
 
   it("rejects the buy with the thrown error's message when the views fetch fails", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaClientWithArticleViews(async () => {
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaClientWithArticleViews(async () => {
         throw new Error("Wikimedia API unavailable");
       }),
-    );
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -650,16 +619,12 @@ describe("ContractService.buyContract Integration Tests", () => {
   });
 
   it("falls back to a generic message when the views fetch rejects with a non-Error", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaClientWithArticleViews(async () => {
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaClientWithArticleViews(async () => {
         throw "network blip";
       }),
-    );
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -682,7 +647,7 @@ describe("ContractService.getMyContracts Integration Tests", () => {
   let teamId: string;
 
   beforeEach(async () => {
-    playerService = new PlayerService(env.db);
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "mycontractstester",
@@ -734,7 +699,10 @@ describe("ContractService.getMyContracts Integration Tests", () => {
       )
       .run();
 
-    const service = new ContractService(env.db);
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: createWikimediaClient(),
+    });
     const result = await service.getMyContracts(playerId, leagueId);
 
     expect(result.ok).toBe(true);
@@ -769,7 +737,10 @@ describe("ContractService.getMyContracts Integration Tests", () => {
       )
       .run();
 
-    const service = new ContractService(env.db);
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: createWikimediaClient(),
+    });
     const result = await service.getMyContracts(playerId, leagueId);
 
     expect(result.ok).toBe(true);
@@ -779,7 +750,10 @@ describe("ContractService.getMyContracts Integration Tests", () => {
   });
 
   it("fails with 'No team found for this league' when the player has no team there", async () => {
-    const service = new ContractService(env.db);
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: createWikimediaClient(),
+    });
     const result = await service.getMyContracts(playerId, "nonexistent-league");
 
     expect(result).toEqual({
@@ -849,7 +823,7 @@ describe("ContractService.sellContract Integration Tests", () => {
   }
 
   beforeEach(async () => {
-    playerService = new PlayerService(env.db);
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "sellertester",
@@ -894,14 +868,10 @@ describe("ContractService.sellContract Integration Tests", () => {
       remainingDays: 4,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const result = await service.sellContract(
       playerId,
@@ -939,14 +909,10 @@ describe("ContractService.sellContract Integration Tests", () => {
       remainingDays: TIER_DAYS.LONG,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(120000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(120000),
+    });
 
     const result = await service.sellContract(
       playerId,
@@ -969,14 +935,10 @@ describe("ContractService.sellContract Integration Tests", () => {
       remainingDays: -1,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(120000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(120000),
+    });
 
     const result = await service.sellContract(
       playerId,
@@ -1000,14 +962,10 @@ describe("ContractService.sellContract Integration Tests", () => {
       articleId: "Cristiano_Ronaldo",
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const sellResult = await service.sellContract(
       playerId,
@@ -1021,7 +979,7 @@ describe("ContractService.sellContract Integration Tests", () => {
 
     // The notification is retrievable through the inbox and its contractId FK
     // still resolves (the contract row was retained, not deleted).
-    const notificationService = new NotificationService(env.db);
+    const notificationService = new NotificationService(repositories());
     const notifications = await notificationService.getMyNotifications(
       playerId,
       leagueId,
@@ -1045,7 +1003,10 @@ describe("ContractService.sellContract Integration Tests", () => {
       articleId: "Bitcoin",
     });
 
-    const lineupService = LineupService.fromDb(env.db);
+    const lineupService = new LineupService({
+      ...repositories(),
+      teamService: new TeamService(repositories()),
+    });
     const payload: RawTeamLineUp = {
       formation: {
         date: new Date().toISOString(),
@@ -1075,14 +1036,10 @@ describe("ContractService.sellContract Integration Tests", () => {
     );
     expect(saveResult.ok).toBe(true);
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
     const sellResult = await service.sellContract(
       playerId,
       leagueId,
@@ -1125,14 +1082,10 @@ describe("ContractService.sellContract Integration Tests", () => {
       ownerTeamId: otherTeamId,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
     const result = await service.sellContract(
       playerId,
       leagueId,
@@ -1158,14 +1111,10 @@ describe("ContractService.sellContract Integration Tests", () => {
   });
 
   it("fails with 'Contract not found' for an unknown contract id", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
     const result = await service.sellContract(playerId, leagueId, "nope");
     expect(result).toEqual({ ok: false, error: "Contract not found" });
   });
@@ -1181,14 +1130,10 @@ describe("ContractService.sellContract Integration Tests", () => {
       .bind("contract-sell-twice")
       .run();
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
     const result = await service.sellContract(
       playerId,
       leagueId,
@@ -1208,13 +1153,9 @@ describe("ContractService.sellContract Integration Tests", () => {
       remainingDays: 4,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaClientWithArticleViews(async () => ({
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaClientWithArticleViews(async () => ({
         latestDayViews: undefined,
         averageViews30d: undefined,
         weekViews: undefined,
@@ -1222,7 +1163,7 @@ describe("ContractService.sellContract Integration Tests", () => {
         monthViews: undefined,
         yearViews: undefined,
       })),
-    );
+    });
 
     const result = await service.sellContract(
       playerId,
@@ -1248,16 +1189,12 @@ describe("ContractService.sellContract Integration Tests", () => {
       remainingDays: 4,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaClientWithArticleViews(async () => {
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaClientWithArticleViews(async () => {
         throw new Error("Wikimedia API unavailable");
       }),
-    );
+    });
 
     const result = await service.sellContract(
       playerId,
@@ -1275,16 +1212,12 @@ describe("ContractService.sellContract Integration Tests", () => {
       remainingDays: 4,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaClientWithArticleViews(async () => {
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaClientWithArticleViews(async () => {
         throw "network blip";
       }),
-    );
+    });
 
     const result = await service.sellContract(
       playerId,
@@ -1327,7 +1260,7 @@ describe("ContractRepositoryD1.create guarded INSERT", () => {
 
   beforeEach(async () => {
     repo = new ContractRepositoryD1(env.db);
-    playerService = new PlayerService(env.db);
+    playerService = new PlayerService(repositories());
 
     const buyer = await playerService.createPlayer(
       "guardbuyer",
@@ -1504,7 +1437,7 @@ describe("ContractService.buyContract conflict classification", () => {
       settleSale: unimplemented,
     } as unknown as ContractRepository;
 
-    const playerService = new PlayerService(env.db);
+    const playerService = new PlayerService(repositories());
     const playerResult = await playerService.createPlayer(
       "racebuyer",
       "racebuyer@example.com",
@@ -1536,13 +1469,10 @@ describe("ContractService.buyContract conflict classification", () => {
       leagueId,
     });
 
-    const service = new ContractService(
-      env.db,
-      contractRepo,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaClientWithArticleViews(async () => ({
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: wikimediaClientWithArticleViews(async () => ({
         latestDayViews: undefined,
         averageViews30d: 9000,
         weekViews: undefined,
@@ -1550,7 +1480,7 @@ describe("ContractService.buyContract conflict classification", () => {
         monthViews: undefined,
         yearViews: undefined,
       })),
-    );
+    });
 
     const result = await service.buyContract(
       playerResult.value.id,
@@ -1590,7 +1520,7 @@ describe("ContractService.buyContract conflict classification", () => {
       settleSale: unimplemented,
     } as unknown as ContractRepository;
 
-    const playerService = new PlayerService(env.db);
+    const playerService = new PlayerService(repositories());
     const playerResult = await playerService.createPlayer(
       "classifybuyer",
       "classifybuyer@example.com",
@@ -1622,13 +1552,10 @@ describe("ContractService.buyContract conflict classification", () => {
       leagueId,
     });
 
-    const service = new ContractService(
-      env.db,
-      contractRepo,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaClientWithArticleViews(async () => ({
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: wikimediaClientWithArticleViews(async () => ({
         latestDayViews: undefined,
         averageViews30d: 9000,
         weekViews: undefined,
@@ -1636,7 +1563,7 @@ describe("ContractService.buyContract conflict classification", () => {
         monthViews: undefined,
         yearViews: undefined,
       })),
-    );
+    });
 
     const result = await service.buyContract(
       playerResult.value.id,
@@ -1699,9 +1626,12 @@ describe("ContractService.cancelRenewal Integration Tests", () => {
   }
 
   beforeEach(async () => {
-    service = new ContractService(env.db);
+    service = new ContractService({
+      ...repositories(),
+      wikimedia: createWikimediaClient(),
+    });
 
-    const playerResult = await new PlayerService(env.db).createPlayer(
+    const playerResult = await new PlayerService(repositories()).createPlayer(
       "canceltester",
       "canceltester@example.com",
       "account-cancel-1",

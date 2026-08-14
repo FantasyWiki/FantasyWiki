@@ -13,10 +13,10 @@ import {
   LanguageScaleCalibrationService,
 } from "../../services/languageScaleCalibration";
 import { LEAGUE_CREATION_ERRORS, LeagueService } from "../../services/league";
-import { LeagueRepositoryD1 } from "../../repositories/d1/leagueRepositoryD1";
 import { PlayerService } from "../../services/player";
 import type { WikimediaClient } from "../../../../external-apis/wikimedia/client";
 import type { CreateLeagueRequest } from "../../../../dto/leagueDTO";
+import { repositories } from "../support/target";
 
 /**
  * A Wikimedia client that answers from a per-edition view profile instead of the
@@ -91,7 +91,10 @@ const TINY = { top: 900, ranks: 700, decay: 0.97 };
 function service(profiles: Parameters<typeof fakeWikimedia>[0]) {
   const { client, requests } = fakeWikimedia(profiles);
   return {
-    calibration: new LanguageScaleCalibrationService(env.db, client),
+    calibration: new LanguageScaleCalibrationService({
+      ...repositories(),
+      wikimedia: client,
+    }),
     requests,
   };
 }
@@ -211,7 +214,7 @@ describe("LanguageScaleCalibrationService.resolve", () => {
 
 describe("founding a league on an edition", () => {
   async function makePlayer(name: string) {
-    const result = await new PlayerService(env.db).createPlayer(
+    const result = await new PlayerService(repositories()).createPlayer(
       name,
       `${name}@example.com`,
       `acct-${name}`,
@@ -239,10 +242,13 @@ describe("founding a league on an edition", () => {
 
   beforeEach(() => {
     const { client } = fakeWikimedia({ en: BIG, de: TENTH, la: TINY });
-    leagues = new LeagueService(
-      env.db,
-      new LanguageScaleCalibrationService(env.db, client),
-    );
+    leagues = new LeagueService({
+      ...repositories(),
+      calibration: new LanguageScaleCalibrationService({
+        ...repositories(),
+        wikimedia: client,
+      }),
+    });
   });
 
   it("calibrates a never-played edition before the league exists", async () => {
@@ -310,9 +316,9 @@ describe("founding a league on an edition", () => {
     // A service handed only a repository has no calibrator. Refusing is the
     // point: the alternative is defaulting the factor to 1.0, which is precisely
     // the silent mis-pricing this whole path exists to prevent. Unreachable from
-    // the route layer, which always constructs from `c.env.db`.
+    // the route layer, which always constructs the calibrator alongside it.
     const player = await makePlayer("unwired");
-    const bare = new LeagueService(new LeagueRepositoryD1(env.db));
+    const bare = new LeagueService({ leagues: repositories().leagues });
 
     const result = await bare.createLeague(player.id, request());
 

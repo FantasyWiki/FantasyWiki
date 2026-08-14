@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { JWTPayload } from "hono/utils/jwt/types";
 import type { LeaveLeagueResultDTO } from "../../../dto/leagueDTO";
 import {
   LeagueService,
@@ -9,7 +8,10 @@ import {
   type LeagueCreationError,
   type LeagueClosureError,
 } from "../services/league";
-import { CALIBRATION_ERRORS } from "../services/languageScaleCalibration";
+import {
+  CALIBRATION_ERRORS,
+  LanguageScaleCalibrationService,
+} from "../services/languageScaleCalibration";
 import { LeaderboardService } from "../services/leaderboard";
 import { PerformanceService } from "../services/performance";
 import { TeamService } from "../services/team";
@@ -30,7 +32,8 @@ import { LEAGUE_ERRORS } from "../repositories/leagueRepository";
 import { PLAYER_ERRORS } from "../repositories/playerRepository";
 import { TEAM_ERRORS, type TeamError } from "../repositories/teamRepository";
 import { TeamDTO } from "../../../dto/teamDTO";
-import { playerErrorStatus, resolveCurrentPlayer } from "./helpers";
+import { AuthedVariables } from "../appEnv";
+import { currentPlayer } from "./currentPlayer";
 
 /**
  * Cloudflare's rate limiting binding, declared structurally rather than pulled
@@ -43,7 +46,6 @@ interface RateLimiter {
 }
 
 type Bindings = {
-  db: D1Database;
   /**
    * Guards the two paths that accept an invitation code. ADR 0008 accepted a
    * 24.5-bit code as guessable-in-principle and named rate limiting as the
@@ -67,7 +69,10 @@ type Bindings = {
  */
 export const JOIN_RATE_LIMITED = "JOIN_RATE_LIMITED";
 
-const leagues = new Hono<{ Bindings: Bindings }>();
+const leagues = new Hono<{
+  Bindings: Bindings;
+  Variables: AuthedVariables;
+}>();
 
 /**
  * The status every contract business failure maps to, per
@@ -188,25 +193,14 @@ export function contractErrorStatus(error: string): 404 | 400 | 500 {
   return NOT_FOUND_ERRORS.includes(error) ? 404 : 500;
 }
 
-leagues.get("/", async (c) => {
-  const payload = c.get("jwtPayload") as JWTPayload;
-  const playerService = new PlayerService(c.env.db);
-  const playerResult = await playerService.getPlayerByGoogleAccountId(
-    payload.sub as string,
-  );
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-  const leaguesResult = await playerService.getLeaguesByPlayerId(
-    playerResult.value.id,
-  );
+leagues.get("/", currentPlayer, async (c) => {
+  const leaguesResult = await new PlayerService(
+    c.var.repositories,
+  ).getLeaguesByPlayerId(c.var.player.id);
   if (!leaguesResult.ok) {
     return c.json({ error: leaguesResult.error }, 500);
   }
-  const leagueService = new LeagueService(c.env.db);
+  const leagueService = new LeagueService(c.var.repositories);
   const dtos = await leagueService.toLeagueDTOs(leaguesResult.value);
   if (!dtos.ok) {
     return c.json({ error: dtos.error }, 500);
@@ -223,15 +217,7 @@ leagues.get("/", async (c) => {
  * it: a private league's founder reads theirs from `/:id/invite-code`, which
  * they now pass by being a member.
  */
-leagues.post("/", async (c) => {
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
+leagues.post("/", currentPlayer, async (c) => {
   const body: unknown = await c.req.json().catch(() => null);
   const payloadResult = parseCreateLeaguePayload(body);
   if (!payloadResult.ok) {
@@ -244,9 +230,18 @@ leagues.post("/", async (c) => {
     );
   }
 
-  const leagueService = new LeagueService(c.env.db);
+  // The only path that needs a calibrator: founding is where an edition's factor
+  // is measured and frozen (ADR 0002), and a service without one refuses rather
+  // than default the factor to the `en` reference.
+  const leagueService = new LeagueService({
+    ...c.var.repositories,
+    calibration: new LanguageScaleCalibrationService({
+      ...c.var.repositories,
+      wikimedia: c.var.wikimedia,
+    }),
+  });
   const result = await leagueService.createLeague(
-    playerResult.value.id,
+    c.var.player.id,
     payloadResult.value,
   );
   if (!result.ok) {
@@ -259,7 +254,7 @@ leagues.post("/", async (c) => {
 });
 
 leagues.get("/global", async (c) => {
-  const leagueService = new LeagueService(c.env.db);
+  const leagueService = new LeagueService(c.var.repositories);
   const result = await leagueService.getGlobalLeague();
   if (!result.ok) {
     return c.json({ error: result.error }, 404);
@@ -275,7 +270,7 @@ leagues.get("/global", async (c) => {
  * where the list of those already lives.
  */
 leagues.get("/public", async (c) => {
-  const leagueService = new LeagueService(c.env.db);
+  const leagueService = new LeagueService(c.var.repositories);
   const result = await leagueService.getPublicLeagues();
   if (!result.ok) {
     return c.json({ error: result.error }, 500);
@@ -301,25 +296,17 @@ leagues.get("/public", async (c) => {
  * A caller who has run out of attempts is told so (429). That is not a leak:
  * they learn about their own quota, never about the code they sent.
  */
-leagues.get("/by-code/:code", async (c) => {
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
+leagues.get("/by-code/:code", currentPlayer, async (c) => {
   // Keyed on the player, not the IP: every caller here is authenticated, and an
   // account is the more expensive thing to mint.
   const { success } = await c.env.JOIN_RATE_LIMITER.limit({
-    key: playerResult.value.id,
+    key: c.var.player.id,
   });
   if (!success) {
     return c.json({ error: JOIN_RATE_LIMITED }, 429);
   }
 
-  const leagueService = new LeagueService(c.env.db);
+  const leagueService = new LeagueService(c.var.repositories);
   const result = await leagueService.getLeagueByInvitationCode(
     c.req.param("code"),
   );
@@ -338,7 +325,7 @@ leagues.get("/by-code/:code", async (c) => {
 // matches in registration order, so a literal path has to be declared first or
 // it would be swallowed by `:id`.
 leagues.get("/:id", async (c) => {
-  const leagueService = new LeagueService(c.env.db);
+  const leagueService = new LeagueService(c.var.repositories);
   const result = await leagueService.getLeagueById(c.req.param("id"));
   if (!result.ok) {
     return c.json(
@@ -351,7 +338,7 @@ leagues.get("/:id", async (c) => {
 
 leagues.get("/:id/leaderboard", async (c) => {
   const leagueId = c.req.param("id");
-  const leaderboardService = new LeaderboardService(c.env.db);
+  const leaderboardService = new LeaderboardService(c.var.repositories);
   const result = await leaderboardService.getLeaderboard(leagueId);
   if (!result.ok) {
     return c.json({ error: result.error }, 500);
@@ -359,21 +346,13 @@ leagues.get("/:id/leaderboard", async (c) => {
   return c.json(result.value);
 });
 
-leagues.get("/:id/my-team", async (c) => {
+leagues.get("/:id/my-team", currentPlayer, async (c) => {
   const leagueId = c.req.param("id");
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
-  const teamService = new TeamService(c.env.db);
+  const teamService = new TeamService(c.var.repositories);
   const teamResult = await teamService.getMyTeam(
-    playerResult.value.id,
+    c.var.player.id,
     leagueId,
-    playerResult.value.username,
+    c.var.player.username,
   );
   if (!teamResult.ok) {
     return c.json({ error: teamResult.error }, 500);
@@ -389,29 +368,21 @@ leagues.get("/:id/my-team", async (c) => {
  * out. Not `my-`: the code is the league's datum, not the caller's — the
  * caller only decides whether they may see it.
  */
-leagues.get("/:id/invite-code", async (c) => {
+leagues.get("/:id/invite-code", currentPlayer, async (c) => {
   const leagueId = c.req.param("id");
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
-  const teamService = new TeamService(c.env.db);
+  const teamService = new TeamService(c.var.repositories);
   const teamResult = await teamService.getMyTeam(
-    playerResult.value.id,
+    c.var.player.id,
     leagueId,
-    playerResult.value.username,
+    c.var.player.username,
   );
   if (!teamResult.ok) {
     return c.json({ error: teamResult.error }, 500);
   }
 
-  const leagueService = new LeagueService(c.env.db);
+  const leagueService = new LeagueService(c.var.repositories);
   const result = await leagueService.getInvitationCode(
-    playerResult.value.id,
+    c.var.player.id,
     leagueId,
     teamResult.value !== null,
   );
@@ -431,19 +402,12 @@ leagues.get("/:id/my-performances", async (c) => {
   const leagueId = c.req.param("id");
   const rawLimit = parseInt(c.req.query("limit") ?? "2", 10);
   const limit = Math.max(1, Number.isNaN(rawLimit) ? 2 : rawLimit);
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
 
-  const teamService = new TeamService(c.env.db);
+  const teamService = new TeamService(c.var.repositories);
   const teamResult = await teamService.getMyTeam(
-    playerResult.value.id,
+    c.var.player.id,
     leagueId,
-    playerResult.value.username,
+    c.var.player.username,
   );
   if (!teamResult.ok) {
     return c.json({ error: teamResult.error }, 500);
@@ -452,7 +416,7 @@ leagues.get("/:id/my-performances", async (c) => {
     return c.json({ error: TEAM_ERRORS.NO_TEAM_IN_LEAGUE }, 404);
   }
 
-  const performanceService = PerformanceService.fromDb(c.env.db);
+  const performanceService = new PerformanceService(c.var.repositories);
   const perfResult = await performanceService.getRecentForTeam(
     teamResult.value.id,
     limit,
@@ -463,16 +427,8 @@ leagues.get("/:id/my-performances", async (c) => {
   return c.json(perfResult.value);
 });
 
-leagues.post("/:id/my-team", async (c) => {
+leagues.post("/:id/my-team", currentPlayer, async (c) => {
   const leagueId = c.req.param("id");
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
   const body = await c.req
     .json<{ name?: string; invitationCode?: string }>()
     .catch(() => ({ name: undefined, invitationCode: undefined }));
@@ -492,16 +448,16 @@ leagues.post("/:id/my-team", async (c) => {
   // alternating between the two buys no extra attempts.
   if (presentedCode !== undefined) {
     const { success } = await c.env.JOIN_RATE_LIMITER.limit({
-      key: playerResult.value.id,
+      key: c.var.player.id,
     });
     if (!success) {
       return c.json({ error: JOIN_RATE_LIMITED }, 429);
     }
   }
 
-  const teamService = new TeamService(c.env.db);
+  const teamService = new TeamService(c.var.repositories);
   const teamResult = await teamService.createTeam(
-    playerResult.value.id,
+    c.var.player.id,
     leagueId,
     body.name,
     // Only consulted for a private league; a public one ignores it.
@@ -520,8 +476,8 @@ leagues.post("/:id/my-team", async (c) => {
     name: team.name,
     credits: team.credits,
     player: {
-      id: playerResult.value.id,
-      name: playerResult.value.username,
+      id: c.var.player.id,
+      name: c.var.player.username,
     },
   };
   return c.json(teamDTO, 201);
@@ -529,7 +485,10 @@ leagues.post("/:id/my-team", async (c) => {
 
 leagues.get("/:id/market", async (c) => {
   const leagueId = c.req.param("id");
-  const service = new ArticleMarketService(c.env.db);
+  const service = new ArticleMarketService({
+    ...c.var.repositories,
+    wikimedia: c.var.wikimedia,
+  });
   const result = await service.getMarket(leagueId);
   if (!result.ok) {
     return c.json({ error: result.error }, 404);
@@ -537,34 +496,21 @@ leagues.get("/:id/market", async (c) => {
   return c.json(result.value);
 });
 
-leagues.get("/:id/my-contracts", async (c) => {
+leagues.get("/:id/my-contracts", currentPlayer, async (c) => {
   const leagueId = c.req.param("id");
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
-  const service = new ContractService(c.env.db);
-  const result = await service.getMyContracts(playerResult.value.id, leagueId);
+  const service = new ContractService({
+    ...c.var.repositories,
+    wikimedia: c.var.wikimedia,
+  });
+  const result = await service.getMyContracts(c.var.player.id, leagueId);
   if (!result.ok) {
     return c.json({ error: result.error }, contractErrorStatus(result.error));
   }
   return c.json(result.value);
 });
 
-leagues.post("/:id/my-contracts", async (c) => {
+leagues.post("/:id/my-contracts", currentPlayer, async (c) => {
   const leagueId = c.req.param("id");
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
   const body = await c.req
     .json<{ articleId?: string; tier?: string }>()
     .catch(() => ({ articleId: undefined, tier: undefined }));
@@ -575,9 +521,12 @@ leagues.post("/:id/my-contracts", async (c) => {
     return c.json({ error: "tier is required" }, 400);
   }
 
-  const service = new ContractService(c.env.db);
+  const service = new ContractService({
+    ...c.var.repositories,
+    wikimedia: c.var.wikimedia,
+  });
   const result = await service.buyContract(
-    playerResult.value.id,
+    c.var.player.id,
     leagueId,
     body.articleId,
     body.tier,
@@ -588,20 +537,15 @@ leagues.post("/:id/my-contracts", async (c) => {
   return c.json(result.value, 201);
 });
 
-leagues.post("/:id/my-contracts/:contractId/sell", async (c) => {
+leagues.post("/:id/my-contracts/:contractId/sell", currentPlayer, async (c) => {
   const leagueId = c.req.param("id");
   const contractId = c.req.param("contractId");
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
-  const service = new ContractService(c.env.db);
+  const service = new ContractService({
+    ...c.var.repositories,
+    wikimedia: c.var.wikimedia,
+  });
   const result = await service.sellContract(
-    playerResult.value.id,
+    c.var.player.id,
     leagueId,
     contractId,
   );
@@ -611,20 +555,15 @@ leagues.post("/:id/my-contracts/:contractId/sell", async (c) => {
   return c.json(result.value);
 });
 
-leagues.post("/:id/my-contracts/:contractId/renew", async (c) => {
+leagues.post("/:id/my-contracts/:contractId/renew", currentPlayer, async (c) => {
   const leagueId = c.req.param("id");
   const contractId = c.req.param("contractId");
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
-  const service = new ContractService(c.env.db);
+  const service = new ContractService({
+    ...c.var.repositories,
+    wikimedia: c.var.wikimedia,
+  });
   const result = await service.electRenewal(
-    playerResult.value.id,
+    c.var.player.id,
     leagueId,
     contractId,
   );
@@ -636,32 +575,34 @@ leagues.post("/:id/my-contracts/:contractId/renew", async (c) => {
 
 // The election is the resource being removed, so DELETE on the same path — the
 // intent can be withdrawn any time before the settlement sweep acts on it.
-leagues.delete("/:id/my-contracts/:contractId/renew", async (c) => {
-  const leagueId = c.req.param("id");
-  const contractId = c.req.param("contractId");
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
+leagues.delete(
+  "/:id/my-contracts/:contractId/renew",
+  currentPlayer,
+  async (c) => {
+    const leagueId = c.req.param("id");
+    const contractId = c.req.param("contractId");
+    const service = new ContractService({
+      ...c.var.repositories,
+      wikimedia: c.var.wikimedia,
+    });
+    const result = await service.cancelRenewal(
+      c.var.player.id,
+      leagueId,
+      contractId,
     );
-  }
-
-  const service = new ContractService(c.env.db);
-  const result = await service.cancelRenewal(
-    playerResult.value.id,
-    leagueId,
-    contractId,
-  );
-  if (!result.ok) {
-    return c.json({ error: result.error }, contractErrorStatus(result.error));
-  }
-  return c.json(result.value);
-});
+    if (!result.ok) {
+      return c.json({ error: result.error }, contractErrorStatus(result.error));
+    }
+    return c.json(result.value);
+  },
+);
 
 leagues.get("/:id/contracts", async (c) => {
   const leagueId = c.req.param("id");
-  const service = new ContractService(c.env.db);
+  const service = new ContractService({
+    ...c.var.repositories,
+    wikimedia: c.var.wikimedia,
+  });
   const result = await service.getLeagueContracts(leagueId);
   if (!result.ok) {
     return c.json({ error: result.error }, 404);
@@ -669,18 +610,13 @@ leagues.get("/:id/contracts", async (c) => {
   return c.json(result.value);
 });
 
-leagues.get("/:id/lineup", async (c) => {
+leagues.get("/:id/lineup", currentPlayer, async (c) => {
   const leagueId = c.req.param("id");
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
-  const lineupService = LineupService.fromDb(c.env.db);
-  const result = await lineupService.getLineup(playerResult.value.id, leagueId);
+  const lineupService = new LineupService({
+    ...c.var.repositories,
+    teamService: new TeamService(c.var.repositories),
+  });
+  const result = await lineupService.getLineup(c.var.player.id, leagueId);
   if (!result.ok) {
     return c.json(
       { error: result.error },
@@ -700,7 +636,10 @@ leagues.get("/:id/teams/:teamId/lineup", async (c) => {
   const leagueId = c.req.param("id");
   const teamId = c.req.param("teamId");
 
-  const lineupService = LineupService.fromDb(c.env.db);
+  const lineupService = new LineupService({
+    ...c.var.repositories,
+    teamService: new TeamService(c.var.repositories),
+  });
   const result = await lineupService.getRivalLineup(leagueId, teamId);
   if (!result.ok) {
     return c.json(
@@ -713,23 +652,18 @@ leagues.get("/:id/teams/:teamId/lineup", async (c) => {
 
 leagues.put("/:id/lineup", async (c) => {
   const leagueId = c.req.param("id");
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
   const body: unknown = await c.req.json().catch(() => null);
   const payloadResult = parseLineupPayload(body);
   if (!payloadResult.ok) {
     return c.json({ error: payloadResult.error }, 400);
   }
 
-  const lineupService = LineupService.fromDb(c.env.db);
+  const lineupService = new LineupService({
+    ...c.var.repositories,
+    teamService: new TeamService(c.var.repositories),
+  });
   const result = await lineupService.saveLineup(
-    playerResult.value.id,
+    c.var.player.id,
     leagueId,
     payloadResult.value,
   );
@@ -739,19 +673,11 @@ leagues.put("/:id/lineup", async (c) => {
   return c.json({ success: true });
 });
 
-leagues.get("/:id/my-notifications", async (c) => {
+leagues.get("/:id/my-notifications", currentPlayer, async (c) => {
   const leagueId = c.req.param("id");
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
-  const notificationService = new NotificationService(c.env.db);
+  const notificationService = new NotificationService(c.var.repositories);
   const result = await notificationService.getMyNotifications(
-    playerResult.value.id,
+    c.var.player.id,
     leagueId,
   );
   if (!result.ok) {
@@ -796,29 +722,21 @@ export function leagueClosureErrorStatus(error: string): 404 | 403 | 409 | 500 {
  * It exists so the page can offer the right two actions, not to authorize
  * either: both are settled again inside their own write.
  */
-leagues.get("/:id/my-role", async (c) => {
+leagues.get("/:id/my-role", currentPlayer, async (c) => {
   const leagueId = c.req.param("id");
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
-  const teamService = new TeamService(c.env.db);
+  const teamService = new TeamService(c.var.repositories);
   const teamResult = await teamService.getMyTeam(
-    playerResult.value.id,
+    c.var.player.id,
     leagueId,
-    playerResult.value.username,
+    c.var.player.username,
   );
   if (!teamResult.ok) {
     return c.json({ error: teamResult.error }, 500);
   }
 
-  const leagueService = new LeagueService(c.env.db);
+  const leagueService = new LeagueService(c.var.repositories);
   const result = await leagueService.getMyRole(
-    playerResult.value.id,
+    c.var.player.id,
     leagueId,
     teamResult.value !== null,
   );
@@ -841,19 +759,11 @@ leagues.get("/:id/my-role", async (c) => {
  * deletes a league, and there should not be one
  * (docs/domain/league-lifecycle.md).
  */
-leagues.post("/:id/closure", async (c) => {
+leagues.post("/:id/closure", currentPlayer, async (c) => {
   const leagueId = c.req.param("id");
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
-  const leagueService = new LeagueService(c.env.db);
+  const leagueService = new LeagueService(c.var.repositories);
   const result = await leagueService.closeLeague(
-    playerResult.value.id,
+    c.var.player.id,
     leagueId,
   );
   if (!result.ok) {
@@ -871,18 +781,10 @@ leagues.post("/:id/closure", async (c) => {
  * and a departure rather than a deletion because the team stays: it keeps its
  * contracts and its place in the final table.
  */
-leagues.post("/:id/my-departure", async (c) => {
+leagues.post("/:id/my-departure", currentPlayer, async (c) => {
   const leagueId = c.req.param("id");
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
-  const teamService = new TeamService(c.env.db);
-  const result = await teamService.leaveLeague(playerResult.value.id, leagueId);
+  const teamService = new TeamService(c.var.repositories);
+  const result = await teamService.leaveLeague(c.var.player.id, leagueId);
   if (!result.ok) {
     return c.json({ error: result.error }, teamErrorStatus(result.error));
   }

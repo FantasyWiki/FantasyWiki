@@ -14,11 +14,12 @@ import { PlayerService } from "../../services/player";
 import { TeamService } from "../../services/team";
 import { LeaderboardService } from "../../services/leaderboard";
 import { insertContract, insertLeague, insertTeam } from "../utils/d1TestUtils";
+import { repositories } from "../support/target";
 
 const PAST = "2020-01-01T00:00:00Z";
 
 async function makePlayer(name: string) {
-  const result = await new PlayerService(env.db).createPlayer(
+  const result = await new PlayerService(repositories()).createPlayer(
     name,
     `${name}@example.com`,
     `acct-${name}`,
@@ -405,7 +406,7 @@ describe("LeagueService.closeLeague", () => {
       leagueId: "svc-close",
     });
 
-    const result = await new LeagueService(env.db).closeLeague(
+    const result = await new LeagueService(repositories()).closeLeague(
       admin.id,
       "svc-close",
     );
@@ -424,7 +425,7 @@ describe("LeagueService.closeLeague", () => {
     const member = await makePlayer("svc-member");
     await insertLeague(env.db, { id: "svc-notadmin", adminId: admin.id });
 
-    const result = await new LeagueService(env.db).closeLeague(
+    const result = await new LeagueService(repositories()).closeLeague(
       member.id,
       "svc-notadmin",
     );
@@ -438,7 +439,7 @@ describe("LeagueService.closeLeague", () => {
   it("names a repeat close rather than reporting one that did not happen", async () => {
     const admin = await makePlayer("svc-twice");
     await insertLeague(env.db, { id: "svc-twice-lg", adminId: admin.id });
-    const service = new LeagueService(env.db);
+    const service = new LeagueService(repositories());
 
     expect((await service.closeLeague(admin.id, "svc-twice-lg")).ok).toBe(true);
     const result = await service.closeLeague(admin.id, "svc-twice-lg");
@@ -450,7 +451,7 @@ describe("LeagueService.closeLeague", () => {
   });
 
   it("reports a league that is not there as not found", async () => {
-    const result = await new LeagueService(env.db).closeLeague(
+    const result = await new LeagueService(repositories()).closeLeague(
       "whoever",
       "no-such-league",
     );
@@ -464,7 +465,7 @@ describe("TeamService.createTeam — lifecycle refusals", () => {
     const player = await makePlayer("join-shut");
     await insertLeague(env.db, { id: "join-shut-lg", closedAt: PAST });
 
-    const result = await new TeamService(env.db).createTeam(
+    const result = await new TeamService(repositories()).createTeam(
       player.id,
       "join-shut-lg",
       "Too Late FC",
@@ -487,7 +488,7 @@ describe("TeamService.createTeam — lifecycle refusals", () => {
       endDate: "2024-02-01T00:00:00Z",
     });
 
-    const result = await new TeamService(env.db).createTeam(
+    const result = await new TeamService(repositories()).createTeam(
       player.id,
       "join-ended-lg",
       "Season Over FC",
@@ -519,7 +520,7 @@ describe("TeamService.createTeam — lifecycle refusals", () => {
       playerId: (await makePlayer(`bystander-rejoin-${suffix}`)).id,
       leagueId,
     });
-    const service = new TeamService(env.db);
+    const service = new TeamService(repositories());
     expect((await service.leaveLeague(player.id, leagueId)).ok).toBe(true);
     return { service, player, leagueId, teamId: `rejoin-team-${suffix}` };
   }
@@ -615,7 +616,7 @@ describe("TeamService.createTeam — lifecycle refusals", () => {
       leagueId: "still-in-lg",
     });
 
-    const result = await new TeamService(env.db).createTeam(
+    const result = await new TeamService(repositories()).createTeam(
       player.id,
       "still-in-lg",
       "Second XI",
@@ -649,7 +650,7 @@ describe("TeamService.leaveLeague", () => {
   it("lets a member walk away", async () => {
     const { member, leagueId, teamId } = await seed("ok");
 
-    const result = await new TeamService(env.db).leaveLeague(
+    const result = await new TeamService(repositories()).leaveLeague(
       member.id,
       leagueId,
     );
@@ -660,7 +661,7 @@ describe("TeamService.leaveLeague", () => {
 
   it("names a repeat departure", async () => {
     const { member, leagueId } = await seed("again");
-    const service = new TeamService(env.db);
+    const service = new TeamService(repositories());
     expect((await service.leaveLeague(member.id, leagueId)).ok).toBe(true);
 
     const result = await service.leaveLeague(member.id, leagueId);
@@ -679,7 +680,7 @@ describe("TeamService.leaveLeague", () => {
       leagueId,
     });
 
-    const result = await new TeamService(env.db).leaveLeague(
+    const result = await new TeamService(repositories()).leaveLeague(
       admin.id,
       leagueId,
     );
@@ -717,7 +718,7 @@ describe("TeamService.leaveLeague", () => {
       .bind("solo-team", "4-3-3", "{}", "2026-01-01T00:00:00Z")
       .run();
 
-    const result = await new TeamService(env.db).leaveLeague(
+    const result = await new TeamService(repositories()).leaveLeague(
       admin.id,
       "solo-lg",
     );
@@ -744,7 +745,7 @@ describe("TeamService.leaveLeague", () => {
   it("keeps a league standing while anyone is still in it", async () => {
     const { member, leagueId } = await seed("notlast");
 
-    const result = await new TeamService(env.db).leaveLeague(
+    const result = await new TeamService(repositories()).leaveLeague(
       member.id,
       leagueId,
     );
@@ -772,7 +773,7 @@ describe("TeamService.leaveLeague", () => {
       .bind(PAST, "ghost-team")
       .run();
 
-    const result = await new TeamService(env.db).leaveLeague(
+    const result = await new TeamService(repositories()).leaveLeague(
       admin.id,
       "ghost-lg",
     );
@@ -792,7 +793,7 @@ describe("TeamService.leaveLeague", () => {
       leagueId: GLOBAL_LEAGUE_ID,
     });
 
-    const result = await new TeamService(env.db).leaveLeague(
+    const result = await new TeamService(repositories()).leaveLeague(
       player.id,
       GLOBAL_LEAGUE_ID,
     );
@@ -807,7 +808,7 @@ describe("TeamService.leaveLeague", () => {
     const outsider = await makePlayer("svc-outsider");
     await insertLeague(env.db, { id: "ll-outside" });
 
-    const result = await new TeamService(env.db).leaveLeague(
+    const result = await new TeamService(repositories()).leaveLeague(
       outsider.id,
       "ll-outside",
     );
@@ -825,7 +826,7 @@ describe("TeamService.leaveLeague", () => {
       .bind(PAST, leagueId)
       .run();
 
-    const result = await new TeamService(env.db).leaveLeague(
+    const result = await new TeamService(repositories()).leaveLeague(
       member.id,
       leagueId,
     );
@@ -852,7 +853,7 @@ describe("TeamService.leaveLeague", () => {
       leagueId: "ll-ended",
     });
 
-    const result = await new TeamService(env.db).leaveLeague(
+    const result = await new TeamService(repositories()).leaveLeague(
       player.id,
       "ll-ended",
     );
@@ -891,7 +892,10 @@ describe("a departed player's league", () => {
       purchaseDate: "2026-01-01",
       expireDate: "2126-01-08",
     });
-    const left = await new TeamService(env.db).leaveLeague(member.id, "dep-lg");
+    const left = await new TeamService(repositories()).leaveLeague(
+      member.id,
+      "dep-lg",
+    );
     expect(left.ok).toBe(true);
     return { admin, member };
   }
@@ -902,7 +906,7 @@ describe("a departed player's league", () => {
     // leaving exists.
     const { member } = await seedDeparture();
 
-    const result = await new TeamService(env.db).getMyTeam(
+    const result = await new TeamService(repositories()).getMyTeam(
       member.id,
       "dep-lg",
       "dep-member",
@@ -959,7 +963,7 @@ describe("a departed player's league", () => {
     // the ranks above and below them are only true with them in it.
     await seedDeparture();
 
-    const result = await new LeaderboardService(env.db).getLeaderboard(
+    const result = await new LeaderboardService(repositories()).getLeaderboard(
       "dep-lg",
     );
 

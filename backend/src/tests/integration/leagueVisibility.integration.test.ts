@@ -10,11 +10,12 @@ import { LeagueService } from "../../services/league";
 import { PlayerService } from "../../services/player";
 import { TeamService } from "../../services/team";
 import { insertLeague, insertTeam } from "../utils/d1TestUtils";
+import { repositories } from "../support/target";
 
 const PRIVATE_CODE = "ZK7QW";
 
 async function makePlayer(name: string) {
-  const result = await new PlayerService(env.db).createPlayer(
+  const result = await new PlayerService(repositories()).createPlayer(
     name,
     `${name}@example.com`,
     `acct-${name}`,
@@ -109,7 +110,7 @@ describe("the join gate", () => {
   let teamService: TeamService;
 
   beforeEach(() => {
-    teamService = new TeamService(env.db);
+    teamService = new TeamService(repositories());
   });
 
   it("lets anyone into a public league without a code", async () => {
@@ -279,7 +280,7 @@ describe("LeagueService.getInvitationCode", () => {
   let service: LeagueService;
 
   beforeEach(() => {
-    service = new LeagueService(env.db);
+    service = new LeagueService(repositories());
   });
 
   it("gives a member the code when the policy is members", async () => {

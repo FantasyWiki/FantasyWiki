@@ -3,11 +3,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { app } from "../../index";
 import { PerformanceService } from "../../services/performance";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
-import {
-  insertTeam,
-  insertLineup,
-  insertContract,
-} from "../utils/d1TestUtils";
+import { insertTeam, insertLineup, insertContract } from "../utils/d1TestUtils";
+import { repositories } from "../support/target";
 
 const SCORE_DATE = "2026-07-12";
 const TEAM_ID = "team-internal-1";
@@ -126,7 +123,7 @@ describe("/internal routes", () => {
     const body = (await postRes.json()) as { written: number };
     expect(body.written).toBe(1);
 
-    const performance = PerformanceService.fromDb(env.db);
+    const performance = new PerformanceService(repositories());
     const rows = await performance.getRecentForTeam(TEAM_ID, 5);
     expect(rows.ok).toBe(true);
     if (rows.ok) expect(rows.value[0].points).toBeCloseTo(5.5);

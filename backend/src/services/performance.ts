@@ -1,15 +1,13 @@
 import { Temporal } from "@js-temporal/polyfill";
 import type { PerformanceRepository } from "../repositories/performanceRepository";
-import { PerformanceRepositoryD1 } from "../repositories/d1/performanceRepositoryD1";
 import { Result, success } from "../repositories/result";
 import { PerformanceDTO } from "../../../dto/performanceDTO";
 
 export class PerformanceService {
-  constructor(private repository: PerformanceRepository) {}
+  private repository: PerformanceRepository;
 
-  /** Build a D1-backed instance — the production/route construction path. */
-  static fromDb(db: D1Database): PerformanceService {
-    return new PerformanceService(new PerformanceRepositoryD1(db));
+  constructor(deps: { performances: PerformanceRepository }) {
+    this.repository = deps.performances;
   }
 
   async getRecentForTeam(

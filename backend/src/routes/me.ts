@@ -6,14 +6,14 @@ import {
 } from "../../../dto/genieDTO";
 import { ArticleGenieService } from "../services/articleGenie";
 import { WorkersAiBinding, createLlmClient } from "../services/llmClient";
-import { playerErrorStatus, resolveCurrentPlayer } from "./helpers";
+import { AuthedVariables } from "../appEnv";
+import { currentPlayer } from "./currentPlayer";
 
 interface RateLimiter {
   limit(options: { key: string }): Promise<{ success: boolean }>;
 }
 
 type Bindings = {
-  db: D1Database;
   AI: WorkersAiBinding;
   GENIE_RATE_LIMITER: RateLimiter;
 };
@@ -23,7 +23,7 @@ type Bindings = {
  * and no `playerId` is ever accepted from the client
  * (docs/development/api-naming-rules.md).
  */
-const me = new Hono<{ Bindings: Bindings }>();
+const me = new Hono<{ Bindings: Bindings; Variables: AuthedVariables }>();
 
 /**
  * Everything the client got wrong about its own request. The Genie is additive,
@@ -51,17 +51,9 @@ const VALIDATION_ERRORS: string[] = [
  * chemistry query on keywords alone would have the Genie open with a question
  * about articles *describing* OpenAI rather than ones relating it to Portugal.
  */
-me.post("/genie-seeds", async (c) => {
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
+me.post("/genie-seeds", currentPlayer, async (c) => {
   const { success } = await c.env.GENIE_RATE_LIMITER.limit({
-    key: playerResult.value.id,
+    key: c.var.player.id,
   });
   if (!success) {
     return c.json({ error: GENIE_ERRORS.RATE_LIMITED }, 429);
@@ -95,17 +87,9 @@ me.post("/genie-seeds", async (c) => {
  * sized for real play rather than for abuse; the day's neuron allocation is the
  * real ceiling, and it fails closed on its own.
  */
-me.post("/genie-turns", async (c) => {
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
+me.post("/genie-turns", currentPlayer, async (c) => {
   const { success } = await c.env.GENIE_RATE_LIMITER.limit({
-    key: playerResult.value.id,
+    key: c.var.player.id,
   });
   if (!success) {
     return c.json({ error: GENIE_ERRORS.RATE_LIMITED }, 429);

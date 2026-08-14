@@ -1,13 +1,16 @@
-import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
 import { LoginService, LOGIN_ERRORS } from "../../services/login";
+import { PlayerService } from "../../services/player";
 import { PLAYER_ERRORS } from "../../repositories/playerRepository";
+import { repositories } from "../support/target";
 
 describe("LoginService Integration Tests", () => {
   let loginService: LoginService;
 
   beforeEach(() => {
-    loginService = new LoginService(env.db);
+    loginService = new LoginService({
+      playerService: new PlayerService(repositories()),
+    });
   });
 
   describe("loginWithGoogleAccount", () => {
@@ -136,7 +139,7 @@ describe("LoginService Integration Tests", () => {
         createPlayer: async () =>
           ({ ok: false, error: "Error saving player: disk full" }) as const,
       };
-      const service = new LoginService(env.db, mockedService);
+      const service = new LoginService({ playerService: mockedService });
 
       const result = await service.loginWithGoogleAccount(
         googleAccountId,
@@ -170,7 +173,7 @@ describe("LoginService Integration Tests", () => {
           } as const;
         },
       };
-      const service = new LoginService(env.db, mockedService);
+      const service = new LoginService({ playerService: mockedService });
 
       const result = await service.loginWithGoogleAccount(
         googleAccountId,
@@ -195,7 +198,7 @@ describe("LoginService Integration Tests", () => {
             error: PLAYER_ERRORS.USERNAME_TAKEN,
           }) as const,
       };
-      const service = new LoginService(env.db, mockedService);
+      const service = new LoginService({ playerService: mockedService });
 
       const result = await service.loginWithGoogleAccount(
         googleAccountId,
@@ -222,7 +225,7 @@ describe("LoginService Integration Tests", () => {
           };
         },
       };
-      const service = new LoginService(env.db, mockedService);
+      const service = new LoginService({ playerService: mockedService });
 
       const result = await service.loginWithGoogleAccount(
         "google-user-error",

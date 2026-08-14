@@ -1,17 +1,12 @@
 import { LeaderboardEntryDTO } from "../../../dto/leaderboardDTO";
-import { PerformanceRepositoryD1 } from "../repositories/d1/performanceRepositoryD1";
 import type { PerformanceRepository } from "../repositories/performanceRepository";
 import { Result, success } from "../repositories/result";
 
 export class LeaderboardService {
   private repository: PerformanceRepository;
 
-  constructor(repositoryOrDb: PerformanceRepository | D1Database) {
-    if ("getLeagueCumulatives" in repositoryOrDb) {
-      this.repository = repositoryOrDb;
-      return;
-    }
-    this.repository = new PerformanceRepositoryD1(repositoryOrDb);
+  constructor(deps: { performances: PerformanceRepository }) {
+    this.repository = deps.performances;
   }
 
   async getLeaderboard(

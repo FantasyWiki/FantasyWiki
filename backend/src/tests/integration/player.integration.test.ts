@@ -8,13 +8,14 @@ import {
   PlayerRepository,
 } from "../../repositories/playerRepository";
 import { success } from "../../repositories/result";
+import { repositories } from "../support/target";
 import { insertTeam } from "../utils/d1TestUtils";
 
 describe("PlayerService Integration Tests", () => {
   let playerService: PlayerService;
 
   beforeEach(() => {
-    playerService = new PlayerService(env.db);
+    playerService = new PlayerService(repositories());
   });
 
   it("should use an injected repository when one is provided", async () => {
@@ -30,7 +31,7 @@ describe("PlayerService Integration Tests", () => {
       getLeaguesByPlayerId: async () => success([]),
       getPlayerByAccountId: async () => success(player),
     };
-    const service = new PlayerService(repository);
+    const service = new PlayerService({ players: repository });
 
     const result = await service.createPlayer(
       "injected",

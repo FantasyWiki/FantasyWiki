@@ -21,9 +21,13 @@ import { TeamService } from "../../services/team";
 import { GLOBAL_LEAGUE_ID } from "../../../../model";
 import { insertLeague, insertTeam } from "../utils/d1TestUtils";
 import type { CreateLeagueRequest } from "../../../../dto/leagueDTO";
+import { REFERENCE_SCALE } from "../../../../model/languageScale";
+import { LanguageScaleCalibrationService } from "../../services/languageScaleCalibration";
+import { createWikimediaClient } from "../../services/wikimediaClient";
+import { repositories } from "../support/target";
 
 async function makePlayer(name: string) {
-  const result = await new PlayerService(env.db).createPlayer(
+  const result = await new PlayerService(repositories()).createPlayer(
     name,
     `${name}@example.com`,
     `acct-${name}`,
@@ -151,7 +155,7 @@ describe("LeagueService.getPublicLeagues", () => {
   let service: LeagueService;
 
   beforeEach(() => {
-    service = new LeagueService(env.db);
+    service = new LeagueService(repositories());
   });
 
   it("lists public leagues and leaves private ones out entirely", async () => {
@@ -260,7 +264,13 @@ describe("LeagueService.createLeague", () => {
   let service: LeagueService;
 
   beforeEach(() => {
-    service = new LeagueService(env.db);
+    service = new LeagueService({
+      ...repositories(),
+      calibration: new LanguageScaleCalibrationService({
+        ...repositories(),
+        wikimedia: createWikimediaClient(),
+      }),
+    });
   });
 
   it("writes the league, its founder's team and that team's lineup together", async () => {
@@ -276,7 +286,7 @@ describe("LeagueService.createLeague", () => {
     // query, so this is what proves the team row was actually written.
     expect(league.teamCount).toBe(1);
 
-    const team = await new TeamService(env.db).getMyTeam(
+    const team = await new TeamService(repositories()).getMyTeam(
       founder.id,
       league.id,
       founder.username,
@@ -399,6 +409,7 @@ describe("LeagueService.createLeague", () => {
         startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
         endDate: Temporal.Instant.from("2026-02-01T00:00:00Z"),
         domain: "en",
+        languageScale: REFERENCE_SCALE,
         visibility: LeagueVisibility.PUBLIC,
         invitePolicy: LeagueInvitePolicy.MEMBERS,
         icon: LEAGUE_ICONS[0],

@@ -9,6 +9,7 @@ import {
   normalizedViews,
 } from "../../../../model/pricing";
 import { REFERENCE_SCALE } from "../../../../model/languageScale";
+import { repositoriesFor } from "../../composition";
 import { insertTeam } from "../utils/d1TestUtils";
 
 const TIER_DAYS = 7;
@@ -60,14 +61,10 @@ class StubbedSettlementWorkflow extends ContractSettlementWorkflow {
   }
 
   protected override createService(): ContractService {
-    return new ContractService(
-      this.env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(this.views),
-    );
+    return new ContractService({
+      ...repositoriesFor(this.env),
+      wikimedia: wikimediaWithAvg(this.views),
+    });
   }
 }
 

@@ -11,6 +11,8 @@ import {
 } from "vitest";
 import reports from "../../routes/reports";
 import { PlayerService } from "../../services/player";
+import { injectDeps } from "../support/injectDeps";
+import { repositories } from "../support/target";
 
 // The route builds a real GitHubAppClient, so the only way to keep it off the
 // network is to replace global fetch — this pool ignores vi.mock and does not
@@ -82,6 +84,7 @@ function appFor(googleAccountId: string) {
     c.set("jwtPayload", { sub: googleAccountId });
     await next();
   });
+  app.use("*", injectDeps());
   app.route("/api/reports", reports);
   return app;
 }
@@ -112,7 +115,7 @@ describe("POST /api/reports", () => {
     // A fresh account per test: the rate limiter keys on the player, and it is
     // real (not stubbed) in this pool, so reusing an id leaks quota across tests.
     const accountId = `account-report-${crypto.randomUUID()}`;
-    const player = await new PlayerService(env.db).createPlayer(
+    const player = await new PlayerService(repositories()).createPlayer(
       `reporter-${crypto.randomUUID()}`,
       "reporter@example.com",
       accountId,

@@ -4,9 +4,10 @@ import { sign } from "hono/jwt";
 import { JWTPayload } from "hono/utils/jwt/types";
 import { setCookie } from "hono/cookie";
 import { LoginService } from "../services/login";
+import { PlayerService } from "../services/player";
+import { AppVariables } from "../appEnv";
 
 type Bindings = {
-  db: D1Database;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   JWT_SECRET: string;
@@ -23,7 +24,7 @@ export function resolveFrontendUrl(env: Bindings): string {
   return url;
 }
 
-const auth = new Hono<{ Bindings: Bindings }>();
+const auth = new Hono<{ Bindings: Bindings; Variables: AppVariables }>();
 
 auth.use("/google", async (c, next) => {
   if (!c.env.GOOGLE_CLIENT_ID) {
@@ -55,7 +56,9 @@ auth.get("/google", async (c) => {
   }
 
   // Login or create player with Google account
-  const loginService = new LoginService(c.env.db);
+  const loginService = new LoginService({
+    playerService: new PlayerService(c.var.repositories),
+  });
   const playerResult = await loginService.loginWithGoogleAccount(
     user.id!,
     user.email!,

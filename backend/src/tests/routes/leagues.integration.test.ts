@@ -9,15 +9,14 @@ import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
 import { LEAGUE_ICONS } from "../../../../model/league";
 import { PlayerService } from "../../services/player";
 import { insertLeague } from "../utils/d1TestUtils";
+import { injectDeps } from "../support/injectDeps";
+import { repositories } from "../support/target";
 
 const LEAGUE_ID = "league-route-1";
 
 // The router is mounted bare rather than through `app`, because `/api/*` sits
 // behind the JWT middleware and neither route under test reads the payload.
-const app = new Hono<{ Bindings: { db: D1Database } }>().route(
-  "/leagues",
-  leagues,
-);
+const app = new Hono().use("*", injectDeps()).route("/leagues", leagues);
 
 describe("GET /leagues/:id", () => {
   beforeEach(async () => {
@@ -83,7 +82,8 @@ describe("POST /leagues", () => {
   // This route, unlike the reads above, resolves the founder from the session,
   // so the payload the JWT middleware would have set is stood in for here.
   const GOOGLE_ACCOUNT_ID = "acct-route-founder";
-  const authed = new Hono<{ Bindings: { db: D1Database } }>()
+  const authed = new Hono()
+    .use("*", injectDeps())
     .use("*", async (c, next) => {
       c.set("jwtPayload", { sub: GOOGLE_ACCOUNT_ID });
       await next();
@@ -108,7 +108,7 @@ describe("POST /leagues", () => {
   }
 
   beforeEach(async () => {
-    const player = await new PlayerService(env.db).createPlayer(
+    const player = await new PlayerService(repositories()).createPlayer(
       "route-founder",
       "route-founder@example.com",
       GOOGLE_ACCOUNT_ID,
@@ -210,7 +210,8 @@ describe("league lifecycle endpoints", () => {
   let memberId: string;
 
   function authedAs(accountId: string) {
-    return new Hono<{ Bindings: { db: D1Database } }>()
+    return new Hono()
+      .use("*", injectDeps())
       .use("*", async (c, next) => {
         c.set("jwtPayload", { sub: accountId });
         await next();
@@ -228,7 +229,7 @@ describe("league lifecycle endpoints", () => {
   }
 
   beforeEach(async () => {
-    const players = new PlayerService(env.db);
+    const players = new PlayerService(repositories());
     const admin = await players.createPlayer(
       "route-admin",
       "route-admin@example.com",
@@ -362,7 +363,7 @@ describe("league lifecycle endpoints", () => {
       { method: "POST" },
       env,
     );
-    const outsider = await new PlayerService(env.db).createPlayer(
+    const outsider = await new PlayerService(repositories()).createPlayer(
       "route-outsider",
       "route-outsider@example.com",
       "acct-route-outsider",

@@ -12,15 +12,17 @@ import { LeagueRepository } from "../../repositories/leagueRepository";
 import { success, failure } from "../../repositories/result";
 import { PlayerService } from "../../services/player";
 import { insertTeam } from "../utils/d1TestUtils";
+import { repositories } from "../support/target";
 import { League } from "../../../../model";
 import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
 import { fakeLeagueRepository } from "../utils/fakeRepositories";
+import { REFERENCE_SCALE } from "../../../../model/languageScale";
 
 describe("LeagueService Integration Tests", () => {
   let leagueService: LeagueService;
 
   beforeEach(() => {
-    leagueService = new LeagueService(env.db);
+    leagueService = new LeagueService(repositories());
   });
 
   describe("getGlobalLeague", () => {
@@ -54,7 +56,7 @@ describe("LeagueService Integration Tests", () => {
       const failingRepository: LeagueRepository = fakeLeagueRepository({
         getById: async () => failure("boom"),
       });
-      const service = new LeagueService(failingRepository);
+      const service = new LeagueService({ leagues: failingRepository });
 
       const result = await service.getGlobalLeague();
 
@@ -69,6 +71,7 @@ describe("LeagueService Integration Tests", () => {
         startDate: Temporal.Now.instant(),
         endDate: Temporal.Now.instant(),
         domain: "en",
+        languageScale: REFERENCE_SCALE,
         visibility: LeagueVisibility.PUBLIC,
         invitePolicy: LeagueInvitePolicy.MEMBERS,
         closedAt: null,
@@ -79,7 +82,7 @@ describe("LeagueService Integration Tests", () => {
         getById: async () => success(league),
         countTeamsByLeague: async () => success({ [GLOBAL_LEAGUE_ID]: 3 }),
       });
-      const service = new LeagueService(repository);
+      const service = new LeagueService({ leagues: repository });
 
       const result = await service.getGlobalLeague();
 
@@ -103,6 +106,7 @@ describe("LeagueService Integration Tests", () => {
         startDate: Temporal.Now.instant(),
         endDate: Temporal.Now.instant(),
         domain: "en",
+        languageScale: REFERENCE_SCALE,
         visibility: LeagueVisibility.PUBLIC,
         invitePolicy: LeagueInvitePolicy.MEMBERS,
         closedAt: null,
@@ -115,7 +119,9 @@ describe("LeagueService Integration Tests", () => {
         countTeamsByLeague: async () => failure("count exploded"),
       });
 
-      const result = await new LeagueService(repository).getGlobalLeague();
+      const result = await new LeagueService({
+        leagues: repository,
+      }).getGlobalLeague();
 
       expect(result).toEqual(failure("count exploded"));
     });
@@ -174,6 +180,9 @@ describe("toLeagueDTO", () => {
       startDate,
       endDate,
       domain: "it",
+      // Deliberately not the reference: a mapping that defaulted the factor
+      // rather than carrying the league's own would still pass at 1.0.
+      languageScale: 13.9,
       visibility: LeagueVisibility.PUBLIC,
       invitePolicy: LeagueInvitePolicy.MEMBERS,
       closedAt: null,
@@ -192,6 +201,7 @@ describe("toLeagueDTO", () => {
       visibility: LeagueVisibility.PUBLIC,
       teamCount: 12,
       closedAt: null,
+      languageScale: 13.9,
     });
   });
 });
@@ -217,7 +227,7 @@ describe("LeagueRepositoryD1.countTeamsByLeague", () => {
   }
 
   async function addTeam(id: string, leagueId: string) {
-    const player = await new PlayerService(env.db).createPlayer(
+    const player = await new PlayerService(repositories()).createPlayer(
       `p-${id}`,
       `${id}@example.com`,
       `acct-${id}`,

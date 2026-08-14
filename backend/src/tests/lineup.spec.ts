@@ -11,6 +11,7 @@ import { TeamRepository } from "../repositories/teamRepository";
 import { ContractRepository } from "../repositories/contractRepository";
 import { LeagueRepository } from "../repositories/leagueRepository";
 import { PlayerRepository } from "../repositories/playerRepository";
+import { TeamService } from "../services/team";
 import { success, failure } from "../repositories/result";
 import type { Contract, Team, Lineup, League, Player } from "../../../model";
 
@@ -73,6 +74,15 @@ function makeTeamRepo(result: Team | null = team): TeamRepository {
     create: async () => failure("unused"),
     existsByNameInLeague: async () => failure("unused"),
     getByPlayerAndLeague: async () => success(result),
+    // Addressed by id, so unlike the self-scoped read this stub cannot ignore
+    // its arguments: it answers with the fixture only when both halves of the
+    // key match, which is what makes "team from another league" absent.
+    getByIdAndLeague: async (teamId, leagueId) =>
+      success(
+        result !== null && teamId === result.id && leagueId === result.leagueId
+          ? result
+          : null,
+      ),
   };
 }
 
@@ -119,12 +129,24 @@ function makeLineupRepo(stored: Lineup | null = null): LineupRepository {
   };
 }
 
+/**
+ * A real TeamService over a stub repository — the seam under test is which
+ * door LineupService knocks on, so faking the service itself would assert
+ * nothing about the team read actually reaching the repository behind it.
+ */
+function makeTeamService(teamRepository = makeTeamRepo()): TeamService {
+  return new TeamService({
+    teamRepository,
+    lineupRepository: makeLineupRepo(),
+  });
+}
+
 function makeDeps(
   overrides: Partial<LineupServiceDeps> = {},
 ): LineupServiceDeps {
   return {
     lineupRepository: makeLineupRepo(),
-    teamRepository: makeTeamRepo(),
+    teamService: makeTeamService(),
     contractRepository: makeContractRepo([]),
     leagueRepository: makeLeagueRepo(),
     playerRepository: makePlayerRepo(),
@@ -188,14 +210,13 @@ describe("LineupService (unit)", () => {
       expect(value.bench).toHaveLength(0);
     });
 
-    it("returns a failure when the team repo returns an error", async () => {
+    it("returns a failure when the team read returns an error", async () => {
       const service = new LineupService(
         makeDeps({
-          teamRepository: {
-            create: async () => failure("unused"),
-            existsByNameInLeague: async () => failure("unused"),
+          teamService: makeTeamService({
+            ...makeTeamRepo(),
             getByPlayerAndLeague: async () => failure("db error"),
-          },
+          }),
         }),
       );
 
@@ -206,7 +227,7 @@ describe("LineupService (unit)", () => {
 
     it("returns failure when the player has no team in the league", async () => {
       const service = new LineupService(
-        makeDeps({ teamRepository: makeTeamRepo(null) }),
+        makeDeps({ teamService: makeTeamService(makeTeamRepo(null)) }),
       );
 
       const result = await service.getLineup(PLAYER_ID, LEAGUE_ID);
@@ -296,6 +317,75 @@ describe("LineupService (unit)", () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       expect(result.value.formation.formation["GK"]?.article.domain).toBe("it");
+    });
+  });
+
+  describe("getRivalLineup", () => {
+    it("returns the line-up of the team named in the path", async () => {
+      const c1 = makeContract("c-1", "Cat");
+      const lineup = makeLineup({ GK: "c-1" });
+
+      const service = new LineupService(
+        makeDeps({
+          lineupRepository: makeLineupRepo(lineup),
+          contractRepository: makeContractRepo([c1]),
+        }),
+      );
+
+      const result = await service.getRivalLineup(LEAGUE_ID, TEAM_ID);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.formation.formation["GK"]?.id).toBe("c-1");
+    });
+
+    it("dresses the contracts with the team's own owner, not the viewer", async () => {
+      const c1 = makeContract("c-1", "Cat");
+      const service = new LineupService(
+        makeDeps({
+          lineupRepository: makeLineupRepo(makeLineup({ GK: "c-1" })),
+          contractRepository: makeContractRepo([c1]),
+        }),
+      );
+
+      const result = await service.getRivalLineup(LEAGUE_ID, TEAM_ID);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.formation.formation["GK"]?.team).toEqual({
+        id: TEAM_ID,
+        name: "Test FC",
+        credits: 1000,
+        player: { id: PLAYER_ID, name: "testuser" },
+      });
+    });
+
+    it("returns NO_TEAM for a team id the league does not contain", async () => {
+      const service = new LineupService(makeDeps());
+
+      const result = await service.getRivalLineup(LEAGUE_ID, "some-other-team");
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBe(LINEUP_ERRORS.NO_TEAM);
+    });
+
+    it("returns NO_TEAM for a team that exists in another league", async () => {
+      const service = new LineupService(makeDeps());
+
+      const result = await service.getRivalLineup("other-league", TEAM_ID);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBe(LINEUP_ERRORS.NO_TEAM);
+    });
+
+    it("propagates a team-read failure rather than reporting not-found", async () => {
+      const failingTeams: TeamRepository = {
+        ...makeTeamRepo(),
+        getByIdAndLeague: async () => failure("db error"),
+      };
+      const service = new LineupService(
+        makeDeps({ teamService: makeTeamService(failingTeams) }),
+      );
+
+      const result = await service.getRivalLineup(LEAGUE_ID, TEAM_ID);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBe("db error");
     });
   });
 
@@ -391,7 +481,7 @@ describe("LineupService (unit)", () => {
 
     it("returns a failure when the team is not found", async () => {
       const service = new LineupService(
-        makeDeps({ teamRepository: makeTeamRepo(null) }),
+        makeDeps({ teamService: makeTeamService(makeTeamRepo(null)) }),
       );
 
       const result = await service.saveLineup(PLAYER_ID, LEAGUE_ID, {

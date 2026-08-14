@@ -27,4 +27,14 @@ export interface TeamRepository {
     playerId: string,
     leagueId: string,
   ): Promise<Result<Team | null>>;
+  /**
+   * The league is part of the key, not a redundant filter: this serves reads
+   * addressed by team id from a league context, so a team belonging to another
+   * league must be indistinguishable from one that does not exist (null), never
+   * a row from outside the league the caller asked about.
+   */
+  getByIdAndLeague(
+    teamId: string,
+    leagueId: string,
+  ): Promise<Result<Team | null>>;
 }

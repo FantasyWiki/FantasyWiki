@@ -81,6 +81,7 @@ function makeTeamRepo(
     create: async () => failure("unused"),
     existsByNameInLeague: async () => failure("unused"),
     getByPlayerAndLeague: async () => result,
+    getByIdAndLeague: async () => failure("unused"),
   };
 }
 

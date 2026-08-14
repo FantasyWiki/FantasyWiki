@@ -389,6 +389,24 @@
       "saveSuccess": "Lineup saved!",
       "saveFailed": "Couldn't save your lineup. Please try again.",
       "retry": "Retry"
+    },
+    "rivalTeamPage": {
+      "back": "Back to the league",
+      "backToStandings": "Back to the standings",
+      "loadingTitle": "Loading team…",
+      "failedToLoad": "Failed to load this team",
+      "notFoundTitle": "Team not found",
+      "notFoundDetail": "This team is not playing in this league.",
+      "retry": "Retry",
+      "rank": "#{rank}",
+      "points": "Points",
+      "trend": "Trend",
+      "schema": "Formation",
+      "bench": "Bench",
+      "gapAhead": "Ahead of you by {points} points",
+      "gapBehind": "Behind you by {points} points",
+      "gapLevel": "Level with you on points",
+      "viewMyTeam": "My team"
     }
   },
   "market": {

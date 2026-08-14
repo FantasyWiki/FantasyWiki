@@ -183,6 +183,98 @@ describe("TeamService Integration Tests", () => {
     });
   });
 
+  describe("getTeamInLeague", () => {
+    it("returns the league's team under that id, credits included", async () => {
+      const created = await teamService.createTeam(
+        playerId,
+        leagueId,
+        "The Wiki Wizards",
+      );
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed: team");
+
+      const result = await teamService.getTeamInLeague(
+        created.value.id,
+        leagueId,
+      );
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value?.name).toBe("The Wiki Wizards");
+      expect(result.value?.playerId).toBe(playerId);
+      expect(result.value?.credits).toBe(STARTING_CREDITS);
+    });
+
+    it("returns null for an id no team carries", async () => {
+      const result = await teamService.getTeamInLeague(
+        "no-such-team",
+        leagueId,
+      );
+
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value).toBeNull();
+    });
+
+    // The id alone would find the row: the league is the other half of the key,
+    // so a team is unreadable through a league that does not contain it.
+    it("returns null for a team that belongs to another league", async () => {
+      const created = await teamService.createTeam(
+        playerId,
+        leagueId,
+        "The Wiki Wizards",
+      );
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed: team");
+
+      const result = await teamService.getTeamInLeague(
+        created.value.id,
+        "some-other-league",
+      );
+
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value).toBeNull();
+    });
+  });
+
+  describe("getPlayerTeamInLeague", () => {
+    it("returns the domain model, not the wire shape getMyTeam dresses", async () => {
+      const created = await teamService.createTeam(
+        playerId,
+        leagueId,
+        "The Wiki Wizards",
+      );
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed: team");
+
+      const result = await teamService.getPlayerTeamInLeague(
+        playerId,
+        leagueId,
+      );
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      // playerId and leagueId are what callers go on to resolve the owner and
+      // the league by; TeamDTO carries neither.
+      expect(result.value).toEqual({
+        id: created.value.id,
+        name: "The Wiki Wizards",
+        playerId,
+        leagueId,
+        credits: STARTING_CREDITS,
+      });
+    });
+
+    it("returns null when the player fields no team in the league", async () => {
+      const result = await teamService.getPlayerTeamInLeague(
+        playerId,
+        leagueId,
+      );
+
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value).toBeNull();
+    });
+  });
+
   describe("getMyTeam", () => {
     it("should return null when the player has no team in the league", async () => {
       const result = await teamService.getMyTeam(playerId, leagueId, "Alice");
@@ -212,6 +304,7 @@ describe("TeamService Integration Tests", () => {
         create: async () => failure("boom"),
         existsByNameInLeague: async () => failure("boom"),
         getByPlayerAndLeague: async () => failure("db error"),
+        getByIdAndLeague: async () => failure("boom"),
       };
       const service = new TeamService({
         teamRepository: failingRepository,
@@ -238,6 +331,7 @@ describe("TeamService Integration Tests", () => {
         create: async () => failure("unused"),
         existsByNameInLeague: async () => failure("unused"),
         getByPlayerAndLeague: async () => success(team),
+        getByIdAndLeague: async () => failure("unused"),
       };
       const service = new TeamService({
         teamRepository: repository,
@@ -296,6 +390,16 @@ describe("TeamRepositoryD1 error handling", () => {
   it("should return a failure from getByPlayerAndLeague when D1 throws", async () => {
     const repository = new TeamRepositoryD1(throwingDb);
     const result = await repository.getByPlayerAndLeague("p1", "l1");
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain("D1 unavailable");
+    }
+  });
+
+  it("should return a failure from getByIdAndLeague when D1 throws", async () => {
+    const repository = new TeamRepositoryD1(throwingDb);
+    const result = await repository.getByIdAndLeague("t1", "l1");
 
     expect(result.ok).toBe(false);
     if (!result.ok) {

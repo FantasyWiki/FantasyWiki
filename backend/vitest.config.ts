@@ -6,6 +6,12 @@ import {
 } from "@cloudflare/vitest-pool-workers";
 import { defineConfig } from "vitest/config";
 
+// Every pool worker re-reads wrangler.jsonc, so each one repeats the same two
+// wrangler notices — that `.dev.vars` was loaded, and that the rate limiters in
+// `env.test` are `unsafe` bindings. Both are expected and neither says anything
+// about the run, so keep wrangler quiet unless it has an actual error.
+process.env.WRANGLER_LOG ??= "error";
+
 const migrationsPath = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   "migrations",

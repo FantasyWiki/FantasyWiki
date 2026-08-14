@@ -389,6 +389,24 @@
       "saveSuccess": "Formazione salvata!",
       "saveFailed": "Impossibile salvare la formazione. Riprova.",
       "retry": "Riprova"
+    },
+    "rivalTeamPage": {
+      "back": "Torna alla lega",
+      "backToStandings": "Torna alla classifica",
+      "loadingTitle": "Caricamento squadra…",
+      "failedToLoad": "Impossibile caricare questa squadra",
+      "notFoundTitle": "Squadra non trovata",
+      "notFoundDetail": "Questa squadra non partecipa a questa lega.",
+      "retry": "Riprova",
+      "rank": "#{rank}",
+      "points": "Punti",
+      "trend": "Andamento",
+      "schema": "Modulo",
+      "bench": "Panchina",
+      "gapAhead": "Davanti a te di {points} punti",
+      "gapBehind": "Dietro di te di {points} punti",
+      "gapLevel": "A pari punti con te",
+      "viewMyTeam": "La mia squadra"
     }
   },
   "market": {

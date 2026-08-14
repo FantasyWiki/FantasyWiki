@@ -65,6 +65,28 @@ export async function fetchTeam(leagueId: string): Promise<TeamLineUp> {
 }
 
 /**
+ * Fetch another team's line-up in a league.
+ *
+ * Separate from `fetchTeam` because the two resolve their team differently:
+ * that one is self-scoped (the backend reads the player from the session and
+ * the client never names them), while this one addresses a team the viewer
+ * does not own, so the id has to travel in the path. The payload is the same
+ * shape, so the deserializer is shared.
+ */
+export async function fetchRivalLineup(
+  leagueId: string,
+  teamId: string
+): Promise<TeamLineUp> {
+  const res = await fetch(
+    `${BASE}/api/leagues/${leagueId}/teams/${teamId}/lineup`,
+    { credentials: "include" }
+  );
+  if (!res.ok) throw new Error(`Failed to fetch team lineup: ${res.status}`);
+  const raw = (await res.json()) as RawTeamLineUp;
+  return deserializeLineup(raw);
+}
+
+/**
  * Persist the current team layout.
  * Used by both the explicit Save action in the UI and auto-save flows
  * such as saving when leaving the team view.

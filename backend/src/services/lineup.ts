@@ -11,8 +11,7 @@ import {
 import { RawContract } from "../../../dto/contractDTO";
 import { LineupRepository } from "../repositories/lineupRepository";
 import { LineupRepositoryD1 } from "../repositories/d1/lineupRepositoryD1";
-import { TEAM_ERRORS, TeamRepository } from "../repositories/teamRepository";
-import { TeamRepositoryD1 } from "../repositories/d1/teamRepositoryD1";
+import { TEAM_ERRORS } from "../repositories/teamRepository";
 import { ContractRepository } from "../repositories/contractRepository";
 import { ContractRepositoryD1 } from "../repositories/d1/contractRepositoryD1";
 import { LeagueRepository } from "../repositories/leagueRepository";
@@ -21,6 +20,7 @@ import { PlayerRepository } from "../repositories/playerRepository";
 import { PlayerRepositoryD1 } from "../repositories/d1/playerRepositoryD1";
 import { Result, success, failure } from "../repositories/result";
 import { toRawContract } from "./rawContract";
+import { TeamService } from "./team";
 
 export const LINEUP_ERRORS = {
   NO_TEAM: TEAM_ERRORS.NO_TEAM_IN_LEAGUE,
@@ -30,7 +30,14 @@ export const LINEUP_ERRORS = {
 
 export type LineupServiceDeps = {
   lineupRepository: LineupRepository;
-  teamRepository: TeamRepository;
+  /**
+   * The one door to teams, self-scoped and rival alike. TeamService rather than
+   * TeamRepository because whatever it comes to decide about teams — dressing,
+   * derived fields, what counts as absent — should reach the line-up views
+   * without this service learning about it
+   * (docs/architecture/backend-architecture.md).
+   */
+  teamService: TeamService;
   contractRepository: ContractRepository;
   leagueRepository: LeagueRepository;
   playerRepository: PlayerRepository;
@@ -104,14 +111,14 @@ export function parseLineupPayload(body: unknown): Result<RawTeamLineUp> {
 
 export class LineupService {
   private lineupRepository: LineupRepository;
-  private teamRepository: TeamRepository;
+  private teamService: TeamService;
   private contractRepository: ContractRepository;
   private leagueRepository: LeagueRepository;
   private playerRepository: PlayerRepository;
 
   constructor(deps: LineupServiceDeps) {
     this.lineupRepository = deps.lineupRepository;
-    this.teamRepository = deps.teamRepository;
+    this.teamService = deps.teamService;
     this.contractRepository = deps.contractRepository;
     this.leagueRepository = deps.leagueRepository;
     this.playerRepository = deps.playerRepository;
@@ -121,7 +128,7 @@ export class LineupService {
   static fromDb(db: D1Database): LineupService {
     return new LineupService({
       lineupRepository: new LineupRepositoryD1(db),
-      teamRepository: new TeamRepositoryD1(db),
+      teamService: new TeamService(db),
       contractRepository: new ContractRepositoryD1(db),
       leagueRepository: new LeagueRepositoryD1(db),
       playerRepository: new PlayerRepositoryD1(db),
@@ -132,10 +139,42 @@ export class LineupService {
     playerId: string,
     leagueId: string,
   ): Promise<Result<RawTeamLineUp>> {
-    const teamResult = await this.teamRepository.getByPlayerAndLeague(
-      playerId,
+    return this.lineupOfTeam(
+      this.teamService.getPlayerTeamInLeague(playerId, leagueId),
       leagueId,
     );
+  }
+
+  /**
+   * A rival team's line-up, read-only, addressed by team id rather than by the
+   * caller's session. Unlike {@link getLineup} this is not self-scoped: the
+   * viewer does not own the team, so the team is named in the path.
+   *
+   * The team comes from TeamService, which owns what a team is to someone who
+   * does not own it. The league is half the key it is looked up by, so a team
+   * id from another league is absent rather than readable, and a wrong id is
+   * reported as not-found instead of as a failed request.
+   */
+  async getRivalLineup(
+    leagueId: string,
+    teamId: string,
+  ): Promise<Result<RawTeamLineUp>> {
+    return this.lineupOfTeam(
+      this.teamService.getTeamInLeague(teamId, leagueId),
+      leagueId,
+    );
+  }
+
+  /**
+   * The one line-up read, over whichever team the caller resolved. Both entry
+   * points differ only in how they address the team — everything downstream,
+   * including whose name dresses the contracts, comes from the team row itself.
+   */
+  private async lineupOfTeam(
+    pendingTeam: Promise<Result<Team | null>>,
+    leagueId: string,
+  ): Promise<Result<RawTeamLineUp>> {
+    const teamResult = await pendingTeam;
     if (!teamResult.ok) {
       return teamResult;
     }
@@ -145,7 +184,7 @@ export class LineupService {
     const team = teamResult.value;
 
     const [playerResult, leagueResult] = await Promise.all([
-      this.playerRepository.getById(playerId),
+      this.playerRepository.getById(team.playerId),
       this.leagueRepository.getById(leagueId),
     ]);
     if (!playerResult.ok) return playerResult;
@@ -225,7 +264,7 @@ export class LineupService {
     leagueId: string,
     payload: RawTeamLineUp,
   ): Promise<Result<void>> {
-    const teamResult = await this.teamRepository.getByPlayerAndLeague(
+    const teamResult = await this.teamService.getPlayerTeamInLeague(
       playerId,
       leagueId,
     );

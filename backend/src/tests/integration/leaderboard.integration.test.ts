@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
 import { LeaderboardService } from "../../services/leaderboard";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
-import { resetD1Database, insertTeam } from "../utils/d1TestUtils";
+import { insertTeam } from "../utils/d1TestUtils";
 
 const TEAMS = [
   { id: "team-lb-1", name: "Alpha FC", playerId: "player-lb-1" },
@@ -25,7 +25,6 @@ async function insertPerformance(
 
 describe("LeaderboardService.getLeaderboard", () => {
   beforeEach(async () => {
-    await resetD1Database(env.db);
     for (const team of TEAMS) {
       await env.db
         .prepare(

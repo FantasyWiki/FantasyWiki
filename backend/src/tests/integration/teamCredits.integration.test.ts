@@ -10,7 +10,7 @@ import {
   STARTING_CREDITS,
   deriveCredits,
 } from "../../../../model/team";
-import { resetD1Database, insertTeam } from "../utils/d1TestUtils";
+import { insertTeam } from "../utils/d1TestUtils";
 
 /**
  * ADR 0007: credits are derived by the `team_credits` view — one statement of
@@ -105,7 +105,6 @@ async function seedTeamWithEmptyLedger(teamId: string): Promise<void> {
 
 describe("Derived team credits (ADR 0007)", () => {
   beforeEach(async () => {
-    await resetD1Database(env.db);
     await seedLedger();
   });
 
@@ -201,7 +200,6 @@ describe("Derived team credits (ADR 0007)", () => {
 describe("The guarded purchase INSERT (ADR 0007)", () => {
   // The guard now reads the view; these pin the behaviour that justifies it.
   beforeEach(async () => {
-    await resetD1Database(env.db);
     await seedLedger();
   });
 

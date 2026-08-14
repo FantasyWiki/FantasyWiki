@@ -1,31 +1,5 @@
 import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
 
-// The Global League (and its system admin player/account) are seeded by
-// migration 0002_seed_global_league.sql and must survive resets so tests see
-// the same baseline as production.
-const RESET_STATEMENTS = [
-  "DELETE FROM notifications",
-  "DELETE FROM contracts",
-  "DELETE FROM performances",
-  "DELETE FROM teams",
-  "DELETE FROM leagues WHERE id != 'global'",
-  "DELETE FROM players WHERE id != 'system'",
-  "DELETE FROM google_accounts WHERE id != 'system'",
-  // Calibrations a test performed, but not the `en`/`it` measurements migration
-  // 0009 seeds — those are reference data and production has them too. Without
-  // this, a test that calibrates `de` leaves the row behind and the next test to
-  // ask about `de` reads a stored factor instead of measuring one, which makes
-  // the suite order-dependent in the one place where "have we measured this
-  // edition yet" is the whole question.
-  `DELETE FROM language_scales WHERE domain NOT IN ('en', 'it')`,
-];
-
-export async function resetD1Database(db: D1Database): Promise<void> {
-  for (const statement of RESET_STATEMENTS) {
-    await db.prepare(statement).run();
-  }
-}
-
 /**
  * Inserts a league row for test setup.
  *

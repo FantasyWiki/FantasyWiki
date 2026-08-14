@@ -4,7 +4,6 @@ import { app } from "../../index";
 import { PerformanceService } from "../../services/performance";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
 import {
-  resetD1Database,
   insertTeam,
   insertLineup,
   insertContract,
@@ -17,7 +16,6 @@ const AUTH = { Authorization: "Bearer test-scoring-secret" };
 
 describe("/internal routes", () => {
   beforeEach(async () => {
-    await resetD1Database(env.db);
     await env.db
       .prepare(
         "INSERT INTO google_accounts (id, googleId, email) VALUES (?, ?, ?)",

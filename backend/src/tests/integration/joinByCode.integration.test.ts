@@ -10,7 +10,7 @@ import { TEAM_ERRORS } from "../../repositories/teamRepository";
 import { LeagueService } from "../../services/league";
 import { TeamService } from "../../services/team";
 import { PlayerService } from "../../services/player";
-import { insertLeague, resetD1Database } from "../utils/d1TestUtils";
+import { insertLeague } from "../utils/d1TestUtils";
 
 const CODE = "ZK7QW";
 const OTHER_CODE = "M4RSX";
@@ -62,7 +62,6 @@ describe("GET /leagues/by-code/:code", () => {
   let app: Hono;
 
   beforeEach(async () => {
-    await resetD1Database(env.db);
     ({ app } = await makePlayerApp());
     await insertLeague(env.db, {
       id: "coded",
@@ -173,7 +172,6 @@ describe("the join rate limit", () => {
   let app: Hono;
 
   beforeEach(async () => {
-    await resetD1Database(env.db);
     ({ app } = await makePlayerApp());
     await insertLeague(env.db, {
       id: "coded",
@@ -246,7 +244,6 @@ describe("joining a league that has ended", () => {
   let playerId: string;
 
   beforeEach(async () => {
-    await resetD1Database(env.db);
     ({ app, playerId } = await makePlayerApp());
   });
 
@@ -318,7 +315,6 @@ describe("LeagueService.getLeagueByInvitationCode", () => {
   let service: LeagueService;
 
   beforeEach(async () => {
-    await resetD1Database(env.db);
     service = new LeagueService(env.db);
   });
 

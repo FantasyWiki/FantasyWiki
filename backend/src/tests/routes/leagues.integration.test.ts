@@ -8,7 +8,7 @@ import { TEAM_ERRORS } from "../../repositories/teamRepository";
 import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
 import { LEAGUE_ICONS } from "../../../../model/league";
 import { PlayerService } from "../../services/player";
-import { insertLeague, resetD1Database } from "../utils/d1TestUtils";
+import { insertLeague } from "../utils/d1TestUtils";
 
 const LEAGUE_ID = "league-route-1";
 
@@ -21,7 +21,6 @@ const app = new Hono<{ Bindings: { db: D1Database } }>().route(
 
 describe("GET /leagues/:id", () => {
   beforeEach(async () => {
-    await resetD1Database(env.db);
     await env.db
       .prepare(
         "INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -109,7 +108,6 @@ describe("POST /leagues", () => {
   }
 
   beforeEach(async () => {
-    await resetD1Database(env.db);
     const player = await new PlayerService(env.db).createPlayer(
       "route-founder",
       "route-founder@example.com",
@@ -165,7 +163,6 @@ describe("POST /leagues", () => {
 
 describe("the invitation code never rides on a league read", () => {
   beforeEach(async () => {
-    await resetD1Database(env.db);
     await insertLeague(env.db, {
       id: "leaky",
       visibility: LeagueVisibility.PRIVATE,
@@ -231,7 +228,6 @@ describe("league lifecycle endpoints", () => {
   }
 
   beforeEach(async () => {
-    await resetD1Database(env.db);
     const players = new PlayerService(env.db);
     const admin = await players.createPlayer(
       "route-admin",

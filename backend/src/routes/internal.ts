@@ -4,13 +4,13 @@ import { bearerAuth } from "hono/bearer-auth";
 import { timingSafeEqual } from "hono/utils/buffer";
 import { ScoringService } from "../services/scoring";
 import type { PerformanceIngestDTO } from "../../../dto/scoring";
+import { AppVariables } from "../appEnv";
 
 type Bindings = {
-  db: D1Database;
   SCORING_INGEST_SECRET: string;
 };
 
-const internal = new Hono<{ Bindings: Bindings }>();
+const internal = new Hono<{ Bindings: Bindings; Variables: AppVariables }>();
 
 /**
  * Service-token guard. The scoring engine is not a user, so these routes sit
@@ -50,7 +50,7 @@ internal.get("/scoring-inputs", async (c) => {
   if (day === null) {
     return c.json({ error: "date query param (YYYY-MM-DD) is required" }, 400);
   }
-  const service = ScoringService.fromDb(c.env.db);
+  const service = new ScoringService(c.var.repositories);
   const result = await service.getScoringInputs(day);
   if (!result.ok) {
     return c.json({ error: result.error }, 500);
@@ -68,7 +68,7 @@ internal.post("/performances", async (c) => {
   if (day === null) {
     return c.json({ error: "date (YYYY-MM-DD) is required" }, 400);
   }
-  const service = ScoringService.fromDb(c.env.db);
+  const service = new ScoringService(c.var.repositories);
   const result = await service.ingestPerformances(day, body.results);
   if (!result.ok) {
     return c.json({ error: result.error }, 400);

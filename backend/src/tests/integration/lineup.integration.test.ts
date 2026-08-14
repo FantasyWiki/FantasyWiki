@@ -7,8 +7,10 @@ import {
   LINEUP_ERRORS,
 } from "../../services/lineup";
 import { PlayerService } from "../../services/player";
+import { TeamService } from "../../services/team";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
 import { insertLineup, insertTeam } from "../utils/d1TestUtils";
+import { repositories } from "../support/target";
 
 describe("LineupService Integration Tests", () => {
   let lineupService: LineupService;
@@ -17,8 +19,11 @@ describe("LineupService Integration Tests", () => {
   let teamId: string;
 
   beforeEach(async () => {
-    lineupService = LineupService.fromDb(env.db);
-    playerService = new PlayerService(env.db);
+    lineupService = new LineupService({
+      ...repositories(),
+      teamService: new TeamService(repositories()),
+    });
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "lineuptester",

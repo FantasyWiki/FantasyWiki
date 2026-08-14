@@ -1,6 +1,11 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { applyD1Migrations, D1Migration } from "cloudflare:test";
 import { League } from "../../../../../model";
+import {
+  LeagueInvitePolicy,
+  LeagueVisibility,
+} from "../../../../../model/enums";
+import { REFERENCE_SCALE } from "../../../../../model/languageScale";
 import { NewLeagueAttrs, TestStore } from "../testStore";
 
 /**
@@ -34,35 +39,33 @@ export class D1TestStore implements TestStore {
   }
 
   async createLeague(attrs: NewLeagueAttrs): Promise<League> {
-    const startDate = attrs.startDate ?? "2024-01-01T00:00:00Z";
-    const endDate = attrs.endDate ?? "2124-01-01T00:00:00Z";
-    const domain = attrs.domain ?? "en";
-    const icon = attrs.icon ?? "🌍";
-
-    await this.db
-      .prepare(
-        `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        attrs.id,
-        attrs.name,
-        attrs.adminId,
-        startDate,
-        endDate,
-        domain,
-        icon,
-      )
-      .run();
-
-    return {
+    const league = {
       id: attrs.id,
       name: attrs.name,
       adminId: attrs.adminId,
-      startDate: Temporal.Instant.from(startDate),
-      endDate: Temporal.Instant.from(endDate),
-      domain,
-      icon,
+      startDate: attrs.startDate ?? "2024-01-01T00:00:00Z",
+      endDate: attrs.endDate ?? "2124-01-01T00:00:00Z",
+      domain: attrs.domain ?? "en",
+      languageScale: REFERENCE_SCALE,
+      icon: attrs.icon ?? "🌍",
+      visibility: LeagueVisibility.PUBLIC,
+      invitePolicy: LeagueInvitePolicy.MEMBERS,
+    };
+
+    await this.db
+      .prepare(
+        `INSERT INTO leagues
+           (id, name, adminId, startDate, endDate, domain, languageScale, icon, visibility, invitePolicy)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(...Object.values(league))
+      .run();
+
+    return {
+      ...league,
+      startDate: Temporal.Instant.from(league.startDate),
+      endDate: Temporal.Instant.from(league.endDate),
+      closedAt: null,
     };
   }
 
@@ -79,7 +82,9 @@ export class D1TestStore implements TestStore {
       for (const object of remaining) {
         const kind = object.type === "view" ? "VIEW" : "TABLE";
         try {
-          await this.db.prepare(`DROP ${kind} IF EXISTS "${object.name}"`).run();
+          await this.db
+            .prepare(`DROP ${kind} IF EXISTS "${object.name}"`)
+            .run();
           dropped++;
         } catch {
           // Still has children; a later pass gets it.

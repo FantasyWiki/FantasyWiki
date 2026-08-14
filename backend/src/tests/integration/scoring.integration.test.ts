@@ -4,11 +4,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { ScoringService } from "../../services/scoring";
 import { PerformanceService } from "../../services/performance";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
-import {
-  insertTeam,
-  insertLineup,
-  insertContract,
-} from "../utils/d1TestUtils";
+import { insertTeam, insertLineup, insertContract } from "../utils/d1TestUtils";
+import { repositories } from "../support/target";
 
 const SCORE_DATE = "2026-07-12";
 const SCORE_DAY = Temporal.PlainDate.from(SCORE_DATE);
@@ -65,7 +62,7 @@ describe("Scoring engine integration", () => {
         GK: "c-settled",
       });
 
-      const service = ScoringService.fromDb(env.db);
+      const service = new ScoringService(repositories());
       const result = await service.getScoringInputs(SCORE_DAY);
 
       expect(result.ok).toBe(true);
@@ -102,7 +99,7 @@ describe("Scoring engine integration", () => {
         CLB: "c-clb",
       });
 
-      const service = ScoringService.fromDb(env.db);
+      const service = new ScoringService(repositories());
       const result = await service.getScoringInputs(SCORE_DAY);
       expect(result.ok).toBe(true);
       if (!result.ok) return;
@@ -121,8 +118,8 @@ describe("Scoring engine integration", () => {
     });
 
     it("computes points from raw signals and upserts idempotently on (teamId, date)", async () => {
-      const scoring = ScoringService.fromDb(env.db);
-      const performance = PerformanceService.fromDb(env.db);
+      const scoring = new ScoringService(repositories());
+      const performance = new PerformanceService(repositories());
 
       // domain "en" -> L = 1.0. basePoints(64000)=5.0, basePoints(16000)=3.0;
       // "excellent" synergy = +1.5 -> 5.0 + 3.0 + 1.5 = 9.5.
@@ -163,7 +160,7 @@ describe("Scoring engine integration", () => {
     });
 
     it("rejects negative or non-finite article views", async () => {
-      const scoring = ScoringService.fromDb(env.db);
+      const scoring = new ScoringService(repositories());
       const negative = await scoring.ingestPerformances(SCORE_DAY, [
         {
           teamId: TEAM_ID,
@@ -176,7 +173,7 @@ describe("Scoring engine integration", () => {
     });
 
     it("rejects an unknown chemistry level", async () => {
-      const scoring = ScoringService.fromDb(env.db);
+      const scoring = new ScoringService(repositories());
       const bad = await scoring.ingestPerformances(SCORE_DAY, [
         {
           teamId: TEAM_ID,
@@ -190,7 +187,7 @@ describe("Scoring engine integration", () => {
     });
 
     it("rejects a team with no lineup (no resolvable domain)", async () => {
-      const scoring = ScoringService.fromDb(env.db);
+      const scoring = new ScoringService(repositories());
       const unknown = await scoring.ingestPerformances(SCORE_DAY, [
         {
           teamId: "team-without-lineup",

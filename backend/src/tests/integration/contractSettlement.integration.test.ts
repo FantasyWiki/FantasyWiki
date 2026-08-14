@@ -3,6 +3,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect, beforeEach } from "vitest";
 import { ContractService, CONTRACT_ERRORS } from "../../services/contract";
 import { NotificationService } from "../../services/notification";
+import { createWikimediaClient } from "../../services/wikimediaClient";
 import { PlayerService } from "../../services/player";
 import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
 import { ContractRepositoryD1 } from "../../repositories/d1/contractRepositoryD1";
@@ -23,6 +24,7 @@ import {
 } from "../../../../model/pricing";
 import { REFERENCE_SCALE } from "../../../../model/languageScale";
 import { insertTeam } from "../utils/d1TestUtils";
+import { repositories } from "../support/target";
 
 /**
  * WikimediaClient stub exposing only `pageviews.getArticleViews`, the sole
@@ -213,7 +215,7 @@ describe("ContractService settlement sweep Integration Tests", () => {
   }
 
   beforeEach(async () => {
-    playerService = new PlayerService(env.db);
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "settletester",
@@ -260,14 +262,10 @@ describe("ContractService settlement sweep Integration Tests", () => {
       articleId: "Cristiano_Ronaldo",
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(120000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(120000),
+    });
     await runSweep(service);
 
     const currentPrice = priceFor(120000, tierDays);
@@ -283,7 +281,7 @@ describe("ContractService settlement sweep Integration Tests", () => {
     expect(credits).toBe(STARTING_CREDITS - purchasePrice + currentPrice);
 
     const notifications = await new NotificationService(
-      env.db,
+      repositories(),
     ).getMyNotifications(playerId, leagueId);
     expect(notifications.ok).toBe(true);
     if (!notifications.ok) return;
@@ -304,14 +302,10 @@ describe("ContractService settlement sweep Integration Tests", () => {
       articleId: "Bitcoin",
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
     await runSweep(service);
 
     const currentPrice = priceFor(9000, tierDays);
@@ -323,7 +317,7 @@ describe("ContractService settlement sweep Integration Tests", () => {
     expect(row?.salePayout).toBe(currentPrice);
 
     const notifications = await new NotificationService(
-      env.db,
+      repositories(),
     ).getMyNotifications(playerId, leagueId);
     expect(notifications.ok).toBe(true);
     if (!notifications.ok) return;
@@ -347,14 +341,10 @@ describe("ContractService settlement sweep Integration Tests", () => {
     const oldRow = await readContractRow("contract-renew");
 
     const views = 9000;
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(views),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(views),
+    });
     await runSweep(service);
 
     const currentPrice = priceFor(views, tierDays);
@@ -382,7 +372,7 @@ describe("ContractService settlement sweep Integration Tests", () => {
     );
 
     const notifications = await new NotificationService(
-      env.db,
+      repositories(),
     ).getMyNotifications(playerId, leagueId);
     expect(notifications.ok).toBe(true);
     if (!notifications.ok) return;
@@ -409,14 +399,10 @@ describe("ContractService settlement sweep Integration Tests", () => {
 
     const views = 9000;
     await runSweep(
-      new ContractService(
-        env.db,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        wikimediaWithAvg(views),
-      ),
+      new ContractService({
+        ...repositories(),
+        wikimedia: wikimediaWithAvg(views),
+      }),
     );
 
     const currentPrice = priceFor(views, tierDays);
@@ -447,14 +433,10 @@ describe("ContractService settlement sweep Integration Tests", () => {
     // Precondition: incremental cost (currentPrice - 0) exceeds the ~10 credits left.
     expect(currentPrice).toBeGreaterThan(10);
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(views),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(views),
+    });
     await runSweep(service);
 
     const row = await readContractRow("contract-renew-broke");
@@ -466,7 +448,7 @@ describe("ContractService settlement sweep Integration Tests", () => {
 
     const delta = currentPrice - purchasePrice;
     const notifications = await new NotificationService(
-      env.db,
+      repositories(),
     ).getMyNotifications(playerId, leagueId);
     expect(notifications.ok).toBe(true);
     if (!notifications.ok) return;
@@ -484,14 +466,10 @@ describe("ContractService settlement sweep Integration Tests", () => {
       purchasePrice,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(120000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(120000),
+    });
 
     await runSweep(service);
     const creditsAfterFirst = await getDerivedCredits(playerId, leagueId);
@@ -511,7 +489,7 @@ describe("ContractService settlement sweep Integration Tests", () => {
 
     // No duplicate notification.
     const notifications = await new NotificationService(
-      env.db,
+      repositories(),
     ).getMyNotifications(playerId, leagueId);
     expect(notifications.ok).toBe(true);
     if (notifications.ok) {
@@ -526,14 +504,10 @@ describe("ContractService settlement sweep Integration Tests", () => {
       purchasePrice: 50,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(undefined),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(undefined),
+    });
 
     const today = Temporal.Now.plainDateISO();
     const due = await service.getDueForSettlement(today);
@@ -584,7 +558,7 @@ describe("ContractService.electRenewal Integration Tests", () => {
   }
 
   beforeEach(async () => {
-    playerService = new PlayerService(env.db);
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "electtester",
@@ -627,7 +601,10 @@ describe("ContractService.electRenewal Integration Tests", () => {
       remainingDays: 1,
     });
 
-    const service = new ContractService(env.db);
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: createWikimediaClient(),
+    });
     const result = await service.electRenewal(
       playerId,
       leagueId,
@@ -651,7 +628,10 @@ describe("ContractService.electRenewal Integration Tests", () => {
       remainingDays: 3,
     });
 
-    const service = new ContractService(env.db);
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: createWikimediaClient(),
+    });
     const result = await service.electRenewal(
       playerId,
       leagueId,
@@ -670,7 +650,10 @@ describe("ContractService.electRenewal Integration Tests", () => {
       remainingDays: -1,
     });
 
-    const service = new ContractService(env.db);
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: createWikimediaClient(),
+    });
     const result = await service.electRenewal(
       playerId,
       leagueId,
@@ -704,7 +687,10 @@ describe("ContractService.electRenewal Integration Tests", () => {
       ownerTeamId: otherTeamId,
     });
 
-    const service = new ContractService(env.db);
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: createWikimediaClient(),
+    });
     const result = await service.electRenewal(
       playerId,
       leagueId,
@@ -724,7 +710,10 @@ describe("ContractService.electRenewal Integration Tests", () => {
       settled: true,
     });
 
-    const service = new ContractService(env.db);
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: createWikimediaClient(),
+    });
     const result = await service.electRenewal(
       playerId,
       leagueId,
@@ -738,7 +727,10 @@ describe("ContractService.electRenewal Integration Tests", () => {
   });
 
   it("rejects electing a contract that does not exist", async () => {
-    const service = new ContractService(env.db);
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: createWikimediaClient(),
+    });
     const result = await service.electRenewal(playerId, leagueId, "no-such-id");
 
     expect(result).toEqual({
@@ -760,7 +752,10 @@ describe("ContractService.electRenewal Integration Tests", () => {
       remainingDays: 1,
     });
 
-    const service = new ContractService(env.db);
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: createWikimediaClient(),
+    });
     const result = await service.electRenewal(
       outsider.value.id,
       leagueId,
@@ -784,7 +779,11 @@ describe("ContractService.electRenewal Integration Tests", () => {
       electRenewal: async () => success(false),
     });
 
-    const service = new ContractService(env.db, contractRepo);
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: createWikimediaClient(),
+    });
     const result = await service.electRenewal(
       playerId,
       leagueId,
@@ -802,7 +801,11 @@ describe("ContractService.electRenewal Integration Tests", () => {
       getById: async () => failure("Error fetching contract: D1 unavailable"),
     });
 
-    const service = new ContractService(env.db, contractRepo);
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: createWikimediaClient(),
+    });
     const result = await service.electRenewal(
       playerId,
       leagueId,
@@ -824,7 +827,11 @@ describe("ContractService.electRenewal Integration Tests", () => {
       electRenewal: async () => failure("Error electing contract renewal"),
     });
 
-    const service = new ContractService(env.db, contractRepo);
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: createWikimediaClient(),
+    });
     const result = await service.electRenewal(
       playerId,
       leagueId,
@@ -838,12 +845,11 @@ describe("ContractService.electRenewal Integration Tests", () => {
   });
 
   it("propagates a failure to read the team", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      failingTeamRepo("Error retrieving team"),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      teams: failingTeamRepo("Error retrieving team"),
+      wikimedia: createWikimediaClient(),
+    });
 
     const result = await service.electRenewal(playerId, leagueId, "contract-x");
 
@@ -851,11 +857,11 @@ describe("ContractService.electRenewal Integration Tests", () => {
   });
 
   it("propagates a failure to read the league", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      failingLeagueRepo("Error retrieving league"),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      leagues: failingLeagueRepo("Error retrieving league"),
+      wikimedia: createWikimediaClient(),
+    });
 
     const result = await service.electRenewal(playerId, leagueId, "contract-x");
 
@@ -872,13 +878,11 @@ describe("ContractService.electRenewal Integration Tests", () => {
       remainingDays: 1,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      failingPlayerRepo("Error retrieving player"),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      players: failingPlayerRepo("Error retrieving player"),
+      wikimedia: createWikimediaClient(),
+    });
     const result = await service.electRenewal(
       playerId,
       leagueId,
@@ -917,13 +921,14 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
       renewalCount: 0,
       renewalElected: false,
       domain: "en",
+      languageScale: REFERENCE_SCALE,
       teamCredits: STARTING_CREDITS,
       ...overrides,
     };
   }
 
   beforeEach(async () => {
-    playerService = new PlayerService(env.db);
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "guardtester",
@@ -979,11 +984,10 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
   }
 
   it("rejects cancelling a contract that does not exist", async () => {
-    const result = await new ContractService(env.db).cancelRenewal(
-      playerId,
-      leagueId,
-      "no-such-id",
-    );
+    const result = await new ContractService({
+      ...repositories(),
+      wikimedia: createWikimediaClient(),
+    }).cancelRenewal(playerId, leagueId, "no-such-id");
 
     expect(result).toEqual({
       ok: false,
@@ -1001,11 +1005,10 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
     if (!outsider.ok) return;
     await insertElectedContract("contract-guard-noteam");
 
-    const result = await new ContractService(env.db).cancelRenewal(
-      outsider.value.id,
-      leagueId,
-      "contract-guard-noteam",
-    );
+    const result = await new ContractService({
+      ...repositories(),
+      wikimedia: createWikimediaClient(),
+    }).cancelRenewal(outsider.value.id, leagueId, "contract-guard-noteam");
 
     expect(result).toEqual({ ok: false, error: CONTRACT_ERRORS.NO_TEAM });
   });
@@ -1041,11 +1044,10 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
       )
       .run();
 
-    const result = await new ContractService(env.db).cancelRenewal(
-      playerId,
-      leagueId,
-      "contract-guard-rival",
-    );
+    const result = await new ContractService({
+      ...repositories(),
+      wikimedia: createWikimediaClient(),
+    }).cancelRenewal(playerId, leagueId, "contract-guard-rival");
 
     expect(result).toEqual({
       ok: false,
@@ -1064,10 +1066,11 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
       cancelRenewal: async () => success(false),
     });
 
-    const result = await new ContractService(
-      env.db,
-      contractRepo,
-    ).cancelRenewal(playerId, leagueId, "contract-guard-race");
+    const result = await new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: createWikimediaClient(),
+    }).cancelRenewal(playerId, leagueId, "contract-guard-race");
 
     expect(result).toEqual({
       ok: false,
@@ -1081,10 +1084,11 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
       cancelRenewal: async () => failure("Error cancelling contract renewal"),
     });
 
-    const result = await new ContractService(
-      env.db,
-      contractRepo,
-    ).cancelRenewal(playerId, leagueId, "contract-guard-writefail");
+    const result = await new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: createWikimediaClient(),
+    }).cancelRenewal(playerId, leagueId, "contract-guard-writefail");
 
     expect(result).toEqual({
       ok: false,
@@ -1093,12 +1097,11 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
   });
 
   it("propagates a failure to read the team", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      failingTeamRepo("Error retrieving team"),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      teams: failingTeamRepo("Error retrieving team"),
+      wikimedia: createWikimediaClient(),
+    });
 
     const result = await service.cancelRenewal(playerId, leagueId, "any");
 
@@ -1106,11 +1109,11 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
   });
 
   it("propagates a failure to read the league", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      failingLeagueRepo("Error retrieving league"),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      leagues: failingLeagueRepo("Error retrieving league"),
+      wikimedia: createWikimediaClient(),
+    });
 
     const result = await service.cancelRenewal(playerId, leagueId, "any");
 
@@ -1122,10 +1125,11 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
       getById: async () => failure("Error fetching contract"),
     });
 
-    const result = await new ContractService(
-      env.db,
-      contractRepo,
-    ).cancelRenewal(playerId, leagueId, "any");
+    const result = await new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: createWikimediaClient(),
+    }).cancelRenewal(playerId, leagueId, "any");
 
     expect(result).toEqual({ ok: false, error: "Error fetching contract" });
   });
@@ -1140,15 +1144,12 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
     const contractRepo = contractRepoOver(env.db, {
       settleExpiry: async () => success(false),
     });
-    const service = new ContractService(
-      env.db,
-      contractRepo,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(120000),
-      recordingNotificationRepo(messages),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: wikimediaWithAvg(120000),
+      notifications: recordingNotificationRepo(messages),
+    });
 
     await service.settleDueContract(dueContract());
 
@@ -1160,15 +1161,12 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
     const contractRepo = contractRepoOver(env.db, {
       renew: async () => success(false),
     });
-    const service = new ContractService(
-      env.db,
-      contractRepo,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-      recordingNotificationRepo(messages),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: wikimediaWithAvg(9000),
+      notifications: recordingNotificationRepo(messages),
+    });
 
     await service.settleDueContract(dueContract({ renewalElected: true }));
 
@@ -1179,14 +1177,11 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
     const contractRepo = contractRepoOver(env.db, {
       settleExpiry: async () => failure("Error settling contract at expiry"),
     });
-    const service = new ContractService(
-      env.db,
-      contractRepo,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(120000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: wikimediaWithAvg(120000),
+    });
 
     await expect(service.settleDueContract(dueContract())).rejects.toThrow(
       "Error settling contract at expiry",
@@ -1197,14 +1192,11 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
     const contractRepo = contractRepoOver(env.db, {
       renew: async () => failure("Error renewing contract"),
     });
-    const service = new ContractService(
-      env.db,
-      contractRepo,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     await expect(
       service.settleDueContract(dueContract({ renewalElected: true })),
@@ -1236,15 +1228,11 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
     const notificationRepo = {
       create: async () => failure("Error creating notification"),
     } as unknown as NotificationRepository;
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(120000),
-      notificationRepo,
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(120000),
+      notifications: notificationRepo,
+    });
 
     await expect(
       service.settleDueContract(dueContract({ id: "contract-guard-nonotify" })),

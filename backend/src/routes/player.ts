@@ -1,43 +1,22 @@
 import { Hono } from "hono";
 import { NotificationService } from "../services/notification";
 import { PlayerDTO } from "../../../dto/playerDTO";
-import { playerErrorStatus, resolveCurrentPlayer } from "./helpers";
+import { AuthedVariables } from "../appEnv";
+import { currentPlayer } from "./currentPlayer";
 
-type Bindings = {
-  db: D1Database;
-};
+const player = new Hono<{ Variables: AuthedVariables }>();
 
-const player = new Hono<{ Bindings: Bindings }>();
-
-player.get("/", async (c) => {
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
+player.get("/", currentPlayer, async (c) => {
   const dto: PlayerDTO = {
-    id: playerResult.value.id,
-    name: playerResult.value.username,
+    id: c.var.player.id,
+    name: c.var.player.username,
   };
   return c.json(dto);
 });
 
-player.get("/notifications", async (c) => {
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
-  const notificationService = new NotificationService(c.env.db);
-  const result = await notificationService.getAllForPlayer(
-    playerResult.value.id,
-  );
+player.get("/notifications", currentPlayer, async (c) => {
+  const notificationService = new NotificationService(c.var.repositories);
+  const result = await notificationService.getAllForPlayer(c.var.player.id);
   if (!result.ok) {
     return c.json({ error: result.error }, 500);
   }

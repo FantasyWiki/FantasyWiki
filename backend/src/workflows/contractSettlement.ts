@@ -5,7 +5,9 @@ import {
 } from "cloudflare:workers";
 import { Temporal } from "@js-temporal/polyfill";
 import { ContractService } from "../services/contract";
+import { createWikimediaClient } from "../services/wikimediaClient";
 import { DueContract } from "../repositories/contractRepository";
+import { repositoriesFor } from "../composition";
 
 export type ContractSettlementParams = {
   /** ISO date (YYYY-MM-DD) the sweep resolves contracts as of. */
@@ -92,7 +94,10 @@ export class ContractSettlementWorkflow extends WorkflowEntrypoint<
    * client rather than the live API.
    */
   protected createService(): ContractService {
-    return new ContractService(this.env.db);
+    return new ContractService({
+      ...repositoriesFor(this.env),
+      wikimedia: createWikimediaClient(),
+    });
   }
 
   async run(

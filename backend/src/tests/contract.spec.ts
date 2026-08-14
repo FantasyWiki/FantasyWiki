@@ -126,6 +126,11 @@ function makeContractRepo(
         renewalElected: false,
       }),
     settleSale: async () => success(true),
+    getDueForSettlement: async () => success([]),
+    settleExpiry: async () => success(true),
+    renew: async () => success(true),
+    electRenewal: async () => success(true),
+    cancelRenewal: async () => success(true),
     ...overrides,
   };
 }
@@ -175,25 +180,18 @@ function makeWikimedia(
   } as unknown as WikimediaClient;
 }
 
-function makeService(
-  overrides: {
-    contractRepo?: ContractRepository;
-    leagueRepo?: LeagueRepository;
-    teamRepo?: TeamRepository;
-    playerRepo?: PlayerRepository;
-    wikimedia?: WikimediaClient;
-    notificationRepo?: NotificationRepository;
-  } = {},
-): ContractService {
-  return new ContractService(
-    {} as D1Database,
-    overrides.contractRepo ?? makeContractRepo(),
-    overrides.leagueRepo ?? makeLeagueRepo(),
-    overrides.teamRepo ?? makeTeamRepo(),
-    overrides.playerRepo ?? makePlayerRepo(),
-    overrides.wikimedia ?? makeWikimedia(),
-    overrides.notificationRepo ?? makeNotificationRepo(),
-  );
+type ContractDeps = ConstructorParameters<typeof ContractService>[0];
+
+function makeService(overrides: Partial<ContractDeps> = {}): ContractService {
+  return new ContractService({
+    contracts: makeContractRepo(),
+    leagues: makeLeagueRepo(),
+    teams: makeTeamRepo(),
+    players: makePlayerRepo(),
+    notifications: makeNotificationRepo(),
+    wikimedia: makeWikimedia(),
+    ...overrides,
+  });
 }
 
 // ─── getLeagueContracts ─────────────────────────────────────────────────────
@@ -201,7 +199,7 @@ function makeService(
 describe("ContractService.getLeagueContracts", () => {
   it("propagates a failure from the contract repository", async () => {
     const service = makeService({
-      contractRepo: makeContractRepo({
+      contracts: makeContractRepo({
         getByLeagueId: async () => failure("contracts lookup failed"),
       }),
     });
@@ -247,7 +245,7 @@ describe("ContractService.buyContract", () => {
 
   it("propagates a failure from the team repository", async () => {
     const service = makeService({
-      teamRepo: makeTeamRepo(failure("team lookup failed")),
+      teams: makeTeamRepo(failure("team lookup failed")),
     });
 
     const result = await service.buyContract(
@@ -262,7 +260,7 @@ describe("ContractService.buyContract", () => {
 
   it("propagates a failure from the league repository", async () => {
     const service = makeService({
-      leagueRepo: makeLeagueRepo(failure("league lookup failed")),
+      leagues: makeLeagueRepo(failure("league lookup failed")),
     });
 
     const result = await service.buyContract(
@@ -277,7 +275,7 @@ describe("ContractService.buyContract", () => {
 
   it("still completes the buy when the player lookup fails, falling back to an empty player name", async () => {
     const service = makeService({
-      playerRepo: makePlayerRepo(failure("player lookup failed")),
+      players: makePlayerRepo(failure("player lookup failed")),
     });
 
     const result = await service.buyContract(
@@ -295,7 +293,7 @@ describe("ContractService.buyContract", () => {
 
   it("propagates a failure from the league contracts lookup", async () => {
     const service = makeService({
-      contractRepo: makeContractRepo({
+      contracts: makeContractRepo({
         getByLeagueId: async () => failure("league contracts lookup failed"),
       }),
     });
@@ -312,7 +310,7 @@ describe("ContractService.buyContract", () => {
 
   it("propagates a failure from the contract creation write", async () => {
     const service = makeService({
-      contractRepo: makeContractRepo({
+      contracts: makeContractRepo({
         create: async () => failure("insert failed"),
       }),
     });
@@ -333,7 +331,7 @@ describe("ContractService.buyContract", () => {
 describe("ContractService.sellContract", () => {
   it("propagates a failure from the team repository", async () => {
     const service = makeService({
-      teamRepo: makeTeamRepo(failure("team lookup failed")),
+      teams: makeTeamRepo(failure("team lookup failed")),
     });
 
     const result = await service.sellContract(
@@ -347,7 +345,7 @@ describe("ContractService.sellContract", () => {
 
   it("fails with 'No team found for this league' when the player has no team there", async () => {
     const service = makeService({
-      teamRepo: makeTeamRepo(success(null)),
+      teams: makeTeamRepo(success(null)),
     });
 
     const result = await service.sellContract(
@@ -361,7 +359,7 @@ describe("ContractService.sellContract", () => {
 
   it("propagates a failure from the league repository", async () => {
     const service = makeService({
-      leagueRepo: makeLeagueRepo(failure("league lookup failed")),
+      leagues: makeLeagueRepo(failure("league lookup failed")),
     });
 
     const result = await service.sellContract(
@@ -375,7 +373,7 @@ describe("ContractService.sellContract", () => {
 
   it("still completes the sale when the player lookup fails, falling back to an empty player name", async () => {
     const service = makeService({
-      playerRepo: makePlayerRepo(failure("player lookup failed")),
+      players: makePlayerRepo(failure("player lookup failed")),
     });
 
     const result = await service.sellContract(
@@ -392,7 +390,7 @@ describe("ContractService.sellContract", () => {
 
   it("propagates a failure from the contract repository", async () => {
     const service = makeService({
-      contractRepo: makeContractRepo({
+      contracts: makeContractRepo({
         getById: async () => failure("contract lookup failed"),
       }),
     });
@@ -421,7 +419,7 @@ describe("ContractService.sellContract", () => {
 
     const service = makeService({
       wikimedia: makeWikimedia(views),
-      contractRepo: makeContractRepo({
+      contracts: makeContractRepo({
         getById: async () => success(sellable),
       }),
     });
@@ -450,7 +448,7 @@ describe("ContractService.sellContract", () => {
       expireDate: Temporal.PlainDate.from("2026-01-01"),
     });
     const service = makeService({
-      contractRepo: makeContractRepo({
+      contracts: makeContractRepo({
         getById: async () => success(zeroTierContract),
       }),
     });
@@ -470,7 +468,7 @@ describe("ContractService.sellContract", () => {
 
   it("propagates a failure from the settlement write", async () => {
     const service = makeService({
-      contractRepo: makeContractRepo({
+      contracts: makeContractRepo({
         settleSale: async () => failure("settle failed"),
       }),
     });
@@ -486,7 +484,7 @@ describe("ContractService.sellContract", () => {
 
   it("fails with 'Contract already sold' when a concurrent sale wins the guarded write", async () => {
     const service = makeService({
-      contractRepo: makeContractRepo({
+      contracts: makeContractRepo({
         settleSale: async () => success(false),
       }),
     });
@@ -505,7 +503,7 @@ describe("ContractService.sellContract", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
     const service = makeService({
-      notificationRepo: makeNotificationRepo({
+      notifications: makeNotificationRepo({
         create: async () => failure("notification insert failed"),
       }),
     });
@@ -530,7 +528,7 @@ describe("ContractService.sellContract", () => {
 describe("ContractService.getMyContracts", () => {
   it("propagates a failure from the team repository", async () => {
     const service = makeService({
-      teamRepo: makeTeamRepo(failure("team lookup failed")),
+      teams: makeTeamRepo(failure("team lookup failed")),
     });
 
     const result = await service.getMyContracts(PLAYER_ID, LEAGUE_ID);
@@ -540,7 +538,7 @@ describe("ContractService.getMyContracts", () => {
 
   it("propagates a failure from the player repository", async () => {
     const service = makeService({
-      playerRepo: makePlayerRepo(failure("player lookup failed")),
+      players: makePlayerRepo(failure("player lookup failed")),
     });
 
     const result = await service.getMyContracts(PLAYER_ID, LEAGUE_ID);
@@ -550,7 +548,7 @@ describe("ContractService.getMyContracts", () => {
 
   it("propagates a failure from the league repository", async () => {
     const service = makeService({
-      leagueRepo: makeLeagueRepo(failure("league lookup failed")),
+      leagues: makeLeagueRepo(failure("league lookup failed")),
     });
 
     const result = await service.getMyContracts(PLAYER_ID, LEAGUE_ID);
@@ -560,7 +558,7 @@ describe("ContractService.getMyContracts", () => {
 
   it("propagates a failure from the contracts lookup", async () => {
     const service = makeService({
-      contractRepo: makeContractRepo({
+      contracts: makeContractRepo({
         getByTeamId: async () => failure("contracts lookup failed"),
       }),
     });

@@ -1,5 +1,6 @@
 import { Repositories } from "../repositories";
 import { ContractRepositoryD1 } from "./contractRepositoryD1";
+import { LanguageScaleRepositoryD1 } from "./languageScaleRepositoryD1";
 import { LeagueRepositoryD1 } from "./leagueRepositoryD1";
 import { LineupRepositoryD1 } from "./lineupRepositoryD1";
 import { NotificationRepositoryD1 } from "./notificationRepositoryD1";
@@ -19,5 +20,6 @@ export function d1Repositories(db: D1Database): Repositories {
     notifications: new NotificationRepositoryD1(db),
     performances: new PerformanceRepositoryD1(db),
     scoring: new ScoringRepositoryD1(db),
+    languageScales: new LanguageScaleRepositoryD1(db),
   };
 }

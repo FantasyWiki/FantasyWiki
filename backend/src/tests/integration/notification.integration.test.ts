@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { NotificationService } from "../../services/notification";
 import { PlayerService } from "../../services/player";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
+import { repositories } from "../support/target";
 import { insertTeam } from "../utils/d1TestUtils";
 
 describe("NotificationService Integration Tests", () => {
@@ -12,8 +13,8 @@ describe("NotificationService Integration Tests", () => {
   let teamId: string;
 
   beforeEach(async () => {
-    notificationService = new NotificationService(env.db);
-    playerService = new PlayerService(env.db);
+    notificationService = new NotificationService(repositories());
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "notifytester",

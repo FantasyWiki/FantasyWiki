@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { d1Repositories } from "../../repositories/d1";
+import { repositoriesFor } from "../../composition";
 import { Repositories } from "../../repositories/repositories";
 import { D1TestStore } from "./d1/d1TestStore";
 import { TestStore } from "./testStore";
@@ -14,7 +14,7 @@ import { TestStore } from "./testStore";
  * JSON-serializable values in `vitest.config.ts`, while `d1Repositories` needs
  * the `D1Database` handle that only exists inside the isolate.
  */
-export const repositories = (): Repositories => d1Repositories(env.db);
+export const repositories = (): Repositories => repositoriesFor(env);
 
 export const store = (): TestStore =>
   new D1TestStore(env.db, env.TEST_MIGRATIONS);

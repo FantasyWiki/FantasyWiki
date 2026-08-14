@@ -1,4 +1,5 @@
 import { ContractRepository } from "./contractRepository";
+import { LanguageScaleRepository } from "./languageScaleRepository";
 import { LeagueRepository } from "./leagueRepository";
 import { LineupRepository } from "./lineupRepository";
 import { NotificationRepository } from "./notificationRepository";
@@ -22,4 +23,5 @@ export interface Repositories {
   notifications: NotificationRepository;
   performances: PerformanceRepository;
   scoring: ScoringRepository;
+  languageScales: LanguageScaleRepository;
 }

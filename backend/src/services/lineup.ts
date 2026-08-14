@@ -10,14 +10,10 @@ import {
 } from "../../../model/enums";
 import { RawContract } from "../../../dto/contractDTO";
 import { LineupRepository } from "../repositories/lineupRepository";
-import { LineupRepositoryD1 } from "../repositories/d1/lineupRepositoryD1";
 import { TEAM_ERRORS } from "../repositories/teamRepository";
 import { ContractRepository } from "../repositories/contractRepository";
-import { ContractRepositoryD1 } from "../repositories/d1/contractRepositoryD1";
 import { LeagueRepository } from "../repositories/leagueRepository";
-import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
 import { PlayerRepository } from "../repositories/playerRepository";
-import { PlayerRepositoryD1 } from "../repositories/d1/playerRepositoryD1";
 import { Result, success, failure } from "../repositories/result";
 import { toRawContract } from "./rawContract";
 import { TeamService } from "./team";
@@ -27,21 +23,6 @@ export const LINEUP_ERRORS = {
   INVALID_PAYLOAD: "Invalid lineup payload",
   UNKNOWN_SCHEMA: "Unknown formation schema",
 } as const;
-
-export type LineupServiceDeps = {
-  lineupRepository: LineupRepository;
-  /**
-   * The one door to teams, self-scoped and rival alike. TeamService rather than
-   * TeamRepository because whatever it comes to decide about teams — dressing,
-   * derived fields, what counts as absent — should reach the line-up views
-   * without this service learning about it
-   * (docs/architecture/backend-architecture.md).
-   */
-  teamService: TeamService;
-  contractRepository: ContractRepository;
-  leagueRepository: LeagueRepository;
-  playerRepository: PlayerRepository;
-};
 
 export type RawTeamLineUp = {
   formation: {
@@ -116,23 +97,25 @@ export class LineupService {
   private leagueRepository: LeagueRepository;
   private playerRepository: PlayerRepository;
 
-  constructor(deps: LineupServiceDeps) {
-    this.lineupRepository = deps.lineupRepository;
+  constructor(deps: {
+    lineups: LineupRepository;
+    /**
+     * The one door to teams, self-scoped and rival alike. TeamService rather
+     * than TeamRepository because whatever it comes to decide about teams —
+     * dressing, derived fields, what counts as absent — should reach the
+     * line-up views without this service learning about it
+     * (docs/architecture/backend-architecture.md).
+     */
+    teamService: TeamService;
+    contracts: ContractRepository;
+    leagues: LeagueRepository;
+    players: PlayerRepository;
+  }) {
+    this.lineupRepository = deps.lineups;
     this.teamService = deps.teamService;
-    this.contractRepository = deps.contractRepository;
-    this.leagueRepository = deps.leagueRepository;
-    this.playerRepository = deps.playerRepository;
-  }
-
-  /** Build a D1-backed instance — the production/route construction path. */
-  static fromDb(db: D1Database): LineupService {
-    return new LineupService({
-      lineupRepository: new LineupRepositoryD1(db),
-      teamService: new TeamService(db),
-      contractRepository: new ContractRepositoryD1(db),
-      leagueRepository: new LeagueRepositoryD1(db),
-      playerRepository: new PlayerRepositoryD1(db),
-    });
+    this.contractRepository = deps.contracts;
+    this.leagueRepository = deps.leagues;
+    this.playerRepository = deps.players;
   }
 
   async getLineup(

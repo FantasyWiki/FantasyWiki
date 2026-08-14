@@ -20,8 +20,8 @@ const MAX_USERNAME_ATTEMPTS = 1000;
 export class LoginService {
   private playerService: LoginPlayerService;
 
-  constructor(db: D1Database, playerService?: LoginPlayerService) {
-    this.playerService = playerService ?? new PlayerService(db);
+  constructor(deps: { playerService: LoginPlayerService }) {
+    this.playerService = deps.playerService;
   }
 
   /**

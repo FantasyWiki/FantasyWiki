@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
 import { LeaderboardService } from "../../services/leaderboard";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
+import { repositories } from "../support/target";
 import { insertTeam } from "../utils/d1TestUtils";
 
 const TEAMS = [
@@ -50,7 +51,7 @@ describe("LeaderboardService.getLeaderboard", () => {
   // a league whose first scoring day has not closed must still list every team
   // rather than come back empty.
   it("lists every team in the league before any scoring has happened", async () => {
-    const result = await new LeaderboardService(env.db).getLeaderboard(
+    const result = await new LeaderboardService(repositories()).getLeaderboard(
       GLOBAL_LEAGUE_ID,
     );
 
@@ -73,7 +74,7 @@ describe("LeaderboardService.getLeaderboard", () => {
     await insertPerformance("team-lb-1", "2026-07-28", 40);
     await insertPerformance("team-lb-2", "2026-07-28", 10);
 
-    const result = await new LeaderboardService(env.db).getLeaderboard(
+    const result = await new LeaderboardService(repositories()).getLeaderboard(
       GLOBAL_LEAGUE_ID,
     );
 
@@ -93,7 +94,7 @@ describe("LeaderboardService.getLeaderboard", () => {
     await insertPerformance("team-lb-1", "2026-07-28", 50);
     await insertPerformance("team-lb-2", "2026-07-28", 5);
 
-    const result = await new LeaderboardService(env.db).getLeaderboard(
+    const result = await new LeaderboardService(repositories()).getLeaderboard(
       GLOBAL_LEAGUE_ID,
     );
 

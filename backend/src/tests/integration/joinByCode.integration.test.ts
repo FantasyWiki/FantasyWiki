@@ -11,6 +11,10 @@ import { LeagueService } from "../../services/league";
 import { TeamService } from "../../services/team";
 import { PlayerService } from "../../services/player";
 import { insertLeague } from "../utils/d1TestUtils";
+import { injectDeps } from "../support/injectDeps";
+import { LanguageScaleCalibrationService } from "../../services/languageScaleCalibration";
+import { createWikimediaClient } from "../../services/wikimediaClient";
+import { repositories } from "../support/target";
 
 const CODE = "ZK7QW";
 const OTHER_CODE = "M4RSX";
@@ -23,16 +27,24 @@ const OTHER_CODE = "M4RSX";
  */
 const RATE_LIMIT = 5;
 
-async function makePlayerApp(): Promise<{ app: Hono; playerId: string }> {
+/**
+ * All these helpers need of the app is to drive requests at it — and the
+ * instance the builder returns carries the middleware chain in its type, which
+ * a bare `Hono` annotation will not accept.
+ */
+type TestApp = Pick<Hono, "request">;
+
+async function makePlayerApp(): Promise<{ app: TestApp; playerId: string }> {
   const accountId = `acct-join-${crypto.randomUUID()}`;
-  const player = await new PlayerService(env.db).createPlayer(
+  const player = await new PlayerService(repositories()).createPlayer(
     `joiner-${crypto.randomUUID()}`,
     "joiner@example.com",
     accountId,
   );
   if (!player.ok) throw new Error("setup failed");
 
-  const app = new Hono<{ Bindings: Env }>()
+  const app = new Hono()
+    .use("*", injectDeps())
     .use("*", async (c, next) => {
       c.set("jwtPayload", { sub: accountId });
       await next();
@@ -42,11 +54,11 @@ async function makePlayerApp(): Promise<{ app: Hono; playerId: string }> {
   return { app, playerId: player.value.id };
 }
 
-function resolve(app: Hono, code: string) {
+function resolve(app: TestApp, code: string) {
   return app.request(`/leagues/by-code/${encodeURIComponent(code)}`, {}, env);
 }
 
-function join(app: Hono, leagueId: string, body: unknown) {
+function join(app: TestApp, leagueId: string, body: unknown) {
   return app.request(
     `/leagues/${leagueId}/my-team`,
     {
@@ -59,7 +71,7 @@ function join(app: Hono, leagueId: string, body: unknown) {
 }
 
 describe("GET /leagues/by-code/:code", () => {
-  let app: Hono;
+  let app: TestApp;
 
   beforeEach(async () => {
     ({ app } = await makePlayerApp());
@@ -169,7 +181,7 @@ describe("GET /leagues/by-code/:code", () => {
 });
 
 describe("the join rate limit", () => {
-  let app: Hono;
+  let app: TestApp;
 
   beforeEach(async () => {
     ({ app } = await makePlayerApp());
@@ -240,7 +252,7 @@ describe("the join rate limit", () => {
 });
 
 describe("joining a league that has ended", () => {
-  let app: Hono;
+  let app: TestApp;
   let playerId: string;
 
   beforeEach(async () => {
@@ -292,7 +304,7 @@ describe("joining a league that has ended", () => {
       closedAt: "2026-01-01T00:00:00Z",
     });
 
-    const result = await new TeamService(env.db).createTeam(
+    const result = await new TeamService(repositories()).createTeam(
       playerId,
       "closed-mine",
       "Founders XI",
@@ -315,7 +327,13 @@ describe("LeagueService.getLeagueByInvitationCode", () => {
   let service: LeagueService;
 
   beforeEach(async () => {
-    service = new LeagueService(env.db);
+    service = new LeagueService({
+      ...repositories(),
+      calibration: new LanguageScaleCalibrationService({
+        ...repositories(),
+        wikimedia: createWikimediaClient(),
+      }),
+    });
   });
 
   it("counts the teams already in the league it previews", async () => {
@@ -327,13 +345,13 @@ describe("LeagueService.getLeagueByInvitationCode", () => {
       visibility: LeagueVisibility.PRIVATE,
       invitationCode: CODE,
     });
-    const player = await new PlayerService(env.db).createPlayer(
+    const player = await new PlayerService(repositories()).createPlayer(
       "sizer",
       "sizer@example.com",
       "acct-sizer",
     );
     if (!player.ok) throw new Error("setup failed");
-    await new TeamService(env.db).createTeam(
+    await new TeamService(repositories()).createTeam(
       player.value.id,
       "sized",
       "First In",
@@ -362,7 +380,7 @@ describe("LeagueService.getLeagueByInvitationCode", () => {
   it("reads back a code a real league creation drew", async () => {
     // End to end against the writer, rather than against a hand-seeded row:
     // this is what would catch the two sides disagreeing on case or trimming.
-    const player = await new PlayerService(env.db).createPlayer(
+    const player = await new PlayerService(repositories()).createPlayer(
       "founder",
       "founder@example.com",
       "acct-founder",

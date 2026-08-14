@@ -2,7 +2,6 @@ import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect } from "vitest";
 import {
   LineupService,
-  LineupServiceDeps,
   LINEUP_ERRORS,
   parseLineupPayload,
 } from "../services/lineup";
@@ -15,7 +14,11 @@ import { TeamService } from "../services/team";
 import { success, failure } from "../repositories/result";
 import type { Contract, Team, Lineup, League, Player } from "../../../model";
 import { LeagueInvitePolicy, LeagueVisibility } from "../../../model/enums";
-import { fakeLeagueRepository } from "./utils/fakeRepositories";
+import {
+  fakeLeagueRepository,
+  fakeTeamRepository,
+} from "./utils/fakeRepositories";
+import { REFERENCE_SCALE } from "../../../model/languageScale";
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
@@ -43,6 +46,7 @@ const league: League = {
   startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
   endDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
   domain: "en",
+  languageScale: REFERENCE_SCALE,
   visibility: LeagueVisibility.PUBLIC,
   invitePolicy: LeagueInvitePolicy.MEMBERS,
   closedAt: null,
@@ -75,9 +79,7 @@ function makeLineup(formation: Record<string, string>): Lineup {
 // ─── Fake repo builders ──────────────────────────────────────────────────────
 
 function makeTeamRepo(result: Team | null = team): TeamRepository {
-  return {
-    create: async () => failure("unused"),
-    existsByNameInLeague: async () => failure("unused"),
+  return fakeTeamRepository({
     getByPlayerAndLeague: async () => success(result),
     // Addressed by id, so unlike the self-scoped read this stub cannot ignore
     // its arguments: it answers with the fixture only when both halves of the
@@ -88,7 +90,7 @@ function makeTeamRepo(result: Team | null = team): TeamRepository {
           ? result
           : null,
       ),
-  };
+  });
 }
 
 function makePlayerRepo(p: Player = player): PlayerRepository {
@@ -112,12 +114,22 @@ function makeContractRepo(contracts: Contract[]): ContractRepository {
       return success(found);
     },
     getByLeagueId: async () => success([]),
-    create: async () => {
-      throw new Error("not implemented in stub");
-    },
-    settleSale: async () => {
-      throw new Error("not implemented in stub");
-    },
+    create: unusedByLineups("create"),
+    settleSale: unusedByLineups("settleSale"),
+    getDueForSettlement: unusedByLineups("getDueForSettlement"),
+    settleExpiry: unusedByLineups("settleExpiry"),
+    renew: unusedByLineups("renew"),
+    electRenewal: unusedByLineups("electRenewal"),
+    cancelRenewal: unusedByLineups("cancelRenewal"),
+  };
+}
+
+/** The write side of the contract ledger, which no lineup operation touches. */
+function unusedByLineups(method: string): () => never {
+  return () => {
+    throw new Error(
+      `ContractRepository.${method} is not used by LineupService`,
+    );
   };
 }
 
@@ -139,20 +151,21 @@ function makeLineupRepo(stored: Lineup | null = null): LineupRepository {
  */
 function makeTeamService(teamRepository = makeTeamRepo()): TeamService {
   return new TeamService({
-    teamRepository,
-    lineupRepository: makeLineupRepo(),
+    teams: teamRepository,
+    lineups: makeLineupRepo(),
+    leagues: makeLeagueRepo(),
   });
 }
 
-function makeDeps(
-  overrides: Partial<LineupServiceDeps> = {},
-): LineupServiceDeps {
+type LineupDeps = ConstructorParameters<typeof LineupService>[0];
+
+function makeDeps(overrides: Partial<LineupDeps> = {}): LineupDeps {
   return {
-    lineupRepository: makeLineupRepo(),
+    lineups: makeLineupRepo(),
     teamService: makeTeamService(),
-    contractRepository: makeContractRepo([]),
-    leagueRepository: makeLeagueRepo(),
-    playerRepository: makePlayerRepo(),
+    contracts: makeContractRepo([]),
+    leagues: makeLeagueRepo(),
+    players: makePlayerRepo(),
     ...overrides,
   };
 }
@@ -174,8 +187,8 @@ describe("LineupService (unit)", () => {
 
       const service = new LineupService(
         makeDeps({
-          lineupRepository: makeLineupRepo(lineup),
-          contractRepository: makeContractRepo([c1, c2]),
+          lineups: makeLineupRepo(lineup),
+          contracts: makeContractRepo([c1, c2]),
         }),
       );
 
@@ -197,8 +210,8 @@ describe("LineupService (unit)", () => {
 
       const service = new LineupService(
         makeDeps({
-          lineupRepository: makeLineupRepo(lineup),
-          contractRepository: makeContractRepo([]), // stale — nothing in team
+          lineups: makeLineupRepo(lineup),
+          contracts: makeContractRepo([]), // stale — nothing in team
         }),
       );
 
@@ -247,7 +260,7 @@ describe("LineupService (unit)", () => {
       };
 
       const service = new LineupService(
-        makeDeps({ lineupRepository: makeLineupRepo(corruptLineup) }),
+        makeDeps({ lineups: makeLineupRepo(corruptLineup) }),
       );
 
       const result = await service.getLineup(PLAYER_ID, LEAGUE_ID);
@@ -258,8 +271,8 @@ describe("LineupService (unit)", () => {
       const lineup = makeLineup({ GK: "c-1" });
       const service = new LineupService(
         makeDeps({
-          lineupRepository: makeLineupRepo(lineup),
-          playerRepository: {
+          lineups: makeLineupRepo(lineup),
+          players: {
             save: async () => failure("unused"),
             getById: async () => failure("Player not found"),
             getLeaguesByPlayerId: async () => failure("unused"),
@@ -279,8 +292,8 @@ describe("LineupService (unit)", () => {
 
       const service = new LineupService(
         makeDeps({
-          lineupRepository: makeLineupRepo(lineup),
-          contractRepository: makeContractRepo([c1]),
+          lineups: makeLineupRepo(lineup),
+          contracts: makeContractRepo([c1]),
         }),
       );
 
@@ -310,9 +323,9 @@ describe("LineupService (unit)", () => {
 
       const service = new LineupService(
         makeDeps({
-          lineupRepository: makeLineupRepo(lineup),
-          contractRepository: makeContractRepo([c1]),
-          leagueRepository: makeLeagueRepo(itLeague),
+          lineups: makeLineupRepo(lineup),
+          contracts: makeContractRepo([c1]),
+          leagues: makeLeagueRepo(itLeague),
         }),
       );
 
@@ -330,8 +343,8 @@ describe("LineupService (unit)", () => {
 
       const service = new LineupService(
         makeDeps({
-          lineupRepository: makeLineupRepo(lineup),
-          contractRepository: makeContractRepo([c1]),
+          lineups: makeLineupRepo(lineup),
+          contracts: makeContractRepo([c1]),
         }),
       );
 
@@ -345,8 +358,8 @@ describe("LineupService (unit)", () => {
       const c1 = makeContract("c-1", "Cat");
       const service = new LineupService(
         makeDeps({
-          lineupRepository: makeLineupRepo(makeLineup({ GK: "c-1" })),
-          contractRepository: makeContractRepo([c1]),
+          lineups: makeLineupRepo(makeLineup({ GK: "c-1" })),
+          contracts: makeContractRepo([c1]),
         }),
       );
 
@@ -412,8 +425,8 @@ describe("LineupService (unit)", () => {
 
       const service = new LineupService(
         makeDeps({
-          lineupRepository: lineupRepo,
-          contractRepository: makeContractRepo([c1]),
+          lineups: lineupRepo,
+          contracts: makeContractRepo([c1]),
         }),
       );
 
@@ -449,7 +462,7 @@ describe("LineupService (unit)", () => {
     it("returns a failure when a contract in the formation does not belong to the team", async () => {
       // Team owns nothing
       const service = new LineupService(
-        makeDeps({ contractRepository: makeContractRepo([]) }),
+        makeDeps({ contracts: makeContractRepo([]) }),
       );
 
       const foreignContract = {

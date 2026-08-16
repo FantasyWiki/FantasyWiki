@@ -60,10 +60,14 @@
             @did-dismiss="leaguePopoverOpen = false"
           >
             <ion-list lines="none" class="ion-no-margin">
+              <!-- Ended leagues drop out of the picker: a season that already
+                 finished is not somewhere a click can take you back into
+                 play, so `activeLeagues` — not the raw fetch — is what this
+                 list offers. -->
               <ion-item
                 class="ion-no-margin league-item"
                 :detail="false"
-                v-for="lg in leagueStore.availableLeagues"
+                v-for="lg in leagueStore.activeLeagues"
                 :key="lg.id"
                 :button="true"
                 @click="selectLeague(lg)"

@@ -36,6 +36,19 @@ export const queryKeys = {
   globalLeague: () => ["global-league"] as const,
   /** A single league by id — including ones the player has not joined yet. */
   league: (leagueId: string) => ["league", leagueId] as const,
+  /** Every public league — the same answer for every player, so no key parts. */
+  publicLeagues: () => ["public-leagues"] as const,
+  /** A private league's invitation code, for a caller its policy lets invite. */
+  invitationCode: (leagueId: string | null) =>
+    ["invitation-code", leagueId] as const,
+  /**
+   * The league an invitation code resolves to. Keyed by the *normalized* code,
+   * so the same invitation pasted three different ways is one cache entry and
+   * one request — which matters when the request is rate limited.
+   */
+  leagueByCode: (code: string) => ["league-by-code", code] as const,
+  /** Whether the caller plays this league, and whether they are its admin. */
+  leagueRole: (leagueId: string | null) => ["league-role", leagueId] as const,
   /**
    * Another team's line-up, read-only. Deliberately not under `teamLineup`:
    * that key is the viewer's own and every lineup mutation invalidates it,

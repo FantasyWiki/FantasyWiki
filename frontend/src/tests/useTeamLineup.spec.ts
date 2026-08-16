@@ -13,6 +13,7 @@ import { ContractDTO } from "../../../dto/contractDTO";
 import type { TeamDTO } from "../../../dto/teamDTO";
 import type { LeagueDTO } from "../../../dto/leagueDTO";
 import type { TeamLineUp } from "@/types/team";
+import { LeagueVisibility } from "../../../model/enums";
 
 const fetchTeam = vi.hoisted(() => vi.fn());
 const saveTeamApi = vi.hoisted(() => vi.fn());
@@ -47,7 +48,9 @@ const league: LeagueDTO = {
   icon: "L",
   startDate: Temporal.Now.instant(),
   endDate: Temporal.Now.instant().add({ hours: 1 }),
-  teams: [team],
+  visibility: LeagueVisibility.PUBLIC,
+  teamCount: 1,
+  closedAt: null,
 };
 
 function contract(title: string): ContractDTO {

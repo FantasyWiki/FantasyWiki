@@ -74,7 +74,16 @@ import { TeamDTO } from "../../../dto/teamDTO";
  * signup, a chosen one when joining a further league) and what happens once
  * the team exists (on the first run, that decision is what starts the tour).
  */
-const props = defineProps<{ league: LeagueDTO }>();
+/**
+ * `invitationCode` is what the host was let through the gate with, handed back
+ * so the write can present it too — a private league checks it inside the
+ * INSERT, so naming a team is the moment it is actually spent. Absent for
+ * signup, for a public league, and for a league's own admin, none of which need
+ * one. The form neither validates nor displays it: the surface that collected
+ * it already did (`useLeagueByCode`), and re-checking here would be a second
+ * copy of a rule the shared model states once.
+ */
+const props = defineProps<{ league: LeagueDTO; invitationCode?: string }>();
 const emit = defineEmits<{ created: [team: TeamDTO] }>();
 
 const MIN_NAME = 3;
@@ -105,7 +114,11 @@ const handleSubmit = async () => {
 
   let team: TeamDTO;
   try {
-    team = await api.leagues.createMyTeam(props.league.id, trimmed);
+    team = await api.leagues.createMyTeam(
+      props.league.id,
+      trimmed,
+      props.invitationCode
+    );
   } catch (err) {
     isSubmitting.value = false;
     error.value =

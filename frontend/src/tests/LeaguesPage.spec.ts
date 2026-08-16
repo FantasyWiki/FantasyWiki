@@ -1,0 +1,323 @@
+import { describe, it, expect, afterEach, beforeEach } from "vitest";
+import { mount, flushPromises, type VueWrapper } from "@vue/test-utils";
+import { createPinia, setActivePinia } from "pinia";
+import { http, HttpResponse } from "msw";
+import { Temporal } from "@js-temporal/polyfill";
+import { server } from "@/mocks/server";
+import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
+import router from "@/router/index";
+import LeaguesPage from "@/views/LeaguesPage.vue";
+import { useAppStore } from "@/stores/app";
+import { useLeagueStore } from "@/stores/league";
+import { leagues } from "@/mocks/data/leagues";
+import { isLeagueInactive } from "../../../model/league";
+import i18n from "@/i18n";
+
+// Only "global" runs indefinitely in the fixtures; italy/europe/americas are
+// deliberately dated in the past so they double as the ended-league fixtures
+// (see the comment on `leagues` in mocks/data/leagues.ts).
+const activeFixtures = leagues.filter(
+  (l) => !isLeagueInactive(l, Temporal.Now.instant())
+);
+const endedFixtures = leagues.filter((l) =>
+  isLeagueInactive(l, Temporal.Now.instant())
+);
+
+function makePlugins() {
+  const pinia = createPinia();
+  setActivePinia(pinia);
+
+  useAppStore().setUserFromData({
+    sub: "player-1",
+    email: "player@example.com",
+    name: "Player One",
+    picture: "",
+  });
+
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 0, gcTime: 0 } },
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const plugins: any[] = [
+    pinia,
+    [VueQueryPlugin, { queryClient }],
+    router,
+    i18n,
+  ];
+  return plugins;
+}
+
+let wrapper: VueWrapper | null = null;
+
+async function mountPage() {
+  wrapper = mount(LeaguesPage, { global: { plugins: makePlugins() } });
+  await flushPromises();
+  // A second flush for the Ended Leagues cards: each only mounts (and fires
+  // its own leaderboard query) once the enrolled-league fetch above resolves,
+  // so a single flush leaves the winner lookup mid-flight.
+  await flushPromises();
+  return wrapper;
+}
+
+beforeEach(async () => {
+  await router.push("/leagues");
+  await router.isReady();
+});
+
+afterEach(() => {
+  wrapper?.unmount();
+  wrapper = null;
+});
+
+describe("LeaguesPage", () => {
+  it("lists every still-active league the player is enrolled in", async () => {
+    const page = await mountPage();
+
+    const cards = page.findAll(".mine-grid .league-card");
+    expect(cards).toHaveLength(activeFixtures.length);
+    expect(page.text()).toContain("Global League");
+    // Americas League has already ended — it belongs to the Ended Leagues
+    // section below, not the enrolled grid.
+    expect(page.find(".mine-grid").text()).not.toContain("Americas League");
+  });
+
+  it("shows how many teams play each league", async () => {
+    const page = await mountPage();
+
+    // The Global League fixture runs 12 teams deep; Silver Screen holds a
+    // single team, which is what exercises the singular form.
+    expect(page.text()).toContain("12 players");
+    expect(page.text()).toContain("1 player");
+  });
+
+  it("opens a league when its card is clicked", async () => {
+    const page = await mountPage();
+
+    await page.findAll(".mine-grid .league-card")[0].trigger("click");
+    await flushPromises();
+
+    expect(router.currentRoute.value.fullPath).toBe(
+      `/leagues/${leagues[0].id}`
+    );
+  });
+
+  it("marks the league the rest of the app is scoped to", async () => {
+    const plugins = makePlugins();
+    const store = useLeagueStore();
+    await store.fetchLeagues();
+    // Global is the only enrolled fixture still active — an ended league
+    // cannot be the current selection once the NavBar picker (and the store's
+    // own resolution) have both stopped offering it.
+    store.setCurrentLeague(activeFixtures[0]);
+
+    wrapper = mount(LeaguesPage, { global: { plugins } });
+    await flushPromises();
+
+    const active = wrapper.findAll(".mine-grid .league-card--active");
+    expect(active).toHaveLength(1);
+    expect(active[0].text()).toContain(activeFixtures[0].title);
+  });
+
+  it("offers the two ways into another league", async () => {
+    const page = await mountPage();
+
+    const actions = page.find(".actions").text();
+    expect(actions).toContain("Join Private League");
+    expect(actions).toContain("Create New League");
+  });
+
+  it("offers public leagues the player is not already in", async () => {
+    const page = await mountPage();
+    const featured = page.find(".featured");
+
+    expect(featured.text()).toContain("Featured Public Leagues");
+    expect(featured.text()).toContain("Open Science League");
+    // The endpoint returns every public league, the player's own included.
+    // Leaving the Global League on a shelf captioned "somewhere new to play"
+    // is the whole reason the page filters it out.
+    expect(featured.text()).not.toContain("Global League");
+  });
+
+  it("marks a private league and leaves public ones unlabelled", async () => {
+    const page = await mountPage();
+
+    // Italia League has already ended, so it now renders in the Ended
+    // Leagues section rather than the enrolled grid — the badge itself is a
+    // property of the card, wherever it is placed.
+    const cards = page.findAll(".league-card");
+    const italia = cards.find((c) => c.text().includes("Italia League"));
+    const global = cards.find((c) => c.text().includes("Global League"));
+
+    expect(italia?.text()).toContain("Private");
+    expect(global?.text()).not.toContain("Private");
+  });
+
+  it("says the first grid is the leagues the player already plays", async () => {
+    const page = await mountPage();
+
+    // The two grids look alike; without the heading the enrolled leagues read
+    // as just more public ones to join.
+    expect(page.text()).toContain("Leagues You're Playing");
+  });
+
+  it("invites a player with no leagues to find one", async () => {
+    server.use(http.get("*/api/leagues", () => HttpResponse.json([])));
+
+    const page = await mountPage();
+
+    expect(page.find(".empty-state").exists()).toBe(true);
+    expect(page.find(".mine-grid .league-card").exists()).toBe(false);
+    // "Leagues You're Playing" over "you are not in any league yet" is the
+    // heading contradicting the only line under it.
+    expect(page.text()).not.toContain("Leagues You're Playing");
+  });
+
+  it("reports a failed fetch as an error, not as an empty league list", async () => {
+    // The regression this guards: `availableLeagues` is empty in both cases, so
+    // a page keying off the list alone tells an established player they own
+    // nothing whenever the server hiccups.
+    server.use(
+      http.get("*/api/leagues", () =>
+        HttpResponse.json({ error: "boom" }, { status: 500 })
+      )
+    );
+
+    const page = await mountPage();
+
+    expect(page.find(".state-card").exists()).toBe(true);
+    expect(page.find(".empty-state").exists()).toBe(false);
+    // Nor may the heading caption the error: it asserts leagues we failed to
+    // read.
+    expect(page.text()).not.toContain("Leagues You're Playing");
+  });
+
+  it("recovers when a retry succeeds", async () => {
+    let failed = false;
+    server.use(
+      http.get("*/api/leagues", () => {
+        if (failed) return HttpResponse.json(leagues);
+        failed = true;
+        return HttpResponse.json({ error: "boom" }, { status: 500 });
+      })
+    );
+
+    const page = await mountPage();
+    expect(page.find(".state-card").exists()).toBe(true);
+
+    await page.find(".state-card ion-button").trigger("click");
+    await flushPromises();
+
+    expect(page.find(".state-card").exists()).toBe(false);
+    expect(page.findAll(".mine-grid .league-card")).toHaveLength(
+      activeFixtures.length
+    );
+  });
+
+  it("does not refetch when the store has already loaded", async () => {
+    let calls = 0;
+    server.use(
+      http.get("*/api/leagues", () => {
+        calls += 1;
+        return HttpResponse.json(leagues);
+      })
+    );
+
+    const plugins = makePlugins();
+    const store = useLeagueStore();
+    await store.fetchLeagues();
+    expect(calls).toBe(1);
+
+    wrapper = mount(LeaguesPage, { global: { plugins } });
+    await flushPromises();
+
+    expect(calls).toBe(1);
+    expect(wrapper.findAll(".mine-grid .league-card")).toHaveLength(
+      activeFixtures.length
+    );
+  });
+
+  // ── Featured shelf: loading / error / populated ──────────────────────────
+
+  it("reports a failed public-leagues fetch as an error, not as an empty shelf", async () => {
+    // The regression this guards: the featured shelf used to ignore
+    // `isError` entirely, so a failed `GET /api/leagues/public` fell through
+    // to the "will be listed here" placeholder — exactly the empty-vs-error
+    // confusion the enrolled grid above was built to avoid.
+    server.use(
+      http.get("*/api/leagues/public", () =>
+        HttpResponse.json({ error: "boom" }, { status: 500 })
+      )
+    );
+
+    const page = await mountPage();
+    const featured = page.find(".featured");
+
+    expect(featured.find(".state-card").exists()).toBe(true);
+    expect(featured.find(".featured-placeholder").exists()).toBe(false);
+  });
+
+  it("recovers the featured shelf when a retry succeeds", async () => {
+    let failed = false;
+    server.use(
+      http.get("*/api/leagues/public", () => {
+        if (failed) {
+          return HttpResponse.json(leagues.filter((l) => l.id === "global"));
+        }
+        failed = true;
+        return HttpResponse.json({ error: "boom" }, { status: 500 });
+      })
+    );
+
+    const page = await mountPage();
+    const featured = page.find(".featured");
+    expect(featured.find(".state-card").exists()).toBe(true);
+
+    await featured.find(".state-card ion-button").trigger("click");
+    await flushPromises();
+
+    expect(page.find(".featured .state-card").exists()).toBe(false);
+  });
+
+  // ── Ended leagues ─────────────────────────────────────────────────────────
+
+  it("lists ended leagues in their own section, separate from the enrolled grid", async () => {
+    const page = await mountPage();
+
+    expect(page.text()).toContain("Ended Leagues");
+    const endedSection = page.find(".ended");
+    for (const league of endedFixtures) {
+      expect(endedSection.text()).toContain(league.title);
+    }
+    // And nowhere in the enrolled grid.
+    for (const league of endedFixtures) {
+      expect(page.find(".mine-grid").text()).not.toContain(league.title);
+    }
+  });
+
+  it("shows an ended league's winner", async () => {
+    const page = await mountPage();
+
+    // Americas League's roster (see mocks/data/performances.ts): "Page
+    // Pioneers" tops its final table.
+    expect(page.find(".ended").text()).toContain("Page Pioneers");
+  });
+
+  it("opens an ended league's detail page when its card is clicked", async () => {
+    const page = await mountPage();
+
+    const americas = page
+      .findAll(".ended .league-card")
+      .find((c) => c.text().includes("Americas League"));
+    await americas?.trigger("click");
+    await flushPromises();
+
+    expect(router.currentRoute.value.fullPath).toBe("/leagues/americas");
+  });
+
+  it("notes that a per-league audit trail is coming", async () => {
+    const page = await mountPage();
+
+    expect(page.find(".ended").text()).toContain("audit trail");
+  });
+});

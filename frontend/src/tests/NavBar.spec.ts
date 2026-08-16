@@ -119,4 +119,12 @@ describe("NavBar.vue", () => {
 
     expect(wrapper.find("#settings-menu-trigger").exists()).toBe(true);
   });
+
+  // The picker's `v-for` reads `leagueStore.activeLeagues` (not
+  // `availableLeagues`) — see frontend/src/tests/stores/league.spec.ts for
+  // the coverage of that filter itself. It isn't re-verified by rendering
+  // here: IonPopover only portals its slotted content once actually
+  // presented, which jsdom's test environment never triggers, so the list
+  // items never reach the DOM this harness can query regardless of which
+  // array feeds them.
 });

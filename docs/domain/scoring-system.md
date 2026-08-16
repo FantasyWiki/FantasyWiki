@@ -38,7 +38,9 @@ per language or the model breaks on low-volume Wikipedias (Italian articles bunc
 into one score bucket; flat synergy points become dominant). See ADR 0002.
 
 - **Language Scale Factor `L`** — a static per-language constant; reference `L_en = 1.0`,
-  lower-volume languages get `L > 1`.
+  lower-volume languages get `L > 1`. Measured values live in `model/pricing.ts`
+  (`en = 1.0`, `it = 13.9`); an edition absent from that table has not been measured and
+  cannot host a league (`isCalibratedDomain`).
 - **Normalized Views** = `raw_pageviews × L`. *All* scoring below operates on
   Normalized Views, never raw views.
 - `L(domain) = median(en_views[i] / domain_views[i])` for rank-matched `i = 1..500`,

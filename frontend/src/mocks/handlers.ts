@@ -3,14 +3,25 @@ import { Temporal } from "@js-temporal/polyfill";
 import {
   contracts,
   currentPlayerId,
+  allLeagues,
   leagues,
   articles,
   notifications,
   performancesByLeague,
   players,
+  rosterOf,
+  rostersByLeague,
   teams,
 } from "./data";
 import { ContractDTO } from "../../../dto/contractDTO";
+import type { CreateLeagueRequest, LeagueDTO } from "../../../dto/leagueDTO";
+import { LeagueVisibility } from "../../../model/enums";
+import {
+  isLeagueName,
+  leagueEndDate,
+  normalizeInvitationCode,
+} from "../../../model/league";
+import { isTeamName } from "../../../model/team";
 import type { TeamDTO } from "../../../dto/teamDTO";
 import type { LeaderboardEntryDTO } from "../../../dto/leaderboardDTO";
 import type { TeamLineUp } from "@/types/team";
@@ -22,13 +33,33 @@ import Instant = Temporal.Instant;
 // =============================================================================
 
 function getMyTeam(leagueId: string): TeamDTO | undefined {
-  const league = leagues.find((l) => l.id === leagueId);
-  return league?.teams.find((t) => t.player.id === currentPlayerId);
+  return rosterOf(leagueId).find((t) => t.player.id === currentPlayerId);
 }
 
 function teamResponseKey(leagueId: string): string {
   return `${leagueId}`;
 }
+
+/**
+ * Invitation codes by league id — the mock's stand-in for the column, kept out
+ * of the league fixtures for the same reason the real one is kept off
+ * `LeagueDTO`: only the endpoint that checks the caller may have it can serve
+ * it. The Italia League is the private fixture, so it is the one with a code.
+ */
+const invitationCodes: Record<string, string> = {
+  italy: "M4RSX",
+};
+
+/**
+ * The leagues the mock player founded, and therefore administers — the mock's
+ * stand-in for `leagues.adminId`, kept out of the fixtures for the same reason
+ * as the codes above: it is caller-scoped, and `LeagueDTO` is not.
+ *
+ * Europe is seeded so mock mode shows an admin's league (close, no leave) next
+ * to a member's (leave, no close) without founding one first. Founding one adds
+ * it here, which is what the real transaction does by writing `adminId`.
+ */
+const adminLeagueIds = new Set<string>(["europe"]);
 
 /** Stands in for an anchor article's outbound link list. */
 const mockOutboundLinks = [
@@ -133,6 +164,77 @@ export const handlers = [
   // ── Leagues ─────────────────────────────────────────────────────────────────
   http.get("*/api/leagues", () => HttpResponse.json(leagues)),
 
+  // Founding a league writes it into the mock's own list, so the league
+  // section and the selector show it immediately afterwards — the same thing
+  // the real `fetchLeagues` sees once the transaction commits.
+  http.post("*/api/leagues", async ({ request }) => {
+    const body = (await request.json()) as Partial<CreateLeagueRequest>;
+    if (!isLeagueName(body.name) || !isTeamName(body.teamName)) {
+      return HttpResponse.json(
+        { error: "Invalid league payload" },
+        { status: 400 }
+      );
+    }
+
+    const startDate = Temporal.Now.instant();
+    const league: LeagueDTO = {
+      id: `league-${leagues.length + 1}`,
+      title: body.name!.trim(),
+      icon: body.icon ?? "🏆",
+      domain: body.domain ?? "en",
+      startDate,
+      endDate: leagueEndDate(startDate, body.duration ?? "1m"),
+      visibility: body.visibility ?? LeagueVisibility.PRIVATE,
+      teamCount: 1,
+      closedAt: null,
+    };
+    leagues.push(league);
+    adminLeagueIds.add(league.id);
+    if (body.visibility === LeagueVisibility.PRIVATE) {
+      invitationCodes[league.id] = "ZK7QW";
+    }
+    return HttpResponse.json(league, { status: 201 });
+  }),
+
+  // Mirrors the real endpoint's two 404s: a league nobody may invite to, and a
+  // public league that simply has no code.
+  http.get("*/api/leagues/:leagueId/invite-code", ({ params }) => {
+    const code = invitationCodes[String(params.leagueId)];
+    if (!code)
+      return HttpResponse.json(
+        { error: "This league has no invitation code" },
+        { status: 404 }
+      );
+    return HttpResponse.json({ code });
+  }),
+
+  // The preview an invitation code resolves to. Registered before
+  // `/api/leagues/:leagueId` for the same reason the real route is registered
+  // before its own wildcard — and it answers a wrong, unused or malformed code
+  // with the one 404 the backend gives all three, so nothing here can teach the
+  // UI to tell them apart when the server will not.
+  http.get("*/api/leagues/by-code/:code", ({ params }) => {
+    const code = normalizeInvitationCode(String(params.code));
+    const leagueId = Object.keys(invitationCodes).find(
+      (id) => invitationCodes[id] === code
+    );
+    const league = leagueId
+      ? allLeagues().find((l) => l.id === leagueId)
+      : undefined;
+    if (!league)
+      return HttpResponse.json({ error: "League not found" }, { status: 404 });
+    return HttpResponse.json(league);
+  }),
+
+  // Mirrors the real endpoint: every public league, the caller's own included.
+  // Filtering those out is the league section's job, so returning them here is
+  // what actually exercises it.
+  http.get("*/api/leagues/public", () =>
+    HttpResponse.json(
+      allLeagues().filter((l) => l.visibility === LeagueVisibility.PUBLIC)
+    )
+  ),
+
   http.get("*/api/leagues/global", () => {
     const league = leagues.find((l) => l.id === "global");
     if (!league)
@@ -141,16 +243,97 @@ export const handlers = [
   }),
 
   http.get("*/api/leagues/:leagueId", ({ params }) => {
-    const league = leagues.find((l) => l.id === params.leagueId);
+    const league = allLeagues().find((l) => l.id === params.leagueId);
     if (!league)
       return HttpResponse.json({ error: "League not found" }, { status: 404 });
     return HttpResponse.json(league);
   }),
 
-  http.post("*/api/leagues/:leagueId/my-team", async ({ request }) => {
-    const body = (await request.json()) as { name?: string };
+  http.get("*/api/leagues/:leagueId/my-role", ({ params }) => {
+    const leagueId = String(params.leagueId);
+    if (!allLeagues().some((l) => l.id === leagueId))
+      return HttpResponse.json({ error: "League not found" }, { status: 404 });
+    return HttpResponse.json({
+      isMember: getMyTeam(leagueId) !== undefined,
+      isAdmin: adminLeagueIds.has(leagueId),
+    });
+  }),
+
+  // Closing writes `closedAt` onto the mock's own league, exactly as the real
+  // endpoint writes the column — nothing is removed from the list, so the
+  // league page keeps rendering afterwards, which is the behaviour worth
+  // exercising (docs/domain/league-lifecycle.md).
+  http.post("*/api/leagues/:leagueId/closure", ({ params }) => {
+    const league = leagues.find((l) => l.id === params.leagueId);
+    if (!league)
+      return HttpResponse.json({ error: "League not found" }, { status: 404 });
+    if (league.closedAt !== null)
+      return HttpResponse.json(
+        { error: "This league is already closed" },
+        { status: 409 }
+      );
+    league.closedAt = Temporal.Now.instant();
+    return HttpResponse.json(league);
+  }),
+
+  // The team is not taken out of `rostersByLeague`: a departed team keeps its
+  // place in the standings, and pretending otherwise here would let the page
+  // pass a test the real API would fail.
+  // Leaving takes the player's team out of the roster — the real `leftAt` makes
+  // every self-scoped read answer as if it were gone — and then settles what
+  // that leaves behind, the same two ways the real transaction does: an empty
+  // league is deleted outright, and one whose admin walked out passes to
+  // whoever has been in it longest.
+  http.post("*/api/leagues/:leagueId/my-departure", ({ params }) => {
+    const leagueId = String(params.leagueId);
+    const team = getMyTeam(leagueId);
+    if (!team)
+      return HttpResponse.json(
+        { error: "No team found for this league" },
+        { status: 404 }
+      );
+
+    const roster = rostersByLeague[leagueId] ?? [];
+    roster.splice(roster.indexOf(team), 1);
+
+    const at = leagues.findIndex((l) => l.id === leagueId);
+    if (roster.length === 0) {
+      if (at >= 0) leagues.splice(at, 1);
+      delete rostersByLeague[leagueId];
+      delete invitationCodes[leagueId];
+      adminLeagueIds.delete(leagueId);
+      return HttpResponse.json({ leagueDeleted: true });
+    }
+
+    // `teamCount` is written on the fixture rather than derived per request, so
+    // it has to be kept in step or the page would go on offering the departed
+    // player's seat.
+    if (at >= 0) leagues[at] = { ...leagues[at], teamCount: roster.length };
+    adminLeagueIds.delete(leagueId);
+    return HttpResponse.json({ leagueDeleted: false });
+  }),
+
+  http.post("*/api/leagues/:leagueId/my-team", async ({ params, request }) => {
+    const body = (await request.json()) as {
+      name?: string;
+      invitationCode?: string;
+    };
     if (!body.name || typeof body.name !== "string") {
       return HttpResponse.json({ error: "name is required" }, { status: 400 });
+    }
+
+    // The join gate, as far as devMock can honour it: a league with a code
+    // wants that code. Without this the mock would let a wrong code through and
+    // the flow would only look right until it met the real backend.
+    const required = invitationCodes[String(params.leagueId)];
+    if (
+      required &&
+      normalizeInvitationCode(body.invitationCode ?? "") !== required
+    ) {
+      return HttpResponse.json(
+        { error: "This league is private. An invitation code is required." },
+        { status: 403 }
+      );
     }
 
     const player = players.find((p) => p.id === currentPlayerId);
@@ -329,18 +512,18 @@ export const handlers = [
   ),
 
   http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {
-    const league = leagues.find((l) => l.id === params.leagueId);
+    const league = allLeagues().find((l) => l.id === params.leagueId);
     if (!league) return HttpResponse.json([]);
-    const teamIds = league.teams.map((t) => t.id);
+    const teamIds = rosterOf(league.id).map((t) => t.id);
     return HttpResponse.json(
       contracts.filter((c) => teamIds.includes(c.team.id))
     );
   }),
 
   http.get("*/api/leagues/:leagueId/my-notifications", ({ params }) => {
-    const league = leagues.find((l) => l.id === params.leagueId);
+    const league = allLeagues().find((l) => l.id === params.leagueId);
     if (!league) return HttpResponse.json([]);
-    const teamIdsInLeague = league.teams.map((t) => t.id);
+    const teamIdsInLeague = rosterOf(league.id).map((t) => t.id);
     return HttpResponse.json(
       notifications.filter((n) => teamIdsInLeague.includes(n.contract.team.id))
     );
@@ -477,7 +660,7 @@ export const handlers = [
   // ── Leaderboard ────────────────────────────────────────────────────────────────
   http.get("*/api/leagues/:leagueId/leaderboard", ({ params }) => {
     const leagueId = params.leagueId as string;
-    const league = leagues.find((l) => l.id === leagueId);
+    const league = allLeagues().find((l) => l.id === leagueId);
     if (!league) return HttpResponse.json([]);
 
     const perfs = performancesByLeague[leagueId] ?? [];
@@ -496,7 +679,7 @@ export const handlers = [
     }
 
     // Current standings: teams sorted by cumulative points desc.
-    const ranked = [...league.teams]
+    const ranked = [...rosterOf(league.id)]
       .map((team) => ({
         team,
         cumulativePoints: cumulativeByTeam.get(team.id) ?? 0,

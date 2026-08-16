@@ -12,33 +12,51 @@ import { LeagueVisibility } from "../../../model/enums";
 import i18n from "@/i18n";
 
 /**
- * `M4RSX` is the code MSW holds for the Italia League — the one private
- * fixture, and one whose season ended in 2024. That makes it the natural
- * subject for the "you can look but not enter" case, and means the running-
- * league case has to supply its own league.
+ * Both cases serve their own league rather than leaning on a shared fixture's
+ * `endDate`. Whether a mock league is running is a decision mock mode makes for
+ * its own reasons — it has to reach the lifecycle controls, so most of its
+ * leagues run — and a spec about what a *code* resolves to should not move when
+ * that changes.
  */
 const ENDED_CODE = "M4RSX";
 const RUNNING_CODE = "ZK7QW";
 
+function serveLeagueByCode(league: Record<string, unknown>) {
+  server.use(
+    http.get("*/api/leagues/by-code/:code", () => HttpResponse.json(league))
+  );
+}
+
 /** A private league whose season has not run out, served for RUNNING_CODE. */
 function serveRunningLeague() {
-  server.use(
-    http.get("*/api/leagues/by-code/:code", () =>
-      HttpResponse.json({
-        id: "running-league",
-        title: "Sunday Scholars",
-        icon: "📚",
-        domain: "en",
-        startDate: Temporal.Now.instant().subtract({ hours: 24 }).toString(),
-        endDate: Temporal.Now.instant()
-          .add({ hours: 24 * 30 })
-          .toString(),
-        visibility: LeagueVisibility.PRIVATE,
-        teamCount: 3,
-        closedAt: null,
-      })
-    )
-  );
+  serveLeagueByCode({
+    id: "running-league",
+    title: "Sunday Scholars",
+    icon: "📚",
+    domain: "en",
+    startDate: Temporal.Now.instant().subtract({ hours: 24 }).toString(),
+    endDate: Temporal.Now.instant()
+      .add({ hours: 24 * 30 })
+      .toString(),
+    visibility: LeagueVisibility.PRIVATE,
+    teamCount: 3,
+    closedAt: null,
+  });
+}
+
+/** A private league whose season is over, served for ENDED_CODE. */
+function serveEndedLeague() {
+  serveLeagueByCode({
+    id: "ended-league",
+    title: "Last Winter's League",
+    icon: "❄️",
+    domain: "en",
+    startDate: "2024-01-01T00:00:00Z",
+    endDate: "2024-03-01T00:00:00Z",
+    visibility: LeagueVisibility.PRIVATE,
+    teamCount: 3,
+    closedAt: null,
+  });
 }
 
 function makePlugins() {
@@ -116,9 +134,11 @@ describe("JoinLeaguePage", () => {
   });
 
   it("previews a league whose season is over, but offers no way in", async () => {
+    serveEndedLeague();
+
     const page = await mountAt({ code: ENDED_CODE });
 
-    expect(page.text()).toContain("Italia League");
+    expect(page.text()).toContain("Last Winter's League");
     expect(page.text()).toContain("season is over");
     expect(page.find("#team-name").exists()).toBe(false);
   });

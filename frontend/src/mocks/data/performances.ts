@@ -68,4 +68,19 @@ export const performancesByLeague: Record<string, PerformanceDTO[]> = {
     perf("team-7", TODAY, 990),
     perf("team-7", YESTERDAY, 890),
   ],
+  // The one league whose season is over, so this is the only *final* table in
+  // mock mode — what the Ended Leagues section names a winner from, and the
+  // only fixture that can stage the podium in its "final" variant. An ended
+  // league with no scores would be suppressed as a universal tie, which is
+  // correct behaviour and shows nothing.
+  americas: [
+    perf("team-8", TODAY, 1240), // 2410 — champion
+    perf("team-8", YESTERDAY, 1170),
+    perf("team-9", TODAY, 1120), // 2180 — 2nd
+    perf("team-9", YESTERDAY, 1060),
+    perf("team-10", TODAY, 980), // 1900 — 3rd
+    perf("team-10", YESTERDAY, 920),
+    perf("team-11", TODAY, 640), // 1310 — 4th
+    perf("team-11", YESTERDAY, 670),
+  ],
 };

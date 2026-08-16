@@ -18,10 +18,14 @@ export const rostersByLeague: Record<string, TeamDTO[]> = {
   global: [teams[1], teams[5], ...globalFillerTeams],
   italy: [teams[0], teams[3], teams[4]],
   europe: [teams[2], teams[6]],
-  americas: [teams[7]],
+  // The one finished league, so it is the only fixture the final podium and the
+  // Ended Leagues section have — padded to a full three so the podium it stages
+  // is a real one.
+  americas: [teams[7], ...globalFillerTeams.slice(0, 3)],
   // Nobody from the current player here, on purpose — see `publicLeagues`.
   "open-science": globalFillerTeams.slice(0, 4),
-  "open-cinema": globalFillerTeams.slice(1, 3),
+  // One team, so the singular of the participant count is rendered somewhere.
+  "open-cinema": globalFillerTeams.slice(1, 2),
   "open-calcio": globalFillerTeams.slice(2, 6),
 };
 
@@ -44,8 +48,11 @@ export const leagues: LeagueDTO[] = [
     // Deliberately far out, mirroring the sentinel the real Global League is
     // seeded with (migration 0002): it keeps this league permanently in
     // progress, so the league page's running state — countdown and season
-    // progress — is what mock mode shows by default. The other leagues have
-    // already finished and exercise the podium.
+    // progress — is what mock mode shows by default.
+    //
+    // It cannot double as the lifecycle fixture, though: it is the one league
+    // nobody may leave. `italy` and `europe` run alongside it for that, and
+    // `americas` is the finished one.
     endDate: Instant.from("2100-12-31T23:59:59Z"),
     visibility: LeagueVisibility.PUBLIC,
     teamCount: rosterOf("global").length,
@@ -57,7 +64,11 @@ export const leagues: LeagueDTO[] = [
     icon: "🍕",
     domain: "it",
     startDate: Instant.from("2024-01-01T00:00:00Z"),
-    endDate: Instant.from("2024-02-28T23:59:59Z"),
+    // Running, and the current player is an ordinary member of it — which
+    // makes this the one fixture that offers **Leave**. Every league here used
+    // to have finished, so the lifecycle footer was unreachable in mock mode
+    // however correct it was: an ended league offers neither action.
+    endDate: Instant.from("2099-12-31T23:59:59Z"),
     // The one private fixture, so mock mode shows both badges.
     visibility: LeagueVisibility.PRIVATE,
     teamCount: rosterOf("italy").length,
@@ -69,7 +80,10 @@ export const leagues: LeagueDTO[] = [
     icon: "🇪🇺",
     domain: "en",
     startDate: Instant.from("2024-01-01T00:00:00Z"),
-    endDate: Instant.from("2024-03-15T23:59:59Z"),
+    // Running, and the current player admins this one (see `adminLeagueIds` in
+    // the handlers) — so it is the fixture that offers **Close**, and pointedly
+    // not Leave: an admin closes the league instead of walking out of it.
+    endDate: Instant.from("2099-12-31T23:59:59Z"),
     visibility: LeagueVisibility.PUBLIC,
     teamCount: rosterOf("europe").length,
     closedAt: null,
@@ -80,6 +94,9 @@ export const leagues: LeagueDTO[] = [
     icon: "🌎",
     domain: "en",
     startDate: Instant.from("2024-01-01T00:00:00Z"),
+    // The finished one: the Ended Leagues section's only entry, the final
+    // podium's fixture, and the league that proves neither lifecycle control
+    // is offered once a season is over.
     endDate: Instant.from("2024-03-20T23:59:59Z"),
     visibility: LeagueVisibility.PUBLIC,
     teamCount: rosterOf("americas").length,

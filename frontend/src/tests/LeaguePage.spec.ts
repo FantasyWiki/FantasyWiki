@@ -160,7 +160,7 @@ describe("LeaguePage.vue", () => {
     expect(facts).toContain("it.wikipedia.org");
     // Dates on the UTC calendar, so they agree with the season count below.
     expect(facts).toContain("Jan 1, 2024");
-    expect(facts).toContain("Feb 28, 2024");
+    expect(facts).toContain("Dec 31, 2099");
   });
 
   it("reports the season's run instead of a bare status word", async () => {
@@ -238,8 +238,10 @@ describe("LeaguePage.vue", () => {
   });
 
   it("crowns the top three on a podium once the season has ended", async () => {
-    // The Italia fixture ended in 2024, with three teams.
-    const wrapper = await mountAt("/leagues/italy");
+    // Americas is the one fixture whose season is over — see
+    // mocks/data/leagues.ts, where the rest run on so that mock mode can reach
+    // the lifecycle controls at all.
+    const wrapper = await mountAt("/leagues/americas");
 
     expect(wrapper.find(".run").text()).toContain("Season complete");
 
@@ -251,8 +253,9 @@ describe("LeaguePage.vue", () => {
     // Rank movement is meaningless once the season is over.
     expect(wrapper.find(".step-trend").exists()).toBe(false);
 
-    // The full table still follows the podium.
-    expect(wrapper.findAll(".standings-row")).toHaveLength(3);
+    // The full table still follows the podium — all four, not just the three
+    // on the steps.
+    expect(wrapper.findAll(".standings-row")).toHaveLength(4);
   });
 
   it("keeps the podium off a finished league with no standings to crown", async () => {
@@ -291,6 +294,42 @@ describe("LeaguePage.vue", () => {
     expect(wrapper.find(".page-title").text()).toBe("Europe League");
     // ...and the switcher is moved onto it, so chrome and page agree.
     expect(useLeagueStore().currentLeagueId).toBe("europe");
+  });
+
+  // A league the player has no team in is legitimately readable while one of
+  // theirs stays selected — that is the whole of arriving from the featured
+  // shelf or an invitation link. Treating "the selection is not this league"
+  // as "the player switched leagues" redirected off it the instant anything
+  // touched the store, which made the join card unreachable: the page appeared
+  // for a frame and was then replaced by the selected league.
+  it("stays on a league the player has not joined while the store churns", async () => {
+    const wrapper = await mountAt("/leagues/open-science");
+    expect(wrapper.find(".page-title").text()).toBe("Open Science League");
+
+    // Anything that re-publishes the league list — a refresh, a second mount —
+    // used to be read as a switch, because the selection had never matched.
+    await useLeagueStore().fetchLeagues();
+    await flushPromises();
+    await flushPromises();
+
+    expect(router.currentRoute.value.params.leagueId).toBe("open-science");
+    expect(wrapper.find(".page-title").text()).toBe("Open Science League");
+    // The switcher is untouched: an unjoined league is not selectable.
+    expect(useLeagueStore().currentLeagueId).not.toBe("open-science");
+  });
+
+  it("stays on an ended league of the player's while the store churns", async () => {
+    // Same rule for the archive: an ended league is readable but never
+    // selectable, since the picker only offers leagues still being played.
+    const wrapper = await mountAt("/leagues/americas");
+    expect(wrapper.find(".page-title").text()).toBe("Americas League");
+
+    await useLeagueStore().fetchLeagues();
+    await flushPromises();
+    await flushPromises();
+
+    expect(router.currentRoute.value.params.leagueId).toBe("americas");
+    expect(useLeagueStore().currentLeagueId).not.toBe("americas");
   });
 
   it("follows the NavBar league switcher to the newly selected league", async () => {

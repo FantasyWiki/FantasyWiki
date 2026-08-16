@@ -186,11 +186,20 @@ const { myTeamId, isPending: isMyTeamPending } = useMyTeam(leagueId);
  *    page, rather than leaving the chrome naming one league and the page showing
  *    another.
  *
+ * The second rule has to mean *the selection changed*, not merely that it
+ * differs from the route. Plenty of leagues are legitimately readable while
+ * some other one stays selected — a public league on the featured shelf, an
+ * ended league in the archive, anything reached by an invitation link — and
+ * treating "different" as "switched" redirected off every one of them the
+ * instant anything touched the store. So what is remembered is the selection
+ * this page arrived alongside, and only a move away from *that* is a switch.
+ *
  * `replace`, not `push`: a switch is a change of context, not a step in a trail,
  * and stacking it would make Back walk the switch history instead of returning
  * to wherever the player came from.
  */
-let reconciledWithStore = false;
+let reconciledFor: string | undefined;
+let reconciledSelection: string | null = null;
 
 watch(
   [
@@ -201,20 +210,33 @@ watch(
   ([id, available, currentId]) => {
     if (!id) return;
 
-    if (!reconciledWithStore) {
+    // Re-reconcile whenever the route names a different league, since the same
+    // page instance is reused when one league page navigates to another.
+    if (reconciledFor !== id) {
       // An empty list means the fetch has not landed yet — there is nothing to
       // reconcile against, and guessing now is what caused the bounce.
       if (!available.length) return;
-      reconciledWithStore = true;
-      const joined = available.find((lg) => lg.id === id);
-      // A league the player has not joined is not selectable; the page still
-      // shows it, the switcher just keeps pointing at one of theirs.
-      if (joined && currentId !== id) leagueStore.setCurrentLeague(joined);
+
+      // Selectable, not merely joined: the picker offers active leagues only,
+      // so adopting an ended one would put the switcher on a league it cannot
+      // show — and `_resolveCurrentLeague` would then throw the selection back
+      // to an active league on the next fetch. A league the player has not
+      // joined is not selectable either; the page still shows it, the switcher
+      // just keeps pointing at one of theirs.
+      const selectable = leagueStore.activeLeagues.find((lg) => lg.id === id);
+      if (selectable && currentId !== id) {
+        leagueStore.setCurrentLeague(selectable);
+      }
+      reconciledFor = id;
+      reconciledSelection = selectable ? id : currentId;
       return;
     }
 
-    if (currentId && currentId !== id) {
-      router.replace({ name: "League", params: { leagueId: currentId } });
+    if (currentId !== reconciledSelection) {
+      reconciledSelection = currentId;
+      if (currentId) {
+        router.replace({ name: "League", params: { leagueId: currentId } });
+      }
     }
   },
   { immediate: true }

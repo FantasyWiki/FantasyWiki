@@ -77,16 +77,16 @@ describe("LeaguesPage", () => {
     const cards = page.findAll(".mine-grid .league-card");
     expect(cards).toHaveLength(activeFixtures.length);
     expect(page.text()).toContain("Global League");
-    // Italia League has already ended — it belongs to the Ended Leagues
+    // Americas League has already ended — it belongs to the Ended Leagues
     // section below, not the enrolled grid.
-    expect(page.find(".mine-grid").text()).not.toContain("Italia League");
+    expect(page.find(".mine-grid").text()).not.toContain("Americas League");
   });
 
   it("shows how many teams play each league", async () => {
     const page = await mountPage();
 
-    // The Global League fixture runs 12 teams deep; Americas holds a single
-    // team, which is what exercises the singular form.
+    // The Global League fixture runs 12 teams deep; Silver Screen holds a
+    // single team, which is what exercises the singular form.
     expect(page.text()).toContain("12 players");
     expect(page.text()).toContain("1 player");
   });
@@ -298,21 +298,21 @@ describe("LeaguesPage", () => {
   it("shows an ended league's winner", async () => {
     const page = await mountPage();
 
-    // Italia League's roster (see mocks/data/performances.ts): "Wiki
-    // Masters" (team-4) out-scores the rest of the table, 2080 to 1790.
-    expect(page.find(".ended").text()).toContain("Wiki Masters");
+    // Americas League's roster (see mocks/data/performances.ts): "Page
+    // Pioneers" tops its final table.
+    expect(page.find(".ended").text()).toContain("Page Pioneers");
   });
 
   it("opens an ended league's detail page when its card is clicked", async () => {
     const page = await mountPage();
 
-    const italia = page
+    const americas = page
       .findAll(".ended .league-card")
-      .find((c) => c.text().includes("Italia League"));
-    await italia?.trigger("click");
+      .find((c) => c.text().includes("Americas League"));
+    await americas?.trigger("click");
     await flushPromises();
 
-    expect(router.currentRoute.value.fullPath).toBe("/leagues/italy");
+    expect(router.currentRoute.value.fullPath).toBe("/leagues/americas");
   });
 
   it("notes that a per-league audit trail is coming", async () => {

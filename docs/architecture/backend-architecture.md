@@ -53,7 +53,30 @@ FantasyWiki/
 ### Services (`backend/src/services`)
 - Implement business logic and orchestration
 - Depend on repository interfaces (`PlayerRepository`) rather than route concerns
+- Depend on other services whose functionality they need
 - Return typed `Result` values consumed by routes
+
+#### Composing services
+
+A service may — and is encouraged to — call another service when that service
+already provides something useful. Reuse beats restating: a rule implemented
+twice is a rule that will eventually be two different rules. Take the
+dependency through the constructor like any repository, so tests can substitute
+it, and let the caller's `Result` carry the callee's failure outward rather
+than re-wording it.
+
+The rule is one of preference, and it holds even when all you want is the data:
+when what service A needs is offered both by service B and by repository C,
+reach for B. Go to C only when there is no such B. A service's read is rarely
+only a read — it dresses rows into DTOs, fills in derived fields, applies the
+rules that decide what counts as absent — and calling it means you inherit
+those, including the ones added after you wrote the call. Reaching past it to
+the repository buys one fewer hop and gives up all of that.
+
+One limit keeps this from becoming a tangle: **keep the dependencies acyclic**.
+If A calls B, B must not call back into A. A cycle usually means the shared
+part wants to be its own service (or to move down into a repository) rather
+than to be reached for in both directions.
 
 ### Repositories (`backend/src/repositories`)
 - Define repository contracts (`playerRepository.ts`)

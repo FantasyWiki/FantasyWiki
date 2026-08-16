@@ -1,0 +1,46 @@
+# Catalog for the scoring-collector subproject, the only JVM module in the
+# monorepo. Everything here is consumed by `collectorLibs` in
+# scoring-collector/build.gradle.kts and nowhere else; entries shared with the
+# Node subprojects live in libs.versions.toml.
+
+[versions]
+kotlin = "2.4.10"
+kotest = "6.2.3"
+mockito = "5.23.0"
+kover = "0.9.9"
+coroutines = "1.11.0"
+ktor = "3.5.2"
+
+[libraries]
+kotest-junit5-jvm = { module = "io.kotest:kotest-runner-junit5-jvm", version.ref = "kotest" }
+kotest-assertions-core-jvm = { module = "io.kotest:kotest-assertions-core-jvm", version.ref = "kotest" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
+
+[bundles]
+runtime = [
+  "kotlinx-coroutines-core",
+  "ktor-client-core",
+  "ktor-client-cio",
+  "ktor-client-content-negotiation",
+  "ktor-serialization-kotlinx-json",
+]
+testing = [
+  "kotest-junit5-jvm",
+  "kotest-assertions-core-jvm",
+  "mockito-core",
+  "ktor-client-mock",
+  "kotlinx-coroutines-test",
+]
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+kotlin-qa = "org.danilopianini.gradle-kotlin-qa:1.8.1"
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }

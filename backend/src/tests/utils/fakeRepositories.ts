@@ -61,6 +61,7 @@ export function fakeTeamRepository(
     rejoin: async () => failure("rejoin not stubbed"),
     existsByNameInLeague: async () => success(false),
     getByPlayerAndLeague: async () => success(null),
+    getByIdAndLeague: async () => success(null),
     getMembership: async () => success(null),
     leave: async () => failure("leave not stubbed"),
     ...overrides,

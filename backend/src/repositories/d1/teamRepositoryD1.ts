@@ -2,7 +2,12 @@ import { Temporal } from "@js-temporal/polyfill";
 import { GLOBAL_LEAGUE_ID, Team } from "../../../../model";
 import { LeagueVisibility } from "../../../../model/enums";
 import { STARTING_CREDITS } from "../../../../model/team";
-import { TEAM_ERRORS, TeamMembership, TeamRepository } from "../teamRepository";
+import {
+  LeaveOutcome,
+  TEAM_ERRORS,
+  TeamMembership,
+  TeamRepository,
+} from "../teamRepository";
 import { Result, success, failure } from "../result";
 
 export class TeamRepositoryD1 implements TeamRepository {
@@ -260,56 +265,127 @@ export class TeamRepositoryD1 implements TeamRepository {
     }
   }
 
-  async leave(
-    playerId: string,
-    leagueId: string,
-    leftAt: Temporal.Instant,
-  ): Promise<Result<void>> {
+  async leave(departure: {
+    teamId: string;
+    playerId: string;
+    leagueId: string;
+    leftAt: Temporal.Instant;
+  }): Promise<Result<LeaveOutcome>> {
+    const { teamId, playerId, leagueId, leftAt } = departure;
     try {
-      // Every rule about leaving is a condition of this one statement, for the
-      // reason set out in docs/architecture/backend-error-constants.md §2:
-      // `leftAt IS NULL` so a departure is recorded once and its moment is
-      // never overwritten, and the league join so an admin cannot leave the
-      // league only they can end, nor anyone leave a league being closed in the
-      // same instant.
-      //
-      // As in `create`, the season's end date is absent by design: it cannot
-      // change, so `isLeagueInactive` in the service is where that half of the
-      // rule lives.
-      const result = await this.db
-        .prepare(
-          `UPDATE teams
-              SET leftAt = ?
-            WHERE playerId = ?
-              AND leagueId = ?
-              AND leftAt IS NULL
-              AND leagueId <> ?
-              AND EXISTS (
-                    SELECT 1 FROM leagues l
-                     WHERE l.id = teams.leagueId
-                       AND l.closedAt IS NULL
-                       AND l.adminId <> teams.playerId
-              )`,
-        )
-        .bind(leftAt.toString(), playerId, leagueId, GLOBAL_LEAGUE_ID)
-        .run();
+      // Stamp the departure, hand the league on if its admin is the one
+      // walking out, and erase the league if nobody is left — one batch, so D1
+      // runs them as one transaction. Statements 2 and 3 are conditioned on
+      // this exact departure having been written, or a refused leave would
+      // delete a league everyone had already abandoned.
+      const results = await this.db.batch([
+        this.db
+          .prepare(
+            `UPDATE teams
+                SET leftAt = ?
+              WHERE id = ?
+                AND playerId = ?
+                AND leagueId = ?
+                AND leftAt IS NULL
+                AND leagueId <> ?
+                AND EXISTS (
+                      SELECT 1 FROM leagues l
+                       WHERE l.id = teams.leagueId
+                         AND l.closedAt IS NULL
+                )`,
+          )
+          .bind(
+            leftAt.toString(),
+            teamId,
+            playerId,
+            leagueId,
+            GLOBAL_LEAGUE_ID,
+          ),
 
-      if (!result.success) {
+        // `rowid` is join order, the only record of seniority `teams` keeps.
+        // A `joinedAt` column would say it out loud, but nothing else wants the
+        // fact; this holds as long as nobody rebuilds the table.
+        this.db
+          .prepare(
+            `UPDATE leagues
+                SET adminId = (
+                      SELECT playerId FROM teams
+                       WHERE leagueId = leagues.id AND leftAt IS NULL
+                       ORDER BY rowid
+                       LIMIT 1
+                    )
+              WHERE id = ?
+                AND adminId = ?
+                AND EXISTS (
+                      SELECT 1 FROM teams
+                       WHERE leagueId = leagues.id AND leftAt IS NULL
+                )
+                AND EXISTS (
+                      SELECT 1 FROM teams WHERE id = ? AND leftAt = ?
+                )`,
+          )
+          .bind(leagueId, playerId, teamId, leftAt.toString()),
+
+        // Teams, contracts, performances, lineups and notifications go with it
+        // through ON DELETE CASCADE — `PRAGMA foreign_keys` reports 1 on D1, so
+        // the cascade is enforced rather than merely declared.
+        this.db
+          .prepare(
+            `DELETE FROM leagues
+              WHERE id = ?
+                AND NOT EXISTS (
+                      SELECT 1 FROM teams
+                       WHERE leagueId = leagues.id AND leftAt IS NULL
+                )
+                AND EXISTS (
+                      SELECT 1 FROM teams WHERE id = ? AND leftAt = ?
+                )`,
+          )
+          .bind(leagueId, teamId, leftAt.toString()),
+      ]);
+
+      const [departed, , deleted] = results;
+      if (!departed.success) {
         const error =
-          "error" in result && typeof result.error === "string"
-            ? result.error
+          "error" in departed && typeof departed.error === "string"
+            ? departed.error
             : "Unknown D1 error";
         return failure(`Failed to leave league: ${error}`);
       }
 
-      if (result.meta.changes === 0) {
+      // A batch whose first statement matched nothing still resolves
+      // successfully, so the sentinel comes from its own `changes`.
+      if (departed.meta.changes === 0) {
         return failure(TEAM_ERRORS.LEAVE_CONFLICT);
       }
 
-      return success(undefined);
+      return success({ leagueDeleted: deleted.meta.changes > 0 });
     } catch (error) {
       return failure(
         `Error leaving league: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  async getByIdAndLeague(
+    teamId: string,
+    leagueId: string,
+  ): Promise<Result<Team | null>> {
+    try {
+      const result = await this.db
+        .prepare(
+          `SELECT t.id, t.name, t.playerId, t.leagueId, tc.credits
+           FROM teams t
+           JOIN team_credits tc ON tc.teamId = t.id
+           WHERE t.id = ? AND t.leagueId = ?`,
+        )
+        .bind(teamId, leagueId)
+        .first<Team>();
+
+      return success(result ?? null);
+    } catch (error) {
+      return failure(
+        `Error fetching team: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
   }

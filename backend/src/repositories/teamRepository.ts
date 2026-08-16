@@ -58,12 +58,6 @@ export const TEAM_ERRORS = {
   /** Leaving twice. The first departure is the one that is on the record. */
   ALREADY_LEFT: "You have already left this league.",
   /**
-   * The league's admin tried to leave it. They close it instead — nobody else
-   * can, so an admin who walked away would leave a league no one could end.
-   */
-  ADMIN_CANNOT_LEAVE:
-    "A league admin cannot leave their own league. Close the league instead.",
-  /**
    * The Global League is the one league every player is enrolled in, and the
    * one the first run puts them in. Leaving it would strand them: the app would
    * route them to create the team the join gate then refuses.
@@ -87,6 +81,15 @@ export interface TeamMembership {
   teamId: string;
   /** When they walked away, or `null` while they are still in the league. */
   leftAt: Temporal.Instant | null;
+}
+
+/**
+ * What a departure left behind. Only the one fact the caller cannot work out
+ * for itself: a league that no longer exists cannot be re-read to discover it
+ * is gone, so the write has to say so on the way out.
+ */
+export interface LeaveOutcome {
+  leagueDeleted: boolean;
 }
 
 export interface TeamRepository {
@@ -172,20 +175,48 @@ export interface TeamRepository {
     leagueId: string,
   ): Promise<Result<TeamMembership | null>>;
   /**
-   * Stamp `leftAt` on the player's team, ending their part in the league.
+   * End the player's part in the league, and settle what that leaves behind.
    *
-   * The team row survives, contracts and all, so the season stays readable
-   * exactly as it was played (docs/domain/league-lifecycle.md). Every condition
-   * is evaluated inside the `UPDATE` — they still have a team here, they have
-   * not already left, they are not the league's admin, the league is neither
-   * the Global League nor closed — because a check followed by a write would
-   * let a second request stamp a second departure, or let a player leave a
-   * league in the moment its admin was closing it. Rejection surfaces as
+   * Three things happen together, as one transaction:
+   *
+   *  1. `leftAt` is stamped on their team. The row survives, contracts and all,
+   *     so the season stays readable exactly as it was played.
+   *  2. If they were the admin, the league passes to the longest-standing
+   *     member still in it. Nobody may be left holding a league its admin has
+   *     walked out of, since only an admin can close one.
+   *  3. If they were the *last* member, the league is deleted outright, and its
+   *     teams, contracts, performances, lineups and notifications cascade with
+   *     it. The single exception to "nothing is ever deleted", and the reason
+   *     is that the exception is not one: an audit trail is reached through a
+   *     league, so a league nobody is in cannot be read back by anyone.
+   *
+   * Whether the leave is *allowed* is decided inside the write — they still
+   * have a team here, they have not already left, the league is neither the
+   * Global League nor closed — because a check followed by a write would let a
+   * second request stamp a second departure, or let a player leave a league in
+   * the moment its admin was closing it. Rejection surfaces as
    * `TEAM_ERRORS.LEAVE_CONFLICT`.
+   *
+   * `teamId` is passed rather than looked up here so steps 2 and 3 can be
+   * conditioned on this exact departure having been written; see the
+   * implementation. See docs/domain/league-lifecycle.md for the rules.
    */
-  leave(
-    playerId: string,
+  leave(departure: {
+    teamId: string;
+    playerId: string;
+    leagueId: string;
+    leftAt: Temporal.Instant;
+  }): Promise<Result<LeaveOutcome>>;
+  /**
+   * The team a league contains under this id, or null.
+   *
+   * The league is part of the key, not a redundant filter: this serves reads
+   * addressed by team id from a league context, so a team belonging to another
+   * league must be indistinguishable from one that does not exist (null), never
+   * a row from outside the league the caller asked about.
+   */
+  getByIdAndLeague(
+    teamId: string,
     leagueId: string,
-    leftAt: Temporal.Instant,
-  ): Promise<Result<void>>;
+  ): Promise<Result<Team | null>>;
 }

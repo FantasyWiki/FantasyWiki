@@ -13,23 +13,37 @@ A league is **active**, **ended** or **closed**, and a player in one has either
 stayed or **left**. This page states those four words once; everything else
 links here rather than re-deciding what they mean.
 
-## Nothing is ever deleted
+## Nothing anyone can still read is ever deleted
 
-**This is the rule the rest of the page follows from.** There is no endpoint
-that deletes a league and none that deletes a team, and neither should ever be
-added.
+**This is the rule the rest of the page follows from.** No endpoint deletes a
+team, and the only one that deletes a league does so when the last player walks
+out of it — see [The empty league](#the-empty-league) below.
 
-Deleting a league would take its contracts, performances and standings with it.
-Deleting a team would do the same to one player's whole season, and would
-silently change everyone else's — the ranks above and below a team are only true
-with that team in them. A fantasy season that cannot be read back afterwards is
-not a season; it is a scoreboard someone unplugged.
+Deleting a played league would take its contracts, performances and standings
+with it. Deleting a team would do the same to one player's whole season, and
+would silently change everyone else's — the ranks above and below a team are
+only true with that team in them. A fantasy season that cannot be read back
+afterwards is not a season; it is a scoreboard someone unplugged.
 
 So both endings are **recorded rather than performed**. Closing a league writes
 `leagues.closedAt`; leaving one writes `teams.leftAt`
 ([migration 0008](../../backend/migrations/0008_league_closure.sql)). Both rows
 stay, whole, and "who won that league we closed in March" stays an answerable
 question.
+
+### The empty league
+
+The exception, and the reason it is not really one: **a league whose last member
+leaves is deleted outright**, and its teams, contracts, performances, lineups
+and notifications cascade with it.
+
+An audit trail is reached *through* a league — its page, its final table, its
+per-team history. A league nobody is in appears in nobody's list and opens from
+nowhere, so there is no one it is auditable *by*; keeping it would preserve the
+form of the rule while abandoning its purpose, and would leave rows no query
+ever addresses again.
+
+The Global League cannot reach this state: nobody may leave it.
 
 ## The four states
 
@@ -94,12 +108,21 @@ A player leaves; their team stays. Concretely:
   they committed to while they were playing. Leaving is a statement about the
   player, not a licence to rewrite the ledger.
 
+### When the admin leaves
+
+The admin may leave like anyone else, but a league must never be left with an
+admin who has walked out of it — only an admin can close one, so that league
+could never be ended by anybody. So the same transaction hands it on:
+
+- **Adminship passes to the longest-standing member still playing.** They are
+  not asked and cannot decline; a league without an admin is the state being
+  avoided, so there is no branch in which nobody takes it. Seniority is join
+  order, which is the only record `teams` keeps of it.
+- **If nobody is still playing, the league is deleted** rather than handed to
+  no one — the empty-league rule above.
+
 ### Who cannot leave
 
-- **The league's admin.** They are the only one who can close a league, so an
-  admin who walked away would leave one nobody could ever end — and
-  `leagues.adminId` would point at a departed team. The admin **closes** the
-  league instead; that pairing is why both actions exist.
 - **Anyone, from the Global League.** It is the league first login enrols every
   player into, and the app routes a player without a team there to create one.
   Leaving would strand them in that loop, since the join gate would then refuse.

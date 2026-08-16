@@ -524,15 +524,17 @@ describe("LeaguePage.vue", () => {
     expect(footer.text()).not.toContain("Close this league");
   });
 
-  it("offers the admin the close, and not the leave", async () => {
-    // An admin who left would leave a league nobody could end.
+  it("offers the admin both, since leaving hands the league on", async () => {
+    // The admin used to be refused the leave, on the grounds that a league
+    // whose admin walked out could never be ended. Succession removes that:
+    // the longest-standing member inherits it inside the same write.
     server.use(runningLeague(), roleIs(true, true));
 
     const wrapper = await mountAt("/leagues/italy");
 
     const footer = wrapper.find(".lifecycle");
     expect(footer.text()).toContain("Close this league");
-    expect(footer.text()).not.toContain("Leave this league");
+    expect(footer.text()).toContain("Leave this league");
   });
 
   it("offers nothing to someone who only watches the league", async () => {
@@ -608,6 +610,52 @@ describe("LeaguePage.vue", () => {
     await flushPromises();
 
     expect(left).toBe(true);
+    create.mockRestore();
+  });
+
+  // The last player out deletes the league, so the page they are standing on
+  // stops existing. Staying would refetch a 404 into it.
+  it("returns to the league section when leaving deleted the league", async () => {
+    server.use(runningLeague(), roleIs(true, false));
+    server.use(
+      http.post("*/api/leagues/:leagueId/my-departure", () =>
+        HttpResponse.json({ leagueDeleted: true })
+      )
+    );
+    const create = vi
+      .spyOn(alertController, "create")
+      .mockImplementation(async (opts) => {
+        confirmOf(opts)?.();
+        return fakeAlert();
+      });
+
+    const wrapper = await mountAt("/leagues/italy");
+    await wrapper.find(".lifecycle-btn").trigger("click");
+    await flushPromises();
+
+    expect(router.currentRoute.value.path).toBe("/leagues");
+    create.mockRestore();
+  });
+
+  it("stays put when leaving left the league standing", async () => {
+    server.use(runningLeague(), roleIs(true, false));
+    server.use(
+      http.post("*/api/leagues/:leagueId/my-departure", () =>
+        HttpResponse.json({ leagueDeleted: false })
+      )
+    );
+    const create = vi
+      .spyOn(alertController, "create")
+      .mockImplementation(async (opts) => {
+        confirmOf(opts)?.();
+        return fakeAlert();
+      });
+
+    const wrapper = await mountAt("/leagues/italy");
+    await wrapper.find(".lifecycle-btn").trigger("click");
+    await flushPromises();
+
+    expect(router.currentRoute.value.path).toBe("/leagues/italy");
     create.mockRestore();
   });
 

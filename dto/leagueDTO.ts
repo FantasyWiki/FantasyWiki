@@ -68,6 +68,18 @@ export interface LeagueRoleDTO {
 }
 
 /**
+ * What leaving a league left behind.
+ *
+ * Only the one fact the client cannot discover for itself: when the last member
+ * walks out the league is deleted, and a league that no longer exists cannot be
+ * re-read to find that out. The page needs it to leave rather than to refetch a
+ * 404 (docs/domain/league-lifecycle.md).
+ */
+export interface LeaveLeagueResultDTO {
+  leagueDeleted: boolean;
+}
+
+/**
  * What a player fills in to found a league.
  *
  * `duration` rather than an end date: the season is "this long from now", and

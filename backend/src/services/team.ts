@@ -10,7 +10,11 @@ import {
   TEAM_NAME_MIN_LENGTH,
 } from "../../../model/team";
 import { TeamDTO } from "../../../dto/teamDTO";
-import { TEAM_ERRORS, TeamRepository } from "../repositories/teamRepository";
+import {
+  LeaveOutcome,
+  TEAM_ERRORS,
+  TeamRepository,
+} from "../repositories/teamRepository";
 import { TeamRepositoryD1 } from "../repositories/d1/teamRepositoryD1";
 import { LeagueRepository } from "../repositories/leagueRepository";
 import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
@@ -222,7 +226,10 @@ export class TeamService {
    * one they will ever have here, and the join gate refuses it rather than
    * un-stamping the departure.
    */
-  async leaveLeague(playerId: string, leagueId: string): Promise<Result<void>> {
+  async leaveLeague(
+    playerId: string,
+    leagueId: string,
+  ): Promise<Result<LeaveOutcome>> {
     // The immutable half of inactivity, for the reason given in `createTeam`:
     // an ended season is not something the UPDATE can be made to notice, since
     // nothing about it can change while the statement runs.
@@ -234,11 +241,30 @@ export class TeamService {
       return failure(TEAM_ERRORS.LEAGUE_INACTIVE);
     }
 
-    const result = await this.teamRepository.leave(
+    // Read for the team id, which the write needs to tie its two follow-up
+    // statements to this exact departure. Advisory as ever — the `UPDATE`
+    // re-checks everything this saw — but it also lets the two ordinary ways of
+    // being refused answer in words without a second round trip.
+    const membershipResult = await this.teamRepository.getMembership(
       playerId,
       leagueId,
-      Temporal.Now.instant(),
     );
+    if (!membershipResult.ok) {
+      return membershipResult;
+    }
+    if (membershipResult.value === null) {
+      return failure(TEAM_ERRORS.NO_TEAM_IN_LEAGUE);
+    }
+    if (membershipResult.value.leftAt) {
+      return failure(TEAM_ERRORS.ALREADY_LEFT);
+    }
+
+    const result = await this.teamRepository.leave({
+      teamId: membershipResult.value.teamId,
+      playerId,
+      leagueId,
+      leftAt: Temporal.Now.instant(),
+    });
     if (!result.ok && result.error === TEAM_ERRORS.LEAVE_CONFLICT) {
       return this.leaveRejection(playerId, leagueId);
     }
@@ -281,9 +307,6 @@ export class TeamService {
     if (!leagueResult.ok) {
       return leagueResult;
     }
-    if (leagueResult.value.adminId === playerId) {
-      return failure(TEAM_ERRORS.ADMIN_CANNOT_LEAVE);
-    }
     // A close that landed between this request's pre-check and its write.
     if (isLeagueInactive(leagueResult.value, Temporal.Now.instant())) {
       return failure(TEAM_ERRORS.LEAGUE_INACTIVE);
@@ -294,15 +317,41 @@ export class TeamService {
     return failure(TEAM_ERRORS.LEAVE_CONFLICT);
   }
 
+  /**
+   * The team a league contains under this id, or null when it contains no such
+   * team. The league is half the key rather than a filter applied to the
+   * answer, so a team belonging to another league is absent here rather than
+   * readable — this serves reads whose team id comes from the client.
+   */
+  async getTeamInLeague(
+    teamId: string,
+    leagueId: string,
+  ): Promise<Result<Team | null>> {
+    return this.teamRepository.getByIdAndLeague(teamId, leagueId);
+  }
+
+  /**
+   * The team this player fields in this league, or null when they field none.
+   * The self-scoped counterpart to {@link getTeamInLeague}: the caller holds a
+   * player id from the session rather than a team id from a URL.
+   *
+   * Returns the domain model, so callers that must go on to resolve things the
+   * team only points at — its owner's name, its contracts — have what they need.
+   * {@link getMyTeam} is this read dressed for the wire.
+   */
+  async getPlayerTeamInLeague(
+    playerId: string,
+    leagueId: string,
+  ): Promise<Result<Team | null>> {
+    return this.teamRepository.getByPlayerAndLeague(playerId, leagueId);
+  }
+
   async getMyTeam(
     playerId: string,
     leagueId: string,
     playerName: string,
   ): Promise<Result<TeamDTO | null>> {
-    const result = await this.teamRepository.getByPlayerAndLeague(
-      playerId,
-      leagueId,
-    );
+    const result = await this.getPlayerTeamInLeague(playerId, leagueId);
     if (!result.ok) {
       return result;
     }

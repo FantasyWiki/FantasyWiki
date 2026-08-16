@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { JWTPayload } from "hono/utils/jwt/types";
+import type { LeaveLeagueResultDTO } from "../../../dto/leagueDTO";
 import {
   LeagueService,
   LEAGUE_CREATION_ERRORS,
@@ -118,7 +119,6 @@ const TEAM_ERROR_STATUS: Record<TeamError, 404 | 409 | 403 | 400> = {
   // LEAGUE_INACTIVE above, which serves leaving as well as joining), or a
   // departure already on the record.
   [TEAM_ERRORS.ALREADY_LEFT]: 409,
-  [TEAM_ERRORS.ADMIN_CANNOT_LEAVE]: 403,
   [TEAM_ERRORS.CANNOT_LEAVE_GLOBAL]: 403,
   // As with JOIN_CONFLICT: the classifier should have replaced it, and 409 is
   // the harmless answer if it ever misses one.
@@ -679,6 +679,27 @@ leagues.get("/:id/lineup", async (c) => {
   return c.json(result.value);
 });
 
+// Another team's line-up, read-only. The team is named in the path because the
+// viewer does not own it — unlike `/:id/lineup`, which is self-scoped from the
+// JWT. Teams on a league's standings are shareably visible (api-naming-rules.md),
+// so the id in the URL is not a security control: the standings already name
+// every team in the league to every member. A team id outside the league
+// resolves to NO_TEAM → 404, so a wrong link is reported as not-found.
+leagues.get("/:id/teams/:teamId/lineup", async (c) => {
+  const leagueId = c.req.param("id");
+  const teamId = c.req.param("teamId");
+
+  const lineupService = LineupService.fromDb(c.env.db);
+  const result = await lineupService.getRivalLineup(leagueId, teamId);
+  if (!result.ok) {
+    return c.json(
+      { error: result.error },
+      result.error === LINEUP_ERRORS.NO_TEAM ? 404 : 500,
+    );
+  }
+  return c.json(result.value);
+});
+
 leagues.put("/:id/lineup", async (c) => {
   const leagueId = c.req.param("id");
   const playerResult = await resolveCurrentPlayer(c);
@@ -854,7 +875,7 @@ leagues.post("/:id/my-departure", async (c) => {
   if (!result.ok) {
     return c.json({ error: result.error }, teamErrorStatus(result.error));
   }
-  return c.json({ success: true });
+  return c.json(result.value satisfies LeaveLeagueResultDTO);
 });
 
 export default leagues;

@@ -311,20 +311,18 @@ describe("league lifecycle endpoints", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ success: true });
+    await expect(response.json()).resolves.toEqual({ leagueDeleted: false });
   });
 
-  it("answers 403 when the admin tries to leave their own league", async () => {
+  it("lets the admin leave, handing the league to whoever remains", async () => {
     const response = await authedAs(ADMIN_ACCOUNT).request(
       "/leagues/lifecycle-lg/my-departure",
       { method: "POST" },
       env,
     );
 
-    expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({
-      error: TEAM_ERRORS.ADMIN_CANNOT_LEAVE,
-    });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ leagueDeleted: false });
   });
 
   it("answers 409 on a second departure", async () => {

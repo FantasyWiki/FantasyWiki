@@ -6,6 +6,7 @@ import {
   LeagueDTO,
   LeagueInviteDTO,
   LeagueRoleDTO,
+  LeaveLeagueResultDTO,
 } from "../../../dto/leagueDTO";
 import {
   RawNotification,
@@ -176,7 +177,7 @@ export const leaguesApi = {
    * player who has left.
    */
   leave: (id: string) =>
-    apiRequest<{ success: boolean }>(`/leagues/${id}/my-departure`, {
+    apiRequest<LeaveLeagueResultDTO>(`/leagues/${id}/my-departure`, {
       method: "POST",
     }),
   /** The current player's team inside this league (resolved from JWT on backend) */

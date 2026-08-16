@@ -389,6 +389,24 @@
       "saveSuccess": "Lineup saved!",
       "saveFailed": "Couldn't save your lineup. Please try again.",
       "retry": "Retry"
+    },
+    "rivalTeamPage": {
+      "back": "Back to the league",
+      "backToStandings": "Back to the standings",
+      "loadingTitle": "Loading team…",
+      "failedToLoad": "Failed to load this team",
+      "notFoundTitle": "Team not found",
+      "notFoundDetail": "This team is not playing in this league.",
+      "retry": "Retry",
+      "rank": "#{rank}",
+      "points": "Points",
+      "trend": "Trend",
+      "schema": "Formation",
+      "bench": "Bench",
+      "gapAhead": "Ahead of you by {points} points",
+      "gapBehind": "Behind you by {points} points",
+      "gapLevel": "Level with you on points",
+      "viewMyTeam": "My team"
     }
   },
   "market": {
@@ -493,7 +511,10 @@
     "closeMessage": "The season ends now, for everyone. Nothing is deleted: the final table, every team and every contract stay readable. This cannot be undone.",
     "closeCta": "Close league",
     "closeDone": "The league is closed.",
-    "closeFailed": "Could not close the league. Try again."
+    "closeFailed": "Could not close the league. Try again.",
+    "leaveMessageLast": "You are the last player here. Leaving deletes this league and everything in it — teams, contracts and the whole table. This cannot be undone.",
+    "leaveMessageAdmin": "You run this league. Leaving hands it to the player who has been here longest, and they take over closing it.",
+    "leaveDoneDeleted": "You left, and the empty league was deleted."
   },
   "leagues": {
     "title": "Your Leagues",

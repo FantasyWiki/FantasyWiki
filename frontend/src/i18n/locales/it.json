@@ -389,6 +389,24 @@
       "saveSuccess": "Formazione salvata!",
       "saveFailed": "Impossibile salvare la formazione. Riprova.",
       "retry": "Riprova"
+    },
+    "rivalTeamPage": {
+      "back": "Torna alla lega",
+      "backToStandings": "Torna alla classifica",
+      "loadingTitle": "Caricamento squadra…",
+      "failedToLoad": "Impossibile caricare questa squadra",
+      "notFoundTitle": "Squadra non trovata",
+      "notFoundDetail": "Questa squadra non partecipa a questa lega.",
+      "retry": "Riprova",
+      "rank": "#{rank}",
+      "points": "Punti",
+      "trend": "Andamento",
+      "schema": "Modulo",
+      "bench": "Panchina",
+      "gapAhead": "Davanti a te di {points} punti",
+      "gapBehind": "Dietro di te di {points} punti",
+      "gapLevel": "A pari punti con te",
+      "viewMyTeam": "La mia squadra"
     }
   },
   "market": {
@@ -493,7 +511,10 @@
     "closeMessage": "La stagione finisce adesso, per tutti. Non viene cancellato nulla: la classifica finale, ogni squadra e ogni contratto restano consultabili. L'operazione non è reversibile.",
     "closeCta": "Chiudi la lega",
     "closeDone": "La lega è chiusa.",
-    "closeFailed": "Non è stato possibile chiudere la lega. Riprova."
+    "closeFailed": "Non è stato possibile chiudere la lega. Riprova.",
+    "leaveMessageLast": "Sei l'ultimo giocatore rimasto. Uscendo, questa lega viene eliminata con tutto ciò che contiene: squadre, contratti e l'intera classifica. L'operazione è irreversibile.",
+    "leaveMessageAdmin": "Amministri questa lega. Uscendo la passi al giocatore che ne fa parte da più tempo, che potrà chiuderla al posto tuo.",
+    "leaveDoneDeleted": "Sei uscito e la lega, ormai vuota, è stata eliminata."
   },
   "leagues": {
     "title": "Le tue leghe",

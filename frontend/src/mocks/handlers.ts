@@ -10,6 +10,7 @@ import {
   performancesByLeague,
   players,
   rosterOf,
+  rostersByLeague,
   teams,
 } from "./data";
 import { ContractDTO } from "../../../dto/contractDTO";
@@ -278,14 +279,38 @@ export const handlers = [
   // The team is not taken out of `rostersByLeague`: a departed team keeps its
   // place in the standings, and pretending otherwise here would let the page
   // pass a test the real API would fail.
+  // Leaving takes the player's team out of the roster — the real `leftAt` makes
+  // every self-scoped read answer as if it were gone — and then settles what
+  // that leaves behind, the same two ways the real transaction does: an empty
+  // league is deleted outright, and one whose admin walked out passes to
+  // whoever has been in it longest.
   http.post("*/api/leagues/:leagueId/my-departure", ({ params }) => {
-    const team = getMyTeam(String(params.leagueId));
+    const leagueId = String(params.leagueId);
+    const team = getMyTeam(leagueId);
     if (!team)
       return HttpResponse.json(
         { error: "No team found for this league" },
         { status: 404 }
       );
-    return HttpResponse.json({ success: true });
+
+    const roster = rostersByLeague[leagueId] ?? [];
+    roster.splice(roster.indexOf(team), 1);
+
+    const at = leagues.findIndex((l) => l.id === leagueId);
+    if (roster.length === 0) {
+      if (at >= 0) leagues.splice(at, 1);
+      delete rostersByLeague[leagueId];
+      delete invitationCodes[leagueId];
+      adminLeagueIds.delete(leagueId);
+      return HttpResponse.json({ leagueDeleted: true });
+    }
+
+    // `teamCount` is written on the fixture rather than derived per request, so
+    // it has to be kept in step or the page would go on offering the departed
+    // player's seat.
+    if (at >= 0) leagues[at] = { ...leagues[at], teamCount: roster.length };
+    adminLeagueIds.delete(leagueId);
+    return HttpResponse.json({ leagueDeleted: false });
   }),
 
   http.post("*/api/leagues/:leagueId/my-team", async ({ params, request }) => {
@@ -343,6 +368,21 @@ export const handlers = [
       );
     }
 
+    return HttpResponse.json(response);
+  }),
+
+  // Another team's line-up. The fixture is the same XI for every team id: the
+  // mock exists so the rival page is navigable, and inventing a distinct squad
+  // per team would be fixture data pretending to be a scouting feature.
+  http.get("*/api/leagues/:leagueId/teams/:teamId/lineup", ({ params }) => {
+    const response =
+      mockTeamResponses[teamResponseKey(String(params.leagueId))];
+    if (!response) {
+      return HttpResponse.json(
+        { error: "Team layout not found" },
+        { status: 404 }
+      );
+    }
     return HttpResponse.json(response);
   }),
 

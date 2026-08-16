@@ -2,7 +2,9 @@ import { computed, ref, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery, useQueryClient } from "@tanstack/vue-query";
 import { alertController } from "@ionic/vue";
 import { useI18n } from "vue-i18n";
+import { useRouter } from "vue-router";
 import { queryKeys } from "@/composables/queryKeys";
+import { useLeagueStore } from "@/stores/league";
 import { useToast } from "@/composables/useToast";
 import api from "@/services/api";
 import { GLOBAL_LEAGUE_ID } from "../../../model/league";
@@ -11,7 +13,8 @@ import type { LeagueDTO } from "../../../dto/leagueDTO";
 /**
  * The two ways a league stops being somewhere you play: its admin closes it, or
  * you leave it. See docs/domain/league-lifecycle.md for what each one means —
- * neither deletes anything.
+ * neither erases a season anyone could still read, though the last player out
+ * takes the empty league with them.
  *
  * Which of the two to offer is the server's answer, not a guess made here:
  * `LeagueDTO` carries no `adminId` on purpose, so the page asks `my-role` and
@@ -25,6 +28,8 @@ export function useLeagueLifecycle(
   const { t } = useI18n();
   const { showSuccess, showError } = useToast();
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const leagueStore = useLeagueStore();
 
   const { data: role } = useQuery({
     queryKey: computed(() => queryKeys.leagueRole(id.value)),
@@ -47,15 +52,24 @@ export function useLeagueLifecycle(
   const canLeave = computed(
     () =>
       !!role.value?.isMember &&
-      // The admin closes the league instead; leaving would leave one nobody
-      // could end.
-      !role.value?.isAdmin &&
       !isClosed.value &&
       // The one league nobody may leave — first run enrols every player into
       // it and would route them straight back. The backend refuses this too;
       // asking would only be a request spent to be told no.
       id.value !== GLOBAL_LEAGUE_ID
   );
+
+  /**
+   * Leaving means something different depending on who is left, so the
+   * confirmation has to say which: the last player out deletes the league, and
+   * an admin with company hands it on.
+   */
+  const isLastMember = computed(() => toValue(league)?.teamCount === 1);
+  const leaveMessage = computed(() => {
+    if (isLastMember.value) return t("leagueLifecycle.leaveMessageLast");
+    if (role.value?.isAdmin) return t("leagueLifecycle.leaveMessageAdmin");
+    return t("leagueLifecycle.leaveMessage");
+  });
 
   /** True while a confirmed action is in flight, so the buttons can be held. */
   const isWorking = ref(false);
@@ -130,26 +144,43 @@ export function useLeagueLifecycle(
 
   async function leave() {
     if (!id.value || isWorking.value) return;
+    const leagueId = id.value;
     const ok = await confirmed(
       t("leagueLifecycle.leaveTitle"),
-      t("leagueLifecycle.leaveMessage"),
+      leaveMessage.value,
       t("leagueLifecycle.leaveCta")
     );
     if (!ok) return;
 
     isWorking.value = true;
     try {
-      await api.leagues.leave(id.value);
+      const { leagueDeleted } = await api.leagues.leave(leagueId);
+      // The player's own list is the store's, not a query — either way they are
+      // no longer in this league and it has to stop being offered.
+      await leagueStore.fetchLeagues();
+
+      if (leagueDeleted) {
+        // Leave the page before touching its cache: invalidating a league that
+        // no longer exists only refetches a 404 into the view standing on it.
+        await router.replace("/leagues");
+        queryClient.removeQueries({ queryKey: queryKeys.league(leagueId) });
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.publicLeagues(),
+        });
+        await showSuccess(t("leagueLifecycle.leaveDoneDeleted"));
+        return;
+      }
+
       // `my-team` is what every scoped surface reads, and it now answers with
       // nothing; the role decides whether the control is still offered.
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.myTeam(id.value),
+        queryKey: queryKeys.myTeam(leagueId),
       });
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.leagueRole(id.value),
+        queryKey: queryKeys.leagueRole(leagueId),
       });
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.league(id.value),
+        queryKey: queryKeys.league(leagueId),
       });
       await showSuccess(t("leagueLifecycle.leaveDone"));
     } catch (error) {

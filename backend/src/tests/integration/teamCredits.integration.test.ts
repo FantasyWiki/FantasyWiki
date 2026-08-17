@@ -1,177 +1,139 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
-import { ContractRepositoryD1 } from "../../repositories/d1/contractRepositoryD1";
-import { NotificationRepositoryD1 } from "../../repositories/d1/notificationRepositoryD1";
-import { PerformanceRepositoryD1 } from "../../repositories/d1/performanceRepositoryD1";
-import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
-import {
-  MAX_TEAM_CONTRACTS,
-  STARTING_CREDITS,
-  deriveCredits,
-} from "../../../../model/team";
-import { insertTeam } from "../utils/d1TestUtils";
+import { PlayerService } from "../../services/player";
+import { TeamService } from "../../services/team";
+import { GLOBAL_LEAGUE_ID } from "../../services/league";
+import { unwrap } from "../../repositories/result";
+import { MAX_TEAM_CONTRACTS, STARTING_CREDITS } from "../../../../model/team";
+import { repositories } from "../support/target";
 
 /**
- * ADR 0007: credits are derived by the `team_credits` view — one statement of
- * the rule, used by every read path and the guarded INSERT. These tests are
- * what stop the four repositories drifting back apart.
+ * ADR 0007: a team's credits are derived from its contracts ledger, never
+ * stored — so every read path has to answer with the same number. These tests
+ * are what stop the four repositories drifting apart, and they say nothing about
+ * how the derivation is implemented; `repositories/d1/teamCreditsView.d1.test.ts`
+ * covers what is specific to the SQL view.
  */
-
-const LEAGUE_ID = "league-credits";
-const PLAYER_ID = "player-credits";
-const TEAM_ID = "team-credits";
-
-/** Covers every branch: unsettled purchase, early sale, and a settled row with a NULL payout. */
-const LEDGER = [
-  { id: "c-open", purchasePrice: 100, settled: false, salePayout: null },
-  { id: "c-sold", purchasePrice: 250, settled: true, salePayout: 180 },
-  { id: "c-null", purchasePrice: 40, settled: true, salePayout: null },
-];
 
 /** 1000 − 100 − 250 − 40 + 180 + 0 = 790 */
 const EXPECTED_CREDITS = 790;
 
-async function seedLedger(): Promise<void> {
-  await env.db
-    .prepare(
-      `INSERT INTO google_accounts (id, googleId, email) VALUES (?, ?, ?)`,
-    )
-    .bind("account-credits", "google-credits", "credits@example.com")
-    .run();
-  await env.db
-    .prepare(`INSERT INTO players (id, username, accountId) VALUES (?, ?, ?)`)
-    .bind(PLAYER_ID, "creditsplayer", "account-credits")
-    .run();
-  await env.db
-    .prepare(
-      `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .bind(
-      LEAGUE_ID,
-      "Credits League",
-      PLAYER_ID,
-      "2026-01-01",
-      "2026-12-31",
-      "en",
-      "🌍",
-    )
-    .run();
-  await insertTeam(env.db, {
-    id: TEAM_ID,
-    name: "Credits FC",
-    playerId: PLAYER_ID,
-    leagueId: LEAGUE_ID,
-  });
-
-  for (const row of LEDGER) {
-    await env.db
-      .prepare(
-        `INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice, settled, salePayout)
-         VALUES (?, ?, ?, '2026-01-01', '2026-01-04', ?, ?, ?)`,
-      )
-      .bind(
-        row.id,
-        TEAM_ID,
-        `Article_${row.id}`,
-        row.purchasePrice,
-        row.settled ? 1 : 0,
-        row.salePayout,
-      )
-      .run();
-  }
-}
-
-/** A contract-free team. `teams` is unique on (playerId, leagueId), so it brings its own player. */
-async function seedTeamWithEmptyLedger(teamId: string): Promise<void> {
-  await env.db
-    .prepare(
-      `INSERT INTO google_accounts (id, googleId, email) VALUES (?, ?, ?)`,
-    )
-    .bind(`account-${teamId}`, `google-${teamId}`, `${teamId}@example.com`)
-    .run();
-  await env.db
-    .prepare(`INSERT INTO players (id, username, accountId) VALUES (?, ?, ?)`)
-    .bind(`player-${teamId}`, `user-${teamId}`, `account-${teamId}`)
-    .run();
-  await insertTeam(env.db, {
-    id: teamId,
-    name: `Team ${teamId}`,
-    playerId: `player-${teamId}`,
-    leagueId: LEAGUE_ID,
-  });
-}
-
 describe("Derived team credits (ADR 0007)", () => {
+  let playerId: string;
+  let teamId: string;
+  let soldContractId: string;
+
+  /** A contract-free team. `teams` is unique on (playerId, leagueId), so it brings its own player. */
+  async function teamWithEmptyLedger(name: string): Promise<string> {
+    const player = unwrap(
+      await new PlayerService(repositories()).createPlayer(
+        `user-${name}`,
+        `${name}@example.com`,
+        `account-${name}`,
+      ),
+      "player",
+    );
+    return unwrap(
+      await new TeamService(repositories()).createTeam(
+        player.id,
+        GLOBAL_LEAGUE_ID,
+        name,
+      ),
+      "team",
+    ).id;
+  }
+
   beforeEach(async () => {
-    await seedLedger();
-  });
+    const contracts = repositories().contracts;
 
-  it("pins the view's starting-budget literal to STARTING_CREDITS", async () => {
-    // The only thing keeping the inlined literal and the TS constant in step.
-    await seedTeamWithEmptyLedger("team-fresh");
+    playerId = unwrap(
+      await new PlayerService(repositories()).createPlayer(
+        "creditsplayer",
+        "credits@example.com",
+        "account-credits",
+      ),
+      "player",
+    ).id;
+    teamId = unwrap(
+      await new TeamService(repositories()).createTeam(
+        playerId,
+        GLOBAL_LEAGUE_ID,
+        "Credits FC",
+      ),
+      "team",
+    ).id;
 
-    const row = await env.db
-      .prepare("SELECT credits FROM team_credits WHERE teamId = ?")
-      .bind("team-fresh")
-      .first<{ credits: number }>();
+    // A ledger covering every branch of the rule: an open purchase, an early
+    // sale that paid out, and a settled one that paid out nothing.
+    const window = {
+      purchaseDate: Temporal.PlainDate.from("2026-01-01"),
+      expireDate: Temporal.PlainDate.from("2026-01-04"),
+    };
+    unwrap(
+      await contracts.create({
+        teamId,
+        articleId: "Article_open",
+        purchasePrice: 100,
+        ...window,
+      }),
+      "open contract",
+    );
+    soldContractId = unwrap(
+      await contracts.create({
+        teamId,
+        articleId: "Article_sold",
+        purchasePrice: 250,
+        ...window,
+      }),
+      "sold contract",
+    ).id;
+    unwrap(await contracts.settleSale(soldContractId, teamId, 180), "sale");
 
-    expect(row?.credits).toBe(STARTING_CREDITS);
-  });
-
-  it("agrees with the model's deriveCredits on the same ledger", async () => {
-    // The view enforces, the pure function documents — same rule.
-    expect(deriveCredits(STARTING_CREDITS, LEDGER)).toBe(EXPECTED_CREDITS);
-
-    const row = await env.db
-      .prepare("SELECT credits FROM team_credits WHERE teamId = ?")
-      .bind(TEAM_ID)
-      .first<{ credits: number }>();
-
-    expect(row?.credits).toBe(EXPECTED_CREDITS);
+    const worthless = unwrap(
+      await contracts.create({
+        teamId,
+        articleId: "Article_worthless",
+        purchasePrice: 40,
+        ...window,
+      }),
+      "worthless contract",
+    );
+    unwrap(
+      await contracts.settleSale(worthless.id, teamId, 0),
+      "sale for nothing",
+    );
   });
 
   it("reports the same balance through every read path", async () => {
     // The point of the consolidation: four repositories, one number.
-    await env.db
-      .prepare(
-        `INSERT INTO notifications (id, contractId, message, date, isRead)
-         VALUES ('n1', 'c-sold', 'Sold early', '2026-01-02', 0)`,
-      )
-      .run();
+    const { contracts, teams, notifications, performances } = repositories();
+    unwrap(
+      await notifications.create({
+        id: "n1",
+        contractId: soldContractId,
+        message: "Sold early",
+        date: "2026-01-02",
+      }),
+      "notification",
+    );
 
-    const contractRepo = new ContractRepositoryD1(env.db);
-    const teamRepo = new TeamRepositoryD1(env.db);
-    const notificationRepo = new NotificationRepositoryD1(env.db);
-    const performanceRepo = new PerformanceRepositoryD1(env.db);
-
-    const [team, leagueContracts, due, notifications, cumulatives] =
-      await Promise.all([
-        teamRepo.getByPlayerAndLeague(PLAYER_ID, LEAGUE_ID),
-        contractRepo.getByLeagueId(LEAGUE_ID),
-        // Every fixture contract expired in January 2026, so the open one is due.
-        contractRepo.getDueForSettlement(Temporal.PlainDate.from("2026-06-01")),
-        notificationRepo.getByPlayerAndLeague(PLAYER_ID, LEAGUE_ID),
-        performanceRepo.getLeagueCumulatives(LEAGUE_ID),
-      ]);
-
-    if (
-      !team.ok ||
-      !leagueContracts.ok ||
-      !due.ok ||
-      !notifications.ok ||
-      !cumulatives.ok
-    ) {
-      throw new Error("read path failed");
-    }
+    const [team, leagueContracts, due, inbox, cumulatives] = await Promise.all([
+      teams.getByPlayerAndLeague(playerId, GLOBAL_LEAGUE_ID),
+      contracts.getByLeagueId(GLOBAL_LEAGUE_ID),
+      // Every fixture contract expired in January 2026, so the open one is due.
+      contracts.getDueForSettlement(Temporal.PlainDate.from("2026-06-01")),
+      notifications.getByPlayerAndLeague(playerId, GLOBAL_LEAGUE_ID),
+      performances.getLeagueCumulatives(GLOBAL_LEAGUE_ID),
+    ]);
 
     const balances = {
-      teamRepository: team.value?.credits,
-      contractRepositoryByLeague: leagueContracts.value[0]?.teamCredits,
-      contractRepositoryDueForSettlement: due.value[0]?.teamCredits,
-      notificationRepository: notifications.value[0]?.credits,
-      performanceRepository: cumulatives.value[0]?.teamCredits,
+      teamRepository: unwrap(team, "team")?.credits,
+      contractRepositoryByLeague: unwrap(leagueContracts, "league contracts")[0]
+        ?.teamCredits,
+      contractRepositoryDueForSettlement: unwrap(due, "due contracts")[0]
+        ?.teamCredits,
+      notificationRepository: unwrap(inbox, "notifications")[0]?.credits,
+      performanceRepository: unwrap(cumulatives, "cumulatives")[0]?.teamCredits,
     };
 
     expect(balances).toEqual({
@@ -185,74 +147,73 @@ describe("Derived team credits (ADR 0007)", () => {
 
   it("still reports a contract-free team's balance on the leaderboard", async () => {
     // Team-anchoring is what lets performanceRepository drop its COALESCE.
-    await seedTeamWithEmptyLedger("team-empty");
+    const emptyTeamId = await teamWithEmptyLedger("Empty FC");
 
-    const cumulatives = await new PerformanceRepositoryD1(
-      env.db,
-    ).getLeagueCumulatives(LEAGUE_ID);
-    if (!cumulatives.ok) throw new Error("read path failed");
+    const cumulatives = unwrap(
+      await repositories().performances.getLeagueCumulatives(GLOBAL_LEAGUE_ID),
+      "cumulatives",
+    );
 
-    const empty = cumulatives.value.find((row) => row.teamId === "team-empty");
+    const empty = cumulatives.find((row) => row.teamId === emptyTeamId);
     expect(empty?.teamCredits).toBe(STARTING_CREDITS);
   });
 });
 
-describe("The guarded purchase INSERT (ADR 0007)", () => {
-  // The guard now reads the view; these pin the behaviour that justifies it.
+describe("The guarded purchase write (ADR 0007)", () => {
+  let teamId: string;
+
   beforeEach(async () => {
-    await seedLedger();
+    const playerId = unwrap(
+      await new PlayerService(repositories()).createPlayer(
+        "guardedbuyer",
+        "guardedbuyer@example.com",
+        "account-guarded",
+      ),
+      "player",
+    ).id;
+    teamId = unwrap(
+      await new TeamService(repositories()).createTeam(
+        playerId,
+        GLOBAL_LEAGUE_ID,
+        "Guarded FC",
+      ),
+      "team",
+    ).id;
   });
 
   const buyAt = (articleId: string, purchasePrice: number) =>
-    new ContractRepositoryD1(env.db).create({
-      teamId: TEAM_ID,
+    repositories().contracts.create({
+      teamId,
       articleId,
       purchaseDate: Temporal.PlainDate.from("2026-06-01"),
       expireDate: Temporal.PlainDate.from("2026-06-04"),
       purchasePrice,
     });
 
-  // The guard is `credits >= price`. These two pin the comparison itself, not
-  // just its existence — a view substitution that changed the derived number
-  // by one, or flipped >= to >, fails exactly here.
+  // The guard is `credits >= price`. These pin the comparison itself, not just
+  // its existence — a derivation that was off by one, or a `>` where `>=`
+  // belongs, fails exactly here.
   it("allows a purchase costing the entire balance", async () => {
-    const exact = await buyAt("Exact_Article", EXPECTED_CREDITS);
+    const exact = await buyAt("Exact_Article", STARTING_CREDITS);
     expect(exact.ok).toBe(true);
   });
 
   it("rejects a purchase one credit beyond the balance", async () => {
-    const overspend = await buyAt("Dear_Article", EXPECTED_CREDITS + 1);
+    const overspend = await buyAt("Dear_Article", STARTING_CREDITS + 1);
     expect(overspend.ok).toBe(false);
   });
 
   it("rejects any further spend once the balance is exhausted", async () => {
-    expect((await buyAt("Exact_Article", EXPECTED_CREDITS)).ok).toBe(true);
+    expect((await buyAt("Exact_Article", STARTING_CREDITS)).ok).toBe(true);
     expect((await buyAt("One_Credit_More", 1)).ok).toBe(false);
   });
 
   it("rejects the contract past MAX_TEAM_CONTRACTS", async () => {
-    const repo = new ContractRepositoryD1(env.db);
     // Prices are 0 so only the cap can cause a rejection.
-    const activeAlready = LEDGER.filter((row) => !row.settled).length;
-
-    for (let i = activeAlready; i < MAX_TEAM_CONTRACTS; i++) {
-      const result = await repo.create({
-        teamId: TEAM_ID,
-        articleId: `Filler_${i}`,
-        purchaseDate: Temporal.PlainDate.from("2026-06-01"),
-        expireDate: Temporal.PlainDate.from("2026-06-04"),
-        purchasePrice: 0,
-      });
-      expect(result.ok).toBe(true);
+    for (let held = 0; held < MAX_TEAM_CONTRACTS; held++) {
+      expect((await buyAt(`Filler_${held}`, 0)).ok).toBe(true);
     }
 
-    const overCap = await repo.create({
-      teamId: TEAM_ID,
-      articleId: "One_Too_Many",
-      purchaseDate: Temporal.PlainDate.from("2026-06-01"),
-      expireDate: Temporal.PlainDate.from("2026-06-04"),
-      purchasePrice: 0,
-    });
-    expect(overCap.ok).toBe(false);
+    expect((await buyAt("One_Too_Many", 0)).ok).toBe(false);
   });
 });

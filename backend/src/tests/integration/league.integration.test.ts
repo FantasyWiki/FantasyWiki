@@ -7,7 +7,6 @@ import {
   toLeagueDTO,
 } from "../../services/league";
 import { LEAGUE_ERRORS } from "../../repositories/leagueRepository";
-import { LeagueRepositoryD1 } from "../../repositories/d1/leagueRepositoryD1";
 import { LeagueRepository } from "../../repositories/leagueRepository";
 import { success, failure } from "../../repositories/result";
 import { PlayerService } from "../../services/player";
@@ -17,6 +16,7 @@ import { League } from "../../../../model";
 import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
 import { fakeLeagueRepository } from "../utils/fakeRepositories";
 import { REFERENCE_SCALE } from "../../../../model/languageScale";
+import { LeagueRepositoryD1 } from "../../repositories/d1/leagueRepositoryD1";
 
 describe("LeagueService Integration Tests", () => {
   let leagueService: LeagueService;

@@ -18,34 +18,87 @@ import { repositories } from "../support/target";
 /** 1000 − 100 − 250 − 40 + 180 + 0 = 790 */
 const EXPECTED_CREDITS = 790;
 
+/** One open purchase, so a ledger carrying it holds one active contract. */
+const ACTIVE_IN_LEDGER = 1;
+
+/** A team, and a player for it — `teams` is unique on (playerId, leagueId). */
+async function teamWithEmptyLedger(name: string): Promise<string> {
+  const player = unwrap(
+    await new PlayerService(repositories()).createPlayer(
+      `user-${name}`,
+      `${name}@example.com`,
+      `account-${name}`,
+    ),
+    "player",
+  );
+  return unwrap(
+    await new TeamService(repositories()).createTeam(
+      player.id,
+      GLOBAL_LEAGUE_ID,
+      name,
+    ),
+    "team",
+  ).id;
+}
+
+/**
+ * A ledger covering every branch of the rule — an open purchase, an early sale
+ * that paid out, and a settled one that paid out nothing — leaving the team on
+ * EXPECTED_CREDITS. Deliberately not a single purchase: a balance that is the
+ * sum of several signed entries is what makes an off-by-one in the derivation
+ * visible, which a fresh team's trivial balance would hide.
+ */
+async function seedLedger(teamId: string): Promise<{ soldContractId: string }> {
+  const contracts = repositories().contracts;
+  const window = {
+    purchaseDate: Temporal.PlainDate.from("2026-01-01"),
+    expireDate: Temporal.PlainDate.from("2026-01-04"),
+  };
+
+  unwrap(
+    await contracts.create({
+      teamId,
+      articleId: "Article_open",
+      purchasePrice: 100,
+      ...window,
+    }),
+    "open contract",
+  );
+
+  const sold = unwrap(
+    await contracts.create({
+      teamId,
+      articleId: "Article_sold",
+      purchasePrice: 250,
+      ...window,
+    }),
+    "sold contract",
+  );
+  unwrap(await contracts.settleSale(sold.id, teamId, 180), "sale");
+
+  const worthless = unwrap(
+    await contracts.create({
+      teamId,
+      articleId: "Article_worthless",
+      purchasePrice: 40,
+      ...window,
+    }),
+    "worthless contract",
+  );
+  unwrap(
+    await contracts.settleSale(worthless.id, teamId, 0),
+    "sale for nothing",
+  );
+
+  return { soldContractId: sold.id };
+}
+
 describe("Derived team credits (ADR 0007)", () => {
   let playerId: string;
   let teamId: string;
   let soldContractId: string;
 
-  /** A contract-free team. `teams` is unique on (playerId, leagueId), so it brings its own player. */
-  async function teamWithEmptyLedger(name: string): Promise<string> {
-    const player = unwrap(
-      await new PlayerService(repositories()).createPlayer(
-        `user-${name}`,
-        `${name}@example.com`,
-        `account-${name}`,
-      ),
-      "player",
-    );
-    return unwrap(
-      await new TeamService(repositories()).createTeam(
-        player.id,
-        GLOBAL_LEAGUE_ID,
-        name,
-      ),
-      "team",
-    ).id;
-  }
-
   beforeEach(async () => {
-    const contracts = repositories().contracts;
-
     playerId = unwrap(
       await new PlayerService(repositories()).createPlayer(
         "creditsplayer",
@@ -63,45 +116,7 @@ describe("Derived team credits (ADR 0007)", () => {
       "team",
     ).id;
 
-    // A ledger covering every branch of the rule: an open purchase, an early
-    // sale that paid out, and a settled one that paid out nothing.
-    const window = {
-      purchaseDate: Temporal.PlainDate.from("2026-01-01"),
-      expireDate: Temporal.PlainDate.from("2026-01-04"),
-    };
-    unwrap(
-      await contracts.create({
-        teamId,
-        articleId: "Article_open",
-        purchasePrice: 100,
-        ...window,
-      }),
-      "open contract",
-    );
-    soldContractId = unwrap(
-      await contracts.create({
-        teamId,
-        articleId: "Article_sold",
-        purchasePrice: 250,
-        ...window,
-      }),
-      "sold contract",
-    ).id;
-    unwrap(await contracts.settleSale(soldContractId, teamId, 180), "sale");
-
-    const worthless = unwrap(
-      await contracts.create({
-        teamId,
-        articleId: "Article_worthless",
-        purchasePrice: 40,
-        ...window,
-      }),
-      "worthless contract",
-    );
-    unwrap(
-      await contracts.settleSale(worthless.id, teamId, 0),
-      "sale for nothing",
-    );
+    soldContractId = (await seedLedger(teamId)).soldContractId;
   });
 
   it("reports the same balance through every read path", async () => {
@@ -162,23 +177,11 @@ describe("Derived team credits (ADR 0007)", () => {
 describe("The guarded purchase write (ADR 0007)", () => {
   let teamId: string;
 
+  // The same multi-entry ledger, so the balance the guard compares against is
+  // one the derivation had to compute rather than the starting constant.
   beforeEach(async () => {
-    const playerId = unwrap(
-      await new PlayerService(repositories()).createPlayer(
-        "guardedbuyer",
-        "guardedbuyer@example.com",
-        "account-guarded",
-      ),
-      "player",
-    ).id;
-    teamId = unwrap(
-      await new TeamService(repositories()).createTeam(
-        playerId,
-        GLOBAL_LEAGUE_ID,
-        "Guarded FC",
-      ),
-      "team",
-    ).id;
+    teamId = await teamWithEmptyLedger("Guarded FC");
+    await seedLedger(teamId);
   });
 
   const buyAt = (articleId: string, purchasePrice: number) =>
@@ -191,26 +194,27 @@ describe("The guarded purchase write (ADR 0007)", () => {
     });
 
   // The guard is `credits >= price`. These pin the comparison itself, not just
-  // its existence — a derivation that was off by one, or a `>` where `>=`
-  // belongs, fails exactly here.
+  // its existence — a derivation that came out one credit off, or a `>` where
+  // `>=` belongs, fails exactly here.
   it("allows a purchase costing the entire balance", async () => {
-    const exact = await buyAt("Exact_Article", STARTING_CREDITS);
+    const exact = await buyAt("Exact_Article", EXPECTED_CREDITS);
     expect(exact.ok).toBe(true);
   });
 
   it("rejects a purchase one credit beyond the balance", async () => {
-    const overspend = await buyAt("Dear_Article", STARTING_CREDITS + 1);
+    const overspend = await buyAt("Dear_Article", EXPECTED_CREDITS + 1);
     expect(overspend.ok).toBe(false);
   });
 
   it("rejects any further spend once the balance is exhausted", async () => {
-    expect((await buyAt("Exact_Article", STARTING_CREDITS)).ok).toBe(true);
+    expect((await buyAt("Exact_Article", EXPECTED_CREDITS)).ok).toBe(true);
     expect((await buyAt("One_Credit_More", 1)).ok).toBe(false);
   });
 
   it("rejects the contract past MAX_TEAM_CONTRACTS", async () => {
-    // Prices are 0 so only the cap can cause a rejection.
-    for (let held = 0; held < MAX_TEAM_CONTRACTS; held++) {
+    // Prices are 0 so only the cap can cause a rejection, and the ledger's own
+    // open purchase already counts towards it.
+    for (let held = ACTIVE_IN_LEDGER; held < MAX_TEAM_CONTRACTS; held++) {
       expect((await buyAt(`Filler_${held}`, 0)).ok).toBe(true);
     }
 

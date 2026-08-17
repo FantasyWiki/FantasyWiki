@@ -92,10 +92,9 @@ function createFetchHttp(fetchFn: typeof fetch): WikimediaHttp {
  * @param ttlMs - the ttl of the cache in milliseconds. If not provided, entries do not expire automatically.
  */
 export function getDefaultCache(ttlMs?: number): CacheLike | null {
-    if (typeof window === "undefined") return null;
-
     try {
-        const storage = window.localStorage;
+        const storage = (globalThis as { localStorage?: Storage }).localStorage;
+        if (!storage) return null;
 
         return {
             getItem: storage.getItem.bind(storage),

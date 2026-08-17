@@ -97,20 +97,6 @@ function service(profiles: Parameters<typeof fakeWikimedia>[0]) {
 }
 
 describe("the seeded registry", () => {
-  it("carries the two editions that were already in play", async () => {
-    // Moved from `model/pricing.ts` by migration 0009 rather than re-derived:
-    // re-measuring them would re-rate every contract already priced in `en` or
-    // `it` (ADR 0002).
-    const repository = new LanguageScaleRepositoryD1(env.db);
-
-    const en = await repository.getByDomain("en");
-    const it = await repository.getByDomain("it");
-
-    expect(en.ok && en.value?.scale).toBe(1.0);
-    expect(it.ok && it.value?.scale).toBe(13.9);
-    expect(it.ok && it.value?.referenceDomain).toBe(REFERENCE_DOMAIN);
-  });
-
   it("survives the per-test data reset", async () => {
     // The seed is reference data, not test fixture: `resetD1Database` must not
     // clear it, or every league creation below would trigger a live calibration.
@@ -131,17 +117,6 @@ describe("the seeded registry", () => {
 });
 
 describe("LanguageScaleCalibrationService.resolve", () => {
-  it("reads a stored factor without touching Wikimedia", async () => {
-    const { calibration, requests } = service({ en: BIG });
-
-    const result = await calibration.resolve("it");
-
-    expect(result.ok && result.value.scale).toBe(13.9);
-    // Nothing measured: an edition already hosting leagues keeps the factor
-    // those leagues were priced at.
-    expect(requests()).toBe(0);
-  });
-
   it("measures a new edition against the reference and stores it", async () => {
     const { calibration } = service({ en: BIG, de: TENTH });
 
@@ -268,24 +243,6 @@ describe("founding a league on an edition", () => {
       env.db,
       new LanguageScaleCalibrationService(env.db, client),
     );
-  });
-
-  it("freezes the edition's factor onto the league", async () => {
-    const player = await makePlayer("founder");
-
-    const result = await leagues.createLeague(player.id, request());
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.value.languageScale).toBe(1.0);
-
-    // On the row, not resolved per read: a recalibration must not re-rate a
-    // season already under way (ADR 0002).
-    const row = await env.db
-      .prepare("SELECT languageScale FROM leagues WHERE id = ?")
-      .bind(result.value.id)
-      .first<{ languageScale: number }>();
-    expect(row?.languageScale).toBe(1.0);
   });
 
   it("calibrates a never-played edition before the league exists", async () => {

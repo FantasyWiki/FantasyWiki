@@ -10,6 +10,7 @@ import { computeCurrentPrice, TIER_DAYS } from "../../../../model/pricing";
 import type { TeamDTO } from "../../../../dto/teamDTO";
 import type { LeagueDTO } from "../../../../dto/leagueDTO";
 import type { ArticleDTO } from "../../../../dto/articleDTO";
+import { LeagueVisibility } from "../../../../model/enums";
 
 const MOCK_AVG_VIEWS = 9000;
 
@@ -93,7 +94,9 @@ const league: LeagueDTO = {
   icon: "L",
   startDate: Temporal.Now.instant(),
   endDate: Temporal.Now.instant().add({ hours: 1 }),
-  teams: [viewerTeam, otherTeam],
+  visibility: LeagueVisibility.PUBLIC,
+  teamCount: 2,
+  closedAt: null,
 };
 
 const article: ArticleDTO = { id: "article-1", title: "ChatGPT", domain: "en" };

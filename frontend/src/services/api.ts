@@ -1,7 +1,13 @@
 // frontend/src/services/api.ts
 import { DashboardData, Session, TeamPointsData } from "@/types/models";
 import { PlayerDTO } from "../../../dto/playerDTO";
-import { LeagueDTO } from "../../../dto/leagueDTO";
+import {
+  CreateLeagueRequest,
+  LeagueDTO,
+  LeagueInviteDTO,
+  LeagueRoleDTO,
+  LeaveLeagueResultDTO,
+} from "../../../dto/leagueDTO";
 import {
   RawNotification,
   deserializeNotification,
@@ -80,6 +86,12 @@ export function deserializeLeague(l: LeagueDTO): LeagueDTO {
     ...l,
     startDate: Temporal.Instant.from(l.startDate as unknown as string),
     endDate: Temporal.Instant.from(l.endDate as unknown as string),
+    // Null for every open league, which is most of them — so this is the one
+    // date on the shape that has to survive the wire as an absence.
+    closedAt:
+      l.closedAt === null || l.closedAt === undefined
+        ? null
+        : Temporal.Instant.from(l.closedAt as unknown as string),
   };
 }
 
@@ -97,21 +109,93 @@ export const playerApi = {
 // ── Leagues ───────────────────────────────────────────────────────────────────
 
 export const leaguesApi = {
-  /** The current player's leagues available for selection (resolved from JWT on backend) */
+  /** The current player's leagues (resolved from JWT on backend) */
   getAll: () =>
     apiRequest<LeagueDTO[]>("/leagues").then((ls) => ls.map(deserializeLeague)),
   getById: (id: string) =>
     apiRequest<LeagueDTO>(`/leagues/${id}`).then(deserializeLeague),
+  /**
+   * The league an invitation code opens, so the player can see what they are
+   * being invited to before naming a team in it.
+   *
+   * Every rejection is one 404 with one body — a wrong code, an unused code and
+   * a malformed one are indistinguishable on purpose (ADR 0008), so there is
+   * nothing here for the caller to branch on beyond "this did not resolve".
+   * The endpoint is rate limited and answers 429 when the player has spent
+   * their attempts; `ApiError.status` is what tells the two apart.
+   */
+  getByCode: (code: string) =>
+    apiRequest<LeagueDTO>(`/leagues/by-code/${encodeURIComponent(code)}`).then(
+      deserializeLeague
+    ),
+  /**
+   * Found a league. The founder is resolved from the session, and the founding
+   * team named in the request is created with it in one transaction.
+   */
+  create: (request: CreateLeagueRequest) =>
+    apiRequest<LeagueDTO>("/leagues", {
+      method: "POST",
+      body: JSON.stringify(request),
+    }).then(deserializeLeague),
+  /**
+   * A league's invitation code. Only a private league has one — a public league
+   * answers 404, by design — so call it on the strength of `visibility`, not
+   * hopefully.
+   */
+  getInviteCode: (id: string) =>
+    apiRequest<LeagueInviteDTO>(`/leagues/${id}/invite-code`),
+  /**
+   * What the caller is in this league — member, admin, both or neither. Kept
+   * off `LeagueDTO` because that shape is the same answer for everyone.
+   */
+  getMyRole: (id: string) =>
+    apiRequest<LeagueRoleDTO>(`/leagues/${id}/my-role`),
+  /**
+   * Every public league, newest first. Not caller-scoped — the leagues the
+   * player already plays are dropped where they are rendered.
+   */
+  getPublic: () =>
+    apiRequest<LeagueDTO[]>("/leagues/public").then((ls) =>
+      ls.map(deserializeLeague)
+    ),
   /** The Global League, joinable by any player regardless of locale */
   getGlobal: () =>
     apiRequest<LeagueDTO>("/leagues/global").then(deserializeLeague),
+  /**
+   * Close a league early, which only its admin may do. A `POST` on a noun and
+   * not a `DELETE`, because nothing is removed: the league, its teams and its
+   * final table stay readable, and the response is the league itself with
+   * `closedAt` now set (docs/domain/league-lifecycle.md).
+   */
+  close: (id: string) =>
+    apiRequest<LeagueDTO>(`/leagues/${id}/closure`, { method: "POST" }).then(
+      deserializeLeague
+    ),
+  /**
+   * Leave a league. The caller's team keeps its contracts and its place in the
+   * standings; what ends is their part in it. Final — the join gate refuses a
+   * player who has left.
+   */
+  leave: (id: string) =>
+    apiRequest<LeaveLeagueResultDTO>(`/leagues/${id}/my-departure`, {
+      method: "POST",
+    }),
   /** The current player's team inside this league (resolved from JWT on backend) */
   getMyTeam: (id: string) => apiRequest<TeamDTO>(`/leagues/${id}/my-team`),
-  /** Create the current player's team inside this league (resolved from JWT on backend) */
-  createMyTeam: (id: string, name: string) =>
+  /**
+   * Create the current player's team inside this league — which is what joining
+   * a league *is* (resolved from JWT on backend).
+   *
+   * `invitationCode` is only meaningful for a private league; a public one
+   * ignores it. Left out entirely when absent: `JSON.stringify` drops an
+   * `undefined` value, so signup and the public-league shelf send the same body
+   * they always did — which also keeps them out of the redeem rate limit, since
+   * the backend only charges a request that presents a code.
+   */
+  createMyTeam: (id: string, name: string, invitationCode?: string) =>
     apiRequest<TeamDTO>(`/leagues/${id}/my-team`, {
       method: "POST",
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, invitationCode }),
     }),
   /** All contracts of the current player's team in this league */
   getMyContracts: (id: string) =>

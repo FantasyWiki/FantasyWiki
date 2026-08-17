@@ -11,6 +11,8 @@ import {
 import { LeagueRepository } from "../repositories/leagueRepository";
 import { success, failure } from "../repositories/result";
 import type { League } from "../../../model";
+import { LeagueInvitePolicy, LeagueVisibility } from "../../../model/enums";
+import { fakeLeagueRepository } from "./utils/fakeRepositories";
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
@@ -25,6 +27,9 @@ const enLeague: League = {
   startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
   endDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
   domain: "en",
+  visibility: LeagueVisibility.PUBLIC,
+  invitePolicy: LeagueInvitePolicy.MEMBERS,
+  closedAt: null,
   icon: "🌍",
 };
 
@@ -63,9 +68,7 @@ function makeNotificationRepo(
 }
 
 function makeLeagueRepo(l: League = enLeague): LeagueRepository {
-  return {
-    getById: async () => success(l),
-  };
+  return fakeLeagueRepository({ getById: async () => success(l) });
 }
 
 function makeDeps(
@@ -125,7 +128,9 @@ describe("NotificationService (unit)", () => {
       const service = new NotificationService(
         makeDeps({
           notificationRepository: makeNotificationRepo([row]),
-          leagueRepository: { getById: async () => success(itLeague) },
+          leagueRepository: fakeLeagueRepository({
+            getById: async () => success(itLeague),
+          }),
         }),
       );
 
@@ -154,13 +159,13 @@ describe("NotificationService (unit)", () => {
         domain: "it",
       };
 
-      const leagueRepo: LeagueRepository = {
+      const leagueRepo: LeagueRepository = fakeLeagueRepository({
         getById: async (id) => {
           if (id === "league-en") return success(enLeagueObj);
           if (id === "league-it") return success(itLeagueObj);
           return failure(`Unknown league: ${id}`);
         },
-      };
+      });
 
       const service = new NotificationService(
         makeDeps({
@@ -205,9 +210,9 @@ describe("NotificationService (unit)", () => {
       const service = new NotificationService(
         makeDeps({
           notificationRepository: makeNotificationRepo([row]),
-          leagueRepository: {
+          leagueRepository: fakeLeagueRepository({
             getById: async () => failure("league not found"),
-          },
+          }),
         }),
       );
 

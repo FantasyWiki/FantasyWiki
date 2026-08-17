@@ -46,12 +46,11 @@ export function useLeagueDetail(
   } = useLeaderboard(id);
 
   /**
-   * Team count comes from the standings, not from `league.teams`: the list
-   * endpoint hands back an empty `teams` array (the backend fills it nowhere),
-   * whereas the standings query left-joins every team in the league whether it
-   * has been scored yet or not.
+   * Straight off the league, which now reports its own size. It used to be
+   * derived from `leaderboard.length`, which meant the factsheet read "0 teams"
+   * for as long as the standings took to arrive.
    */
-  const teamCount = computed(() => leaderboard.value.length);
+  const teamCount = computed(() => league.value?.teamCount ?? 0);
 
   return {
     league,

@@ -7,6 +7,11 @@ import type { TeamRepository } from "../../repositories/teamRepository";
 import { success, failure } from "../../repositories/result";
 import { STARTING_CREDITS } from "../../../../model/team";
 import type { Team } from "../../../../model";
+import {
+  fakeLeagueRepository,
+  fakeTeamRepository,
+} from "../utils/fakeRepositories";
+import { insertLeague } from "../utils/d1TestUtils";
 
 describe("TeamService Integration Tests", () => {
   let teamService: TeamService;
@@ -28,21 +33,15 @@ describe("TeamService Integration Tests", () => {
     playerId = playerResult.value.id;
 
     leagueId = "league-1";
-    await env.db
-      .prepare(
-        `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        leagueId,
-        "Test League",
-        playerId,
-        new Date().toISOString(),
-        new Date().toISOString(),
-        "en",
-        "🌍",
-      )
-      .run();
+    // Through the shared helper, whose default season runs to 2124. This used
+    // to write `endDate = now`, i.e. a league that was over the instant it
+    // existed — harmless while nothing looked at the date, and a refused join
+    // the moment the lifecycle rules did.
+    await insertLeague(env.db, {
+      id: leagueId,
+      name: "Test League",
+      adminId: playerId,
+    });
   });
 
   describe("createTeam", () => {
@@ -128,21 +127,11 @@ describe("TeamService Integration Tests", () => {
 
     it("should allow the same team name in different leagues", async () => {
       const otherLeagueId = "league-2";
-      await env.db
-        .prepare(
-          `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .bind(
-          otherLeagueId,
-          "Other League",
-          playerId,
-          new Date().toISOString(),
-          new Date().toISOString(),
-          "en",
-          "🌍",
-        )
-        .run();
+      await insertLeague(env.db, {
+        id: otherLeagueId,
+        name: "Other League",
+        adminId: playerId,
+      });
 
       const firstResult = await teamService.createTeam(
         playerId,
@@ -300,18 +289,16 @@ describe("TeamService Integration Tests", () => {
     });
 
     it("should propagate a failure from an injected repository", async () => {
-      const failingRepository: TeamRepository = {
-        create: async () => failure("boom"),
-        existsByNameInLeague: async () => failure("boom"),
+      const failingRepository: TeamRepository = fakeTeamRepository({
         getByPlayerAndLeague: async () => failure("db error"),
-        getByIdAndLeague: async () => failure("boom"),
-      };
+      });
       const service = new TeamService({
         teamRepository: failingRepository,
         lineupRepository: {
           getByTeamId: async () => failure("unused"),
           upsert: async () => failure("unused"),
         },
+        leagueRepository: fakeLeagueRepository(),
       });
 
       const result = await service.getMyTeam(playerId, leagueId, "Alice");
@@ -327,18 +314,16 @@ describe("TeamService Integration Tests", () => {
         leagueId,
         credits: 750,
       };
-      const repository: TeamRepository = {
-        create: async () => failure("unused"),
-        existsByNameInLeague: async () => failure("unused"),
+      const repository: TeamRepository = fakeTeamRepository({
         getByPlayerAndLeague: async () => success(team),
-        getByIdAndLeague: async () => failure("unused"),
-      };
+      });
       const service = new TeamService({
         teamRepository: repository,
         lineupRepository: {
           getByTeamId: async () => failure("unused"),
           upsert: async () => failure("unused"),
         },
+        leagueRepository: fakeLeagueRepository(),
       });
 
       const result = await service.getMyTeam(playerId, leagueId, "Bob");

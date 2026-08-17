@@ -19,8 +19,11 @@ What the game *is*: rules, entities, and vocabulary. No code structure here.
 | Doc | What it answers |
 |---|---|
 | [Scoring & Economy System](./domain/scoring-system.md) | How points, prices, and settlement work (canonical) |
+| [League Lifecycle](./domain/league-lifecycle.md) | Active / ended / closed / left, and why nothing is ever deleted |
 | [Chemistry Links](./domain/chemistry-links.md) | What a Chemistry Link is and what it scores |
 | [Lineup Rules](./domain/lineup-rules.md) | Formation, bench, and the no-contract-is-lost invariant |
+| [League Visibility](./domain/league-visibility.md) | Public vs private leagues, who may join, and who may invite |
+| [League Season](./domain/league-season.md) | When a season starts, how long it may run, and why |
 | [Article Availability](./domain/article-availability.md) | Free Agent / Owned by Viewer / Owned by Other, and action eligibility |
 | [What Are Model Entities](./domain/what-are-model-entities.md) | Why `model/` holds normalized, framework-free entities |
 | [Shared DTO Package](./domain/shared-dto-package.md) | Why `dto/` aggregates and nests for the wire |
@@ -69,7 +72,8 @@ doc disagree, **the ADR wins**.
 [0004 Scoring Engine Platform](./adr/0004-scoring-engine-platform.md) ·
 [0005 Contract Pricing](./adr/0005-contract-pricing.md) ·
 [0006 Article Genie](./adr/0006-article-genie.md) ·
-[0007 Derived Team Credits](./adr/0007-derived-team-credits.md)
+[0007 Derived Team Credits](./adr/0007-derived-team-credits.md) ·
+[0008 League Invitation Codes](./adr/0008-league-invitation-codes.md)
 
 ### `agents/` — machine-read repo metadata
 Issue tracker, triage labels, and domain-context layout. Skills read these at

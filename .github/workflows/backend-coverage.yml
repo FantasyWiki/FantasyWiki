@@ -18,7 +18,18 @@ jobs:
         with:
           node-version-file: "backend/package.json"
           cache: "npm"
-          cache-dependency-path: "backend/package-lock.json"
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+
+      # The shared packages live at the repo root, so Node resolves their
+      # imports from the root `node_modules` — not the backend's. Skipping this
+      # only worked while every `@js-temporal/polyfill` use in `model/` was a
+      # type, which the transform elides; the first runtime use turns the import
+      # real and the whole suite fails to load. `./gradlew check` installs the
+      # root the same way, which is why it never saw this.
+      - name: Install shared dependencies
+        run: npm ci
 
       - name: Install backend dependencies
         run: npm ci

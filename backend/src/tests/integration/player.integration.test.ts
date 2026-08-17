@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect, beforeEach } from "vitest";
 import { PlayerService } from "../../services/player";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
@@ -190,6 +191,125 @@ describe("PlayerService Integration Tests", () => {
         expect(result.value).toHaveLength(1);
         expect(result.value[0].id).toBe(GLOBAL_LEAGUE_ID);
         expect(result.value[0].name).toBe("Global League");
+      }
+    });
+
+    it("should read the stored dates as instants, not as text", async () => {
+      const created = await playerService.createPlayer(
+        "datereader",
+        "dates@example.com",
+        "account-leagues-dates",
+      );
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed");
+
+      await insertTeam(env.db, {
+        id: "team-leagues-dates",
+        name: "Calendar FC",
+        playerId: created.value.id,
+        leagueId: GLOBAL_LEAGUE_ID,
+      });
+
+      const result = await playerService.getLeaguesByPlayerId(created.value.id);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        const { startDate, endDate } = result.value[0];
+        // A plain SELECT hands these back as text; anything downstream that
+        // does instant arithmetic on them (the league calendar) would silently
+        // get a string.
+        expect(startDate).toBeInstanceOf(Temporal.Instant);
+        expect(endDate).toBeInstanceOf(Temporal.Instant);
+        expect(startDate.toString()).toContain("2024-01-01");
+      }
+    });
+
+    it("should list only the leagues the player has a team in", async () => {
+      const me = await playerService.createPlayer(
+        "counter",
+        "counter@example.com",
+        "account-leagues-count",
+      );
+      const outsider = await playerService.createPlayer(
+        "outsider",
+        "outsider@example.com",
+        "account-leagues-outsider",
+      );
+      if (!me.ok || !outsider.ok) throw new Error("setup failed");
+
+      await env.db
+        .prepare(
+          "INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(
+          "league-quiet",
+          "Quiet League",
+          "system",
+          "2026-01-01T00:00:00Z",
+          "2026-03-01T00:00:00Z",
+          "en",
+          "🤫",
+        )
+        .run();
+
+      await insertTeam(env.db, {
+        id: "team-count-mine",
+        name: "Mine FC",
+        playerId: me.value.id,
+        leagueId: GLOBAL_LEAGUE_ID,
+      });
+      // Somebody else's league, which must not leak into this player's list.
+      await insertTeam(env.db, {
+        id: "team-count-elsewhere",
+        name: "Elsewhere FC",
+        playerId: outsider.value.id,
+        leagueId: "league-quiet",
+      });
+
+      const result = await playerService.getLeaguesByPlayerId(me.value.id);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.map((l) => l.id)).toEqual([GLOBAL_LEAGUE_ID]);
+      }
+    });
+
+    it("should return one row per league however many teams it holds", async () => {
+      // The membership join is DISTINCT precisely so a crowded league does not
+      // appear once per team in it.
+      const me = await playerService.createPlayer(
+        "dedup",
+        "dedup@example.com",
+        "account-leagues-dedup",
+      );
+      if (!me.ok) throw new Error("setup failed");
+
+      await insertTeam(env.db, {
+        id: "team-dedup-mine",
+        name: "Dedup FC",
+        playerId: me.value.id,
+        leagueId: GLOBAL_LEAGUE_ID,
+      });
+      for (const [i, name] of ["a", "b", "c"].entries()) {
+        const other = await playerService.createPlayer(
+          `dedup-rival-${name}`,
+          `dedup-${name}@example.com`,
+          `account-dedup-${name}`,
+        );
+        if (!other.ok) throw new Error("setup failed");
+        await insertTeam(env.db, {
+          id: `team-dedup-${i}`,
+          name: `Rival ${name}`,
+          playerId: other.value.id,
+          leagueId: GLOBAL_LEAGUE_ID,
+        });
+      }
+
+      const result = await playerService.getLeaguesByPlayerId(me.value.id);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value).toHaveLength(1);
       }
     });
 

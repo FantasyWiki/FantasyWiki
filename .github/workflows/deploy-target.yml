@@ -45,6 +45,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: "backend/package.json"
+
+      # The Worker bundles `model/` and `dto/` from the repo root, and esbuild
+      # resolves their imports from the root `node_modules` — not the backend's.
+      # wrangler-action's own `npm i wrangler` materialises `backend/`, which is
+      # why `backend/src` has always resolved; nothing ever installed the root.
+      # It only held while every shared-package import was type-only and got
+      # elided. Installed here so the first runtime one does not fail the deploy.
+      - name: Install root dependencies
+        run: npm ci
+
       - name: Deploy Worker to Cloudflare
         uses: cloudflare/wrangler-action@v4
         with:

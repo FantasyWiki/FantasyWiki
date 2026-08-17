@@ -18,6 +18,11 @@ import {
 } from "../../../model/pricing";
 import { Result, success, failure } from "../repositories/result";
 import type { Contract, Team, Player, League } from "../../../model";
+import { LeagueInvitePolicy, LeagueVisibility } from "../../../model/enums";
+import {
+  fakeLeagueRepository,
+  fakeTeamRepository,
+} from "./utils/fakeRepositories";
 
 /** Mirror the service's server-side price computation for `en` (league domain). */
 function priceFor(averageViews30d: number, tierDays: number): number {
@@ -54,6 +59,9 @@ const league: League = {
   startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
   endDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
   domain: "en",
+  visibility: LeagueVisibility.PUBLIC,
+  invitePolicy: LeagueInvitePolicy.MEMBERS,
+  closedAt: null,
   icon: "🌍",
 };
 
@@ -77,20 +85,13 @@ function makeContract(overrides: Partial<Contract> = {}): Contract {
 function makeTeamRepo(
   result: Result<Team | null> = success(team),
 ): TeamRepository {
-  return {
-    create: async () => failure("unused"),
-    existsByNameInLeague: async () => failure("unused"),
-    getByPlayerAndLeague: async () => result,
-    getByIdAndLeague: async () => failure("unused"),
-  };
+  return fakeTeamRepository({ getByPlayerAndLeague: async () => result });
 }
 
 function makeLeagueRepo(
   result: Result<League> = success(league),
 ): LeagueRepository {
-  return {
-    getById: async () => result,
-  };
+  return fakeLeagueRepository({ getById: async () => result });
 }
 
 function makePlayerRepo(

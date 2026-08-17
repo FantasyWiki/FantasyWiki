@@ -25,6 +25,24 @@ export const STARTING_CREDITS = 1000;
 export const MAX_TEAM_CONTRACTS = 22;
 
 /**
+ * What a team may be called. Shared because three places have to agree: the
+ * form that types a name, the service that accepts one, and the league-creation
+ * payload that names a founding team in the same breath as its league. They
+ * each used to state 3 and 30 for themselves.
+ */
+export const TEAM_NAME_MIN_LENGTH = 3;
+export const TEAM_NAME_MAX_LENGTH = 30;
+
+export function isTeamName(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  return (
+    trimmed.length >= TEAM_NAME_MIN_LENGTH &&
+    trimmed.length <= TEAM_NAME_MAX_LENGTH
+  );
+}
+
+/**
  * The credits rule (ADR 0007), stated readably: starting budget, minus every
  * purchase, plus every settled payout. The `team_credits` SQL view is what
  * *enforces* it — affordability must be checked inside the statement that

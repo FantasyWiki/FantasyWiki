@@ -8,9 +8,18 @@ tags: [scoring, language, decision]
 
 > **Update (2026-07-07):** extends this ADR from the original en/it pair to arbitrary
 > Wikipedia domains — pins the exact calibration formula and a domain-acceptance floor,
-> both left as open items in `docs/domain/scoring-system.md` §9 until now. Not yet implemented
-> in code (`model/pricing.ts`'s `LANGUAGE_SCALE` is still the hardcoded `{en: 1.0, it: 1.0}`
-> placeholder); see the tracking issue for the implementation plan.
+> both left as open items in `docs/domain/scoring-system.md` §9 until now.
+>
+> **Update (2026-08-09):** `model/pricing.ts` now carries the **measured** `it = 13.9`
+> from the snapshot below, replacing the `1.0` placeholder that had been contradicting
+> this ADR in code. Every Italian article under 2,000 views/day had been scoring a flat
+> zero as a result; the floor is now 144 views/day. Pinned by
+> `backend/src/tests/languageScale.spec.ts`, which had no predecessor — the placeholder
+> survived because nothing asserted it.
+>
+> Still unimplemented: the **calibration pipeline** itself (formula, floor check,
+> persistence). `LANGUAGE_SCALE` remains a hand-maintained table of measured values, so
+> only `en` and `it` can host a league; `isCalibratedDomain` is the check that says so.
 
 Competition is always same-language (a League has one language), so this is **not** a cross-league comparison device. Different Wikipedias have very different view volumes — real rank-matched data (2026-07-06 snapshot) measures **en.wp ≈ 13.9× it.wp**, not the ≈10× originally assumed — which both ruins tier granularity (Italian articles bunch into one bucket, several drop to 0 credits below rank ~200) and unbalances the flat synergy points (trivial vs dominant) if one universal scoring model is applied to raw views. We multiply each article's raw pageviews by a per-language **Language Scale Factor** before scoring, lifting every language onto one common reference scale (en.wp = 1.0), so a single tier model and a single synergy table are tuned once and reused everywhere.
 

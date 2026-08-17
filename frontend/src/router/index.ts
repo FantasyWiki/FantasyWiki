@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from "@ionic/vue-router";
 import { RouteLocationNormalized, RouteRecordRaw } from "vue-router";
-import HomeMock from "@/views/MockHome.vue";
 import TeamDashboard from "@/views/TeamDashboard.vue";
 import HomePage from "@/views/HomePage.vue";
 import AuthCallbackPage from "@/views/auth/AuthCallbackPage.vue";
@@ -9,6 +8,9 @@ import TeamPage from "@/views/TeamPage.vue";
 import TeamCreationPage from "@/views/TeamCreationPage.vue";
 import MarketPage from "@/views/MarketPage.vue";
 import LeaguePage from "@/views/LeaguePage.vue";
+import LeaguesPage from "@/views/LeaguesPage.vue";
+import CreateLeaguePage from "@/views/CreateLeaguePage.vue";
+import JoinLeaguePage from "@/views/JoinLeaguePage.vue";
 import RivalTeamPage from "@/views/RivalTeamPage.vue";
 import LegalPage from "@/views/LegalPage.vue";
 import GuidePage from "@/views/GuidePage.vue";
@@ -70,14 +72,32 @@ const routes: Array<RouteRecordRaw> = [
     redirect: "/home",
   },
   {
+    // The league section: every league the player is enrolled in, and the ways
+    // into another one.
     path: "/leagues",
     name: "Leagues",
-    component: HomeMock,
+    component: LeaguesPage,
+  },
+  {
+    // Registered before `/leagues/:leagueId` for readability — vue-router
+    // ranks a static segment above a parameter regardless of order, but the
+    // two paths are read together and the intent should not depend on that.
+    path: "/leagues/new",
+    name: "CreateLeague",
+    component: CreateLeaguePage,
+  },
+  {
+    // Entering a league by invitation code, and the landing site of an
+    // invitation link — `?code=` prefills the field and resolves it on arrival.
+    // Static, so it is ranked above `/leagues/:leagueId` and a player is never
+    // sent looking for a league whose id is "join".
+    path: "/leagues/join",
+    name: "JoinLeague",
+    component: JoinLeaguePage,
   },
   {
     // A league's own page: identity plus the full standings. Reached from the
-    // dashboard's standings card today, and from the league dashboard that will
-    // eventually replace HomeMock at /leagues.
+    // dashboard's standings card and from the league section above.
     path: "/leagues/:leagueId",
     name: "League",
     component: LeaguePage,

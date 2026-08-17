@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { http, HttpResponse } from "msw";
 import { server } from "@/mocks/server";
 import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
+import { alertController } from "@ionic/vue";
 import { Temporal } from "@js-temporal/polyfill";
 import router from "@/router/index";
 import LeaguePage from "@/views/LeaguePage.vue";
@@ -98,6 +99,30 @@ async function scrollToEnd(wrapper: VueWrapper) {
   await flushPromises();
 }
 
+/**
+ * Ionic's alert element never upgrades in jsdom, so the controller is stubbed
+ * with the smallest object the composable actually drives: it presents, and it
+ * reports a dismissal. `dismissed: false` leaves that promise pending, which is
+ * the state a dialog is in while the player is still looking at it.
+ */
+function fakeAlert({ dismissed = false } = {}) {
+  return {
+    present: vi.fn().mockResolvedValue(undefined),
+    onDidDismiss: vi
+      .fn()
+      .mockReturnValue(dismissed ? Promise.resolve({}) : new Promise(() => {})),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+}
+
+/** The handler behind the alert's destructive button. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function confirmOf(opts: any): (() => void) | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const button = opts?.buttons?.find((b: any) => b.role === "destructive");
+  return button?.handler;
+}
+
 /** A synthetic board deep enough to need more than one reveal batch. */
 function deepBoard(size: number): LeaderboardEntryDTO[] {
   return Array.from({ length: size }, (_, i) => ({
@@ -135,7 +160,7 @@ describe("LeaguePage.vue", () => {
     expect(facts).toContain("it.wikipedia.org");
     // Dates on the UTC calendar, so they agree with the season count below.
     expect(facts).toContain("Jan 1, 2024");
-    expect(facts).toContain("Feb 28, 2024");
+    expect(facts).toContain("Dec 31, 2099");
   });
 
   it("reports the season's run instead of a bare status word", async () => {
@@ -213,8 +238,10 @@ describe("LeaguePage.vue", () => {
   });
 
   it("crowns the top three on a podium once the season has ended", async () => {
-    // The Italia fixture ended in 2024, with three teams.
-    const wrapper = await mountAt("/leagues/italy");
+    // Americas is the one fixture whose season is over — see
+    // mocks/data/leagues.ts, where the rest run on so that mock mode can reach
+    // the lifecycle controls at all.
+    const wrapper = await mountAt("/leagues/americas");
 
     expect(wrapper.find(".run").text()).toContain("Season complete");
 
@@ -226,8 +253,9 @@ describe("LeaguePage.vue", () => {
     // Rank movement is meaningless once the season is over.
     expect(wrapper.find(".step-trend").exists()).toBe(false);
 
-    // The full table still follows the podium.
-    expect(wrapper.findAll(".standings-row")).toHaveLength(3);
+    // The full table still follows the podium — all four, not just the three
+    // on the steps.
+    expect(wrapper.findAll(".standings-row")).toHaveLength(4);
   });
 
   it("keeps the podium off a finished league with no standings to crown", async () => {
@@ -266,6 +294,42 @@ describe("LeaguePage.vue", () => {
     expect(wrapper.find(".page-title").text()).toBe("Europe League");
     // ...and the switcher is moved onto it, so chrome and page agree.
     expect(useLeagueStore().currentLeagueId).toBe("europe");
+  });
+
+  // A league the player has no team in is legitimately readable while one of
+  // theirs stays selected — that is the whole of arriving from the featured
+  // shelf or an invitation link. Treating "the selection is not this league"
+  // as "the player switched leagues" redirected off it the instant anything
+  // touched the store, which made the join card unreachable: the page appeared
+  // for a frame and was then replaced by the selected league.
+  it("stays on a league the player has not joined while the store churns", async () => {
+    const wrapper = await mountAt("/leagues/open-science");
+    expect(wrapper.find(".page-title").text()).toBe("Open Science League");
+
+    // Anything that re-publishes the league list — a refresh, a second mount —
+    // used to be read as a switch, because the selection had never matched.
+    await useLeagueStore().fetchLeagues();
+    await flushPromises();
+    await flushPromises();
+
+    expect(router.currentRoute.value.params.leagueId).toBe("open-science");
+    expect(wrapper.find(".page-title").text()).toBe("Open Science League");
+    // The switcher is untouched: an unjoined league is not selectable.
+    expect(useLeagueStore().currentLeagueId).not.toBe("open-science");
+  });
+
+  it("stays on an ended league of the player's while the store churns", async () => {
+    // Same rule for the archive: an ended league is readable but never
+    // selectable, since the picker only offers leagues still being played.
+    const wrapper = await mountAt("/leagues/americas");
+    expect(wrapper.find(".page-title").text()).toBe("Americas League");
+
+    await useLeagueStore().fetchLeagues();
+    await flushPromises();
+    await flushPromises();
+
+    expect(router.currentRoute.value.params.leagueId).toBe("americas");
+    expect(useLeagueStore().currentLeagueId).not.toBe("americas");
   });
 
   it("follows the NavBar league switcher to the newly selected league", async () => {
@@ -421,5 +485,199 @@ describe("LeaguePage.vue", () => {
 
     expect(push).toHaveBeenCalledWith({ name: "Dashboard" });
     push.mockRestore();
+  });
+
+  // ── Lifecycle controls ────────────────────────────────────────────────────
+  //
+  // Who is offered what is the server's answer (`my-role`), not something the
+  // page works out — see docs/domain/league-lifecycle.md. Every fixture league
+  // but Global has already finished, so these run the clock forward to a league
+  // that is still being played.
+
+  /** A running season, so the footer is offered at all. */
+  function runningLeague(overrides: Record<string, unknown> = {}) {
+    const today = Temporal.Now.plainDateISO("UTC");
+    return http.get("*/api/leagues/:leagueId", () =>
+      HttpResponse.json({
+        ...leagues[1],
+        startDate: `${today.subtract({ days: 3 })}T00:00:00Z`,
+        endDate: `${today.add({ days: 20 })}T23:59:59Z`,
+        ...overrides,
+      })
+    );
+  }
+
+  function roleIs(isMember: boolean, isAdmin: boolean) {
+    return http.get("*/api/leagues/:leagueId/my-role", () =>
+      HttpResponse.json({ isMember, isAdmin })
+    );
+  }
+
+  it("offers a member the way out, and not the admin's", async () => {
+    server.use(runningLeague(), roleIs(true, false));
+
+    const wrapper = await mountAt("/leagues/italy");
+
+    const footer = wrapper.find(".lifecycle");
+    expect(footer.exists()).toBe(true);
+    expect(footer.text()).toContain("Leave this league");
+    expect(footer.text()).not.toContain("Close this league");
+  });
+
+  it("offers the admin both, since leaving hands the league on", async () => {
+    // The admin used to be refused the leave, on the grounds that a league
+    // whose admin walked out could never be ended. Succession removes that:
+    // the longest-standing member inherits it inside the same write.
+    server.use(runningLeague(), roleIs(true, true));
+
+    const wrapper = await mountAt("/leagues/italy");
+
+    const footer = wrapper.find(".lifecycle");
+    expect(footer.text()).toContain("Close this league");
+    expect(footer.text()).toContain("Leave this league");
+  });
+
+  it("offers nothing to someone who only watches the league", async () => {
+    server.use(runningLeague(), roleIs(false, false));
+
+    const wrapper = await mountAt("/leagues/italy");
+
+    expect(wrapper.find(".lifecycle").exists()).toBe(false);
+  });
+
+  it("never offers to leave the Global League", async () => {
+    // First run enrols every player into it and would route them straight
+    // back, so there is no way out to offer.
+    server.use(roleIs(true, false));
+
+    const wrapper = await mountAt("/leagues/global");
+
+    expect(wrapper.find(".lifecycle").exists()).toBe(false);
+  });
+
+  it("says a closed league is closed, and offers neither action", async () => {
+    server.use(
+      runningLeague({ closedAt: "2026-08-01T00:00:00Z" }),
+      roleIs(true, true)
+    );
+
+    const wrapper = await mountAt("/leagues/italy");
+
+    const footer = wrapper.find(".lifecycle");
+    expect(footer.text()).toContain("closed early");
+    expect(footer.findAll(".lifecycle-btn")).toHaveLength(0);
+  });
+
+  it("confirms through Ionic rather than a blocking native dialog", async () => {
+    // `confirm()` freezes the page and the automation harness with it, and
+    // cannot be read the way the rest of the app can.
+    server.use(runningLeague(), roleIs(true, false));
+    const nativeConfirm = vi.spyOn(window, "confirm");
+    const create = vi
+      .spyOn(alertController, "create")
+      .mockResolvedValue(fakeAlert());
+
+    const wrapper = await mountAt("/leagues/italy");
+    await wrapper.find(".lifecycle-btn").trigger("click");
+    await flushPromises();
+
+    expect(create).toHaveBeenCalled();
+    expect(nativeConfirm).not.toHaveBeenCalled();
+    create.mockRestore();
+    nativeConfirm.mockRestore();
+  });
+
+  it("leaves the league once the confirmation is accepted", async () => {
+    server.use(runningLeague(), roleIs(true, false));
+    let left = false;
+    server.use(
+      http.post("*/api/leagues/:leagueId/my-departure", () => {
+        left = true;
+        return HttpResponse.json({ success: true });
+      })
+    );
+    // Take the destructive button's handler off the alert and press it, which
+    // is what a player tapping "Leave" in the dialog does.
+    const create = vi
+      .spyOn(alertController, "create")
+      .mockImplementation(async (opts) => {
+        confirmOf(opts)?.();
+        return fakeAlert();
+      });
+
+    const wrapper = await mountAt("/leagues/italy");
+    await wrapper.find(".lifecycle-btn").trigger("click");
+    await flushPromises();
+
+    expect(left).toBe(true);
+    create.mockRestore();
+  });
+
+  // The last player out deletes the league, so the page they are standing on
+  // stops existing. Staying would refetch a 404 into it.
+  it("returns to the league section when leaving deleted the league", async () => {
+    server.use(runningLeague(), roleIs(true, false));
+    server.use(
+      http.post("*/api/leagues/:leagueId/my-departure", () =>
+        HttpResponse.json({ leagueDeleted: true })
+      )
+    );
+    const create = vi
+      .spyOn(alertController, "create")
+      .mockImplementation(async (opts) => {
+        confirmOf(opts)?.();
+        return fakeAlert();
+      });
+
+    const wrapper = await mountAt("/leagues/italy");
+    await wrapper.find(".lifecycle-btn").trigger("click");
+    await flushPromises();
+
+    expect(router.currentRoute.value.path).toBe("/leagues");
+    create.mockRestore();
+  });
+
+  it("stays put when leaving left the league standing", async () => {
+    server.use(runningLeague(), roleIs(true, false));
+    server.use(
+      http.post("*/api/leagues/:leagueId/my-departure", () =>
+        HttpResponse.json({ leagueDeleted: false })
+      )
+    );
+    const create = vi
+      .spyOn(alertController, "create")
+      .mockImplementation(async (opts) => {
+        confirmOf(opts)?.();
+        return fakeAlert();
+      });
+
+    const wrapper = await mountAt("/leagues/italy");
+    await wrapper.find(".lifecycle-btn").trigger("click");
+    await flushPromises();
+
+    expect(router.currentRoute.value.path).toBe("/leagues/italy");
+    create.mockRestore();
+  });
+
+  it("does not leave when the confirmation is dismissed", async () => {
+    server.use(runningLeague(), roleIs(true, false));
+    let left = false;
+    server.use(
+      http.post("*/api/leagues/:leagueId/my-departure", () => {
+        left = true;
+        return HttpResponse.json({ success: true });
+      })
+    );
+    // Neither button pressed — the dialog was dismissed by backdrop or Escape.
+    const create = vi
+      .spyOn(alertController, "create")
+      .mockResolvedValue(fakeAlert({ dismissed: true }));
+
+    const wrapper = await mountAt("/leagues/italy");
+    await wrapper.find(".lifecycle-btn").trigger("click");
+    await flushPromises();
+
+    expect(left).toBe(false);
+    create.mockRestore();
   });
 });

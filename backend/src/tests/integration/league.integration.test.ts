@@ -12,7 +12,7 @@ import { LeagueRepository } from "../../repositories/leagueRepository";
 import { success, failure } from "../../repositories/result";
 import { PlayerService } from "../../services/player";
 import { insertTeam } from "../utils/d1TestUtils";
-import { repositories } from "../support/target";
+import { repositories, store } from "../support/target";
 import { League } from "../../../../model";
 import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
 import { fakeLeagueRepository } from "../utils/fakeRepositories";
@@ -38,18 +38,24 @@ describe("LeagueService Integration Tests", () => {
       }
     });
 
-    it("should return a failure when the Global League does not exist", async () => {
-      await env.db
-        .prepare("DELETE FROM leagues WHERE id = ?")
-        .bind(GLOBAL_LEAGUE_ID)
-        .run();
+    // The Global League is seeded by migration, so its absence is not a state
+    // to create — what matters is that this asks for that one fixed id and
+    // passes the miss through.
+    it("should ask for the Global League by its fixed id", async () => {
+      let requested: string | undefined;
+      const service = new LeagueService({
+        leagues: fakeLeagueRepository({
+          getById: async (id) => {
+            requested = id;
+            return failure(LEAGUE_ERRORS.NOT_FOUND);
+          },
+        }),
+      });
 
-      const result = await leagueService.getGlobalLeague();
+      const result = await service.getGlobalLeague();
 
-      expect(result.ok).toBe(false);
-      if (!result.ok) {
-        expect(result.error).toBe(LEAGUE_ERRORS.NOT_FOUND);
-      }
+      expect(requested).toBe(GLOBAL_LEAGUE_ID);
+      expect(result).toEqual(failure(LEAGUE_ERRORS.NOT_FOUND));
     });
 
     it("should propagate a failure from an injected repository", async () => {
@@ -129,20 +135,15 @@ describe("LeagueService Integration Tests", () => {
 
   describe("getLeagueById", () => {
     it("should return a league the player has not necessarily joined", async () => {
-      await env.db
-        .prepare(
-          "INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(
-          "league-friends",
-          "Friday Night Wiki",
-          "system",
-          "2026-01-01T00:00:00Z",
-          "2026-03-01T00:00:00Z",
-          "it",
-          "🍕",
-        )
-        .run();
+      await store().createLeague({
+        id: "league-friends",
+        name: "Friday Night Wiki",
+        adminId: "system",
+        startDate: "2026-01-01T00:00:00Z",
+        endDate: "2026-03-01T00:00:00Z",
+        domain: "it",
+        icon: "🍕",
+      });
 
       const result = await leagueService.getLeagueById("league-friends");
 

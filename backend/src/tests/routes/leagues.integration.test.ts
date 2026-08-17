@@ -10,7 +10,7 @@ import { LEAGUE_ICONS } from "../../../../model/league";
 import { PlayerService } from "../../services/player";
 import { insertLeague } from "../utils/d1TestUtils";
 import { injectDeps } from "../support/injectDeps";
-import { repositories } from "../support/target";
+import { repositories, store } from "../support/target";
 
 const LEAGUE_ID = "league-route-1";
 
@@ -19,21 +19,17 @@ const LEAGUE_ID = "league-route-1";
 const app = new Hono().use("*", injectDeps()).route("/leagues", leagues);
 
 describe("GET /leagues/:id", () => {
+  // A second league, so the response is distinguishable from the Global one.
   beforeEach(async () => {
-    await env.db
-      .prepare(
-        "INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      )
-      .bind(
-        LEAGUE_ID,
-        "Friday Night Wiki",
-        "system",
-        "2026-01-01T00:00:00Z",
-        "2026-03-01T00:00:00Z",
-        "it",
-        "🍕",
-      )
-      .run();
+    await store().createLeague({
+      id: LEAGUE_ID,
+      name: "Friday Night Wiki",
+      adminId: "system",
+      startDate: "2026-01-01T00:00:00Z",
+      endDate: "2026-03-01T00:00:00Z",
+      domain: "it",
+      icon: "🍕",
+    });
   });
 
   it("returns the league named in the path", async () => {

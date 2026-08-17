@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
 import { TeamService } from "../../services/team";
 import { PlayerService } from "../../services/player";
@@ -6,13 +5,13 @@ import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
 import type { TeamRepository } from "../../repositories/teamRepository";
 import { success, failure } from "../../repositories/result";
 import { STARTING_CREDITS } from "../../../../model/team";
-import { repositories } from "../support/target";
+import { GLOBAL_LEAGUE_ID } from "../../services/league";
+import { repositories, store } from "../support/target";
 import type { Team } from "../../../../model";
 import {
   fakeLeagueRepository,
   fakeTeamRepository,
 } from "../utils/fakeRepositories";
-import { insertLeague } from "../utils/d1TestUtils";
 
 describe("TeamService Integration Tests", () => {
   let teamService: TeamService;
@@ -33,16 +32,7 @@ describe("TeamService Integration Tests", () => {
     if (!playerResult.ok) throw new Error("setup failed");
     playerId = playerResult.value.id;
 
-    leagueId = "league-1";
-    // Through the shared helper, whose default season runs to 2124. This used
-    // to write `endDate = now`, i.e. a league that was over the instant it
-    // existed — harmless while nothing looked at the date, and a refused join
-    // the moment the lifecycle rules did.
-    await insertLeague(env.db, {
-      id: leagueId,
-      name: "Test League",
-      adminId: playerId,
-    });
+    leagueId = GLOBAL_LEAGUE_ID;
   });
 
   describe("createTeam", () => {
@@ -128,7 +118,7 @@ describe("TeamService Integration Tests", () => {
 
     it("should allow the same team name in different leagues", async () => {
       const otherLeagueId = "league-2";
-      await insertLeague(env.db, {
+      await store().createLeague({
         id: otherLeagueId,
         name: "Other League",
         adminId: playerId,

@@ -7,7 +7,8 @@ import {
   PLAYER_ERRORS,
   PlayerRepository,
 } from "../../repositories/playerRepository";
-import { success } from "../../repositories/result";
+import { success, unwrap } from "../../repositories/result";
+import { TeamService } from "../../services/team";
 import { repositories } from "../support/target";
 import { insertTeam } from "../utils/d1TestUtils";
 
@@ -178,12 +179,14 @@ describe("PlayerService Integration Tests", () => {
       expect(created.ok).toBe(true);
       if (!created.ok) throw new Error("setup failed");
 
-      await insertTeam(env.db, {
-        id: "team-leagues-1",
-        name: "Member FC",
-        playerId: created.value.id,
-        leagueId: GLOBAL_LEAGUE_ID,
-      });
+      unwrap(
+        await new TeamService(repositories()).createTeam(
+          created.value.id,
+          GLOBAL_LEAGUE_ID,
+          "Member FC",
+        ),
+        "team",
+      );
 
       const result = await playerService.getLeaguesByPlayerId(created.value.id);
 

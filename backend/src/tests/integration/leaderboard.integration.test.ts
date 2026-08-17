@@ -1,49 +1,51 @@
-import { env } from "cloudflare:workers";
+import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect, beforeEach } from "vitest";
 import { LeaderboardService } from "../../services/leaderboard";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
+import { PlayerService } from "../../services/player";
+import { TeamService } from "../../services/team";
+import { unwrap } from "../../repositories/result";
 import { repositories } from "../support/target";
-import { insertTeam } from "../utils/d1TestUtils";
+import type { Team } from "../../../../model";
 
-const TEAMS = [
-  { id: "team-lb-1", name: "Alpha FC", playerId: "player-lb-1" },
-  { id: "team-lb-2", name: "Beta FC", playerId: "player-lb-2" },
-  { id: "team-lb-3", name: "Gamma FC", playerId: "player-lb-3" },
-];
+const TEAM_NAMES = ["Alpha FC", "Beta FC", "Gamma FC"];
 
-async function insertPerformance(
+async function score(
   teamId: string,
   date: string,
   points: number,
 ): Promise<void> {
-  await env.db
-    .prepare(
-      "INSERT INTO performances (teamId, date, points, historical_formation) VALUES (?, ?, ?, ?)",
-    )
-    .bind(teamId, date, points, "{}")
-    .run();
+  unwrap(
+    await repositories().performances.upsertDaily(
+      Temporal.PlainDate.from(date),
+      [{ teamId, points, formationSnapshot: "{}" }],
+    ),
+    "performance",
+  );
 }
 
 describe("LeaderboardService.getLeaderboard", () => {
+  let teams: Map<string, Team>;
+  const teamId = (name: string) => teams.get(name)!.id;
+
   beforeEach(async () => {
-    for (const team of TEAMS) {
-      await env.db
-        .prepare(
-          "INSERT INTO google_accounts (id, googleId, email) VALUES (?, ?, ?)",
-        )
-        .bind(
-          `acc-${team.playerId}`,
-          `gid-${team.playerId}`,
-          `${team.id}@e.com`,
-        )
-        .run();
-      await env.db
-        .prepare(
-          "INSERT INTO players (id, username, accountId) VALUES (?, ?, ?)",
-        )
-        .bind(team.playerId, team.name, `acc-${team.playerId}`)
-        .run();
-      await insertTeam(env.db, { ...team, leagueId: GLOBAL_LEAGUE_ID });
+    teams = new Map();
+    const players = new PlayerService(repositories());
+    const teamService = new TeamService(repositories());
+
+    for (const name of TEAM_NAMES) {
+      const handle = name.toLowerCase().replace(/\s/g, "");
+      const player = unwrap(
+        await players.createPlayer(handle, `${handle}@e.com`, `acc-${handle}`),
+        "player",
+      );
+      teams.set(
+        name,
+        unwrap(
+          await teamService.createTeam(player.id, GLOBAL_LEAGUE_ID, name),
+          "team",
+        ),
+      );
     }
   });
 
@@ -57,7 +59,7 @@ describe("LeaderboardService.getLeaderboard", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value).toHaveLength(TEAMS.length);
+    expect(result.value).toHaveLength(TEAM_NAMES.length);
     expect(result.value.map((e) => e.team.name).sort()).toEqual([
       "Alpha FC",
       "Beta FC",
@@ -71,8 +73,8 @@ describe("LeaderboardService.getLeaderboard", () => {
   });
 
   it("keeps an unscored team in the table alongside scored ones", async () => {
-    await insertPerformance("team-lb-1", "2026-07-28", 40);
-    await insertPerformance("team-lb-2", "2026-07-28", 10);
+    await score(teamId("Alpha FC"), "2026-07-28", 40);
+    await score(teamId("Beta FC"), "2026-07-28", 10);
 
     const result = await new LeaderboardService(repositories()).getLeaderboard(
       GLOBAL_LEAGUE_ID,
@@ -80,8 +82,8 @@ describe("LeaderboardService.getLeaderboard", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value).toHaveLength(TEAMS.length);
-    const gamma = result.value.find((e) => e.team.id === "team-lb-3");
+    expect(result.value).toHaveLength(TEAM_NAMES.length);
+    const gamma = result.value.find((e) => e.team.id === teamId("Gamma FC"));
     expect(gamma).toBeDefined();
     expect(gamma!.cumulativePoints).toBe(0);
     expect(gamma!.rank).toBe(3);
@@ -89,10 +91,10 @@ describe("LeaderboardService.getLeaderboard", () => {
 
   it("ranks by cumulative points and reports movement against the previous day", async () => {
     // Beta led after day one, Alpha's day two overtakes it.
-    await insertPerformance("team-lb-1", "2026-07-27", 10);
-    await insertPerformance("team-lb-2", "2026-07-27", 30);
-    await insertPerformance("team-lb-1", "2026-07-28", 50);
-    await insertPerformance("team-lb-2", "2026-07-28", 5);
+    await score(teamId("Alpha FC"), "2026-07-27", 10);
+    await score(teamId("Beta FC"), "2026-07-27", 30);
+    await score(teamId("Alpha FC"), "2026-07-28", 50);
+    await score(teamId("Beta FC"), "2026-07-28", 5);
 
     const result = await new LeaderboardService(repositories()).getLeaderboard(
       GLOBAL_LEAGUE_ID,
@@ -100,8 +102,8 @@ describe("LeaderboardService.getLeaderboard", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const alpha = result.value.find((e) => e.team.id === "team-lb-1")!;
-    const beta = result.value.find((e) => e.team.id === "team-lb-2")!;
+    const alpha = result.value.find((e) => e.team.id === teamId("Alpha FC"))!;
+    const beta = result.value.find((e) => e.team.id === teamId("Beta FC"))!;
     expect(alpha.cumulativePoints).toBe(60);
     expect(alpha.rank).toBe(1);
     expect(alpha.rankDelta).toBe(1);

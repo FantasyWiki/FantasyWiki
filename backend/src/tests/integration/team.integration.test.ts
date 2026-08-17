@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { TeamService } from "../../services/team";
 import { PlayerService } from "../../services/player";
-import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
 import type { TeamRepository } from "../../repositories/teamRepository";
 import { success, failure } from "../../repositories/result";
 import { STARTING_CREDITS } from "../../../../model/team";
@@ -12,6 +11,7 @@ import {
   fakeLeagueRepository,
   fakeTeamRepository,
 } from "../utils/fakeRepositories";
+import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
 
 describe("TeamService Integration Tests", () => {
   let teamService: TeamService;

@@ -85,3 +85,70 @@ export function buildPerArticleViewsResponse(views: number[]): {
     items: views.map((value) => ({ views: value })),
   };
 }
+
+/**
+ * An edition's `siteinfo` namespace payload, as `getTopReadList` fetches it to
+ * filter project pages out of a market (ADR 0002). Defaults to en.wikipedia's
+ * names; pass `mainpage`/`namespaces` for another edition.
+ */
+export function buildSiteInfoResponse(options: {
+  mainpage?: string;
+  namespaces?: Record<string, { id: number; name?: string; canonical?: string }>;
+} = {}) {
+  return {
+    query: {
+      general: { mainpage: options.mainpage ?? "Main Page" },
+      namespaces:
+        options.namespaces ?? {
+          "0": { id: 0, name: "", canonical: "" },
+          "-1": { id: -1, name: "Special", canonical: "Special" },
+          "4": { id: 4, name: "Wikipedia", canonical: "Project" },
+          "14": { id: 14, name: "Category", canonical: "Category" },
+        },
+      namespacealiases: [],
+    },
+  };
+}
+
+/**
+ * Builds a `fetch` double that answers by **URL** rather than by call order.
+ *
+ * `getTopReadList` makes three kinds of request — the edition's siteinfo, the
+ * day's top-read list, and one view series per entry — and the order between them
+ * is an implementation detail. A `mockResolvedValueOnce` chain encodes that order
+ * as if it were a contract, so adding a request silently hands one stub's body to
+ * another's caller and the test fails somewhere unrelated. Routing on the URL is
+ * what keeps these specs about behaviour.
+ *
+ * Each route returns a fresh `Response` per call, because a `Response` body can
+ * only be read once.
+ */
+export function buildRoutedFetch(routes: {
+  siteinfo?: () => Response;
+  topRead?: () => Response;
+  perArticle?: () => Response;
+  fallback?: () => Response;
+}): (input: RequestInfo | URL) => Promise<Response> {
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
+
+  return async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes("meta=siteinfo")) {
+      return (routes.siteinfo ?? (() => json(buildSiteInfoResponse())))();
+    }
+    if (url.includes("/metrics/pageviews/top/")) {
+      return (routes.topRead ?? (() => json(buildTopReadResponse({}))))();
+    }
+    if (url.includes("/metrics/pageviews/per-article/")) {
+      return (
+        routes.perArticle ??
+        (() => json(buildPerArticleViewsResponse([10, 20])))
+      )();
+    }
+    return (routes.fallback ?? (() => json({})))();
+  };
+}

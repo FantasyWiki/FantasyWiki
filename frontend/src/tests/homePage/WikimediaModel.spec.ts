@@ -30,4 +30,52 @@ describe("model/wikimedia", () => {
       dailyViews: 1000,
     });
   });
+
+  it("filters an edition's own project pages when given its namespaces", () => {
+    // The English names above catch nothing on it.wikipedia, which is why the
+    // edition's own siteinfo has to supply them (ADR 0002). These titles and the
+    // 201,977 views are the real 2026-08-15 it.wikipedia top-read payload:
+    // `Pagina_principale` is genuinely its rank-1 entry, so without this the most
+    // prominent thing in an Italian market is the main page.
+    const entries = normalizeTopReadEntries(
+      [
+        { article: "Pagina_principale", views: 201977, rank: 1 },
+        { article: "Speciale:Ricerca", views: 50000, rank: 2 },
+        { article: "Categoria:Film", views: 9000, rank: 3 },
+        { article: "File:Flag_of_Italy.svg", views: 8000, rank: 4 },
+        { article: "Ferruccio_Lamborghini", views: 7000, rank: 5 },
+      ],
+      5,
+      "it",
+      {
+        nonArticlePrefixes: [
+          "Speciale:",
+          "Categoria:",
+          "File:",
+          "Discussione:",
+        ],
+        mainPageTitle: "Pagina_principale",
+      }
+    );
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      canonicalTitle: "Ferruccio_Lamborghini",
+      filteredRank: 1,
+      articleUrl: "https://it.wikipedia.org/wiki/Ferruccio_Lamborghini",
+    });
+  });
+
+  it("keeps a real article whose title merely starts with a word like a prefix", () => {
+    // `Filesystem` is not in the `File:` namespace. Matching on the colon is what
+    // keeps the filter from eating articles.
+    const entries = normalizeTopReadEntries(
+      [{ article: "Filesystem", views: 100, rank: 1 }],
+      5,
+      "en",
+      { nonArticlePrefixes: ["File:"], mainPageTitle: "Main_Page" }
+    );
+
+    expect(entries.map((e) => e.canonicalTitle)).toEqual(["Filesystem"]);
+  });
 });

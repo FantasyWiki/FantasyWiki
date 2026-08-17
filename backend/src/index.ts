@@ -9,6 +9,7 @@ import notifications from "./routes/notifications";
 import player from "./routes/player";
 import me from "./routes/me";
 import reports from "./routes/reports";
+import wikipediaEditionRoutes from "./routes/wikipediaEditions";
 import type { WorkersAiBinding } from "./services/llmClient";
 import internal from "./routes/internal";
 import type { ContractSettlementParams } from "./workflows/contractSettlement";
@@ -86,6 +87,9 @@ app.route("/api/me", me);
 
 // Mount problem report routes
 app.route("/api/reports", reports);
+
+// The Wikipedia editions a league can be founded on (#531)
+app.route("/api/wikipedia-editions", wikipediaEditionRoutes);
 
 /**
  * Daily settlement Cron Trigger (ADR 0003, ~05:00 UTC): kicks off the durable

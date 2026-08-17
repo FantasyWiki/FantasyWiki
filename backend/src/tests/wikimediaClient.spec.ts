@@ -1,23 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { createWikimediaClient } from "../services/wikimediaClient";
-import {
-  buildPerArticleViewsResponse,
-  buildTopReadResponse,
-} from "../../../external-apis/wikimedia/test-utils/fixtures";
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
+import { buildRoutedFetch } from "../../../external-apis/wikimedia/test-utils/fixtures";
 
 describe("services/wikimediaClient", () => {
   it("uses external-api positional API in backend module", async () => {
+    // Routed by URL, not by call order: `getTopReadList` also fetches the
+    // edition's namespace list, and a positional chain would feed that request
+    // the top-read body.
     const fetchFn = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(jsonResponse(buildTopReadResponse({})))
-      .mockResolvedValue(jsonResponse(buildPerArticleViewsResponse([10, 20])));
+      .mockImplementation(buildRoutedFetch({}));
 
     const client = createWikimediaClient({
       fetchFn,

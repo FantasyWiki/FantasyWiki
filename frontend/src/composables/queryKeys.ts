@@ -9,6 +9,11 @@
  * renaming or re-scoping a key is one edit and the compiler finds every use.
  */
 export const queryKeys = {
+  /**
+   * The Wikipedia editions a league can be founded on. Unkeyed: the list is the
+   * same for every player and changes at most once a day (#531).
+   */
+  wikipediaEditions: () => ["wikipedia-editions"] as const,
   /** Wikimedia-backed market article list for a league domain. */
   market: (domain: string | undefined) => ["market", domain] as const,
   /** Market search fallback, keyed by the (trimmed) search text. */

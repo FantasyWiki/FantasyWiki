@@ -16,6 +16,7 @@ import {
 import { ContractDTO } from "../../../dto/contractDTO";
 import type { CreateLeagueRequest, LeagueDTO } from "../../../dto/leagueDTO";
 import { LeagueVisibility } from "../../../model/enums";
+import { REFERENCE_SCALE } from "../../../model/languageScale";
 import {
   isLeagueName,
   leagueEndDate,
@@ -167,6 +168,44 @@ export const handlers = [
   // Founding a league writes it into the mock's own list, so the league
   // section and the selector show it immediately afterwards — the same thing
   // the real `fetchLeagues` sees once the transaction commits.
+  /**
+   * The editions the picker offers. A handful standing in for Sitematrix's ~348:
+   * enough to exercise the search (autonym, English name and code) without
+   * shipping the whole registry as a fixture.
+   */
+  /**
+   * An edition's namespace list, which `getTopReadList` fetches to filter project
+   * pages out of the market (ADR 0002). Without a handler MSW errors the request,
+   * the client falls back to the English prefix list, and mock mode quietly stops
+   * exercising the filter at all.
+   */
+  http.get("*/w/api.php", ({ request }) => {
+    const url = new URL(request.url);
+    if (url.searchParams.get("meta") !== "siteinfo") return passthrough();
+    return HttpResponse.json({
+      query: {
+        general: { mainpage: "Main Page" },
+        namespaces: {
+          "0": { id: 0, name: "", canonical: "" },
+          "4": { id: 4, name: "Wikipedia", canonical: "Project" },
+          "-1": { id: -1, name: "Special", canonical: "Special" },
+          "14": { id: 14, name: "Category", canonical: "Category" },
+        },
+        namespacealiases: [],
+      },
+    });
+  }),
+
+  http.get("*/api/wikipedia-editions", () =>
+    HttpResponse.json([
+      { code: "en", autonym: "English", englishName: "English" },
+      { code: "it", autonym: "italiano", englishName: "Italian" },
+      { code: "de", autonym: "Deutsch", englishName: "German" },
+      { code: "es", autonym: "español", englishName: "Spanish" },
+      { code: "ja", autonym: "日本語", englishName: "Japanese" },
+    ])
+  ),
+
   http.post("*/api/leagues", async ({ request }) => {
     const body = (await request.json()) as Partial<CreateLeagueRequest>;
     if (!isLeagueName(body.name) || !isTeamName(body.teamName)) {
@@ -182,6 +221,9 @@ export const handlers = [
       title: body.name!.trim(),
       icon: body.icon ?? "🏆",
       domain: body.domain ?? "en",
+      // The real endpoint resolves this before the league exists (ADR 0002); the
+      // mock has no calibration to run, so it answers the reference scale.
+      languageScale: REFERENCE_SCALE,
       startDate,
       endDate: leagueEndDate(startDate, body.duration ?? "1m"),
       visibility: body.visibility ?? LeagueVisibility.PRIVATE,

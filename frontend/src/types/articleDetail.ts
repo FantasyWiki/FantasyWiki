@@ -6,7 +6,6 @@ import {
   computeContractPrice,
   computeCurrentPrice,
   normalizedViews,
-  resolveLanguageScale,
   type ContractTier,
 } from "../../../model/pricing";
 import {
@@ -80,16 +79,23 @@ export type ArticleDetailInput = {
   viewerCredits: number;
   /** Raw (not normalized) 30-day average views — input to ContractPrice (ADR 0005). */
   averageViews30d: number;
+  /**
+   * The league's frozen Language Scale Factor (`LeagueDTO.languageScale`).
+   *
+   * Required, and taken from the league rather than derived from
+   * `article.domain`: an article sheet is always opened inside a league, and the
+   * price shown here has to be the one that league will charge. Deriving it from
+   * the domain is what used to make this file read a hardcoded two-entry table
+   * (ADR 0002, #532).
+   */
+  languageScale: number;
 };
 
 function computeTierOptions(
   averageViews30d: number,
-  domain: ArticleDTO["domain"]
+  languageScale: number
 ): TierPriceOption[] {
-  const normalized = normalizedViews(
-    averageViews30d,
-    resolveLanguageScale(domain)
-  );
+  const normalized = normalizedViews(averageViews30d, languageScale);
   return (Object.keys(TIER_DAYS) as ContractTier[]).map((tier) => ({
     tier,
     price: computeContractPrice(normalized, TIER_DAYS[tier]),
@@ -97,8 +103,14 @@ function computeTierOptions(
 }
 
 export function buildArticleDetail(input: ArticleDetailInput): ArticleDetail {
-  const { article, contract, viewerTeamId, viewerCredits, averageViews30d } =
-    input;
+  const {
+    article,
+    contract,
+    viewerTeamId,
+    viewerCredits,
+    averageViews30d,
+    languageScale,
+  } = input;
 
   if (!contract) {
     return {
@@ -106,10 +118,10 @@ export function buildArticleDetail(input: ArticleDetailInput): ArticleDetail {
       article,
       currentPrice: computeCurrentPrice(
         averageViews30d,
-        article.domain,
+        languageScale,
         TIER_DAYS.MEDIUM
       ),
-      tierOptions: computeTierOptions(averageViews30d, article.domain),
+      tierOptions: computeTierOptions(averageViews30d, languageScale),
       viewerCredits,
     };
   }
@@ -117,7 +129,7 @@ export function buildArticleDetail(input: ArticleDetailInput): ArticleDetail {
   const tier = contract.tier as ContractTier;
   const currentPrice = computeCurrentPrice(
     averageViews30d,
-    article.domain,
+    languageScale,
     TIER_DAYS[tier]
   );
   const ownerTeamName = contract.team.name;

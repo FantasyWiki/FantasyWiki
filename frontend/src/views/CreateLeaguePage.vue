@@ -55,26 +55,31 @@
           </div>
 
           <!-- Edition ────────────────────────────────── -->
+          <!-- A search rather than a dropdown, because the offered set is now
+               whatever Wikimedia's editions and their readership say it is
+               (#531) rather than two hardcoded options. -->
           <div class="field">
-            <label class="field-label" for="league-domain">
+            <label id="league-domain-label" class="field-label">
               {{ t("createLeague.domain") }}
             </label>
-            <ion-item class="input-item" lines="none">
-              <ion-select
-                id="league-domain"
-                v-model="domain"
-                interface="popover"
-                :aria-label="t('createLeague.domain')"
-              >
-                <ion-select-option
-                  v-for="option in LEAGUE_DOMAINS"
-                  :key="option"
-                  :value="option"
-                >
-                  {{ domainLabels[option] }}
-                </ion-select-option>
-              </ion-select>
-            </ion-item>
+            <button
+              id="league-domain"
+              type="button"
+              class="edition-button input-item"
+              aria-labelledby="league-domain-label"
+              @click="isEditionPickerOpen = true"
+            >
+              <span class="edition-names">
+                <span class="edition-name">{{ selectedName }}</span>
+                <span class="edition-domain">
+                  {{ domain
+                  }}<span class="edition-domain-suffix">.wikipedia</span>
+                </span>
+              </span>
+              <span class="edition-change">
+                {{ t("createLeague.domainChange") }}
+              </span>
+            </button>
             <p class="field-hint">{{ t("createLeague.domainHint") }}</p>
           </div>
 
@@ -232,6 +237,62 @@
           </div>
         </div>
       </page-reveal>
+
+      <!-- Edition picker. A modal because the list is every live Wikipedia
+           edition — a few hundred of them, which is a search rather than a
+           dropdown. -->
+      <ion-modal
+        :is-open="isEditionPickerOpen"
+        @did-dismiss="closeEditionPicker"
+      >
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>{{ t("createLeague.domain") }}</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="closeEditionPicker">
+                {{ t("createLeague.domainDone") }}
+              </ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+          <ion-toolbar>
+            <ion-searchbar
+              v-model="editionSearch"
+              :placeholder="t('createLeague.domainSearch')"
+            />
+          </ion-toolbar>
+        </ion-header>
+        <ion-content>
+          <p v-if="isEditionsPending" class="edition-status">
+            {{ t("createLeague.domainLoading") }}
+          </p>
+          <p v-else-if="matchingEditions.length === 0" class="edition-status">
+            {{ t("createLeague.domainEmpty") }}
+          </p>
+          <ion-list v-else>
+            <ion-item
+              v-for="edition in matchingEditions"
+              :key="edition.code"
+              button
+              :detail="false"
+              @click="selectEdition(edition.code)"
+            >
+              <ion-label>
+                <h3>{{ edition.englishName }}</h3>
+                <p class="edition-domain">
+                  {{ edition.code
+                  }}<span class="edition-domain-suffix">.wikipedia</span>
+                </p>
+              </ion-label>
+              <ion-icon
+                v-if="edition.code === domain"
+                slot="end"
+                :icon="checkmarkOutline"
+                aria-hidden="true"
+              />
+            </ion-item>
+          </ion-list>
+        </ion-content>
+      </ion-modal>
     </div>
   </nav-bar>
 </template>
@@ -240,15 +301,22 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import {
+  onIonViewWillEnter,
   IonButton,
+  IonButtons,
+  IonContent,
+  IonHeader,
   IonIcon,
   IonInput,
   IonItem,
   IonLabel,
+  IonList,
+  IonModal,
+  IonSearchbar,
   IonSegment,
   IonSegmentButton,
-  IonSelect,
-  IonSelectOption,
+  IonTitle,
+  IonToolbar,
 } from "@ionic/vue";
 import { checkmarkOutline, copyOutline, trophyOutline } from "ionicons/icons";
 import { useI18n } from "vue-i18n";
@@ -259,6 +327,7 @@ import PageReveal from "@/components/PageReveal.vue";
 import api from "@/services/api";
 import { useToast } from "@/composables/useToast";
 import { useLeagueStore } from "@/stores/league";
+import { useWikipediaEditions } from "@/composables/useWikipediaEditions";
 import type { LeagueDTO } from "../../../dto/leagueDTO";
 import {
   LeagueInvitePolicy,
@@ -266,7 +335,6 @@ import {
   type Domain,
 } from "../../../model/enums";
 import {
-  LEAGUE_DOMAINS,
   LEAGUE_DURATION_DAYS,
   LEAGUE_ICONS,
   LEAGUE_NAME_MAX_LENGTH,
@@ -278,6 +346,7 @@ import {
   TEAM_NAME_MAX_LENGTH,
   TEAM_NAME_MIN_LENGTH,
 } from "../../../model/team";
+import { REFERENCE_DOMAIN } from "../../../model/languageScale";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -289,11 +358,16 @@ const DURATION_OPTIONS = Object.keys(
 ) as readonly LeagueDuration[];
 
 /**
- * Labels for the two closed sets the model defines, spelled out rather than
- * built as `t(\`…${option}\`)`. Two reasons, and the second is the real one:
- * the i18n lint cannot see through a template-literal key and reads every
- * entry as unused, and typing these as total Records means adding a duration
- * or an edition to `model/` fails to compile here until it has a label.
+ * Labels for the durations the model defines, spelled out rather than built as
+ * a template-literal key. Two reasons, and the second is the real one: the i18n
+ * lint cannot see through such a key and reads every entry as unused, and typing
+ * this as a total Record means adding a duration to `model/` fails to compile
+ * here until it has a label.
+ *
+ * Editions used to be listed the same way and no longer can be. There are a few
+ * dozen of them, they come from Wikimedia rather than from `model/`, and their
+ * names are not ours to translate — each is shown by its own autonym
+ * (`italiano`) with its English name beneath (#531).
  */
 const durationLabels = computed<Record<LeagueDuration, string>>(() => ({
   "2w": t("createLeague.durations.2w"),
@@ -303,14 +377,42 @@ const durationLabels = computed<Record<LeagueDuration, string>>(() => ({
   "6m": t("createLeague.durations.6m"),
 }));
 
-const domainLabels = computed<Record<Domain, string>>(() => ({
-  en: t("createLeague.domains.en"),
-  it: t("createLeague.domains.it"),
-}));
-
 const icon = ref<string>(LEAGUE_ICONS[0]);
 const name = ref("");
-const domain = ref<Domain>(LEAGUE_DOMAINS[0]);
+
+// The reference edition as the default, and the only code this page still names.
+// It is the largest edition and always calibrated, so the form has a valid
+// selection before the edition list has loaded.
+const domain = ref<Domain>(REFERENCE_DOMAIN);
+
+const isEditionPickerOpen = ref(false);
+const editionSearch = ref("");
+const {
+  matching: matchingEditions,
+  isPending: isEditionsPending,
+  find: findEdition,
+} = useWikipediaEditions(editionSearch);
+
+// The edition's English name, falling back to its bare code while the list is
+// still loading so the field never reads as empty. The code itself is always
+// shown beneath as `xx.wikipedia`, which is how a league states its edition
+// everywhere else (LeagueCard, LeagueFactsheet) — the same fact in the same
+// shape, so picking an edition and later reading it back look like one thing.
+const selectedName = computed(
+  () => findEdition(domain.value)?.englishName ?? domain.value
+);
+
+function selectEdition(code: string) {
+  domain.value = code;
+  closeEditionPicker();
+}
+
+function closeEditionPicker() {
+  isEditionPickerOpen.value = false;
+  // Cleared on close so reopening starts from the whole list rather than from
+  // whatever was typed last time.
+  editionSearch.value = "";
+}
 const duration = ref<LeagueDuration>("1m");
 const visibility = ref<LeagueVisibility>(LeagueVisibility.PRIVATE);
 const invitePolicy = ref<LeagueInvitePolicy>(LeagueInvitePolicy.MEMBERS);
@@ -382,6 +484,39 @@ async function handleSubmit() {
 
   await showSuccess(t("createLeague.created", { name: league.title }));
 }
+
+/**
+ * Put the form back to a blank one.
+ *
+ * Called every time the view becomes visible, not just on mount. Ionic keeps
+ * pages alive inside `ion-router-outlet`, so a player who founds a league and
+ * later comes back to found another was met by the *success card of the previous
+ * league* — the component was never torn down, so `created` was still set and
+ * nothing short of a page reload cleared it. (`TeamFormation` re-measures on the
+ * same hook, for the same reason.)
+ *
+ * Everything is reset rather than just `created`: "create a league" should open a
+ * blank form, and leaving a half-typed name and a stale invitation code behind is
+ * the same surprise in a quieter form.
+ */
+function resetForm() {
+  created.value = null;
+  inviteCode.value = "";
+  copied.value = false;
+  error.value = "";
+  isSubmitting.value = false;
+
+  icon.value = LEAGUE_ICONS[0];
+  name.value = "";
+  teamName.value = "";
+  domain.value = REFERENCE_DOMAIN;
+  duration.value = "1m";
+  visibility.value = LeagueVisibility.PRIVATE;
+  invitePolicy.value = LeagueInvitePolicy.MEMBERS;
+  closeEditionPicker();
+}
+
+onIonViewWillEnter(resetForm);
 
 async function copyCode() {
   await navigator.clipboard.writeText(inviteCode.value);
@@ -467,6 +602,56 @@ function goToLeague() {
 .input-item:focus-within {
   border-color: var(--ion-color-primary);
   box-shadow: 0 0 0 3px rgba(var(--ion-color-primary-rgb), 0.16);
+}
+
+/* ── Edition field ─────────────────────────────── */
+/* Shaped like the inputs beside it rather than announced as a control of its
+   own: it opens a picker, but it reads as the same kind of row as the name. */
+.edition-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.8rem 12px;
+  background: var(--ion-background-color);
+  text-align: left;
+  cursor: pointer;
+}
+
+.edition-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.edition-name {
+  color: var(--ion-text-color);
+  font-size: 0.95rem;
+}
+
+/* The domain, given the same understated treatment as on the league page: the
+   code carries the weight and `.wikipedia` trails off it. */
+.edition-domain {
+  color: var(--ion-color-medium);
+  font-size: 0.75rem;
+}
+
+.edition-domain-suffix {
+  opacity: 0.7;
+}
+
+.edition-change {
+  flex-shrink: 0;
+  color: var(--ion-color-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.edition-status {
+  margin: 1.5rem;
+  color: var(--ion-color-medium);
+  text-align: center;
 }
 
 /* ── Icon grid ─────────────────────────────────── */

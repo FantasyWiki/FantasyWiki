@@ -17,6 +17,21 @@ export interface LeagueDTO {
   id: string;
   title: string;
   domain: Domain;
+  /**
+   * The Language Scale Factor this league's prices are computed at, frozen when
+   * it was founded (`model/league.ts`, ADR 0002).
+   *
+   * Carried on the league because the frontend prices contracts too — the market
+   * grid and the article sheet both call `computeContractPrice`, and they used to
+   * reach a hardcoded two-entry table for the factor. A number the server has
+   * already frozen is the only way both sides can be certain they are showing the
+   * same price for the same article, which matters because the player buys at the
+   * one they were shown.
+   *
+   * A plain `number`, so unlike the two instants beside it there is nothing to
+   * deserialize.
+   */
+  languageScale: number;
   icon: string;
   startDate: Temporal.Instant;
   endDate: Temporal.Instant;

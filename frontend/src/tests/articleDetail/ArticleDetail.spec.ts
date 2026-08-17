@@ -7,6 +7,7 @@ import ArticleDetail from "@/components/ArticleDetail.vue";
 import { ContractDTO } from "../../../../dto/contractDTO";
 import { useLeagueStore } from "@/stores/league";
 import { computeCurrentPrice, TIER_DAYS } from "../../../../model/pricing";
+import { REFERENCE_SCALE } from "../../../../model/languageScale";
 import type { TeamDTO } from "../../../../dto/teamDTO";
 import type { LeagueDTO } from "../../../../dto/leagueDTO";
 import type { ArticleDTO } from "../../../../dto/articleDTO";
@@ -91,6 +92,7 @@ const league: LeagueDTO = {
   id: "league-1",
   title: "League",
   domain: "en",
+  languageScale: 1.0,
   icon: "L",
   startDate: Temporal.Now.instant(),
   endDate: Temporal.Now.instant().add({ hours: 1 }),
@@ -301,7 +303,7 @@ describe("ArticleDetail.vue", () => {
     // (renewalCount + 1) — the renewal this button would perform.
     const currentPrice = computeCurrentPrice(
       MOCK_AVG_VIEWS,
-      "en",
+      REFERENCE_SCALE,
       TIER_DAYS.MEDIUM
     );
     const renewalPrice =

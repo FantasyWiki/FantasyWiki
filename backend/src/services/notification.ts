@@ -97,7 +97,7 @@ export class NotificationService {
     for (let i = 0; i < uniqueLeagueIds.length; i++) {
       const result = leagueResults[i];
       if (!result.ok) return result;
-      domainByLeague.set(uniqueLeagueIds[i], result.value.domain as Domain);
+      domainByLeague.set(uniqueLeagueIds[i], result.value.domain);
     }
 
     const notifications: RawNotification[] = [];

@@ -227,10 +227,12 @@ export async function seedCandidates(
  */
 export async function hydrateCandidates(
   domain: Domain,
+  languageScale: number,
   candidates: GenieCandidate[]
 ): Promise<MarketArticle[]> {
   const articles = await fetchMarketArticlesByTitle(
     domain,
+    languageScale,
     candidates.map((candidate) => ({
       title: candidate.canonicalTitle,
       // ContractPrice genuinely floors at 0 below ~2,000 views (ADR 0003/0005),

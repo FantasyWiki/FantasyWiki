@@ -559,11 +559,7 @@
     "name": "League name",
     "namePlaceholder": "e.g. Sunday Scholars",
     "domain": "Wikipedia edition",
-    "domainHint": "Every article in this league comes from this edition.",
-    "domains": {
-      "en": "English",
-      "it": "Italian"
-    },
+    "domainHint": "Every article in this league comes from this edition. Only editions with enough read articles to fill a market are offered.",
     "duration": "Season length",
     "durations": {
       "2w": "2 weeks",
@@ -595,7 +591,12 @@
     "codeHint": "Share this with the friends you want in the league.",
     "copy": "Copy invitation code",
     "goToLeague": "Go to the league",
-    "backToLeagues": "Back to my leagues"
+    "backToLeagues": "Back to my leagues",
+    "domainSearch": "Search editions",
+    "domainChange": "Change",
+    "domainEmpty": "No editions available right now.",
+    "domainLoading": "Loading editions…",
+    "domainDone": "Done"
   },
   "onboarding": {
     "start": {

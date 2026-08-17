@@ -45,6 +45,7 @@ const league: LeagueDTO = {
   id: "league-1",
   title: "League",
   domain: "en",
+  languageScale: 1.0,
   icon: "L",
   startDate: Temporal.Now.instant(),
   endDate: Temporal.Now.instant().add({ hours: 1 }),

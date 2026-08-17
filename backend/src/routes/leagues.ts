@@ -9,6 +9,7 @@ import {
   type LeagueCreationError,
   type LeagueClosureError,
 } from "../services/league";
+import { CALIBRATION_ERRORS } from "../services/languageScaleCalibration";
 import { LeaderboardService } from "../services/leaderboard";
 import { PerformanceService } from "../services/performance";
 import { TeamService } from "../services/team";
@@ -148,15 +149,25 @@ const LEAGUE_CREATION_ERROR_STATUS: Record<LeagueCreationError, 400> = {
   [LEAGUE_CREATION_ERRORS.UNKNOWN_VISIBILITY]: 400,
   [LEAGUE_CREATION_ERRORS.UNKNOWN_INVITE_POLICY]: 400,
   [LEAGUE_CREATION_ERRORS.TEAM_NAME_LENGTH]: 400,
+  [LEAGUE_CREATION_ERRORS.UNCALIBRATED_DOMAIN]: 400,
 };
 
 /**
  * Running out of invitation codes is deliberately *not* in the map above: with
  * 24.3 million of them, exhausting five draws means a stuck RNG or a broken
  * index, which is ours to fix and not something the client can restate.
+ *
+ * Calibration adds the one refusal on this path that is neither the client's
+ * fault nor a bug: Wikimedia being unreachable. It answers 503, because the
+ * request was well-formed and *will* work later — the same payload retried in a
+ * minute may found the league. `BELOW_FLOOR` is a 400 beside it: that edition
+ * will never be big enough, and the fix is to choose another one.
  */
-export function leagueCreationErrorStatus(error: string): 400 | 500 {
-  return error in LEAGUE_CREATION_ERROR_STATUS ? 400 : 500;
+export function leagueCreationErrorStatus(error: string): 400 | 503 | 500 {
+  if (error in LEAGUE_CREATION_ERROR_STATUS) return 400;
+  if (error === CALIBRATION_ERRORS.BELOW_FLOOR) return 400;
+  if (error === CALIBRATION_ERRORS.UNAVAILABLE) return 503;
+  return 500;
 }
 
 /** Repository misses the service passes straight through to the route. */

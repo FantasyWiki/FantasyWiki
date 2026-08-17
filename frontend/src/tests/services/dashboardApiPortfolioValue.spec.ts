@@ -9,6 +9,7 @@ import {
   TIER_DAYS,
   type ContractTier,
 } from "../../../../model/pricing";
+import { REFERENCE_SCALE } from "../../../../model/languageScale";
 
 const DAILY_VIEWS = 5_000;
 
@@ -39,11 +40,11 @@ describe("dashboard portfolioValue", () => {
     mockFlatPageviews(DAILY_VIEWS);
     const contract = contracts[0];
 
-    const price = await getContractCurrentPrice(contract);
+    const price = await getContractCurrentPrice(contract, REFERENCE_SCALE);
 
     const expected = computeCurrentPrice(
       DAILY_VIEWS,
-      contract.article.domain,
+      REFERENCE_SCALE,
       TIER_DAYS[contract.tier as ContractTier]
     );
     expect(price).toBe(expected);
@@ -63,7 +64,7 @@ describe("dashboard portfolioValue", () => {
         sum +
         computeCurrentPrice(
           DAILY_VIEWS,
-          c.article.domain,
+          league.languageScale,
           TIER_DAYS[c.tier as ContractTier]
         ),
       0
@@ -81,7 +82,7 @@ describe("dashboard portfolioValue", () => {
     mockEmptyPageviews();
     const contract = contracts[0];
 
-    const price = await getContractCurrentPrice(contract);
+    const price = await getContractCurrentPrice(contract, REFERENCE_SCALE);
 
     expect(price).toBe(contract.purchasePrice);
   });

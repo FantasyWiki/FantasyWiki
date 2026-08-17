@@ -1,10 +1,10 @@
 import type { MarketArticle, MarketArticleOwner } from "@/types/market";
 import {
-  LANGUAGE_SCALE,
   TIER_DAYS,
   computeContractPrice,
   normalizedViews,
 } from "../../../../model/pricing";
+import { REFERENCE_SCALE } from "../../../../model/languageScale";
 
 const free = { owner: null };
 
@@ -18,7 +18,7 @@ type RawMarketArticle = Omit<MarketArticle, "averageViews30d" | "price">;
 function withPricing(entries: RawMarketArticle[]): MarketArticle[] {
   return entries.map((entry) => {
     const averageViews30d = entry.monthViews / 30;
-    const normalized = normalizedViews(averageViews30d, LANGUAGE_SCALE.en);
+    const normalized = normalizedViews(averageViews30d, REFERENCE_SCALE);
     return {
       ...entry,
       averageViews30d,

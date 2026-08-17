@@ -7,8 +7,8 @@ import {
   computeContractPrice,
   computeCurrentPrice,
   normalizedViews,
-  resolveLanguageScale,
 } from "../../../model/pricing";
+import { normalizeLanguageScale } from "../../../model/languageScale";
 import {
   type Contract,
   RENEWAL_PREMIUM_RATE,
@@ -124,7 +124,7 @@ export class ContractService {
     if (!leagueResult.ok) {
       return leagueResult;
     }
-    const domain = leagueResult.value.domain as Domain;
+    const domain = leagueResult.value.domain;
 
     const contractsResult = await this.contractRepo.getByLeagueId(leagueId);
     if (!contractsResult.ok) {
@@ -168,7 +168,14 @@ export class ContractService {
     if (!leagueResult.ok) {
       return leagueResult;
     }
-    const domain = leagueResult.value.domain as Domain;
+    const domain = leagueResult.value.domain;
+    // The league's frozen factor, not a lookup: this price is what the player
+    // pays, and it has to be the one the league has always used (ADR 0002).
+    // Guarded on the way in, because an unusable value would multiply out to NaN
+    // and `computeContractPrice` would floor that to a free contract.
+    const languageScale = normalizeLanguageScale(
+      leagueResult.value.languageScale,
+    );
 
     if (!isContractTier(tier)) {
       return failure(CONTRACT_ERRORS.INVALID_TIER);
@@ -191,6 +198,7 @@ export class ContractService {
 
     const priceResult = await this.priceFromLiveViews(
       domain,
+      languageScale,
       articleId,
       TIER_DAYS[tier],
       "Couldn't fetch this article's views to price the contract. Please try again.",
@@ -248,9 +256,16 @@ export class ContractService {
    * failed fetch leaves `averageViews30d` undefined and pricing that as 0 would
    * give away a free contract, so it rejects instead. A real sub-2,000-view
    * article returns a defined number and legitimately prices at 0 (ADR 0003).
+   *
+   * `languageScale` is passed in — the league's own frozen factor — rather than
+   * looked up from `domain`. The league is the thing that decides what an
+   * article's views are worth, and a lookup here would price a contract at
+   * whatever the table currently says instead of at what the league was founded
+   * on (ADR 0002).
    */
   private async priceFromLiveViews(
     domain: Domain,
+    languageScale: number,
     articleId: string,
     days: number,
     unavailableMessage: string,
@@ -265,7 +280,7 @@ export class ContractService {
       }
       return success(
         computeContractPrice(
-          normalizedViews(views.averageViews30d, resolveLanguageScale(domain)),
+          normalizedViews(views.averageViews30d, languageScale),
           days,
         ),
       );
@@ -289,7 +304,14 @@ export class ContractService {
     leagueId: string,
     contractId: string,
     settledError: ContractError,
-  ): Promise<Result<{ team: Team; domain: Domain; contract: Contract }>> {
+  ): Promise<
+    Result<{
+      team: Team;
+      domain: Domain;
+      languageScale: number;
+      contract: Contract;
+    }>
+  > {
     const [teamResult, leagueResult, contractResult] = await Promise.all([
       this.teamRepo.getByPlayerAndLeague(playerId, leagueId),
       this.leagueRepo.getById(leagueId),
@@ -322,7 +344,8 @@ export class ContractService {
 
     return success({
       team,
-      domain: leagueResult.value.domain as Domain,
+      domain: leagueResult.value.domain,
+      languageScale: normalizeLanguageScale(leagueResult.value.languageScale),
       contract,
     });
   }
@@ -406,7 +429,7 @@ export class ContractService {
     if (!loaded.ok) {
       return loaded;
     }
-    const { team, domain, contract } = loaded.value;
+    const { team, domain, languageScale, contract } = loaded.value;
 
     // The contract's own held duration, never a fixed tier — otherwise the
     // proration is against value that wasn't bought.
@@ -415,6 +438,7 @@ export class ContractService {
 
     const priceResult = await this.priceFromLiveViews(
       domain,
+      languageScale,
       contract.articleId,
       tierDays,
       "Couldn't fetch this article's views to price the sale. Please try again.",
@@ -493,7 +517,7 @@ export class ContractService {
     if (!leagueResult.ok) return leagueResult;
     if (!contractsResult.ok) return contractsResult;
 
-    const domain = leagueResult.value.domain as Domain;
+    const domain = leagueResult.value.domain;
     const activeContracts = contractsResult.value.filter(
       (contract) => !contract.settled,
     );
@@ -639,7 +663,7 @@ export class ContractService {
    * the guarded writes make a re-run a no-op.
    */
   async settleDueContract(contract: DueContract): Promise<void> {
-    const domain = contract.domain as Domain;
+    const domain = contract.domain;
     const tierDays = termDays(contract);
     const today = Temporal.Now.plainDateISO();
     const articleTitle = contract.articleId.replace(/_/g, " ");
@@ -657,7 +681,10 @@ export class ContractService {
     }
     const currentPrice = computeCurrentPrice(
       views.averageViews30d,
-      domain,
+      // The league's frozen factor, carried on the due-contract row by the
+      // sweep query — settlement must value a contract at the same scale it was
+      // bought at (ADR 0002).
+      normalizeLanguageScale(contract.languageScale),
       tierDays,
     );
 

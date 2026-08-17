@@ -20,8 +20,8 @@ import { STARTING_CREDITS } from "../../../../model/team";
 import {
   computeContractPrice,
   normalizedViews,
-  resolveLanguageScale,
 } from "../../../../model/pricing";
+import { REFERENCE_SCALE } from "../../../../model/languageScale";
 import { insertTeam } from "../utils/d1TestUtils";
 
 /**
@@ -65,7 +65,7 @@ function wikimediaWithAvg(
 
 function priceFor(averageViews30d: number, tierDays: number): number {
   return computeContractPrice(
-    normalizedViews(averageViews30d, resolveLanguageScale("en")),
+    normalizedViews(averageViews30d, REFERENCE_SCALE),
     tierDays,
   );
 }

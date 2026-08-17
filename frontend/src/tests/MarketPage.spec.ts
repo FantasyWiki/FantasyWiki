@@ -58,6 +58,7 @@ const fakeLeague: LeagueDTO = {
   id: "global",
   title: "Global League",
   domain: "en",
+  languageScale: 1.0,
   icon: "🌍",
   startDate: Temporal.Now.instant(),
   endDate: Temporal.Now.instant(),

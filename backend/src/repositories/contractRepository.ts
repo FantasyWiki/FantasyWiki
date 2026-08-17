@@ -30,6 +30,12 @@ export interface NewContract {
  */
 export interface DueContract extends Contract {
   domain: string;
+  /**
+   * The league's frozen Language Scale Factor, resolved in the same sweep query
+   * as `domain`. Settlement values a contract at the scale it was bought at, and
+   * a lookup at settlement time could not promise that (ADR 0002).
+   */
+  languageScale: number;
   teamCredits: number;
 }
 

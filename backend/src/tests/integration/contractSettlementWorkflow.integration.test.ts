@@ -7,8 +7,8 @@ import { WikimediaClient } from "../../../../external-apis/wikimedia/client";
 import {
   computeContractPrice,
   normalizedViews,
-  resolveLanguageScale,
 } from "../../../../model/pricing";
+import { REFERENCE_SCALE } from "../../../../model/languageScale";
 import { insertTeam } from "../utils/d1TestUtils";
 
 const TIER_DAYS = 7;
@@ -123,7 +123,7 @@ function runSweep(
 
 function priceFor(averageViews30d: number, tierDays: number): number {
   return computeContractPrice(
-    normalizedViews(averageViews30d, resolveLanguageScale("en")),
+    normalizedViews(averageViews30d, REFERENCE_SCALE),
     tierDays,
   );
 }

@@ -38,12 +38,19 @@ export function rosterOf(leagueId: string): TeamDTO[] {
  * number the league section renders cannot drift from the teams the standings
  * endpoint actually returns.
  */
+/**
+ * `languageScale` mirrors the seeded measurements (migration 0009): `en` is the
+ * 1.0 reference and `it` is 13.9. Written out per league rather than derived from
+ * the domain, because that is exactly what the real DTO does — the factor is the
+ * league's, frozen at founding, not a lookup from its edition (ADR 0002).
+ */
 export const leagues: LeagueDTO[] = [
   {
     id: "global",
     title: "Global League",
     icon: "🌍",
     domain: "en",
+    languageScale: 1.0,
     startDate: Instant.from("2024-01-01T00:00:00Z"),
     // Deliberately far out, mirroring the sentinel the real Global League is
     // seeded with (migration 0002): it keeps this league permanently in
@@ -63,6 +70,7 @@ export const leagues: LeagueDTO[] = [
     title: "Italia League",
     icon: "🍕",
     domain: "it",
+    languageScale: 13.9,
     startDate: Instant.from("2024-01-01T00:00:00Z"),
     // Running, and the current player is an ordinary member of it — which
     // makes this the one fixture that offers **Leave**. Every league here used
@@ -79,6 +87,7 @@ export const leagues: LeagueDTO[] = [
     title: "Europe League",
     icon: "🇪🇺",
     domain: "en",
+    languageScale: 1.0,
     startDate: Instant.from("2024-01-01T00:00:00Z"),
     // Running, and the current player admins this one (see `adminLeagueIds` in
     // the handlers) — so it is the fixture that offers **Close**, and pointedly
@@ -93,6 +102,7 @@ export const leagues: LeagueDTO[] = [
     title: "Americas League",
     icon: "🌎",
     domain: "en",
+    languageScale: 1.0,
     startDate: Instant.from("2024-01-01T00:00:00Z"),
     // The finished one: the Ended Leagues section's only entry, the final
     // podium's fixture, and the league that proves neither lifecycle control
@@ -119,6 +129,7 @@ export const publicLeagues: LeagueDTO[] = [
     title: "Open Science League",
     icon: "🔬",
     domain: "en",
+    languageScale: 1.0,
     startDate: Instant.from("2026-07-01T00:00:00Z"),
     endDate: Instant.from("2027-01-01T00:00:00Z"),
     visibility: LeagueVisibility.PUBLIC,
@@ -130,6 +141,7 @@ export const publicLeagues: LeagueDTO[] = [
     title: "Silver Screen League",
     icon: "🎭",
     domain: "en",
+    languageScale: 1.0,
     startDate: Instant.from("2026-06-15T00:00:00Z"),
     endDate: Instant.from("2026-12-15T00:00:00Z"),
     visibility: LeagueVisibility.PUBLIC,
@@ -141,6 +153,7 @@ export const publicLeagues: LeagueDTO[] = [
     title: "Calcio e Cultura",
     icon: "⚽",
     domain: "it",
+    languageScale: 13.9,
     startDate: Instant.from("2026-08-01T00:00:00Z"),
     endDate: Instant.from("2026-11-01T00:00:00Z"),
     visibility: LeagueVisibility.PUBLIC,

@@ -38,9 +38,11 @@ per language or the model breaks on low-volume Wikipedias (Italian articles bunc
 into one score bucket; flat synergy points become dominant). See ADR 0002.
 
 - **Language Scale Factor `L`** — a static per-language constant; reference `L_en = 1.0`,
-  lower-volume languages get `L > 1`. Measured values live in `model/pricing.ts`
-  (`en = 1.0`, `it = 13.9`); an edition absent from that table has not been measured and
-  cannot host a league (`isCalibratedDomain`).
+  lower-volume languages get `L > 1`. Measured values live in the `language_scales`
+  registry (seeded `en = 1.0`, `it = 13.9`), and each league carries the factor it was
+  founded on in `leagues.languageScale` — that frozen copy, not a lookup, is what every
+  price and score in the league uses. An edition with no measurement cannot host a league:
+  creation measures it first and refuses it if it fails the floor below.
 - **Normalized Views** = `raw_pageviews × L`. *All* scoring below operates on
   Normalized Views, never raw views.
 - `L(domain) = median(en_views[i] / domain_views[i])` for rank-matched `i = 1..500`,
@@ -49,7 +51,9 @@ into one score bucket; flat synergy points become dominant). See ADR 0002.
   own `siteinfo`, not a hardcoded prefix list). Recalibrated ~annually (no formal
   season). A domain is only accepted (league creation allowed) if it has **≥300
   ranks with ≥50 daily views** — below that, the shape-similarity assumption behind
-  a single scale factor stops holding. Full detail and real-data validation: ADR 0002.
+  a single scale factor stops holding — counted per day and medianed across the window.
+  Full detail and real-data validation: ADR 0002 and
+  [Wikipedia Language Editions](./language-editions.md).
 
 ---
 
@@ -291,12 +295,16 @@ when they are picked back up:
   is locked; fine balance is a live-tuning item.
 - Player-to-player transfer market (offers, time-bounds) — post-MVP.
 - ~~Exact `L` values per language and the recalibration procedure~~ — **resolved
-  (ADR 0002, 2026-07-07):** median rank-matched top-500 ratio on 30-day-average
-  views, domain accepted only above a ≥300-ranks-@-≥50-views floor. Not yet
-  implemented in code (`LANGUAGE_SCALE` is still the `{en: 1.0, it: 1.0}`
-  placeholder) — still needs the actual per-language `L` computed and code updated
-  to account for `L` entering the price formula superlinearly via `BasePoints(rawViews
-  × L)^k` (ADR 0005), not as a linear view-volume scale.
+  (ADR 0002, 2026-07-07) and implemented (#532, 2026-08-17):** median rank-matched
+  top-500 ratio on 30-day-average views, domain accepted only above a
+  ≥300-ranks-@-≥50-views floor, measured at league creation and frozen onto the
+  league. `L` is measured per edition on demand rather than tabulated by hand; see
+  [Wikipedia Language Editions](./language-editions.md).
+- **Recalibration cadence.** ADR 0002 says ~annually, but `it` drifted ~17% in six
+  weeks (13.9 → ≈11.5 between 2026-07-06 and 2026-08-15). Frozen factors mean this
+  changes nothing for leagues already running, which is the point — but whether a new
+  league should be founded on a year-old measurement is now an open question with a
+  number attached to it.
 - ~~Contract duration bounds~~ — **resolved (ADR 0005):** SHORT = 3 days,
   MEDIUM = 7 days, LONG = 14 days, locked.
 - Re-simulate §6.3's economy flow (passive/skilled-trader credit trajectories) under

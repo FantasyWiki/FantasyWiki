@@ -17,6 +17,8 @@ import { walletOutline } from "ionicons/icons";
 import { useArticleViews } from "@/composables/useArticleViews";
 import { useMyTeam } from "@/composables/useMyTeam";
 import { buildArticleDetail } from "@/types/articleDetail";
+import { useLeagueStore } from "@/stores/league";
+import { REFERENCE_SCALE } from "../../../../model/languageScale";
 import type { ContractDTO } from "../../../../dto/contractDTO";
 
 /**
@@ -35,6 +37,7 @@ import type { ContractDTO } from "../../../../dto/contractDTO";
 const props = defineProps<{ contract: ContractDTO }>();
 
 const { myTeam, myTeamId } = useMyTeam();
+const leagueStore = useLeagueStore();
 
 const viewsSource = computed(() => ({
   title: props.contract.article.title,
@@ -59,6 +62,7 @@ const shortfall = computed<number | null>(() => {
     viewerTeamId: myTeamId.value ?? undefined,
     viewerCredits: credits,
     averageViews30d,
+    languageScale: leagueStore.currentLeague?.languageScale ?? REFERENCE_SCALE,
   });
   if (detail.availability !== "owned-by-viewer" || !detail.renewalElected) {
     return null;

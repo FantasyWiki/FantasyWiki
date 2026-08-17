@@ -19,7 +19,6 @@ import {
   NewContract,
 } from "../../repositories/contractRepository";
 import { success, failure } from "../../repositories/result";
-import { WikimediaClient } from "../../../../external-apis/wikimedia/client";
 import { STARTING_CREDITS } from "../../../../model/team";
 import {
   TIER_DAYS,
@@ -27,34 +26,13 @@ import {
   normalizedViews,
 } from "../../../../model/pricing";
 import { REFERENCE_SCALE } from "../../../../model/languageScale";
-import { createWikimediaClient } from "../../services/wikimediaClient";
 import { repositories } from "../support/target";
+import {
+  unusedWikimedia,
+  wikimediaWithArticleViews,
+  wikimediaWithAvg,
+} from "../support/wikimedia";
 import { insertTeam } from "../utils/d1TestUtils";
-
-/**
- * Build a WikimediaClient stub whose only exercised capability is
- * `pageviews.getArticleViews` — the buy-contract pricing lookup. Every other
- * namespace throws so an accidental dependency on it fails loudly.
- */
-function wikimediaClientWithArticleViews(
-  getArticleViews: WikimediaClient["pageviews"]["getArticleViews"],
-): WikimediaClient {
-  const unimplemented = () => {
-    throw new Error("not implemented in stub");
-  };
-  return {
-    pageviews: {
-      getArticleViews,
-      getTopReadList: unimplemented,
-      getViewsByDomain: unimplemented,
-    },
-    article: {
-      getSummary: unimplemented,
-      getLinkedArticles: unimplemented,
-      search: unimplemented,
-    },
-  } as unknown as WikimediaClient;
-}
 
 /**
  * Reads a team's current (derived) credits through the real repository
@@ -84,7 +62,7 @@ describe("ContractService.getLeagueContracts Integration Tests", () => {
   beforeEach(async () => {
     contractService = new ContractService({
       ...repositories(),
-      wikimedia: createWikimediaClient(),
+      wikimedia: unusedWikimedia(),
     });
     playerService = new PlayerService(repositories());
 
@@ -249,17 +227,6 @@ describe("ContractService.buyContract Integration Tests", () => {
   let playerId: string;
   let teamId: string;
 
-  function wikimediaWithAvg(averageViews30d: number): WikimediaClient {
-    return wikimediaClientWithArticleViews(async () => ({
-      latestDayViews: undefined,
-      averageViews30d,
-      weekViews: undefined,
-      previousWeekViews: undefined,
-      monthViews: undefined,
-      yearViews: undefined,
-    }));
-  }
-
   function priceFor(
     averageViews30d: number,
     tier: "SHORT" | "MEDIUM" | "LONG",
@@ -366,7 +333,7 @@ describe("ContractService.buyContract Integration Tests", () => {
     // result: the remaining credits must have been persisted.
     const readService = new ContractService({
       ...repositories(),
-      wikimedia: createWikimediaClient(),
+      wikimedia: unusedWikimedia(),
     });
     const contractsResult = await readService.getMyContracts(
       playerId,
@@ -576,7 +543,7 @@ describe("ContractService.buyContract Integration Tests", () => {
   it("rejects the buy when the views fetch omits averageViews30d", async () => {
     const service = new ContractService({
       ...repositories(),
-      wikimedia: wikimediaClientWithArticleViews(async () => ({
+      wikimedia: wikimediaWithArticleViews(async () => ({
         latestDayViews: undefined,
         averageViews30d: undefined,
         weekViews: undefined,
@@ -603,7 +570,7 @@ describe("ContractService.buyContract Integration Tests", () => {
   it("rejects the buy with the thrown error's message when the views fetch fails", async () => {
     const service = new ContractService({
       ...repositories(),
-      wikimedia: wikimediaClientWithArticleViews(async () => {
+      wikimedia: wikimediaWithArticleViews(async () => {
         throw new Error("Wikimedia API unavailable");
       }),
     });
@@ -621,7 +588,7 @@ describe("ContractService.buyContract Integration Tests", () => {
   it("falls back to a generic message when the views fetch rejects with a non-Error", async () => {
     const service = new ContractService({
       ...repositories(),
-      wikimedia: wikimediaClientWithArticleViews(async () => {
+      wikimedia: wikimediaWithArticleViews(async () => {
         throw "network blip";
       }),
     });
@@ -701,7 +668,7 @@ describe("ContractService.getMyContracts Integration Tests", () => {
 
     const service = new ContractService({
       ...repositories(),
-      wikimedia: createWikimediaClient(),
+      wikimedia: unusedWikimedia(),
     });
     const result = await service.getMyContracts(playerId, leagueId);
 
@@ -739,7 +706,7 @@ describe("ContractService.getMyContracts Integration Tests", () => {
 
     const service = new ContractService({
       ...repositories(),
-      wikimedia: createWikimediaClient(),
+      wikimedia: unusedWikimedia(),
     });
     const result = await service.getMyContracts(playerId, leagueId);
 
@@ -752,7 +719,7 @@ describe("ContractService.getMyContracts Integration Tests", () => {
   it("fails with 'No team found for this league' when the player has no team there", async () => {
     const service = new ContractService({
       ...repositories(),
-      wikimedia: createWikimediaClient(),
+      wikimedia: unusedWikimedia(),
     });
     const result = await service.getMyContracts(playerId, "nonexistent-league");
 
@@ -771,17 +738,6 @@ describe("ContractService.sellContract Integration Tests", () => {
   // insertSellableContract always uses purchasePrice: 0 (irrelevant to the
   // derived sum), so a fresh team's pre-sale credits is just STARTING_CREDITS.
   const INITIAL_CREDITS = STARTING_CREDITS;
-
-  function wikimediaWithAvg(averageViews30d: number): WikimediaClient {
-    return wikimediaClientWithArticleViews(async () => ({
-      latestDayViews: undefined,
-      averageViews30d,
-      weekViews: undefined,
-      previousWeekViews: undefined,
-      monthViews: undefined,
-      yearViews: undefined,
-    }));
-  }
 
   function priceFor(averageViews30d: number, tierDays: number) {
     return computeContractPrice(
@@ -1155,7 +1111,7 @@ describe("ContractService.sellContract Integration Tests", () => {
 
     const service = new ContractService({
       ...repositories(),
-      wikimedia: wikimediaClientWithArticleViews(async () => ({
+      wikimedia: wikimediaWithArticleViews(async () => ({
         latestDayViews: undefined,
         averageViews30d: undefined,
         weekViews: undefined,
@@ -1191,7 +1147,7 @@ describe("ContractService.sellContract Integration Tests", () => {
 
     const service = new ContractService({
       ...repositories(),
-      wikimedia: wikimediaClientWithArticleViews(async () => {
+      wikimedia: wikimediaWithArticleViews(async () => {
         throw new Error("Wikimedia API unavailable");
       }),
     });
@@ -1214,7 +1170,7 @@ describe("ContractService.sellContract Integration Tests", () => {
 
     const service = new ContractService({
       ...repositories(),
-      wikimedia: wikimediaClientWithArticleViews(async () => {
+      wikimedia: wikimediaWithArticleViews(async () => {
         throw "network blip";
       }),
     });
@@ -1472,7 +1428,7 @@ describe("ContractService.buyContract conflict classification", () => {
     const service = new ContractService({
       ...repositories(),
       contracts: contractRepo,
-      wikimedia: wikimediaClientWithArticleViews(async () => ({
+      wikimedia: wikimediaWithArticleViews(async () => ({
         latestDayViews: undefined,
         averageViews30d: 9000,
         weekViews: undefined,
@@ -1555,7 +1511,7 @@ describe("ContractService.buyContract conflict classification", () => {
     const service = new ContractService({
       ...repositories(),
       contracts: contractRepo,
-      wikimedia: wikimediaClientWithArticleViews(async () => ({
+      wikimedia: wikimediaWithArticleViews(async () => ({
         latestDayViews: undefined,
         averageViews30d: 9000,
         weekViews: undefined,
@@ -1628,7 +1584,7 @@ describe("ContractService.cancelRenewal Integration Tests", () => {
   beforeEach(async () => {
     service = new ContractService({
       ...repositories(),
-      wikimedia: createWikimediaClient(),
+      wikimedia: unusedWikimedia(),
     });
 
     const playerResult = await new PlayerService(repositories()).createPlayer(

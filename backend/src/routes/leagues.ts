@@ -555,23 +555,27 @@ leagues.post("/:id/my-contracts/:contractId/sell", currentPlayer, async (c) => {
   return c.json(result.value);
 });
 
-leagues.post("/:id/my-contracts/:contractId/renew", currentPlayer, async (c) => {
-  const leagueId = c.req.param("id");
-  const contractId = c.req.param("contractId");
-  const service = new ContractService({
-    ...c.var.repositories,
-    wikimedia: c.var.wikimedia,
-  });
-  const result = await service.electRenewal(
-    c.var.player.id,
-    leagueId,
-    contractId,
-  );
-  if (!result.ok) {
-    return c.json({ error: result.error }, contractErrorStatus(result.error));
-  }
-  return c.json(result.value);
-});
+leagues.post(
+  "/:id/my-contracts/:contractId/renew",
+  currentPlayer,
+  async (c) => {
+    const leagueId = c.req.param("id");
+    const contractId = c.req.param("contractId");
+    const service = new ContractService({
+      ...c.var.repositories,
+      wikimedia: c.var.wikimedia,
+    });
+    const result = await service.electRenewal(
+      c.var.player.id,
+      leagueId,
+      contractId,
+    );
+    if (!result.ok) {
+      return c.json({ error: result.error }, contractErrorStatus(result.error));
+    }
+    return c.json(result.value);
+  },
+);
 
 // The election is the resource being removed, so DELETE on the same path — the
 // intent can be withdrawn any time before the settlement sweep acts on it.

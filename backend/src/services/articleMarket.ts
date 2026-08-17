@@ -15,10 +15,7 @@ export class ArticleMarketService {
   private leagueRepo: LeagueRepository;
   private wikimedia: WikimediaClient;
 
-  constructor(deps: {
-    leagues: LeagueRepository;
-    wikimedia: WikimediaClient;
-  }) {
+  constructor(deps: { leagues: LeagueRepository; wikimedia: WikimediaClient }) {
     this.leagueRepo = deps.leagues;
     this.wikimedia = deps.wikimedia;
   }

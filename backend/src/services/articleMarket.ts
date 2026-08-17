@@ -1,5 +1,4 @@
 import { MarketArticleDTO } from "../../../dto/marketArticleDTO";
-import { Domain } from "../../../dto/enums";
 import { LeagueRepository } from "../repositories/leagueRepository";
 import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
 import { Result, failure, success } from "../repositories/result";
@@ -9,8 +8,8 @@ import {
   TIER_DAYS,
   computeContractPrice,
   normalizedViews,
-  resolveLanguageScale,
 } from "../../../model/pricing";
+import { normalizeLanguageScale } from "../../../model/languageScale";
 
 const MARKET_LIMIT = 50;
 
@@ -33,7 +32,7 @@ export class ArticleMarketService {
       return leagueResult;
     }
 
-    const domain = leagueResult.value.domain as Domain;
+    const domain = leagueResult.value.domain;
 
     let topRead;
     try {
@@ -49,7 +48,12 @@ export class ArticleMarketService {
       );
     }
 
-    const languageScale = resolveLanguageScale(domain);
+    // The league's own frozen factor. The market grid is where a player reads a
+    // price before buying, so it has to be the same number the purchase will use
+    // (ADR 0002).
+    const languageScale = normalizeLanguageScale(
+      leagueResult.value.languageScale,
+    );
     const articles: MarketArticleDTO[] = topRead.entries.map((entry) => {
       const averageViews30d = entry.averageViews30d ?? 0;
       const normalized = normalizedViews(averageViews30d, languageScale);

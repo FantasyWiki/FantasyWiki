@@ -559,11 +559,7 @@
     "name": "Nome della lega",
     "namePlaceholder": "es. Lega della Domenica",
     "domain": "Edizione di Wikipedia",
-    "domainHint": "Tutti gli articoli di questa lega vengono da questa edizione.",
-    "domains": {
-      "en": "Inglese",
-      "it": "Italiano"
-    },
+    "domainHint": "Ogni articolo di questa lega viene da questa edizione. Sono disponibili solo le edizioni con abbastanza articoli letti per popolare un mercato.",
     "duration": "Durata della stagione",
     "durations": {
       "2w": "2 settimane",
@@ -595,7 +591,12 @@
     "codeHint": "Condividilo con gli amici che vuoi nella lega.",
     "copy": "Copia il codice d'invito",
     "goToLeague": "Vai alla lega",
-    "backToLeagues": "Torna alle mie leghe"
+    "backToLeagues": "Torna alle mie leghe",
+    "domainSearch": "Cerca edizioni",
+    "domainChange": "Cambia",
+    "domainEmpty": "Nessuna edizione disponibile al momento.",
+    "domainLoading": "Caricamento edizioni…",
+    "domainDone": "Fatto"
   },
   "onboarding": {
     "start": {

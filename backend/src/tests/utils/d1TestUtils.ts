@@ -11,6 +11,13 @@ const RESET_STATEMENTS = [
   "DELETE FROM leagues WHERE id != 'global'",
   "DELETE FROM players WHERE id != 'system'",
   "DELETE FROM google_accounts WHERE id != 'system'",
+  // Calibrations a test performed, but not the `en`/`it` measurements migration
+  // 0009 seeds — those are reference data and production has them too. Without
+  // this, a test that calibrates `de` leaves the row behind and the next test to
+  // ask about `de` reads a stored factor instead of measuring one, which makes
+  // the suite order-dependent in the one place where "have we measured this
+  // edition yet" is the whole question.
+  `DELETE FROM language_scales WHERE domain NOT IN ('en', 'it')`,
 ];
 
 export async function resetD1Database(db: D1Database): Promise<void> {
@@ -40,6 +47,8 @@ export async function insertLeague(
     startDate?: string;
     endDate?: string;
     domain?: string;
+    /** The league's frozen Language Scale Factor; defaults to the `en` reference. */
+    languageScale?: number;
     icon?: string;
     visibility?: LeagueVisibility;
     invitePolicy?: LeagueInvitePolicy;
@@ -51,8 +60,8 @@ export async function insertLeague(
   await db
     .prepare(
       `INSERT INTO leagues
-         (id, name, adminId, startDate, endDate, domain, icon, visibility, invitePolicy, invitationCode, closedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, name, adminId, startDate, endDate, domain, languageScale, icon, visibility, invitePolicy, invitationCode, closedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       opts.id,
@@ -61,6 +70,10 @@ export async function insertLeague(
       opts.startDate ?? "2024-01-01T00:00:00Z",
       opts.endDate ?? "2124-01-01T00:00:00Z",
       opts.domain ?? "en",
+      // Written explicitly rather than left to the column default, so a test that
+      // inserts an `it` league can price at the 13.9 production uses instead of
+      // silently at the `en` reference.
+      opts.languageScale ?? 1.0,
       opts.icon ?? "🏆",
       opts.visibility ?? LeagueVisibility.PUBLIC,
       opts.invitePolicy ?? LeagueInvitePolicy.MEMBERS,

@@ -44,6 +44,7 @@ export interface LeagueRow {
   startDate: string;
   endDate: string;
   domain: string;
+  languageScale: number;
   visibility: string;
   invitePolicy: string;
   icon: string;
@@ -62,6 +63,7 @@ const LEAGUE_COLUMN_NAMES = [
   "startDate",
   "endDate",
   "domain",
+  "languageScale",
   "visibility",
   "invitePolicy",
   "icon",
@@ -167,7 +169,7 @@ export class LeagueRepositoryD1 implements LeagueRepository {
         this.db
           .prepare(
             `INSERT INTO leagues (${LEAGUE_COLUMNS}, invitationCode)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .bind(
             leagueId,
@@ -176,6 +178,9 @@ export class LeagueRepositoryD1 implements LeagueRepository {
             league.startDate.toString(),
             league.endDate.toString(),
             league.domain,
+            // Frozen here, and never read from `language_scales` again for this
+            // league — see `League.languageScale` and ADR 0002.
+            league.languageScale,
             league.visibility,
             league.invitePolicy,
             league.icon,
@@ -218,6 +223,7 @@ export class LeagueRepositoryD1 implements LeagueRepository {
         startDate: league.startDate,
         endDate: league.endDate,
         domain: league.domain,
+        languageScale: league.languageScale,
         visibility: league.visibility,
         invitePolicy: league.invitePolicy,
         icon: league.icon,

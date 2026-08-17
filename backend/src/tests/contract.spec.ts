@@ -13,9 +13,9 @@ import { WikimediaClient } from "../../../external-apis/wikimedia/client";
 import {
   computeContractPrice,
   normalizedViews,
-  resolveLanguageScale,
   TIER_DAYS,
 } from "../../../model/pricing";
+import { REFERENCE_SCALE } from "../../../model/languageScale";
 import { Result, success, failure } from "../repositories/result";
 import type { Contract, Team, Player, League } from "../../../model";
 import { LeagueInvitePolicy, LeagueVisibility } from "../../../model/enums";
@@ -27,7 +27,7 @@ import {
 /** Mirror the service's server-side price computation for `en` (league domain). */
 function priceFor(averageViews30d: number, tierDays: number): number {
   return computeContractPrice(
-    normalizedViews(averageViews30d, resolveLanguageScale("en")),
+    normalizedViews(averageViews30d, REFERENCE_SCALE),
     tierDays,
   );
 }
@@ -59,6 +59,7 @@ const league: League = {
   startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
   endDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
   domain: "en",
+  languageScale: REFERENCE_SCALE,
   visibility: LeagueVisibility.PUBLIC,
   invitePolicy: LeagueInvitePolicy.MEMBERS,
   closedAt: null,

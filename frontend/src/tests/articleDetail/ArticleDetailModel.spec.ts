@@ -5,15 +5,15 @@ import type { TeamDTO } from "../../../../dto/teamDTO";
 import type { ArticleDTO } from "../../../../dto/articleDTO";
 import { buildArticleDetail } from "@/types/articleDetail";
 import {
-  LANGUAGE_SCALE,
   TIER_DAYS,
   computeContractPrice,
   normalizedViews,
 } from "../../../../model/pricing";
+import { REFERENCE_SCALE } from "../../../../model/languageScale";
 
 const averageViews30d = 9000;
 const expectedCurrentPrice = computeContractPrice(
-  normalizedViews(averageViews30d, LANGUAGE_SCALE.en),
+  normalizedViews(averageViews30d, REFERENCE_SCALE),
   TIER_DAYS.MEDIUM
 );
 
@@ -61,6 +61,7 @@ describe("articleDetailModel", () => {
       viewerTeamId: viewerTeam.id,
       viewerCredits: viewerTeam.credits,
       averageViews30d,
+      languageScale: REFERENCE_SCALE,
     });
 
     expect(model.availability).toBe("owned-by-viewer");
@@ -82,6 +83,7 @@ describe("articleDetailModel", () => {
       viewerTeamId: viewerTeam.id,
       viewerCredits: viewerTeam.credits,
       averageViews30d,
+      languageScale: REFERENCE_SCALE,
     });
 
     expect(model.availability).toBe("owned-by-other");
@@ -102,6 +104,7 @@ describe("articleDetailModel", () => {
       viewerTeamId: viewerTeam.id,
       viewerCredits: 700,
       averageViews30d,
+      languageScale: REFERENCE_SCALE,
     });
 
     expect(model.availability).toBe("free-agent");

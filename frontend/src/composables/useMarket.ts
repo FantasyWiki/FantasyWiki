@@ -51,8 +51,10 @@ export function useMarket() {
   >({
     queryKey,
     queryFn: () =>
-      fetchMarket(leagueStore.currentLeague!.domain, (partial) =>
-        queryClient.setQueryData(queryKey.value, partial)
+      fetchMarket(
+        leagueStore.currentLeague!.domain,
+        leagueStore.currentLeague!.languageScale,
+        (partial) => queryClient.setQueryData(queryKey.value, partial)
       ),
     enabled: computed(() => !!leagueStore.currentLeague?.domain),
   });
@@ -255,7 +257,11 @@ export function useMarket() {
       )
     ),
     queryFn: () =>
-      searchMarket(leagueStore.currentLeague!.domain, searchQuery.value.trim()),
+      searchMarket(
+        leagueStore.currentLeague!.domain,
+        leagueStore.currentLeague!.languageScale,
+        searchQuery.value.trim()
+      ),
     enabled: computed(
       () => isSearchFallback.value && !!leagueStore.currentLeague?.domain
     ),
@@ -288,6 +294,7 @@ export function useMarket() {
     queryFn: () =>
       fetchMarketArticlesByTitle(
         leagueStore.currentLeague!.domain,
+        leagueStore.currentLeague!.languageScale,
         missingOwnedContracts.value.map((contract) => ({
           title: contract.article.title,
           fallbackPrice: contract.purchasePrice,

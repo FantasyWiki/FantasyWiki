@@ -190,7 +190,7 @@ export class LineupService {
     if (!playerResult.ok) return playerResult;
     if (!leagueResult.ok) return leagueResult;
     const playerName = playerResult.value.username;
-    const domain = leagueResult.value.domain as Domain;
+    const domain = leagueResult.value.domain;
 
     const lineupResult = await this.lineupRepository.getByTeamId(team.id);
     if (!lineupResult.ok) {

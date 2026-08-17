@@ -99,15 +99,21 @@ export const useLeagueStore = defineStore("league", () => {
 
     const resolved = found ?? activeLeagues.value[0];
 
-    if (resolved?.id !== candidate?.id) {
-      // The stored league was absent, stale, or has since gone inactive —
-      // correct and persist, or clear if nothing is left to fall into.
-      currentLeague.value = resolved;
-      if (resolved) {
-        localStorage.setItem("currentLeague", JSON.stringify(resolved));
-      } else {
-        localStorage.removeItem("currentLeague");
-      }
+    // Assigned even when the id is unchanged, which it did not used to be. The
+    // restored value is a `localStorage` snapshot of a league as it looked
+    // whenever it was last selected, so keeping it because the *id* still
+    // matches keeps every one of its stale fields too — its team count, and now
+    // its Language Scale Factor, which a league saved before that field existed
+    // does not carry at all. That would price a whole market off an undefined
+    // factor. The fetched object is the same league, only current.
+    currentLeague.value = resolved;
+
+    if (resolved) {
+      localStorage.setItem("currentLeague", JSON.stringify(resolved));
+    } else {
+      // Nothing left to fall into — clear rather than fabricate a placeholder
+      // league (`currentLeagueName` has its own "No League Selected" fallback).
+      localStorage.removeItem("currentLeague");
     }
 
     return resolved;

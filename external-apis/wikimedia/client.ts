@@ -5,9 +5,13 @@ import {createGetViewsByDomain, DomainResult} from "./client/getViewsByDomain";
 import {createGetLinks, articleWithLinks} from "./client/getLinks";
 import {ArticleViews, createResolveArticleViews, createResolveArticleViewsWithFallback} from "./client/articleViews";
 import {createSearchArticles, createSearchTitles} from "./client/searchArticles";
-import {ArticleSearchHit, TopReadEntry} from "./wikimedia";
+import {createGetDailyTopArticles, createGetDailyTopWindow, DailyTopArticles} from "./client/getDailyTopArticles";
+import {createGetSiteNamespaces} from "./client/getSiteNamespaces";
+import {createListEditions} from "./client/listEditions";
+import {ArticleSearchHit, SiteNamespaces, TopReadEntry, WikipediaEdition} from "./wikimedia";
 
 const DAY = 24 * 60 * 60 * 1000;
+
 /**
  * Minimal cache interface used by the shared client.
  *
@@ -122,7 +126,27 @@ export type WikimediaClient = {
         getViewsByDomain(domain: Domain): Promise<DomainResult>;
         /** Latest views/trend for a single article, independent of the top-read list. */
         getArticleViews(domain: Domain, title: string): Promise<ArticleViews>;
-
+        /**
+         * One day's `/top` payload, raw and unhydrated — every title it carries
+         * with that day's own view count, and no per-article fan-out. `null`
+         * for a day Wikimedia has no list for. This is what makes Language
+         * Scale calibration ~31 requests instead of ~501 (#532).
+         */
+        getDailyTopArticles(
+            domain: Domain,
+            date: Date,
+        ): Promise<DailyTopArticles | null>;
+        /**
+         * `days` consecutive daily lists, most recent first, ending
+         * `endingDaysAgo` days before today (yesterday by default — today's
+         * list does not exist yet). A day with no published list is `null` in
+         * place, so the array is always `days` long.
+         */
+        getDailyTopWindow(
+            domain: Domain,
+            days: number,
+            endingDaysAgo?: number,
+        ): Promise<Array<DailyTopArticles | null>>;
     };
     article: {
         getSummary(domain: Domain, title: string): Promise<ArticleSummary>;
@@ -135,6 +159,24 @@ export type WikimediaClient = {
          * request per hit on top of this.
          */
         searchTitles(domain: Domain, query: string, limit: number): Promise<ArticleSearchHit[]>;
+    };
+    /**
+     * The edition itself, rather than what people read on it: configuration
+     * that decides how its titles and its traffic should be interpreted.
+     */
+    site: {
+        /**
+         * Which titles on this edition are not content articles, from the
+         * edition's own `siteinfo` — the namespace list ADR 0002 requires in
+         * place of a hardcoded English prefix list.
+         */
+        getNamespaces(domain: Domain): Promise<SiteNamespaces>;
+        /**
+         * Every live Wikipedia language edition, from Sitematrix. The set that
+         * *exists*; which of them may host a league is decided by pageviews
+         * (#531), not by this list.
+         */
+        listEditions(): Promise<WikipediaEdition[]>;
     };
 };
 
@@ -174,6 +216,10 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}): Wik
 
     const searchTitles = createSearchTitles(http, setTtl(cache, 7*DAY), retryCount);
 
+    // Shared by the single-day and windowed forms so both go through one cache
+    // and one retry policy.
+    const dailyTopArticles = createGetDailyTopArticles(http, cache, retryCount);
+
     return {
         pageviews: {
             getTopReadList: createGetTopReadList(
@@ -181,6 +227,10 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}): Wik
             ),
             getViewsByDomain: createGetViewsByDomain( http, cache, maxFallbackDays, retryCount ),
             getArticleViews: resolveLatestArticleViews,
+            // No TTL: a past day's top-read list is immutable, so an entry that
+            // is in the cache at all is still correct.
+            getDailyTopArticles: dailyTopArticles,
+            getDailyTopWindow: createGetDailyTopWindow(dailyTopArticles),
         },
         article: {
             getSummary: createGetSummary( http, setTtl(cache,7*DAY), retryCount ),
@@ -189,6 +239,14 @@ export function createWikimediaClient(options: WikimediaClientOptions = {}): Wik
                 http, setTtl(cache, 7*DAY), retryCount, resolveArticleViews, searchTitles,
             ),
             searchTitles,
+        },
+        site: {
+            // An edition's namespace configuration changes on the order of
+            // never, so it gets the longest TTL any capability here uses.
+            getNamespaces: createGetSiteNamespaces(http, setTtl(cache, 30*DAY), retryCount),
+            // Same reasoning as the namespace list: new Wikipedia editions are
+            // years apart, so this is cached for as long as anything here is.
+            listEditions: createListEditions(http, setTtl(cache, 30*DAY), retryCount),
         },
     };
 }

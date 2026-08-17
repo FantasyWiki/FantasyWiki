@@ -46,6 +46,13 @@ export interface NewLeague {
   startDate: Temporal.Instant;
   endDate: Temporal.Instant;
   domain: string;
+  /**
+   * The Language Scale Factor to freeze onto this league. Required, with no
+   * default: a league written without one would price its contracts at the `en`
+   * reference whatever edition it plays, which is the bug ADR 0002 exists to
+   * prevent — so the caller has to have resolved a real measurement first.
+   */
+  languageScale: number;
   visibility: LeagueVisibility;
   invitePolicy: LeagueInvitePolicy;
   icon: string;

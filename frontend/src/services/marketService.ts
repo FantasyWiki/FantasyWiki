@@ -13,7 +13,6 @@ import {
   TIER_DAYS,
   computeContractPrice,
   normalizedViews,
-  resolveLanguageScale,
 } from "../../../model/pricing";
 
 const client = createWikimediaClient();
@@ -39,13 +38,10 @@ type MarketArticleSource = Pick<
 
 function toMarketArticle(
   entry: MarketArticleSource,
-  domain: Domain
+  languageScale: number
 ): MarketArticle {
   const averageViews30d = entry.averageViews30d ?? 0;
-  const normalized = normalizedViews(
-    averageViews30d,
-    resolveLanguageScale(domain)
-  );
+  const normalized = normalizedViews(averageViews30d, languageScale);
   return {
     id: entry.canonicalTitle,
     title: entry.displayTitle,
@@ -71,6 +67,7 @@ function toMarketArticle(
  */
 export async function fetchMarket(
   domain: Domain,
+  languageScale: number,
   onPartial?: (articles: MarketArticle[]) => void
 ): Promise<MarketArticle[]> {
   const result = await client.pageviews.getTopReadList(
@@ -79,18 +76,19 @@ export async function fetchMarket(
     onPartial &&
       ((partial) =>
         onPartial(
-          partial.entries.map((entry) => toMarketArticle(entry, domain))
+          partial.entries.map((entry) => toMarketArticle(entry, languageScale))
         ))
   );
-  return result.entries.map((entry) => toMarketArticle(entry, domain));
+  return result.entries.map((entry) => toMarketArticle(entry, languageScale));
 }
 
 export async function searchMarket(
   domain: Domain,
+  languageScale: number,
   query: string
 ): Promise<MarketArticle[]> {
   const entries = await client.article.search(domain, query, SEARCH_LIMIT);
-  return entries.map((entry) => toMarketArticle(entry, domain));
+  return entries.map((entry) => toMarketArticle(entry, languageScale));
 }
 
 /** A title to hydrate into a market row, with the price to show if Wikimedia has no history for it. */
@@ -114,6 +112,7 @@ export type MarketArticleRequest = {
  */
 export async function fetchMarketArticlesByTitle(
   domain: Domain,
+  languageScale: number,
   requests: MarketArticleRequest[]
 ): Promise<MarketArticle[]> {
   return mapWithLimit(requests, MAX_CONCURRENT_REQUESTS, async (request) => {
@@ -132,7 +131,7 @@ export async function fetchMarketArticlesByTitle(
         monthViews: views.monthViews,
         yearViews: views.yearViews,
       },
-      domain
+      languageScale
     );
     // A missing series here is final, not "not yet": clear `pending` so the row
     // renders the fallback price instead of a placeholder dash.

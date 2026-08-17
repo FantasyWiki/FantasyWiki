@@ -34,6 +34,7 @@ type SerializedDueContract = {
   renewalCount: number;
   renewalElected: boolean;
   domain: string;
+  languageScale: number;
   teamCredits: number;
 };
 
@@ -49,6 +50,7 @@ function serialize(contract: DueContract): SerializedDueContract {
     renewalCount: contract.renewalCount,
     renewalElected: contract.renewalElected,
     domain: contract.domain,
+    languageScale: contract.languageScale,
     teamCredits: contract.teamCredits,
   };
 }
@@ -65,6 +67,7 @@ function deserialize(contract: SerializedDueContract): DueContract {
     renewalCount: contract.renewalCount,
     renewalElected: contract.renewalElected,
     domain: contract.domain,
+    languageScale: contract.languageScale,
     teamCredits: contract.teamCredits,
   };
 }

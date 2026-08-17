@@ -24,8 +24,8 @@ import {
   TIER_DAYS,
   computeContractPrice,
   normalizedViews,
-  resolveLanguageScale,
 } from "../../../../model/pricing";
+import { REFERENCE_SCALE } from "../../../../model/languageScale";
 import { insertTeam } from "../utils/d1TestUtils";
 
 /**
@@ -259,7 +259,7 @@ describe("ContractService.buyContract Integration Tests", () => {
     tier: "SHORT" | "MEDIUM" | "LONG",
   ) {
     return computeContractPrice(
-      normalizedViews(averageViews30d, resolveLanguageScale("en")),
+      normalizedViews(averageViews30d, REFERENCE_SCALE),
       TIER_DAYS[tier],
     );
   }
@@ -811,7 +811,7 @@ describe("ContractService.sellContract Integration Tests", () => {
 
   function priceFor(averageViews30d: number, tierDays: number) {
     return computeContractPrice(
-      normalizedViews(averageViews30d, resolveLanguageScale("en")),
+      normalizedViews(averageViews30d, REFERENCE_SCALE),
       tierDays,
     );
   }

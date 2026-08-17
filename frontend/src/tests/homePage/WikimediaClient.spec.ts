@@ -3,6 +3,7 @@ import { createWikimediaClient } from "../../../../external-apis/wikimedia/clien
 import {
   buildTopReadResponse,
   buildPerArticleViewsResponse,
+  buildRoutedFetch,
 } from "../../../../external-apis/wikimedia/test-utils/fixtures";
 
 const topReadArticles = [
@@ -50,14 +51,19 @@ describe("external-apis/wikimedia/client", () => {
   });
 
   it("ignores corrupt cache entries and falls back to network", async () => {
-    const fetchFn = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        jsonResponse(buildTopReadResponse({ articles: topReadArticles }))
-      )
-      .mockResolvedValue(jsonResponse(buildPerArticleViewsResponse([10, 20])));
+    const fetchFn = vi.fn<typeof fetch>().mockImplementation(
+      buildRoutedFetch({
+        topRead: () =>
+          jsonResponse(buildTopReadResponse({ articles: topReadArticles })),
+        perArticle: () => jsonResponse(buildPerArticleViewsResponse([10, 20])),
+      })
+    );
+    // Keyed rather than call-ordered: the top-read entry is the corrupt one, and
+    // the namespace entry the client also reads is simply absent.
     const cache = {
-      getItem: vi.fn().mockReturnValueOnce("{broken-json"),
+      getItem: vi.fn((key: string) =>
+        key.includes("top-read") ? "{broken-json" : null
+      ),
       setItem: vi.fn(),
       removeItem: vi.fn(),
     };
@@ -70,22 +76,24 @@ describe("external-apis/wikimedia/client", () => {
     const result = await client.pageviews.getTopReadList("en", 5);
 
     expect(result.entries.length).toBeGreaterThan(0);
-    expect(cache.removeItem).toHaveBeenCalledTimes(1);
+    expect(cache.removeItem).toHaveBeenCalledWith(
+      expect.stringContaining("top-read")
+    );
   });
 
   it("keeps entries when 30d average lookup fails for an article", async () => {
-    const fetchFn = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        jsonResponse(
-          buildTopReadResponse({
-            articles: [{ article: "ChatGPT", views: 3000, rank: 1 }],
-          })
-        )
-      )
-      .mockResolvedValueOnce(jsonResponse({ error: "boom" }, 500))
-      .mockResolvedValueOnce(jsonResponse({ error: "boom" }, 500))
-      .mockResolvedValueOnce(jsonResponse({ error: "boom" }, 500));
+    const fetchFn = vi.fn<typeof fetch>().mockImplementation(
+      buildRoutedFetch({
+        topRead: () =>
+          jsonResponse(
+            buildTopReadResponse({
+              articles: [{ article: "ChatGPT", views: 3000, rank: 1 }],
+            })
+          ),
+        // Fails every attempt, retries included.
+        perArticle: () => jsonResponse({ error: "boom" }, 500),
+      })
+    );
 
     const client = createWikimediaClient({
       fetchFn,

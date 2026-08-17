@@ -31,6 +31,7 @@ interface LeagueContractQueryRow extends ContractRow {
 
 interface DueContractQueryRow extends ContractRow {
   domain: string;
+  languageScale: number;
   teamCredits: number;
 }
 
@@ -62,6 +63,7 @@ function toDueContract(row: DueContractQueryRow): DueContract {
   return {
     ...toContract(row),
     domain: row.domain,
+    languageScale: row.languageScale,
     teamCredits: row.teamCredits,
   };
 }
@@ -236,7 +238,8 @@ export class ContractRepositoryD1 implements ContractRepository {
       // idx_contracts_settled_expire (settled, expireDate) index.
       const result = await this.db
         .prepare(
-          `SELECT c.*, l.domain AS domain, tc.credits AS teamCredits
+          `SELECT c.*, l.domain AS domain, l.languageScale AS languageScale,
+                  tc.credits AS teamCredits
            FROM contracts c
            JOIN teams t ON c.teamId = t.id
            JOIN leagues l ON t.leagueId = l.id

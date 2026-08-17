@@ -1,8 +1,10 @@
 import { computed, type ComputedRef, type Ref } from "vue";
 import { useMyTeam } from "@/composables/useMyTeam";
+import { useLeagueStore } from "@/stores/league";
 import { buildArticleDetail, type ArticleDetail } from "@/types/articleDetail";
 import type { ArticleDTO } from "../../../dto/articleDTO";
 import type { ContractDTO } from "../../../dto/contractDTO";
+import { REFERENCE_SCALE } from "../../../model/languageScale";
 
 export type OwnershipStatus = "loading" | "ready" | "error";
 
@@ -31,6 +33,10 @@ export function useArticleOwnership(
   retry: () => void;
 } {
   const { myTeam, myTeamId, isPending, error, refetch } = useMyTeam();
+  // Read here rather than taken as an argument, for the same reason the team is:
+  // an article sheet is always open inside the current league, and every caller
+  // would otherwise have to pass a number it has no other use for.
+  const leagueStore = useLeagueStore();
 
   const status = computed<OwnershipStatus>(() => {
     if (isPending.value) return "loading";
@@ -48,6 +54,8 @@ export function useArticleOwnership(
       viewerTeamId: myTeamId.value ?? undefined,
       viewerCredits: myTeam.value?.credits ?? 0,
       averageViews30d: averageViews30d.value,
+      languageScale:
+        leagueStore.currentLeague?.languageScale ?? REFERENCE_SCALE,
     });
   });
 

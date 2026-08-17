@@ -1,6 +1,7 @@
 export * from "./contract";
 export * from "./enums";
 export * from "./googleAccount";
+export * from "./languageScale";
 export * from "./league";
 export * from "./lineup";
 export * from "./notification";

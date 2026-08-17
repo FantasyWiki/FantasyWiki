@@ -13,6 +13,7 @@ function league(overrides: Partial<LeagueDTO> = {}): LeagueDTO {
     title: "Some League",
     icon: "🏆",
     domain: "en",
+    languageScale: 1.0,
     startDate: Temporal.Now.instant().subtract({ hours: 24 }),
     endDate: Temporal.Now.instant().add({ hours: 24 * 30 }),
     visibility: LeagueVisibility.PUBLIC,

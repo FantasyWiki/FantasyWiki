@@ -20,6 +20,7 @@ export class ScoringRepositoryD1 implements ScoringRepository {
       const result = await this.db
         .prepare(
           `SELECT t.id AS teamId, t.leagueId AS leagueId, l.domain AS domain,
+                  l.languageScale AS languageScale,
                   li.schema AS schema, li.formation AS formation
            FROM teams t
            JOIN leagues l ON l.id = t.leagueId

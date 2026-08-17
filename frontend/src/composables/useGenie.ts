@@ -338,8 +338,11 @@ export function useGenie() {
 
   /** Prices what is left and hands it to the market table. */
   async function finish() {
-    const domain = leagueStore.currentLeague?.domain;
-    if (!domain) {
+    // The whole league, not just its domain: the Genie prices what it finds, and
+    // a price is only meaningful at the league's own frozen Language Scale
+    // Factor (ADR 0002).
+    const league = leagueStore.currentLeague;
+    if (!league) {
       fallAsleep();
       return;
     }
@@ -347,7 +350,8 @@ export function useGenie() {
     status.value = "thinking";
     try {
       results.value = await hydrateCandidates(
-        domain,
+        league.domain,
+        league.languageScale,
         candidates.value.slice(0, GENIE_RESULT_THRESHOLD)
       );
       status.value = "results";

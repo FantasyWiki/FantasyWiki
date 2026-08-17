@@ -1,4 +1,24 @@
-export type Domain = "en" | "it";
+/**
+ * A Wikipedia language edition, as its language code (`en`, `it`, `pt-br`).
+ *
+ * Open, and formerly `"en" | "it"`. Nothing below that union was ever restricted
+ * to two editions: `buildArticleUrl` interpolates whatever code it is given, the
+ * pageviews endpoints take any project host, and `leagues.domain` is plain TEXT.
+ * The union bought no safety at the boundary that matters — the database column —
+ * and cost an `as Domain` cast at roughly ten call sites, each of them a place
+ * where the value was *asserted* to be one of two strings that it demonstrably
+ * need not be.
+ *
+ * What replaced the type as the real restriction is data: an edition may host a
+ * league only if it has a measured Language Scale Factor, which requires clearing
+ * ADR 0002's acceptance floor against live Wikimedia data
+ * (`LanguageScaleCalibrationService`). That is a check rather than an assertion,
+ * and it is made at the write boundary.
+ *
+ * Kept as a named alias rather than deleted so signatures still say which of
+ * their several string parameters is an edition.
+ */
+export type Domain = string;
 
 export type Schema = "4-3-3" | "3-5-2" | '4-4-2' | '4-2-3-1' | '5-3-2';
 

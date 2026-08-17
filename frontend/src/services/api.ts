@@ -17,6 +17,7 @@ import { ContractDTO, type RawContract } from "../../../dto/contractDTO";
 import { ArticleDTO } from "../../../dto/articleDTO";
 import { PerformanceDTO } from "../../../dto/performanceDTO";
 import { LeaderboardEntryDTO } from "../../../dto/leaderboardDTO";
+import type { WikipediaEditionDTO } from "../../../dto/wikipediaEditionDTO";
 import type {
   CreateProblemReportRequest,
   ProblemReportCreatedDTO,
@@ -28,6 +29,7 @@ import type {
   GenieTurnResponse,
 } from "../../../dto/genieDTO";
 import { Temporal } from "@js-temporal/polyfill";
+import { normalizeLanguageScale } from "../../../model/languageScale";
 import {
   TIER_DAYS,
   computeCurrentPrice,
@@ -84,6 +86,11 @@ async function apiRequest<T>(
 export function deserializeLeague(l: LeagueDTO): LeagueDTO {
   return {
     ...l,
+    // Guarded rather than trusted, because this also parses the league restored
+    // from `localStorage` on boot — which may have been saved before the field
+    // existed. An absent factor would multiply out to NaN and show every article
+    // in the market priced at 0 until the fetch landed.
+    languageScale: normalizeLanguageScale(l.languageScale),
     startDate: Temporal.Instant.from(l.startDate as unknown as string),
     endDate: Temporal.Instant.from(l.endDate as unknown as string),
     // Null for every open league, which is most of them — so this is the one
@@ -330,7 +337,8 @@ const wikimediaClient = createWikimediaClient();
  * invisible to the viewer.
  */
 export async function getContractCurrentPrice(
-  contract: ContractDTO
+  contract: ContractDTO,
+  languageScale: number
 ): Promise<number> {
   const views = await wikimediaClient.pageviews.getArticleViews(
     contract.article.domain,
@@ -341,7 +349,7 @@ export async function getContractCurrentPrice(
   }
   return computeCurrentPrice(
     views.averageViews30d,
-    contract.article.domain,
+    languageScale,
     TIER_DAYS[contract.tier as ContractTier]
   );
 }
@@ -360,7 +368,9 @@ export const dashboardApi = {
     const rank = leaderboard.find((e) => e.team.id === team.id)?.rank ?? 0;
     const totalPlayers = leaderboard.length;
     const currentPrices = await Promise.all(
-      contracts.map(getContractCurrentPrice)
+      contracts.map((contract) =>
+        getContractCurrentPrice(contract, league.languageScale)
+      )
     );
     const portfolioValue = currentPrices.reduce((sum, p) => sum + p, 0);
 
@@ -386,6 +396,17 @@ export const sessionApi = {
 };
 
 // ── Problem reports ───────────────────────────────────────────────────────────
+
+/**
+ * The Wikipedia editions a league can be founded on.
+ *
+ * Unscoped and the same for everyone, so it is fetched once and cached for the
+ * session — it changes when a scheduled screen changes it, which is daily at
+ * most (#531).
+ */
+export const wikipediaEditionsApi = {
+  getAll: () => apiRequest<WikipediaEditionDTO[]>("/wikipedia-editions"),
+};
 
 export const reportsApi = {
   // The reporter is never sent: the backend resolves them from the session.
@@ -431,6 +452,7 @@ export const api = {
   session: sessionApi,
   reports: reportsApi,
   genie: genieApi,
+  wikipediaEditions: wikipediaEditionsApi,
 };
 
 export default api;

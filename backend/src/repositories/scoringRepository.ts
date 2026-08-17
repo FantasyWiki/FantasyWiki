@@ -1,11 +1,16 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { Result } from "./result";
 
-/** A team's lineup joined with its league domain (one row per team with a lineup). */
+/**
+ * A team's lineup joined with its league's domain and frozen Language Scale
+ * Factor (one row per team with a lineup).
+ */
 export interface TeamLineupRow {
   teamId: string;
   leagueId: string;
   domain: string;
+  /** The league's frozen factor — what its scores are normalized by (ADR 0002). */
+  languageScale: number;
   schema: string;
   /** Stored lineup JSON: position -> contractId. */
   formation: string;

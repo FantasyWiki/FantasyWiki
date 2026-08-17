@@ -1,7 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { CHEMISTRY_LINKS, ChemistryLevel } from "../../../model/enums";
-import type { Domain } from "../../../model/enums";
-import { resolveLanguageScale } from "../../../model/pricing";
+import { normalizeLanguageScale } from "../../../model/languageScale";
 import { teamDailyScore } from "../../../model/scoring";
 import { ScoringRepositoryD1 } from "../repositories/d1/scoringRepositoryD1";
 import { PerformanceRepositoryD1 } from "../repositories/d1/performanceRepositoryD1";
@@ -134,8 +133,11 @@ export class ScoringService {
     // Resolve each team's L from its league domain — authoritative, server-side.
     const lineupsResult = await this.scoringRepository.getTeamLineups();
     if (!lineupsResult.ok) return lineupsResult;
-    const domainByTeam = new Map<string, string>(
-      lineupsResult.value.map((row) => [row.teamId, row.domain]),
+    // Each team's league carries the factor its scores are computed at, frozen
+    // when the league was founded — so a recalibration never re-rates a season
+    // already in progress (ADR 0002).
+    const scaleByTeam = new Map<string, number>(
+      lineupsResult.value.map((row) => [row.teamId, row.languageScale]),
     );
     const validLevels = new Set<string>(Object.values(ChemistryLevel));
 
@@ -144,8 +146,8 @@ export class ScoringService {
       if (typeof result.teamId !== "string" || result.teamId.length === 0) {
         return failure("each result requires a non-empty teamId");
       }
-      const domain = domainByTeam.get(result.teamId);
-      if (domain === undefined) {
+      const languageScale = scaleByTeam.get(result.teamId);
+      if (languageScale === undefined) {
         return failure(`unknown team ${result.teamId}`);
       }
       if (
@@ -170,7 +172,7 @@ export class ScoringService {
           : "{}";
       const points = teamDailyScore(
         result.articleViews,
-        resolveLanguageScale(domain as Domain),
+        normalizeLanguageScale(languageScale),
         result.chemistryLevels,
       );
       rows.push({

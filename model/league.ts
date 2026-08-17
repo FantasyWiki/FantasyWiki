@@ -83,21 +83,34 @@ export function isLeagueIcon(value: unknown): value is string {
 }
 
 /**
- * The Wikipedia editions a league can currently be created in.
+ * Whether a value could be a Wikipedia language code at all.
  *
- * A deliberately narrow list, and a temporary one: nothing below the type layer
- * is restricted to two editions — `buildArticleUrl` interpolates any language
- * code, and `resolveLanguageScale` already falls back to the `en` reference for
- * a domain it has no calibration for. Issue #531 replaces this constant with
- * the live Wikipedia edition list above a pageview floor; until then this is
- * the one place the restriction is stated, so that swap is a one-function
- * change rather than a hunt.
+ * A *shape* check, and nothing more. It replaces `LEAGUE_DOMAINS` — a
+ * hand-maintained list of the two editions the game offered — which was never a
+ * restriction on anything real: every layer beneath it interpolates whatever code
+ * it is given, and the database column is plain TEXT.
+ *
+ * What an edition may actually host a league on is not a question a predicate can
+ * answer, so this one does not pretend to: it exists to reject `""`,
+ * `"../../etc"` and a 400-character string before any of that reaches a URL, and
+ * the real decisions are made against live data at the write boundary —
+ * `WikipediaEditionService.isOfferable` (is it a live edition with enough read
+ * articles) and `LanguageScaleCalibrationService.resolve` (does it clear ADR
+ * 0002's acceptance floor). See docs/domain/language-editions.md.
+ *
+ * The pattern matches Wikimedia's own codes: lowercase letters, digits and
+ * hyphens, as in `en`, `it`, `pt-br`, `zh-yue`, `roa-tara`, `simple`.
  */
-export const LEAGUE_DOMAINS = ["en", "it"] as const satisfies readonly Domain[];
+const WIKIPEDIA_LANGUAGE_CODE = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
-export function isLeagueDomain(value: unknown): value is Domain {
+export const WIKIPEDIA_LANGUAGE_CODE_MAX_LENGTH = 20;
+
+export function isWikipediaLanguageCode(value: unknown): value is Domain {
   return (
-    typeof value === "string" && (LEAGUE_DOMAINS as readonly string[]).includes(value)
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= WIKIPEDIA_LANGUAGE_CODE_MAX_LENGTH &&
+    WIKIPEDIA_LANGUAGE_CODE.test(value)
   );
 }
 
@@ -154,6 +167,23 @@ export interface League {
   startDate: Temporal.Instant;
   endDate: Temporal.Instant;
   domain: string;
+  /**
+   * The Language Scale Factor every price and every score in this league is
+   * computed at, frozen when it was founded.
+   *
+   * A copy of what `language_scales` held for `domain` at that moment, and
+   * carried on the league rather than looked up per read *because* it is a copy.
+   * ADR 0002: "a live factor would re-rate locked-price contracts and make
+   * scores drift with no player-visible cause". Recalibration is expected
+   * roughly annually, and a league that read the registry would silently
+   * re-price every contract in it the day that happened; a league that carries
+   * its own factor is unaffected, and only leagues founded afterwards use the
+   * new measurement.
+   *
+   * It is also why no scoring or pricing path needs `resolveLanguageScale` any
+   * more: the number arrives with the league that defines it.
+   */
+  languageScale: number;
   visibility: LeagueVisibility;
   invitePolicy: LeagueInvitePolicy;
   icon: string;

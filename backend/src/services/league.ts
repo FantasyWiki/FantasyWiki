@@ -7,7 +7,6 @@ import {
   LeagueRoleDTO,
 } from "../../../dto/leagueDTO";
 import {
-  Domain,
   LeagueInvitePolicy,
   LeagueVisibility,
   isLeagueInvitePolicy,
@@ -17,7 +16,7 @@ import {
   LEAGUE_NAME_MAX_LENGTH,
   LEAGUE_NAME_MIN_LENGTH,
   isInvitationCode,
-  isLeagueDomain,
+  isWikipediaLanguageCode,
   isLeagueDuration,
   isLeagueIcon,
   isLeagueName,
@@ -36,6 +35,7 @@ import {
 import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
 import { Result, failure, success } from "../repositories/result";
 import { withUniqueInvitationCode } from "./invitationCode";
+import { LanguageScaleCalibrationService } from "./languageScaleCalibration";
 
 /**
  * Why a league-creation payload was turned down.
@@ -51,6 +51,19 @@ export const LEAGUE_CREATION_ERRORS = {
   NAME_LENGTH: `League name must be between ${LEAGUE_NAME_MIN_LENGTH} and ${LEAGUE_NAME_MAX_LENGTH} characters`,
   UNKNOWN_ICON: "Unknown league icon",
   UNKNOWN_DOMAIN: "Unsupported Wikipedia edition",
+  /**
+   * The edition could not be given a Language Scale Factor, so no league may be
+   * founded on it (ADR 0002). Distinct from `UNKNOWN_DOMAIN`, which is about a
+   * payload naming an edition that is not offered at all — this one is about an
+   * edition that exists and is too thin to score fairly, and the two want
+   * different words in front of a player.
+   *
+   * The named reasons live on the service that measures
+   * (`CALIBRATION_ERRORS`); this is the one the *creation* path owns, for the
+   * case where it never got to ask.
+   */
+  UNCALIBRATED_DOMAIN:
+    "This Wikipedia edition has no measured Language Scale Factor",
   UNKNOWN_DURATION: "Unknown league duration",
   UNKNOWN_VISIBILITY: "Unknown league visibility",
   UNKNOWN_INVITE_POLICY: "Unknown invite policy",
@@ -71,8 +84,12 @@ export const PUBLIC_LEAGUES_LIMIT = 12;
  *
  * Every field is checked against the shared model rather than against a rule
  * restated here, so the form that offers the choices and the endpoint that
- * accepts them cannot drift: same icon palette, same durations, same editions
- * (#531 will widen that last one), same name bounds.
+ * accepts them cannot drift: same icon palette, same durations, same name bounds.
+ *
+ * The edition is the exception, and deliberately so. Its rule is not a constant
+ * both sides can share — it is "Wikimedia lists it and enough of its articles are
+ * read" — so all this checks is that the value is shaped like a language code.
+ * The real gates are in `createLeague`.
  */
 export function parseCreateLeaguePayload(
   body: unknown,
@@ -89,7 +106,11 @@ export function parseCreateLeaguePayload(
   if (!isLeagueIcon(icon)) {
     return failure(LEAGUE_CREATION_ERRORS.UNKNOWN_ICON);
   }
-  if (!isLeagueDomain(domain)) {
+  // Shape only. Whether this edition exists and may host a league is a question
+  // for live data, asked in `createLeague` — a pure parser cannot read the
+  // screened-editions table, and pretending otherwise is what the retired
+  // `LEAGUE_DOMAINS` list did.
+  if (!isWikipediaLanguageCode(domain)) {
     return failure(LEAGUE_CREATION_ERRORS.UNKNOWN_DOMAIN);
   }
   if (!isLeagueDuration(duration)) {
@@ -135,7 +156,8 @@ export function toLeagueDTO(league: League, teamCount: number): LeagueDTO {
   return {
     id: league.id,
     title: league.name,
-    domain: league.domain as Domain,
+    domain: league.domain,
+    languageScale: league.languageScale,
     icon: league.icon,
     startDate: league.startDate,
     endDate: league.endDate,
@@ -147,13 +169,29 @@ export function toLeagueDTO(league: League, teamCount: number): LeagueDTO {
 
 export class LeagueService {
   private repository: LeagueRepository;
+  private calibration?: LanguageScaleCalibrationService;
 
-  constructor(repositoryOrDb: LeagueRepository | D1Database) {
+  /**
+   * `calibration` is optional because only one of this service's methods needs
+   * it — founding a league is the single moment a Language Scale Factor has to
+   * exist — and requiring it would make every read-only construction carry a
+   * Wikimedia client it never calls. Constructed from a `D1Database` it is wired
+   * automatically; passed a repository (as tests do) it must be supplied to
+   * create a league, and `createLeague` refuses rather than silently defaulting
+   * the factor.
+   */
+  constructor(
+    repositoryOrDb: LeagueRepository | D1Database,
+    calibration?: LanguageScaleCalibrationService,
+  ) {
     if ("getById" in repositoryOrDb) {
       this.repository = repositoryOrDb;
+      this.calibration = calibration;
       return;
     }
     this.repository = new LeagueRepositoryD1(repositoryOrDb);
+    this.calibration =
+      calibration ?? new LanguageScaleCalibrationService(repositoryOrDb);
   }
 
   async getGlobalLeague(): Promise<Result<LeagueDTO>> {
@@ -217,11 +255,32 @@ export class LeagueService {
    * endpoint that serves one, and the founder now passes its membership check
    * — keeping that true of *every* response is what makes the rule in ADR 0008
    * §2 something a test can pin rather than a habit.
+   *
+   * **The edition's Language Scale Factor is resolved before anything is
+   * written, and the league is not created if it cannot be.** That ordering is
+   * the invariant ADR 0002 states: a factor is frozen before the first price is
+   * computed in an edition, because one backfilled afterwards would silently
+   * re-rate every contract bought in the meantime. An edition nobody has played
+   * yet is measured here and now — a few seconds of Wikimedia requests — and an
+   * edition too small to measure meaningfully is refused outright rather than
+   * quietly played at the English scale.
    */
   async createLeague(
     playerId: string,
     request: CreateLeagueRequest,
   ): Promise<Result<LeagueDTO>> {
+    if (!this.calibration) {
+      // Only reachable from a hand-constructed service (a test passing a bare
+      // repository). Failing here is the point: the alternative is defaulting
+      // the factor to 1.0, which is exactly the silent mis-pricing this whole
+      // path exists to make impossible.
+      return failure(LEAGUE_CREATION_ERRORS.UNCALIBRATED_DOMAIN);
+    }
+    const scale = await this.calibration.resolve(request.domain);
+    if (!scale.ok) {
+      return scale;
+    }
+
     const startDate = Temporal.Now.instant();
     const write = (invitationCode: string | null) =>
       this.repository.createWithFoundingTeam(
@@ -231,6 +290,7 @@ export class LeagueService {
           startDate,
           endDate: leagueEndDate(startDate, request.duration),
           domain: request.domain,
+          languageScale: scale.value.scale,
           visibility: request.visibility,
           invitePolicy: request.invitePolicy,
           icon: request.icon,

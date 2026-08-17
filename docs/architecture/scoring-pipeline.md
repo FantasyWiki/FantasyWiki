@@ -203,7 +203,7 @@ platform is revisited.
 
 | Item | State |
 |---|---|
-| Language Scale Factor `L` | `model/pricing.ts` `LANGUAGE_SCALE` is still the placeholder `{en:1.0, it:1.0}`. en/it score correctly; any other domain is blocked on [ADR 0002](../adr/0002-language-scale-factor.md) calibration, and a domain's `L` must be frozen before its first score. |
+| Language Scale Factor `L` | Read from the scored team's league (`leagues.languageScale`), frozen when that league was founded. An edition with no measurement cannot host a league at all — `LanguageScaleCalibrationService` measures it at creation time or refuses it ([ADR 0002](../adr/0002-language-scale-factor.md), [language editions](../domain/language-editions.md)) — so the scoring path never has to ask whether a factor exists. |
 | `CHEMISTRY_MULTIPLIER_BY_LEVEL` | Deprecated display-only leftover in `model/enums.ts`. Chemistry is **additive**, never a multiplier — see [ADR 0001](../adr/0001-base-scoring-model.md). Must never reach a scoring path. |
 | Client-side chemistry levels | `frontend/src/services/teamService.ts` computes levels for display only; the pipeline is authoritative and the frontend value must never feed back into scoring. |
 | Link-call clustering | Block-grid chunking is ⌈N/50⌉² past 50 articles per domain. Union-find components bin-packed into ≤50 batches would be ~⌈N/50⌉ — the better optimization when a pool outgrows one request. |

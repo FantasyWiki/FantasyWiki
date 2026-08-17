@@ -87,13 +87,34 @@ describe("parseCreateLeaguePayload", () => {
     ).toEqual({ ok: false, error: LEAGUE_CREATION_ERRORS.UNKNOWN_ICON });
   });
 
-  it("refuses an edition the game does not run yet", () => {
-    // Narrow on purpose until #531 sources the list from Wikipedia itself.
-    expect(
-      parseCreateLeaguePayload(
-        request({ domain: "fr" as CreateLeagueRequest["domain"] }),
-      ),
-    ).toEqual({ ok: false, error: LEAGUE_CREATION_ERRORS.UNKNOWN_DOMAIN });
+  it("accepts any well-formed language code, because the parser cannot know better", () => {
+    // The rule this used to encode — a closed two-edition list — is gone (#531).
+    // Which editions can host a league is now decided against live Wikimedia
+    // data at the write boundary, so a pure parser's only remaining job is shape.
+    expect(parseCreateLeaguePayload(request({ domain: "fr" })).ok).toBe(true);
+    expect(parseCreateLeaguePayload(request({ domain: "pt-br" })).ok).toBe(
+      true,
+    );
+    expect(parseCreateLeaguePayload(request({ domain: "simple" })).ok).toBe(
+      true,
+    );
+  });
+
+  it("refuses a domain that is not shaped like a language code at all", () => {
+    // What the shape check is actually for: keeping junk out of the URL these
+    // codes are interpolated into, before anything spends a request on it.
+    for (const domain of [
+      "",
+      "EN",
+      "../../etc/passwd",
+      "en_US",
+      "en.wikipedia",
+    ]) {
+      expect(parseCreateLeaguePayload(request({ domain }))).toEqual({
+        ok: false,
+        error: LEAGUE_CREATION_ERRORS.UNKNOWN_DOMAIN,
+      });
+    }
   });
 
   it("refuses a duration it was not offered", () => {
@@ -420,6 +441,7 @@ describe("LeagueService.createLeague", () => {
         startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
         endDate: Temporal.Instant.from("2026-02-01T00:00:00Z"),
         domain: "en",
+        languageScale: 1.0,
         visibility: LeagueVisibility.PRIVATE,
         invitePolicy: LeagueInvitePolicy.MEMBERS,
         icon: LEAGUE_ICONS[0],

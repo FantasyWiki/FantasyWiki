@@ -61,18 +61,14 @@ describe("Scoring engine integration", () => {
       await new LineupService({
         ...repositories(),
         teamService: new TeamService(repositories()),
-      }).saveLineup(
-        playerId,
-        GLOBAL_LEAGUE_ID,
-        {
-          formation: {
-            date: SCORE_DATE,
-            schema,
-            formation: positions as never,
-          },
-          bench: [],
+      }).saveLineup(playerId, GLOBAL_LEAGUE_ID, {
+        formation: {
+          date: SCORE_DATE,
+          schema,
+          formation: positions as never,
         },
-      ),
+        bench: [],
+      }),
       "lineup",
     );
   }

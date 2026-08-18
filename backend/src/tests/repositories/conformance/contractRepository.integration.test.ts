@@ -3,8 +3,13 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { CONTRACT_WRITE_ERRORS } from "../../../repositories/contractRepository";
 import { unwrap } from "../../../repositories/result";
 import { GLOBAL_LEAGUE_ID } from "../../../services/league";
-import { repositories, store } from "../../support/target";
-import { aPlayer, aTeamIn, creditsOf, unique } from "./subjects";
+import { repositories } from "../../support/target";
+import {
+  anotherLeague,
+  aTeamIn,
+  creditsOf,
+  unique,
+} from "../../support/subjects";
 import {
   MAX_TEAM_CONTRACTS,
   STARTING_CREDITS,
@@ -102,11 +107,7 @@ describe("ContractRepository conformance", () => {
     });
 
     it("does not let a holding in another league block the article", async () => {
-      const elsewhere = await store().createLeague({
-        id: unique("league"),
-        name: "Another League",
-        adminId: await aPlayer(),
-      });
+      const elsewhere = await anotherLeague();
       const foreign = await aTeamIn(elsewhere.id);
       await hold(foreign.id, "Bitcoin", 10);
 

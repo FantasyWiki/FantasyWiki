@@ -1,12 +1,5 @@
-import { Temporal } from "@js-temporal/polyfill";
 import { applyD1Migrations, D1Migration } from "cloudflare:test";
-import { League } from "../../../../../model";
-import {
-  LeagueInvitePolicy,
-  LeagueVisibility,
-} from "../../../../../model/enums";
-import { REFERENCE_SCALE } from "../../../../../model/languageScale";
-import { NewLeagueAttrs, TestStore } from "../testStore";
+import { TestStore } from "../testStore";
 
 /**
  * D1's own bookkeeping. Unlike `d1_migrations`, this one rejects writes with
@@ -36,37 +29,6 @@ export class D1TestStore implements TestStore {
   async reset(): Promise<void> {
     await this.dropSchema();
     await applyD1Migrations(this.db, this.migrations);
-  }
-
-  async createLeague(attrs: NewLeagueAttrs): Promise<League> {
-    const league = {
-      id: attrs.id,
-      name: attrs.name,
-      adminId: attrs.adminId,
-      startDate: attrs.startDate ?? "2024-01-01T00:00:00Z",
-      endDate: attrs.endDate ?? "2124-01-01T00:00:00Z",
-      domain: attrs.domain ?? "en",
-      languageScale: REFERENCE_SCALE,
-      icon: attrs.icon ?? "🌍",
-      visibility: LeagueVisibility.PUBLIC,
-      invitePolicy: LeagueInvitePolicy.MEMBERS,
-    };
-
-    await this.db
-      .prepare(
-        `INSERT INTO leagues
-           (id, name, adminId, startDate, endDate, domain, languageScale, icon, visibility, invitePolicy)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(...Object.values(league))
-      .run();
-
-    return {
-      ...league,
-      startDate: Temporal.Instant.from(league.startDate),
-      endDate: Temporal.Instant.from(league.endDate),
-      closedAt: null,
-    };
   }
 
   /**

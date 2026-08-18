@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { PLAYER_ERRORS } from "../../../repositories/playerRepository";
 import { unwrap } from "../../../repositories/result";
 import { repositories } from "../../support/target";
-import { unique } from "./subjects";
+import { unique } from "../../support/subjects";
 
 /**
  * What any PlayerRepository owes its callers. D1 keeps these with UNIQUE

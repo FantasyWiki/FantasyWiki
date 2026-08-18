@@ -1,18 +1,19 @@
 import { env } from "cloudflare:workers";
+import { Temporal } from "@js-temporal/polyfill";
 import { Hono } from "hono";
 import { describe, it, expect, beforeEach } from "vitest";
 import leagues from "../../routes/leagues";
 import { GLOBAL_LEAGUE_ID, LEAGUE_CLOSURE_ERRORS } from "../../services/league";
 import { LEAGUE_ERRORS } from "../../repositories/leagueRepository";
+import { unwrap } from "../../repositories/result";
 import { TEAM_ERRORS } from "../../repositories/teamRepository";
+import { REFERENCE_SCALE } from "../../../../model/languageScale";
 import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
 import { LEAGUE_ICONS } from "../../../../model/league";
 import { PlayerService } from "../../services/player";
-import { insertLeague } from "../utils/d1TestUtils";
 import { injectDeps } from "../support/injectDeps";
-import { repositories, store } from "../support/target";
-
-const LEAGUE_ID = "league-route-1";
+import { aLeague, anotherLeague, aPlayer } from "../support/subjects";
+import { repositories } from "../support/target";
 
 // The router is mounted bare rather than through `app`, because `/api/*` sits
 // behind the JWT middleware and neither route under test reads the payload.
@@ -20,24 +21,34 @@ const app = new Hono().use("*", injectDeps()).route("/leagues", leagues);
 
 describe("GET /leagues/:id", () => {
   // A second league, so the response is distinguishable from the Global one.
+  let leagueId: string;
+
   beforeEach(async () => {
-    await store().createLeague({
-      id: LEAGUE_ID,
-      name: "Friday Night Wiki",
-      adminId: "system",
-      startDate: "2026-01-01T00:00:00Z",
-      endDate: "2026-03-01T00:00:00Z",
-      domain: "it",
-      icon: "🍕",
-    });
+    leagueId = (
+      await aLeague(
+        {
+          name: "Friday Night Wiki",
+          adminId: await aPlayer(),
+          startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+          endDate: Temporal.Instant.from("2026-03-01T00:00:00Z"),
+          domain: "it",
+          languageScale: REFERENCE_SCALE,
+          icon: "🍕",
+          visibility: LeagueVisibility.PUBLIC,
+          invitePolicy: LeagueInvitePolicy.MEMBERS,
+          invitationCode: null,
+        },
+        "Pizza Founders",
+      )
+    ).league.id;
   });
 
   it("returns the league named in the path", async () => {
-    const response = await app.request(`/leagues/${LEAGUE_ID}`, {}, env);
+    const response = await app.request(`/leagues/${leagueId}`, {}, env);
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      id: LEAGUE_ID,
+      id: leagueId,
       title: "Friday Night Wiki",
       domain: "it",
       icon: "🍕",
@@ -127,13 +138,13 @@ describe("POST /leagues", () => {
     const response = await authed.request("/leagues", body(), env);
     const created = (await response.json()) as { id: string };
 
-    const stored = await env.db
-      .prepare("SELECT invitationCode FROM leagues WHERE id = ?")
-      .bind(created.id)
-      .first<{ invitationCode: string }>();
+    const storedCode = unwrap(
+      await repositories().leagues.getInvitationCode(created.id),
+      "invitation code",
+    );
 
-    expect(stored?.invitationCode).toBeTruthy();
-    expect(JSON.stringify(created)).not.toContain(stored!.invitationCode);
+    expect(storedCode).toBeTruthy();
+    expect(JSON.stringify(created)).not.toContain(storedCode);
   });
 
   it("answers 400, not 500, for a payload it cannot accept", async () => {
@@ -158,20 +169,35 @@ describe("POST /leagues", () => {
 });
 
 describe("the invitation code never rides on a league read", () => {
+  const CODE = "ZK7QW";
+  let leakyId: string;
+
   beforeEach(async () => {
-    await insertLeague(env.db, {
-      id: "leaky",
-      visibility: LeagueVisibility.PRIVATE,
-      invitationCode: "ZK7QW",
-    });
+    leakyId = (
+      await aLeague(
+        {
+          name: "Leaky League",
+          adminId: await aPlayer(),
+          startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+          endDate: Temporal.Instant.from("2126-01-01T00:00:00Z"),
+          domain: "en",
+          languageScale: REFERENCE_SCALE,
+          icon: "🕵️",
+          visibility: LeagueVisibility.PRIVATE,
+          invitePolicy: LeagueInvitePolicy.MEMBERS,
+          invitationCode: CODE,
+        },
+        "Leaky Founders",
+      )
+    ).league.id;
   });
 
   it("keeps it out of GET /leagues/:id", async () => {
-    const response = await app.request("/leagues/leaky", {}, env);
+    const response = await app.request(`/leagues/${leakyId}`, {}, env);
     const body = await response.json();
 
     expect(Object.keys(body as object)).not.toContain("invitationCode");
-    expect(JSON.stringify(body)).not.toContain("ZK7QW");
+    expect(JSON.stringify(body)).not.toContain(CODE);
   });
 
   it("keeps it out of GET /leagues/global", async () => {
@@ -182,10 +208,10 @@ describe("the invitation code never rides on a league read", () => {
   });
 
   it("still reports the league's visibility, which is not a secret", async () => {
-    const response = await app.request("/leagues/leaky", {}, env);
+    const response = await app.request(`/leagues/${leakyId}`, {}, env);
 
     await expect(response.json()).resolves.toMatchObject({
-      id: "leaky",
+      id: leakyId,
       visibility: LeagueVisibility.PRIVATE,
     });
   });
@@ -202,8 +228,7 @@ describe("the invitation code never rides on a league read", () => {
 describe("league lifecycle endpoints", () => {
   const ADMIN_ACCOUNT = "acct-route-admin";
   const MEMBER_ACCOUNT = "acct-route-member";
-  let adminId: string;
-  let memberId: string;
+  let leagueId: string;
 
   function authedAs(accountId: string) {
     return new Hono()
@@ -213,15 +238,6 @@ describe("league lifecycle endpoints", () => {
         await next();
       })
       .route("/leagues", leagues);
-  }
-
-  async function addTeam(id: string, name: string, playerId: string) {
-    await env.db
-      .prepare(
-        "INSERT INTO teams (id, name, playerId, leagueId) VALUES (?, ?, ?, ?)",
-      )
-      .bind(id, name, playerId, "lifecycle-lg")
-      .run();
   }
 
   beforeEach(async () => {
@@ -237,17 +253,40 @@ describe("league lifecycle endpoints", () => {
       MEMBER_ACCOUNT,
     );
     if (!admin.ok || !member.ok) throw new Error("setup failed");
-    adminId = admin.value.id;
-    memberId = member.value.id;
 
-    await insertLeague(env.db, { id: "lifecycle-lg", adminId });
-    await addTeam("lifecycle-admin-team", "Founders", adminId);
-    await addTeam("lifecycle-member-team", "Challengers", memberId);
+    // The admin's own team arrives with the league; the member's is the second,
+    // which is what makes the admin's departure a hand-over rather than a
+    // closure.
+    leagueId = (
+      await aLeague(
+        {
+          name: "Lifecycle League",
+          adminId: admin.value.id,
+          startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+          endDate: Temporal.Instant.from("2126-01-01T00:00:00Z"),
+          domain: "en",
+          languageScale: REFERENCE_SCALE,
+          icon: "🔁",
+          visibility: LeagueVisibility.PUBLIC,
+          invitePolicy: LeagueInvitePolicy.MEMBERS,
+          invitationCode: null,
+        },
+        "Founders",
+      )
+    ).league.id;
+    unwrap(
+      await repositories().teams.create({
+        name: "Challengers",
+        playerId: member.value.id,
+        leagueId,
+      }),
+      "member team",
+    );
   });
 
   it("answers 200 with the closed league for its admin", async () => {
     const response = await authedAs(ADMIN_ACCOUNT).request(
-      "/leagues/lifecycle-lg/closure",
+      `/leagues/${leagueId}/closure`,
       { method: "POST" },
       env,
     );
@@ -259,7 +298,7 @@ describe("league lifecycle endpoints", () => {
 
   it("answers 403 when someone other than the admin tries to close", async () => {
     const response = await authedAs(MEMBER_ACCOUNT).request(
-      "/leagues/lifecycle-lg/closure",
+      `/leagues/${leagueId}/closure`,
       { method: "POST" },
       env,
     );
@@ -272,10 +311,10 @@ describe("league lifecycle endpoints", () => {
 
   it("answers 409 on a second close", async () => {
     const app = authedAs(ADMIN_ACCOUNT);
-    await app.request("/leagues/lifecycle-lg/closure", { method: "POST" }, env);
+    await app.request(`/leagues/${leagueId}/closure`, { method: "POST" }, env);
 
     const response = await app.request(
-      "/leagues/lifecycle-lg/closure",
+      `/leagues/${leagueId}/closure`,
       { method: "POST" },
       env,
     );
@@ -298,7 +337,7 @@ describe("league lifecycle endpoints", () => {
 
   it("answers 200 when a member leaves", async () => {
     const response = await authedAs(MEMBER_ACCOUNT).request(
-      "/leagues/lifecycle-lg/my-departure",
+      `/leagues/${leagueId}/my-departure`,
       { method: "POST" },
       env,
     );
@@ -309,7 +348,7 @@ describe("league lifecycle endpoints", () => {
 
   it("lets the admin leave, handing the league to whoever remains", async () => {
     const response = await authedAs(ADMIN_ACCOUNT).request(
-      "/leagues/lifecycle-lg/my-departure",
+      `/leagues/${leagueId}/my-departure`,
       { method: "POST" },
       env,
     );
@@ -321,13 +360,13 @@ describe("league lifecycle endpoints", () => {
   it("answers 409 on a second departure", async () => {
     const app = authedAs(MEMBER_ACCOUNT);
     await app.request(
-      "/leagues/lifecycle-lg/my-departure",
+      `/leagues/${leagueId}/my-departure`,
       { method: "POST" },
       env,
     );
 
     const response = await app.request(
-      "/leagues/lifecycle-lg/my-departure",
+      `/leagues/${leagueId}/my-departure`,
       { method: "POST" },
       env,
     );
@@ -339,10 +378,10 @@ describe("league lifecycle endpoints", () => {
   });
 
   it("answers 404 when a non-member tries to leave", async () => {
-    await insertLeague(env.db, { id: "lifecycle-other" });
+    const elsewhere = await anotherLeague();
 
     const response = await authedAs(MEMBER_ACCOUNT).request(
-      "/leagues/lifecycle-other/my-departure",
+      `/leagues/${elsewhere.id}/my-departure`,
       { method: "POST" },
       env,
     );
@@ -355,7 +394,7 @@ describe("league lifecycle endpoints", () => {
 
   it("answers 409 when joining a closed league", async () => {
     await authedAs(ADMIN_ACCOUNT).request(
-      "/leagues/lifecycle-lg/closure",
+      `/leagues/${leagueId}/closure`,
       { method: "POST" },
       env,
     );
@@ -367,7 +406,7 @@ describe("league lifecycle endpoints", () => {
     if (!outsider.ok) throw new Error("setup failed");
 
     const response = await authedAs("acct-route-outsider").request(
-      "/leagues/lifecycle-lg/my-team",
+      `/leagues/${leagueId}/my-team`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

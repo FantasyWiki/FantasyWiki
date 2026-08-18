@@ -24,8 +24,10 @@ import {
   computeContractPrice,
   normalizedViews,
 } from "../../../../model/pricing";
+import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
 import { REFERENCE_SCALE } from "../../../../model/languageScale";
-import { repositories, store } from "../support/target";
+import { aLeague, anotherLeague, aPlayer } from "../support/subjects";
+import { repositories } from "../support/target";
 import {
   unusedWikimedia,
   wikimediaWithArticleViews,
@@ -101,23 +103,26 @@ describe("ContractService.getLeagueContracts Integration Tests", () => {
     playerId = playerResult.value.id;
 
     // An "it" league, so the domain the DTO reports is visibly the league's
-    // rather than a default.
+    // rather than a default. Founded by someone else, because the player under
+    // test creates their own team below and a founder already has one.
     leagueId = (
-      await store().createLeague({
-        id: "league-contracts-1",
-        name: "Contracts League",
-        adminId: playerId,
-        domain: "it",
-        icon: "🏆",
-      })
-    ).id;
-    otherLeagueId = (
-      await store().createLeague({
-        id: "league-contracts-2",
-        name: "Other Contracts League",
-        adminId: playerId,
-      })
-    ).id;
+      await aLeague(
+        {
+          name: "Contracts League",
+          adminId: await aPlayer(),
+          startDate: Temporal.Instant.from("2024-01-01T00:00:00Z"),
+          endDate: Temporal.Instant.from("2124-01-01T00:00:00Z"),
+          domain: "it",
+          languageScale: REFERENCE_SCALE,
+          icon: "🏆",
+          visibility: LeagueVisibility.PUBLIC,
+          invitePolicy: LeagueInvitePolicy.MEMBERS,
+          invitationCode: null,
+        },
+        "Contract Founders",
+      )
+    ).league.id;
+    otherLeagueId = (await anotherLeague()).id;
 
     teamId = unwrap(
       await new TeamService(repositories()).createTeam(
@@ -584,14 +589,22 @@ describe("ContractService.getMyContracts Integration Tests", () => {
     playerId = playerResult.value.id;
 
     leagueId = (
-      await store().createLeague({
-        id: "league-my-1",
-        name: "My Contracts League",
-        adminId: playerId,
-        domain: "it",
-        icon: "🏆",
-      })
-    ).id;
+      await aLeague(
+        {
+          name: "My Contracts League",
+          adminId: await aPlayer(),
+          startDate: Temporal.Instant.from("2024-01-01T00:00:00Z"),
+          endDate: Temporal.Instant.from("2124-01-01T00:00:00Z"),
+          domain: "it",
+          languageScale: REFERENCE_SCALE,
+          icon: "🏆",
+          visibility: LeagueVisibility.PUBLIC,
+          invitePolicy: LeagueInvitePolicy.MEMBERS,
+          invitationCode: null,
+        },
+        "My Founders",
+      )
+    ).league.id;
     teamId = unwrap(
       await new TeamService(repositories()).createTeam(
         playerId,
@@ -1116,13 +1129,7 @@ describe("the guarded contract write", () => {
     if (!buyer.ok || !rival.ok) throw new Error("setup failed: players");
 
     leagueId = GLOBAL_LEAGUE_ID;
-    otherLeagueId = (
-      await store().createLeague({
-        id: "league-guard-2",
-        name: "Other Guard League",
-        adminId: buyer.value.id,
-      })
-    ).id;
+    otherLeagueId = (await anotherLeague()).id;
 
     teamId = unwrap(
       await teamService.createTeam(buyer.value.id, leagueId, "Guard FC"),

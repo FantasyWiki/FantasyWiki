@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { TEAM_ERRORS } from "../../../repositories/teamRepository";
 import { unwrap } from "../../../repositories/result";
 import { GLOBAL_LEAGUE_ID } from "../../../services/league";
-import { repositories, store } from "../../support/target";
-import { aPlayer, unique } from "./subjects";
+import { repositories } from "../../support/target";
+import { anotherLeague, aPlayer, unique } from "../../support/subjects";
 import { STARTING_CREDITS } from "../../../../../model/team";
 
 /** What any TeamRepository owes its callers. */
@@ -47,11 +47,7 @@ describe("TeamRepository conformance", () => {
   it("allows that player a team in another league", async () => {
     const teams = repositories().teams;
     const playerId = await aPlayer();
-    const elsewhere = await store().createLeague({
-      id: unique("league"),
-      name: "Another League",
-      adminId: playerId,
-    });
+    const elsewhere = await anotherLeague();
     unwrap(
       await teams.create({
         name: unique("Home FC"),
@@ -72,11 +68,7 @@ describe("TeamRepository conformance", () => {
 
   it("scopes a name's availability to one league", async () => {
     const teams = repositories().teams;
-    const elsewhere = await store().createLeague({
-      id: unique("league"),
-      name: "Another League",
-      adminId: await aPlayer(),
-    });
+    const elsewhere = await anotherLeague();
     unwrap(
       await teams.create({
         name: "Shared Name",

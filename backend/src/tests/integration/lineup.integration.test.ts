@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect, beforeEach } from "vitest";
 import {
@@ -11,7 +10,7 @@ import { PlayerService } from "../../services/player";
 import { TeamService } from "../../services/team";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
 import { unwrap } from "../../repositories/result";
-import { insertLineup, insertTeam } from "../utils/d1TestUtils";
+import { anotherLeague } from "../support/subjects";
 import { repositories } from "../support/target";
 import type { Contract } from "../../../../model";
 
@@ -182,40 +181,35 @@ describe("LineupService Integration Tests", () => {
       expect(rivalPlayerResult.ok).toBe(true);
       if (!rivalPlayerResult.ok) throw new Error("setup failed: rival player");
 
-      const rivalTeamId = "team-rival-1";
-      await insertTeam(env.db, {
-        id: rivalTeamId,
-        name: "Rival FC",
-        playerId: rivalPlayerResult.value.id,
-        leagueId: GLOBAL_LEAGUE_ID,
-      });
+      const rivalTeamId = unwrap(
+        await repositories().teams.create({
+          name: "Rival FC",
+          playerId: rivalPlayerResult.value.id,
+          leagueId: GLOBAL_LEAGUE_ID,
+        }),
+        "rival team",
+      ).id;
 
-      const rivalContractId = "contract-rival-1";
-      await env.db
-        .prepare(
-          "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
-        )
-        .bind(
-          rivalContractId,
-          rivalTeamId,
-          "Cat",
-          "2026-01-01",
-          "2026-01-08",
-          50,
-        )
-        .run();
+      const rivalContract = unwrap(
+        await repositories().contracts.create({
+          teamId: rivalTeamId,
+          articleId: "Cat",
+          purchaseDate: HELD_FROM,
+          expireDate: HELD_UNTIL,
+          purchasePrice: 50,
+        }),
+        "rival contract",
+      );
 
-      await env.db
-        .prepare(
-          "INSERT INTO lineups (teamId, schema, formation, updatedAt) VALUES (?, ?, ?, ?)",
-        )
-        .bind(
-          rivalTeamId,
-          "4-3-3",
-          JSON.stringify({ GK: rivalContractId }),
-          new Date().toISOString(),
-        )
-        .run();
+      unwrap(
+        await repositories().lineups.upsert({
+          teamId: rivalTeamId,
+          schema: "4-3-3",
+          formation: JSON.stringify({ GK: rivalContract.id }),
+          updatedAt: new Date().toISOString(),
+        }),
+        "rival lineup",
+      );
 
       const result = await lineupService.getRivalLineup(
         GLOBAL_LEAGUE_ID,
@@ -225,7 +219,7 @@ describe("LineupService Integration Tests", () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       expect(result.value.formation.schema).toBe("4-3-3");
-      expect(result.value.formation.formation["GK"]?.id).toBe(rivalContractId);
+      expect(result.value.formation.formation["GK"]?.id).toBe(rivalContract.id);
       // The contract carries the rival's team identity, not the caller's.
       expect(result.value.formation.formation["GK"]?.team.id).toBe(rivalTeamId);
     });
@@ -246,21 +240,7 @@ describe("LineupService Integration Tests", () => {
     // the key, so a line-up from a league the caller did not ask about must be
     // unreadable through it rather than merely unlikely to be requested.
     it("does not serve a team that exists in another league", async () => {
-      const otherLeagueId = "league-elsewhere";
-      await env.db
-        .prepare(
-          "INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(
-          otherLeagueId,
-          "Elsewhere League",
-          playerId,
-          "2026-01-01T00:00:00Z",
-          "2026-12-31T00:00:00Z",
-          "en",
-          "🌍",
-        )
-        .run();
+      const elsewhere = await anotherLeague();
 
       const outsiderPlayerResult = await playerService.createPlayer(
         "outsider",
@@ -270,14 +250,23 @@ describe("LineupService Integration Tests", () => {
       expect(outsiderPlayerResult.ok).toBe(true);
       if (!outsiderPlayerResult.ok) throw new Error("setup failed: outsider");
 
-      const outsiderTeamId = "team-outsider-1";
-      await insertTeam(env.db, {
-        id: outsiderTeamId,
-        name: "Outsider FC",
-        playerId: outsiderPlayerResult.value.id,
-        leagueId: otherLeagueId,
-      });
-      await insertLineup(env.db, outsiderTeamId, "4-3-3", {});
+      const outsiderTeamId = unwrap(
+        await repositories().teams.create({
+          name: "Outsider FC",
+          playerId: outsiderPlayerResult.value.id,
+          leagueId: elsewhere.id,
+        }),
+        "outsider team",
+      ).id;
+      unwrap(
+        await repositories().lineups.upsert({
+          teamId: outsiderTeamId,
+          schema: "4-3-3",
+          formation: JSON.stringify({}),
+          updatedAt: new Date().toISOString(),
+        }),
+        "outsider lineup",
+      );
 
       const result = await lineupService.getRivalLineup(
         GLOBAL_LEAGUE_ID,

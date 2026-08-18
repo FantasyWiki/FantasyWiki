@@ -122,8 +122,14 @@ export interface ContractRepository {
   /**
    * Records the owner's intent to renew a contract at expiry by setting
    * `renewalElected=1`. Guarded on the row being unsettled and owned by
-   * `teamId`. The renewal itself is executed later by the sweep. Result<boolean>:
-   * true iff this call flipped the flag.
+   * `teamId`. The renewal itself is executed later by the sweep.
+   * Result<boolean>: true iff the contract was electable — so electing an
+   * already-elected contract answers true, since the intent it asks for is
+   * recorded. Deliberately *not* guarded on `renewalElected = 0`, unlike
+   * {@link cancelRenewal}: a stale client re-electing should be told the truth
+   * rather than have `false` turned into a 404 for a contract that exists and
+   * is elected. The frontend hides the button once elected, so this is the
+   * uncommon path either way.
    */
   electRenewal(contractId: string, teamId: string): Promise<Result<boolean>>;
 

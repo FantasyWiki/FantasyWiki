@@ -103,14 +103,17 @@ across both reads and the write. This is safe on both counts that matter:
 A SQL view takes no bind parameters, so it cannot receive `STARTING_CREDITS` from `model/team.ts` —
 the migration inlines `1000` as a literal. That is a genuine duplication, and the honest answer is
 that it is pinned by a test rather than by the type system:
-`backend/src/tests/integration/teamCredits.integration.test.ts` asserts that a team with an empty
+`backend/src/tests/repositories/d1/teamCreditsView.d1.test.ts` asserts that a team with an empty
 ledger reads back exactly `STARTING_CREDITS`. Change the constant without changing the migration and
-that test fails.
+that test fails. It sits in the D1 tier because the literal is D1's, and so is the `COALESCE` over a
+NULL `salePayout` that the same file pins.
 
-The same file asserts that all five read paths return an identical balance for one fixture ledger,
-and that `deriveCredits()` agrees with the view on it. That agreement is the whole reason the pure
-function exists: the SQL enforces, the function documents, and the test is what keeps them the same
-rule.
+That every read path returns one balance, and that `deriveCredits()` agrees with whatever computes
+it, are rules about the *answer* rather than about the view, so they live in
+`backend/src/tests/repositories/conformance/derivedCredits.integration.test.ts` — where a second
+persistence implementation has to keep them too. That agreement is the whole reason the pure function
+exists: the storage enforces, the function documents, and the conformance suite is what keeps them
+the same rule.
 
 ## Consequences
 

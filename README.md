@@ -202,12 +202,16 @@ npm run dev              # wrangler dev --env local (runs D1 migrations first)
 npm run test             # vitest on the Workers pool
 npm run test:integration # integration suite, single run
 npm run test-coverage    # coverage → Codecov in CI
+npm run typecheck        # tsc --noEmit, source and tests
 npm run cf-typegen       # regenerate CloudflareBindings from wrangler.jsonc
 npm run db:init:local    # apply D1 migrations locally
 ```
 
-Integration tests run in `@cloudflare/vitest-pool-workers`: they read
-`wrangler.jsonc`, apply `backend/migrations/`, and reset D1 before each test.
+Tests run in `@cloudflare/vitest-pool-workers` against a real D1 database: they read
+`wrangler.jsonc` and reset it before each test by dropping the schema and replaying
+`backend/migrations/`. Which layer a test may name — and why the suite can be pointed at a
+second persistence implementation — is in
+[`backend-testing.md`](./docs/development/backend-testing.md).
 
 ## Deployment
 

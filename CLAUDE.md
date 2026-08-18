@@ -61,7 +61,9 @@ npm run db:init:local     # apply D1 migrations locally
 npm run db:migrate:remote  # apply D1 migrations to remote D1
 ```
 
-Backend integration tests use `@cloudflare/vitest-pool-workers`, load config from `wrangler.jsonc`, apply migrations from `backend/migrations/`, and reset D1 data before each test. Tests live under `backend/src/tests/integration`.
+Backend tests use `@cloudflare/vitest-pool-workers`, load config from `wrangler.jsonc`, and reset the database before each test by dropping the schema and replaying `backend/migrations/`.
+
+Which layer a test may name is a rule, enforced by `no-restricted-imports`: nothing under `src/services`, `src/routes` or `src/tests` may import `repositories/d1/**` — `composition.ts` is the only module that chooses an implementation. Tests reach persistence through `repositories()` from `src/tests/support/target.ts`, seed through `src/tests/support/subjects.ts` (never SQL, and never with defaulted fixture values), and put D1-specific facts under `src/tests/repositories/d1`. Repository promises a second implementation must also keep go in `src/tests/repositories/conformance`. See `docs/development/backend-testing.md`.
 
 ## Architecture
 

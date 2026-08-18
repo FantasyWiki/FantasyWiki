@@ -220,9 +220,9 @@ describe("PlayerService Integration Tests", () => {
       expect(result.ok).toBe(true);
       if (result.ok) {
         const { startDate, endDate } = result.value[0];
-        // A plain SELECT hands these back as text; anything downstream that
-        // does instant arithmetic on them (the league calendar) would silently
-        // get a string.
+        // Stored as text, so the repository has to be the one that parses them:
+        // anything downstream doing instant arithmetic (the league calendar)
+        // would silently get a string instead.
         expect(startDate).toBeInstanceOf(Temporal.Instant);
         expect(endDate).toBeInstanceOf(Temporal.Instant);
         expect(startDate.toString()).toContain("2024-01-01");

@@ -2,7 +2,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect, beforeEach } from "vitest";
 import { GLOBAL_LEAGUE_ID } from "../../../../model";
 import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
-import { LEAGUE_ICONS } from "../../../../model/league";
+import { isLeagueInactive, LEAGUE_ICONS } from "../../../../model/league";
 import { REFERENCE_SCALE } from "../../../../model/languageScale";
 import { LEAGUE_ERRORS } from "../../repositories/leagueRepository";
 import { TEAM_ERRORS } from "../../repositories/teamRepository";
@@ -76,6 +76,15 @@ describe("the seeded Global League", () => {
     if (!result.ok) return;
     expect(result.value.visibility).toBe(LeagueVisibility.PUBLIC);
     expect(result.value.invitePolicy).toBe(LeagueInvitePolicy.MEMBERS);
+  });
+
+  it("is open, and stays the one league first login can enrol into", async () => {
+    const result = await repositories().leagues.getById(GLOBAL_LEAGUE_ID);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.closedAt).toBeNull();
+    expect(isLeagueInactive(result.value, Temporal.Now.instant())).toBe(false);
   });
 
   it("has no invitation code, because it is public", async () => {

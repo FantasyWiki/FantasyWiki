@@ -3,8 +3,13 @@ import { describe, it, expect } from "vitest";
 import { NOTIFICATION_ERRORS } from "../../../repositories/notificationRepository";
 import { unwrap } from "../../../repositories/result";
 import { GLOBAL_LEAGUE_ID } from "../../../services/league";
-import { repositories, store } from "../../support/target";
-import { aPlayer, aTeamIn, unique } from "./subjects";
+import { repositories } from "../../support/target";
+import {
+  anotherLeague,
+  aPlayer,
+  aTeamIn,
+  unique,
+} from "../../support/subjects";
 
 const OPENED = Temporal.Now.plainDateISO();
 
@@ -80,11 +85,7 @@ describe("NotificationRepository conformance", () => {
   it("scopes the league feed, while the player feed spans leagues", async () => {
     const notifications = repositories().notifications;
     const playerId = await aPlayer();
-    const elsewhere = await store().createLeague({
-      id: unique("league"),
-      name: "Another League",
-      adminId: playerId,
-    });
+    const elsewhere = await anotherLeague();
     const home = unwrap(
       await repositories().teams.create({
         name: unique("Home FC"),

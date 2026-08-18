@@ -766,10 +766,7 @@ leagues.get("/:id/my-role", currentPlayer, async (c) => {
 leagues.post("/:id/closure", currentPlayer, async (c) => {
   const leagueId = c.req.param("id");
   const leagueService = new LeagueService(c.var.repositories);
-  const result = await leagueService.closeLeague(
-    c.var.player.id,
-    leagueId,
-  );
+  const result = await leagueService.closeLeague(c.var.player.id, leagueId);
   if (!result.ok) {
     return c.json(
       { error: result.error },

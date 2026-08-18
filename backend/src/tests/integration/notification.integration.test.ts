@@ -5,7 +5,8 @@ import { PlayerService } from "../../services/player";
 import { TeamService } from "../../services/team";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
 import { unwrap } from "../../repositories/result";
-import { repositories, store } from "../support/target";
+import { anotherLeague } from "../support/subjects";
+import { repositories } from "../support/target";
 
 describe("NotificationService Integration Tests", () => {
   let notificationService: NotificationService;
@@ -66,12 +67,7 @@ describe("NotificationService Integration Tests", () => {
 
   describe("getMyNotifications", () => {
     it("should return only notifications for the player's team in the specified league", async () => {
-      const otherLeagueId = "league-notify-other";
-      await store().createLeague({
-        id: otherLeagueId,
-        name: "Other Notify League",
-        adminId: "system",
-      });
+      const otherLeagueId = (await anotherLeague()).id;
 
       const otherPlayerId = unwrap(
         await playerService.createPlayer(
@@ -131,12 +127,7 @@ describe("NotificationService Integration Tests", () => {
 
   describe("getAllForPlayer", () => {
     it("should return notifications across all leagues for the player", async () => {
-      const secondLeagueId = "league-notify-second";
-      await store().createLeague({
-        id: secondLeagueId,
-        name: "Second Notify League",
-        adminId: "system",
-      });
+      const secondLeagueId = (await anotherLeague()).id;
 
       const secondTeamId = unwrap(
         await teamService.createTeam(

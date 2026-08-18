@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { unwrap } from "../../../repositories/result";
 import { GLOBAL_LEAGUE_ID } from "../../../services/league";
 import { repositories } from "../../support/target";
-import { aTeamIn } from "./subjects";
+import { aTeamIn } from "../../support/subjects";
 
 /**
  * What any LineupRepository owes its callers. A team has at most one lineup, and

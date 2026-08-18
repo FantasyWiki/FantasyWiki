@@ -11,7 +11,8 @@ import { LeagueRepository } from "../../repositories/leagueRepository";
 import { success, failure } from "../../repositories/result";
 import { PlayerService } from "../../services/player";
 import { insertTeam } from "../utils/d1TestUtils";
-import { repositories, store } from "../support/target";
+import { aLeague, aPlayer } from "../support/subjects";
+import { repositories } from "../support/target";
 import { League } from "../../../../model";
 import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
 import { fakeLeagueRepository } from "../utils/fakeRepositories";
@@ -135,22 +136,28 @@ describe("LeagueService Integration Tests", () => {
 
   describe("getLeagueById", () => {
     it("should return a league the player has not necessarily joined", async () => {
-      await store().createLeague({
-        id: "league-friends",
-        name: "Friday Night Wiki",
-        adminId: "system",
-        startDate: "2026-01-01T00:00:00Z",
-        endDate: "2026-03-01T00:00:00Z",
-        domain: "it",
-        icon: "🍕",
-      });
+      const { league } = await aLeague(
+        {
+          name: "Friday Night Wiki",
+          adminId: await aPlayer(),
+          startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+          endDate: Temporal.Instant.from("2026-03-01T00:00:00Z"),
+          domain: "it",
+          languageScale: REFERENCE_SCALE,
+          icon: "🍕",
+          visibility: LeagueVisibility.PUBLIC,
+          invitePolicy: LeagueInvitePolicy.MEMBERS,
+          invitationCode: null,
+        },
+        "Pizza Founders",
+      );
 
-      const result = await leagueService.getLeagueById("league-friends");
+      const result = await leagueService.getLeagueById(league.id);
 
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.value).toMatchObject({
-          id: "league-friends",
+          id: league.id,
           title: "Friday Night Wiki",
           domain: "it",
           icon: "🍕",

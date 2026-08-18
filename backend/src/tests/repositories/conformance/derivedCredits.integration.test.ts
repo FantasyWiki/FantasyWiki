@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { unwrap } from "../../../repositories/result";
 import { GLOBAL_LEAGUE_ID } from "../../../services/league";
 import { repositories } from "../../support/target";
-import { aTeamIn, creditsOf, unique } from "./subjects";
+import { aTeamIn, creditsOf, unique } from "../../support/subjects";
 import { STARTING_CREDITS, deriveCredits } from "../../../../../model/team";
 import type { Team } from "../../../../../model";
 

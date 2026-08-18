@@ -5,7 +5,8 @@ import type { TeamRepository } from "../../repositories/teamRepository";
 import { success, failure } from "../../repositories/result";
 import { STARTING_CREDITS } from "../../../../model/team";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
-import { repositories, store } from "../support/target";
+import { anotherLeague } from "../support/subjects";
+import { repositories } from "../support/target";
 import type { Team } from "../../../../model";
 import {
   fakeLeagueRepository,
@@ -117,12 +118,9 @@ describe("TeamService Integration Tests", () => {
     });
 
     it("should allow the same team name in different leagues", async () => {
-      const otherLeagueId = "league-2";
-      await store().createLeague({
-        id: otherLeagueId,
-        name: "Other League",
-        adminId: playerId,
-      });
+      // Founded by someone else: the player under test has to be the one who
+      // creates their team in it, which the founder already would have.
+      const otherLeagueId = (await anotherLeague()).id;
 
       const firstResult = await teamService.createTeam(
         playerId,

@@ -95,18 +95,14 @@ describe("/internal routes", () => {
       await new LineupService({
         ...repositories(),
         teamService: new TeamService(repositories()),
-      }).saveLineup(
-        playerId,
-        GLOBAL_LEAGUE_ID,
-        {
-          formation: {
-            date: SCORE_DATE,
-            schema: "4-3-3",
-            formation: { ST: { id: contract.id } as never },
-          },
-          bench: [],
+      }).saveLineup(playerId, GLOBAL_LEAGUE_ID, {
+        formation: {
+          date: SCORE_DATE,
+          schema: "4-3-3",
+          formation: { ST: { id: contract.id } as never },
         },
-      ),
+        bench: [],
+      }),
       "lineup",
     );
 

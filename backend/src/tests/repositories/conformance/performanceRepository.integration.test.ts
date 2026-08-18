@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { unwrap } from "../../../repositories/result";
 import { GLOBAL_LEAGUE_ID } from "../../../services/league";
 import { repositories } from "../../support/target";
-import { aTeamIn } from "./subjects";
+import { aTeamIn } from "../../support/subjects";
 import { STARTING_CREDITS } from "../../../../../model/team";
 
 const DAY_ONE = Temporal.PlainDate.from("2026-07-12");

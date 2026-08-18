@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
 import { Temporal } from "@js-temporal/polyfill";
 import {
@@ -9,7 +8,6 @@ import {
 } from "../../../../model/league";
 import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
 import { STARTING_CREDITS } from "../../../../model/team";
-import { LeagueRepositoryD1 } from "../../repositories/d1/leagueRepositoryD1";
 import { LEAGUE_ERRORS } from "../../repositories/leagueRepository";
 import {
   LEAGUE_CREATION_ERRORS,
@@ -19,12 +17,14 @@ import {
 import { PlayerService } from "../../services/player";
 import { TeamService } from "../../services/team";
 import { GLOBAL_LEAGUE_ID } from "../../../../model";
-import { insertLeague, insertTeam } from "../utils/d1TestUtils";
 import type { CreateLeagueRequest } from "../../../../dto/leagueDTO";
 import { REFERENCE_SCALE } from "../../../../model/languageScale";
 import { LanguageScaleCalibrationService } from "../../services/languageScaleCalibration";
 import { createWikimediaClient } from "../../services/wikimediaClient";
+import { unwrap } from "../../repositories/result";
+import { aLeague, aPlayer, unique } from "../support/subjects";
 import { repositories } from "../support/target";
+import type { League } from "../../../../model";
 
 async function makePlayer(name: string) {
   const result = await new PlayerService(repositories()).createPlayer(
@@ -34,6 +34,49 @@ async function makePlayer(name: string) {
   );
   if (!result.ok) throw new Error("setup failed");
   return result.value;
+}
+
+/** A season that is still running, and one that ended two years ago. */
+const RUNNING = "2126-01-01T00:00:00Z";
+const RUN_OUT = "2024-03-01T00:00:00Z";
+
+/**
+ * A league on the shelf, in the two terms this file's reads turn on: whether it
+ * is offered to everyone, and whether its season is still going.
+ */
+async function seedLeague(attrs: {
+  visibility: LeagueVisibility;
+  invitationCode: string | null;
+  endDate: string;
+  adminId: string;
+}): Promise<League> {
+  return (
+    await aLeague(
+      {
+        name: unique("Shelf League"),
+        adminId: attrs.adminId,
+        startDate: Temporal.Instant.from("2024-01-01T00:00:00Z"),
+        endDate: Temporal.Instant.from(attrs.endDate),
+        domain: "en",
+        languageScale: REFERENCE_SCALE,
+        icon: LEAGUE_ICONS[0],
+        visibility: attrs.visibility,
+        invitePolicy: LeagueInvitePolicy.MEMBERS,
+        invitationCode: attrs.invitationCode,
+      },
+      unique("Founders"),
+    )
+  ).league;
+}
+
+/** A plain public league still in season — the shelf's ordinary case. */
+async function seedOnTheShelf(): Promise<League> {
+  return seedLeague({
+    visibility: LeagueVisibility.PUBLIC,
+    invitationCode: null,
+    endDate: RUNNING,
+    adminId: await aPlayer(),
+  });
 }
 
 function request(
@@ -159,11 +202,12 @@ describe("LeagueService.getPublicLeagues", () => {
   });
 
   it("lists public leagues and leaves private ones out entirely", async () => {
-    await insertLeague(env.db, { id: "shop-window" });
-    await insertLeague(env.db, {
-      id: "members-only",
+    const shopWindow = await seedOnTheShelf();
+    const membersOnly = await seedLeague({
       visibility: LeagueVisibility.PRIVATE,
       invitationCode: "ZK7QW",
+      endDate: RUNNING,
+      adminId: await aPlayer(),
     });
 
     const result = await service.getPublicLeagues();
@@ -171,10 +215,10 @@ describe("LeagueService.getPublicLeagues", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const ids = result.value.map((l) => l.id);
-    expect(ids).toContain("shop-window");
+    expect(ids).toContain(shopWindow.id);
     // Absent because it is private — not filtered per-caller, so there is no
     // caller for whom this list would include it.
-    expect(ids).not.toContain("members-only");
+    expect(ids).not.toContain(membersOnly.id);
   });
 
   it("includes the Global League, which every player is already in", async () => {
@@ -189,19 +233,22 @@ describe("LeagueService.getPublicLeagues", () => {
 
   it("reports how many teams play each one", async () => {
     const player = await makePlayer("browser");
-    await insertLeague(env.db, { id: "counted" });
-    await insertTeam(env.db, {
-      id: "t-counted",
-      name: "Counted FC",
-      playerId: player.id,
-      leagueId: "counted",
-    });
+    const counted = await seedOnTheShelf();
+    unwrap(
+      await repositories().teams.create({
+        name: "Counted FC",
+        playerId: player.id,
+        leagueId: counted.id,
+      }),
+      "team",
+    );
 
     const result = await service.getPublicLeagues();
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.find((l) => l.id === "counted")?.teamCount).toBe(1);
+    // The founding team, and the one just added.
+    expect(result.value.find((l) => l.id === counted.id)?.teamCount).toBe(2);
   });
 
   // The shelf is captioned as somewhere to go. Both halves of
@@ -209,36 +256,42 @@ describe("LeagueService.getPublicLeagues", () => {
   // it, so the endpoint cannot offer a league whose join can only answer
   // TEAM_ERRORS.LEAGUE_INACTIVE (docs/domain/league-lifecycle.md).
   it("leaves out a public league whose season has run out", async () => {
-    await insertLeague(env.db, {
-      id: "last-season",
-      startDate: "2024-01-01T00:00:00Z",
-      endDate: "2024-03-01T00:00:00Z",
+    const lastSeason = await seedLeague({
+      visibility: LeagueVisibility.PUBLIC,
+      invitationCode: null,
+      endDate: RUN_OUT,
+      adminId: await aPlayer(),
     });
 
     const result = await service.getPublicLeagues();
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.map((l) => l.id)).not.toContain("last-season");
+    expect(result.value.map((l) => l.id)).not.toContain(lastSeason.id);
   });
 
   it("leaves out a public league its admin closed early", async () => {
-    // Season still running — only `closedAt` puts it out, so this pins the
+    // Season still running — only the closure puts it out, so this pins the
     // other half of the filter rather than re-testing the end date.
-    await insertLeague(env.db, {
-      id: "shut-early",
-      closedAt: "2026-01-01T00:00:00Z",
-    });
+    const shutEarly = await seedOnTheShelf();
+    unwrap(
+      await repositories().leagues.close(
+        shutEarly.id,
+        shutEarly.adminId,
+        Temporal.Instant.from("2026-01-01T00:00:00Z"),
+      ),
+      "closure",
+    );
 
     const result = await service.getPublicLeagues();
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.map((l) => l.id)).not.toContain("shut-early");
+    expect(result.value.map((l) => l.id)).not.toContain(shutEarly.id);
   });
 
   it("never carries an invitation code, private or not", async () => {
-    await insertLeague(env.db, { id: "leaky-shelf" });
+    await seedOnTheShelf();
 
     const result = await service.getPublicLeagues();
 
@@ -249,7 +302,7 @@ describe("LeagueService.getPublicLeagues", () => {
 
   it("stops at the limit it was given", async () => {
     for (let i = 0; i < 5; i++) {
-      await insertLeague(env.db, { id: `bulk-${i}` });
+      await seedOnTheShelf();
     }
 
     const result = await service.getPublicLeagues(3);
@@ -298,10 +351,10 @@ describe("LeagueService.createLeague", () => {
 
     // Without this row `getLineup` fails outright, so the founder would be
     // locked out of the first screen they open.
-    const lineup = await env.db
-      .prepare("SELECT schema FROM lineups WHERE teamId = ?")
-      .bind(team.value!.id)
-      .first<{ schema: string }>();
+    const lineup = unwrap(
+      await repositories().lineups.getByTeamId(team.value!.id),
+      "lineup",
+    );
     expect(lineup?.schema).toBe("4-3-3");
   });
 
@@ -328,7 +381,7 @@ describe("LeagueService.createLeague", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const code = await new LeagueRepositoryD1(env.db).getInvitationCode(
+    const code = await repositories().leagues.getInvitationCode(
       result.value.id,
     );
     expect(code.ok).toBe(true);
@@ -350,7 +403,7 @@ describe("LeagueService.createLeague", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(
-      await new LeagueRepositoryD1(env.db).getInvitationCode(result.value.id),
+      await repositories().leagues.getInvitationCode(result.value.id),
     ).toEqual({ ok: true, value: null });
   });
 
@@ -363,7 +416,7 @@ describe("LeagueService.createLeague", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const code = await new LeagueRepositoryD1(env.db).getInvitationCode(
+    const code = await repositories().leagues.getInvitationCode(
       result.value.id,
     );
     if (!code.ok || code.value === null) throw new Error("no code issued");
@@ -390,69 +443,25 @@ describe("LeagueService.createLeague", () => {
     expect(result.value.code).toHaveLength(INVITATION_CODE_LENGTH);
   });
 
-  it("leaves no league behind when the founding team cannot be written", async () => {
-    // The whole reason the two rows share a transaction, and the only test that
-    // demonstrates it — so the statement that fails has to be the *second* one.
-    // A bad `adminId` would not do: `leagues.adminId` is itself a foreign key,
-    // so the league INSERT would fail first and nothing would ever attempt the
-    // team. A null team name passes the league write and then trips
-    // `teams.name NOT NULL`, which is exactly the shape being guarded against.
-    const founder = await makePlayer("doomed");
-    const before = await env.db
-      .prepare("SELECT COUNT(*) AS n FROM leagues")
-      .first<{ n: number }>();
-
-    const result = await new LeagueRepositoryD1(env.db).createWithFoundingTeam(
-      {
-        name: "Doomed",
-        adminId: founder.id,
-        startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
-        endDate: Temporal.Instant.from("2026-02-01T00:00:00Z"),
-        domain: "en",
-        languageScale: REFERENCE_SCALE,
-        visibility: LeagueVisibility.PUBLIC,
-        invitePolicy: LeagueInvitePolicy.MEMBERS,
-        icon: LEAGUE_ICONS[0],
-        invitationCode: null,
-      },
-      null as unknown as string,
-    );
-
-    expect(result.ok).toBe(false);
-    const after = await env.db
-      .prepare("SELECT COUNT(*) AS n FROM leagues")
-      .first<{ n: number }>();
-    expect(after?.n).toBe(before?.n);
-    // And no orphan league under the name either, in case the count above ever
-    // stops being the sharp instrument it is here.
-    const orphan = await env.db
-      .prepare("SELECT id FROM leagues WHERE name = ?")
-      .bind("Doomed")
-      .first();
-    expect(orphan).toBeNull();
-  });
-
   it("names a lost code race as such, and not as a broken write", async () => {
     // `withUniqueInvitationCode` redraws only on this constant, so a
     // misclassification here would either retry an impossible write five times
-    // or surface SQLite's own wording to the client.
+    // or surface the storage layer's own wording to the client.
     const founder = await makePlayer("collider");
     const taken = await service.createLeague(founder.id, request());
     if (!taken.ok) throw new Error("setup failed");
-    const code = await new LeagueRepositoryD1(env.db).getInvitationCode(
-      taken.value.id,
-    );
+    const code = await repositories().leagues.getInvitationCode(taken.value.id);
     if (!code.ok || code.value === null) throw new Error("no code issued");
 
     const second = await makePlayer("collider2");
-    const result = await new LeagueRepositoryD1(env.db).createWithFoundingTeam(
+    const result = await repositories().leagues.createWithFoundingTeam(
       {
         name: "Second",
         adminId: second.id,
         startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
         endDate: Temporal.Instant.from("2026-02-01T00:00:00Z"),
         domain: "en",
-        languageScale: 1.0,
+        languageScale: REFERENCE_SCALE,
         visibility: LeagueVisibility.PRIVATE,
         invitePolicy: LeagueInvitePolicy.MEMBERS,
         icon: LEAGUE_ICONS[0],

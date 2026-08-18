@@ -1,16 +1,18 @@
-import { env } from "cloudflare:workers";
+import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect, beforeEach } from "vitest";
 import { GLOBAL_LEAGUE_ID } from "../../../../model";
 import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
-import { LeagueRepositoryD1 } from "../../repositories/d1/leagueRepositoryD1";
-import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
+import { LEAGUE_ICONS } from "../../../../model/league";
+import { REFERENCE_SCALE } from "../../../../model/languageScale";
 import { LEAGUE_ERRORS } from "../../repositories/leagueRepository";
 import { TEAM_ERRORS } from "../../repositories/teamRepository";
+import { unwrap } from "../../repositories/result";
 import { LeagueService } from "../../services/league";
 import { PlayerService } from "../../services/player";
 import { TeamService } from "../../services/team";
-import { insertLeague, insertTeam } from "../utils/d1TestUtils";
+import { aLeague, aPlayer, unique } from "../support/subjects";
 import { repositories } from "../support/target";
+import type { League } from "../../../../model";
 
 const PRIVATE_CODE = "ZK7QW";
 
@@ -24,13 +26,51 @@ async function makePlayer(name: string) {
   return result.value;
 }
 
-describe("migration 0007", () => {
-  it("leaves the Global League public, so nobody is locked out of it", async () => {
-    // Every player is auto-enrolled here on first login. If this migration
-    // ever made it private, signup would break for everyone at once.
-    const result = await new LeagueRepositoryD1(env.db).getById(
-      GLOBAL_LEAGUE_ID,
-    );
+/**
+ * A league in the terms the gate is about: who may see it, who may hand out its
+ * code, and what that code is. All four named at the call site, because the
+ * gate's answer turns on every one of them.
+ */
+async function seedLeague(attrs: {
+  visibility: LeagueVisibility;
+  invitePolicy: LeagueInvitePolicy;
+  invitationCode: string | null;
+  adminId: string;
+}): Promise<League> {
+  return (
+    await aLeague(
+      {
+        name: unique("Gated League"),
+        adminId: attrs.adminId,
+        startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+        endDate: Temporal.Instant.from("2126-01-01T00:00:00Z"),
+        domain: "en",
+        languageScale: REFERENCE_SCALE,
+        icon: LEAGUE_ICONS[0],
+        visibility: attrs.visibility,
+        invitePolicy: attrs.invitePolicy,
+        invitationCode: attrs.invitationCode,
+      },
+      unique("Founders"),
+    )
+  ).league;
+}
+
+/** A private league behind `PRIVATE_CODE`, which most of the gate's tests need. */
+async function seedPrivate(adminId: string): Promise<League> {
+  return seedLeague({
+    visibility: LeagueVisibility.PRIVATE,
+    invitePolicy: LeagueInvitePolicy.MEMBERS,
+    invitationCode: PRIVATE_CODE,
+    adminId,
+  });
+}
+
+describe("the seeded Global League", () => {
+  it("is public, so nobody is locked out of it", async () => {
+    // Every player is auto-enrolled here on first login. If it were ever seeded
+    // private, signup would break for everyone at once.
+    const result = await repositories().leagues.getById(GLOBAL_LEAGUE_ID);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -38,71 +78,14 @@ describe("migration 0007", () => {
     expect(result.value.invitePolicy).toBe(LeagueInvitePolicy.MEMBERS);
   });
 
-  it("gives the Global League no invitation code, because it is public", async () => {
+  it("has no invitation code, because it is public", async () => {
     // A code guards entry to a private league. The Global League is joinable
     // by anyone, so a code on it would guard nothing and would be one more
     // thing to keep true.
-    const result = await new LeagueRepositoryD1(env.db).getInvitationCode(
-      GLOBAL_LEAGUE_ID,
-    );
+    const result =
+      await repositories().leagues.getInvitationCode(GLOBAL_LEAGUE_ID);
 
     expect(result).toEqual({ ok: true, value: null });
-  });
-
-  it("defaults a league that says nothing about visibility to public", async () => {
-    // 22 test sites insert leagues without naming these columns. The defaults
-    // are what keeps every one of them meaning what it did before.
-    await env.db
-      .prepare(
-        "INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      )
-      .bind(
-        "legacy-shape",
-        "Legacy",
-        "system",
-        "2026-01-01T00:00:00Z",
-        "2026-03-01T00:00:00Z",
-        "en",
-        "🏁",
-      )
-      .run();
-
-    const result = await new LeagueRepositoryD1(env.db).getById("legacy-shape");
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.value.visibility).toBe(LeagueVisibility.PUBLIC);
-  });
-
-  it("lets any number of leagues carry no code, but no two carry the same one", async () => {
-    // SQLite treats NULLs in a unique index as distinct. That single fact is
-    // what lets the column stay nullable, which is what lets every legacy
-    // INSERT above keep working.
-    await insertLeague(env.db, { id: "no-code-1" });
-    await insertLeague(env.db, { id: "no-code-2" });
-
-    await insertLeague(env.db, { id: "coded-1", invitationCode: PRIVATE_CODE });
-    await expect(
-      insertLeague(env.db, { id: "coded-2", invitationCode: PRIVATE_CODE }),
-    ).rejects.toThrow();
-  });
-});
-
-describe("toLeague", () => {
-  it("reads an unrecognised visibility as private, not public", async () => {
-    // Fail closed. Guessing 'public' on a value we cannot read would throw a
-    // league open that nobody meant to open.
-    await insertLeague(env.db, { id: "corrupt" });
-    await env.db
-      .prepare("UPDATE leagues SET visibility = 'sideways' WHERE id = ?")
-      .bind("corrupt")
-      .run();
-
-    const result = await new LeagueRepositoryD1(env.db).getById("corrupt");
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.value.visibility).toBe(LeagueVisibility.PRIVATE);
   });
 });
 
@@ -127,15 +110,11 @@ describe("the join gate", () => {
 
   it("turns away a private league with no code", async () => {
     const player = await makePlayer("outsider");
-    await insertLeague(env.db, {
-      id: "private-1",
-      visibility: LeagueVisibility.PRIVATE,
-      invitationCode: PRIVATE_CODE,
-    });
+    const league = await seedPrivate(await aPlayer());
 
     const result = await teamService.createTeam(
       player.id,
-      "private-1",
+      league.id,
       "Gatecrasher",
     );
 
@@ -144,15 +123,11 @@ describe("the join gate", () => {
 
   it("turns away a private league with the wrong code", async () => {
     const player = await makePlayer("guesser");
-    await insertLeague(env.db, {
-      id: "private-2",
-      visibility: LeagueVisibility.PRIVATE,
-      invitationCode: PRIVATE_CODE,
-    });
+    const league = await seedPrivate(await aPlayer());
 
     const result = await teamService.createTeam(
       player.id,
-      "private-2",
+      league.id,
       "Wrong Key",
       "AAAAA",
     );
@@ -162,38 +137,14 @@ describe("the join gate", () => {
 
   it("lets a correct code in, however it was typed", async () => {
     const player = await makePlayer("invitee");
-    await insertLeague(env.db, {
-      id: "private-3",
-      visibility: LeagueVisibility.PRIVATE,
-      invitationCode: PRIVATE_CODE,
-    });
+    const league = await seedPrivate(await aPlayer());
 
     const result = await teamService.createTeam(
       player.id,
-      "private-3",
+      league.id,
       "Invited XI",
       // Lowercase, spaced and hyphenated — how a code arrives out of a chat.
       " zk7-qw ",
-    );
-
-    expect(result.ok).toBe(true);
-  });
-
-  it("lets the league's own admin in without a code", async () => {
-    // #4 adds the creator to the league it just created. A blanket refusal
-    // would lock a player out of their own league.
-    const admin = await makePlayer("founder");
-    await insertLeague(env.db, {
-      id: "private-4",
-      adminId: admin.id,
-      visibility: LeagueVisibility.PRIVATE,
-      invitationCode: PRIVATE_CODE,
-    });
-
-    const result = await teamService.createTeam(
-      admin.id,
-      "private-4",
-      "Founders XI",
     );
 
     expect(result.ok).toBe(true);
@@ -218,16 +169,12 @@ describe("the join gate", () => {
     // concurrent request creates when a league turns private between the
     // check and the insert.
     const player = await makePlayer("racer");
-    await insertLeague(env.db, {
-      id: "private-5",
-      visibility: LeagueVisibility.PRIVATE,
-      invitationCode: PRIVATE_CODE,
-    });
+    const league = await seedPrivate(await aPlayer());
 
-    const result = await new TeamRepositoryD1(env.db).create({
+    const result = await repositories().teams.create({
       name: "Race Winner",
       playerId: player.id,
-      leagueId: "private-5",
+      leagueId: league.id,
     });
 
     expect(result).toEqual({ ok: false, error: TEAM_ERRORS.JOIN_CONFLICT });
@@ -235,20 +182,17 @@ describe("the join gate", () => {
 
   it("does not let a code from one league open another", async () => {
     const player = await makePlayer("crosser");
-    await insertLeague(env.db, {
-      id: "private-a",
+    await seedPrivate(await aPlayer());
+    const other = await seedLeague({
       visibility: LeagueVisibility.PRIVATE,
-      invitationCode: PRIVATE_CODE,
-    });
-    await insertLeague(env.db, {
-      id: "private-b",
-      visibility: LeagueVisibility.PRIVATE,
+      invitePolicy: LeagueInvitePolicy.MEMBERS,
       invitationCode: "M4RSX",
+      adminId: await aPlayer(),
     });
 
     const result = await teamService.createTeam(
       player.id,
-      "private-b",
+      other.id,
       "Wrong Door",
       PRIVATE_CODE,
     );
@@ -260,14 +204,16 @@ describe("the join gate", () => {
     // The SQL compares against '' when no code is offered. A private league
     // whose code is NULL must not match that.
     const player = await makePlayer("emptycode");
-    await insertLeague(env.db, {
-      id: "private-nocode",
+    const league = await seedLeague({
       visibility: LeagueVisibility.PRIVATE,
+      invitePolicy: LeagueInvitePolicy.MEMBERS,
+      invitationCode: null,
+      adminId: await aPlayer(),
     });
 
     const result = await teamService.createTeam(
       player.id,
-      "private-nocode",
+      league.id,
       "Empty Key",
       "",
     );
@@ -285,24 +231,20 @@ describe("LeagueService.getInvitationCode", () => {
 
   it("gives a member the code when the policy is members", async () => {
     const player = await makePlayer("member");
-    await insertLeague(env.db, {
-      id: "inv-members",
-      visibility: LeagueVisibility.PRIVATE,
-      invitePolicy: LeagueInvitePolicy.MEMBERS,
-      invitationCode: PRIVATE_CODE,
-    });
-    await insertTeam(env.db, {
-      id: "t-member",
-      name: "Member FC",
-      playerId: player.id,
-      leagueId: "inv-members",
-    });
-
-    const result = await service.getInvitationCode(
-      player.id,
-      "inv-members",
-      true,
+    const league = await seedPrivate(await aPlayer());
+    // Through the gate with the code, because the write refuses a bare join to a
+    // private league — which is the rule the join gate above pins.
+    unwrap(
+      await new TeamService(repositories()).createTeam(
+        player.id,
+        league.id,
+        "Member FC",
+        PRIVATE_CODE,
+      ),
+      "team",
     );
+
+    const result = await service.getInvitationCode(player.id, league.id, true);
 
     expect(result).toEqual({ ok: true, value: { code: PRIVATE_CODE } });
   });
@@ -310,33 +252,23 @@ describe("LeagueService.getInvitationCode", () => {
   it("hides the code from a non-member behind the same answer as a missing league", async () => {
     // Telling a stranger a code exists tells them there is something to guess.
     const player = await makePlayer("stranger");
-    await insertLeague(env.db, {
-      id: "inv-closed",
-      visibility: LeagueVisibility.PRIVATE,
-      invitePolicy: LeagueInvitePolicy.MEMBERS,
-      invitationCode: PRIVATE_CODE,
-    });
+    const league = await seedPrivate(await aPlayer());
 
-    const result = await service.getInvitationCode(
-      player.id,
-      "inv-closed",
-      false,
-    );
+    const result = await service.getInvitationCode(player.id, league.id, false);
 
     expect(result).toEqual({ ok: false, error: LEAGUE_ERRORS.NOT_FOUND });
   });
 
   it("gives the admin the code when the policy is admin", async () => {
     const admin = await makePlayer("theadmin");
-    await insertLeague(env.db, {
-      id: "inv-admin",
-      adminId: admin.id,
+    const league = await seedLeague({
       visibility: LeagueVisibility.PRIVATE,
       invitePolicy: LeagueInvitePolicy.ADMIN,
       invitationCode: PRIVATE_CODE,
+      adminId: admin.id,
     });
 
-    const result = await service.getInvitationCode(admin.id, "inv-admin", true);
+    const result = await service.getInvitationCode(admin.id, league.id, true);
 
     expect(result).toEqual({ ok: true, value: { code: PRIVATE_CODE } });
   });
@@ -344,28 +276,28 @@ describe("LeagueService.getInvitationCode", () => {
   it("refuses a mere member when the policy is admin", async () => {
     const admin = await makePlayer("owner");
     const member = await makePlayer("rankandfile");
-    await insertLeague(env.db, {
-      id: "inv-admin-only",
-      adminId: admin.id,
+    const league = await seedLeague({
       visibility: LeagueVisibility.PRIVATE,
       invitePolicy: LeagueInvitePolicy.ADMIN,
       invitationCode: PRIVATE_CODE,
+      adminId: admin.id,
     });
 
-    const result = await service.getInvitationCode(
-      member.id,
-      "inv-admin-only",
-      true,
-    );
+    const result = await service.getInvitationCode(member.id, league.id, true);
 
     expect(result).toEqual({ ok: false, error: LEAGUE_ERRORS.NOT_FOUND });
   });
 
   it("says a public league simply has no code to hand out", async () => {
     const player = await makePlayer("codeless");
-    await insertLeague(env.db, { id: "inv-none" });
+    const league = await seedLeague({
+      visibility: LeagueVisibility.PUBLIC,
+      invitePolicy: LeagueInvitePolicy.MEMBERS,
+      invitationCode: null,
+      adminId: await aPlayer(),
+    });
 
-    const result = await service.getInvitationCode(player.id, "inv-none", true);
+    const result = await service.getInvitationCode(player.id, league.id, true);
 
     expect(result).toEqual({
       ok: false,

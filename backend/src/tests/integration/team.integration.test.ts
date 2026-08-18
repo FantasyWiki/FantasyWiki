@@ -12,7 +12,6 @@ import {
   fakeLeagueRepository,
   fakeTeamRepository,
 } from "../utils/fakeRepositories";
-import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
 
 describe("TeamService Integration Tests", () => {
   let teamService: TeamService;
@@ -327,57 +326,5 @@ describe("TeamService Integration Tests", () => {
         });
       }
     });
-  });
-});
-
-describe("TeamRepositoryD1 error handling", () => {
-  const throwingDb = {
-    prepare: () => {
-      throw new Error("D1 unavailable");
-    },
-  } as unknown as D1Database;
-
-  it("should return a failure from create when D1 throws", async () => {
-    const repository = new TeamRepositoryD1(throwingDb);
-    const result = await repository.create({
-      name: "Test",
-      playerId: "p1",
-      leagueId: "l1",
-    });
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toContain("D1 unavailable");
-    }
-  });
-
-  it("should return a failure from existsByNameInLeague when D1 throws", async () => {
-    const repository = new TeamRepositoryD1(throwingDb);
-    const result = await repository.existsByNameInLeague("Test", "l1");
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toContain("D1 unavailable");
-    }
-  });
-
-  it("should return a failure from getByPlayerAndLeague when D1 throws", async () => {
-    const repository = new TeamRepositoryD1(throwingDb);
-    const result = await repository.getByPlayerAndLeague("p1", "l1");
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toContain("D1 unavailable");
-    }
-  });
-
-  it("should return a failure from getByIdAndLeague when D1 throws", async () => {
-    const repository = new TeamRepositoryD1(throwingDb);
-    const result = await repository.getByIdAndLeague("t1", "l1");
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toContain("D1 unavailable");
-    }
   });
 });

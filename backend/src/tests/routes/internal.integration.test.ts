@@ -1,39 +1,40 @@
 import { env } from "cloudflare:workers";
+import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect, beforeEach } from "vitest";
 import { app } from "../../index";
 import { PerformanceService } from "../../services/performance";
+import { PlayerService } from "../../services/player";
+import { TeamService } from "../../services/team";
+import { LineupService } from "../../services/lineup";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
-import {
-  resetD1Database,
-  insertTeam,
-  insertLineup,
-  insertContract,
-} from "../utils/d1TestUtils";
+import { unwrap } from "../../repositories/result";
+import { repositories } from "../support/target";
 
 const SCORE_DATE = "2026-07-12";
-const TEAM_ID = "team-internal-1";
-const PLAYER_ID = "player-internal-1";
 const AUTH = { Authorization: "Bearer test-scoring-secret" };
 
 describe("/internal routes", () => {
+  let playerId: string;
+  let teamId: string;
+
   beforeEach(async () => {
-    await resetD1Database(env.db);
-    await env.db
-      .prepare(
-        "INSERT INTO google_accounts (id, googleId, email) VALUES (?, ?, ?)",
-      )
-      .bind("acc-internal-1", "gid-internal-1", "internal@example.com")
-      .run();
-    await env.db
-      .prepare("INSERT INTO players (id, username, accountId) VALUES (?, ?, ?)")
-      .bind(PLAYER_ID, "internalplayer", "acc-internal-1")
-      .run();
-    await insertTeam(env.db, {
-      id: TEAM_ID,
-      name: "Internal FC",
-      playerId: PLAYER_ID,
-      leagueId: GLOBAL_LEAGUE_ID, // domain "en"
-    });
+    playerId = unwrap(
+      await new PlayerService(repositories()).createPlayer(
+        "internalplayer",
+        "internal@example.com",
+        "acc-internal-1",
+      ),
+      "player",
+    ).id;
+    // The Global League's domain is "en", which fixes the language scale.
+    teamId = unwrap(
+      await new TeamService(repositories()).createTeam(
+        playerId,
+        GLOBAL_LEAGUE_ID,
+        "Internal FC",
+      ),
+      "team",
+    ).id;
   });
 
   it("rejects a missing or wrong bearer token with 401", async () => {
@@ -80,14 +81,30 @@ describe("/internal routes", () => {
   });
 
   it("serves inputs and ingests results with a valid token", async () => {
-    await insertContract(env.db, {
-      id: "c-active",
-      teamId: TEAM_ID,
-      articleId: "Active_Article",
-      purchaseDate: "2026-07-01",
-      expireDate: "2026-07-15",
-    });
-    await insertLineup(env.db, TEAM_ID, "4-3-3", { ST: "c-active" });
+    const contract = unwrap(
+      await repositories().contracts.create({
+        teamId,
+        articleId: "Active_Article",
+        purchaseDate: Temporal.PlainDate.from("2026-07-01"),
+        expireDate: Temporal.PlainDate.from("2026-07-15"),
+        purchasePrice: 10,
+      }),
+      "contract",
+    );
+    unwrap(
+      await new LineupService({
+        ...repositories(),
+        teamService: new TeamService(repositories()),
+      }).saveLineup(playerId, GLOBAL_LEAGUE_ID, {
+        formation: {
+          date: SCORE_DATE,
+          schema: "4-3-3",
+          formation: { ST: { id: contract.id } as never },
+        },
+        bench: [],
+      }),
+      "lineup",
+    );
 
     const getRes = await app.request(
       `/internal/scoring-inputs?date=${SCORE_DATE}`,
@@ -99,7 +116,7 @@ describe("/internal routes", () => {
       teamId: string;
       articles: string[];
     }>;
-    expect(inputs.find((i) => i.teamId === TEAM_ID)?.articles).toEqual([
+    expect(inputs.find((i) => i.teamId === teamId)?.articles).toEqual([
       "Active_Article",
     ]);
 
@@ -114,7 +131,7 @@ describe("/internal routes", () => {
           date: SCORE_DATE,
           results: [
             {
-              teamId: TEAM_ID,
+              teamId: teamId,
               articleViews: [64_000],
               chemistryLevels: ["good"],
               formationSnapshot: JSON.stringify({ ST: "Active_Article" }),
@@ -128,8 +145,8 @@ describe("/internal routes", () => {
     const body = (await postRes.json()) as { written: number };
     expect(body.written).toBe(1);
 
-    const performance = PerformanceService.fromDb(env.db);
-    const rows = await performance.getRecentForTeam(TEAM_ID, 5);
+    const performance = new PerformanceService(repositories());
+    const rows = await performance.getRecentForTeam(teamId, 5);
     expect(rows.ok).toBe(true);
     if (rows.ok) expect(rows.value[0].points).toBeCloseTo(5.5);
   });

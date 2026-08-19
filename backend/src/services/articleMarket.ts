@@ -1,9 +1,7 @@
 import { MarketArticleDTO } from "../../../dto/marketArticleDTO";
 import { LeagueRepository } from "../repositories/leagueRepository";
-import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
 import { Result, failure, success } from "../repositories/result";
 import { WikimediaClient } from "../../../external-apis/wikimedia/client";
-import { createWikimediaClient } from "./wikimediaClient";
 import {
   TIER_DAYS,
   computeContractPrice,
@@ -17,13 +15,9 @@ export class ArticleMarketService {
   private leagueRepo: LeagueRepository;
   private wikimedia: WikimediaClient;
 
-  constructor(
-    db: D1Database,
-    wikimedia?: WikimediaClient,
-    leagueRepo?: LeagueRepository,
-  ) {
-    this.leagueRepo = leagueRepo ?? new LeagueRepositoryD1(db);
-    this.wikimedia = wikimedia ?? createWikimediaClient();
+  constructor(deps: { leagues: LeagueRepository; wikimedia: WikimediaClient }) {
+    this.leagueRepo = deps.leagues;
+    this.wikimedia = deps.wikimedia;
   }
 
   async getMarket(leagueId: string): Promise<Result<MarketArticleDTO[]>> {

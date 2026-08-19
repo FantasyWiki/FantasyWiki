@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect, beforeEach } from "vitest";
 import { PlayerService } from "../../services/player";
@@ -7,14 +6,16 @@ import {
   PLAYER_ERRORS,
   PlayerRepository,
 } from "../../repositories/playerRepository";
-import { success } from "../../repositories/result";
-import { insertTeam } from "../utils/d1TestUtils";
+import { success, unwrap } from "../../repositories/result";
+import { TeamService } from "../../services/team";
+import { anotherLeague } from "../support/subjects";
+import { repositories } from "../support/target";
 
 describe("PlayerService Integration Tests", () => {
   let playerService: PlayerService;
 
   beforeEach(() => {
-    playerService = new PlayerService(env.db);
+    playerService = new PlayerService(repositories());
   });
 
   it("should use an injected repository when one is provided", async () => {
@@ -30,7 +31,7 @@ describe("PlayerService Integration Tests", () => {
       getLeaguesByPlayerId: async () => success([]),
       getPlayerByAccountId: async () => success(player),
     };
-    const service = new PlayerService(repository);
+    const service = new PlayerService({ players: repository });
 
     const result = await service.createPlayer(
       "injected",
@@ -177,12 +178,14 @@ describe("PlayerService Integration Tests", () => {
       expect(created.ok).toBe(true);
       if (!created.ok) throw new Error("setup failed");
 
-      await insertTeam(env.db, {
-        id: "team-leagues-1",
-        name: "Member FC",
-        playerId: created.value.id,
-        leagueId: GLOBAL_LEAGUE_ID,
-      });
+      unwrap(
+        await new TeamService(repositories()).createTeam(
+          created.value.id,
+          GLOBAL_LEAGUE_ID,
+          "Member FC",
+        ),
+        "team",
+      );
 
       const result = await playerService.getLeaguesByPlayerId(created.value.id);
 
@@ -203,21 +206,23 @@ describe("PlayerService Integration Tests", () => {
       expect(created.ok).toBe(true);
       if (!created.ok) throw new Error("setup failed");
 
-      await insertTeam(env.db, {
-        id: "team-leagues-dates",
-        name: "Calendar FC",
-        playerId: created.value.id,
-        leagueId: GLOBAL_LEAGUE_ID,
-      });
+      unwrap(
+        await repositories().teams.create({
+          name: "Calendar FC",
+          playerId: created.value.id,
+          leagueId: GLOBAL_LEAGUE_ID,
+        }),
+        "team",
+      );
 
       const result = await playerService.getLeaguesByPlayerId(created.value.id);
 
       expect(result.ok).toBe(true);
       if (result.ok) {
         const { startDate, endDate } = result.value[0];
-        // A plain SELECT hands these back as text; anything downstream that
-        // does instant arithmetic on them (the league calendar) would silently
-        // get a string.
+        // Stored as text, so the repository has to be the one that parses them:
+        // anything downstream doing instant arithmetic (the league calendar)
+        // would silently get a string instead.
         expect(startDate).toBeInstanceOf(Temporal.Instant);
         expect(endDate).toBeInstanceOf(Temporal.Instant);
         expect(startDate.toString()).toContain("2024-01-01");
@@ -237,34 +242,25 @@ describe("PlayerService Integration Tests", () => {
       );
       if (!me.ok || !outsider.ok) throw new Error("setup failed");
 
-      await env.db
-        .prepare(
-          "INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(
-          "league-quiet",
-          "Quiet League",
-          "system",
-          "2026-01-01T00:00:00Z",
-          "2026-03-01T00:00:00Z",
-          "en",
-          "🤫",
-        )
-        .run();
+      const quiet = await anotherLeague();
 
-      await insertTeam(env.db, {
-        id: "team-count-mine",
-        name: "Mine FC",
-        playerId: me.value.id,
-        leagueId: GLOBAL_LEAGUE_ID,
-      });
+      unwrap(
+        await repositories().teams.create({
+          name: "Mine FC",
+          playerId: me.value.id,
+          leagueId: GLOBAL_LEAGUE_ID,
+        }),
+        "my team",
+      );
       // Somebody else's league, which must not leak into this player's list.
-      await insertTeam(env.db, {
-        id: "team-count-elsewhere",
-        name: "Elsewhere FC",
-        playerId: outsider.value.id,
-        leagueId: "league-quiet",
-      });
+      unwrap(
+        await repositories().teams.create({
+          name: "Elsewhere FC",
+          playerId: outsider.value.id,
+          leagueId: quiet.id,
+        }),
+        "outsider team",
+      );
 
       const result = await playerService.getLeaguesByPlayerId(me.value.id);
 
@@ -284,25 +280,29 @@ describe("PlayerService Integration Tests", () => {
       );
       if (!me.ok) throw new Error("setup failed");
 
-      await insertTeam(env.db, {
-        id: "team-dedup-mine",
-        name: "Dedup FC",
-        playerId: me.value.id,
-        leagueId: GLOBAL_LEAGUE_ID,
-      });
-      for (const [i, name] of ["a", "b", "c"].entries()) {
+      unwrap(
+        await repositories().teams.create({
+          name: "Dedup FC",
+          playerId: me.value.id,
+          leagueId: GLOBAL_LEAGUE_ID,
+        }),
+        "my team",
+      );
+      for (const name of ["a", "b", "c"]) {
         const other = await playerService.createPlayer(
           `dedup-rival-${name}`,
           `dedup-${name}@example.com`,
           `account-dedup-${name}`,
         );
         if (!other.ok) throw new Error("setup failed");
-        await insertTeam(env.db, {
-          id: `team-dedup-${i}`,
-          name: `Rival ${name}`,
-          playerId: other.value.id,
-          leagueId: GLOBAL_LEAGUE_ID,
-        });
+        unwrap(
+          await repositories().teams.create({
+            name: `Rival ${name}`,
+            playerId: other.value.id,
+            leagueId: GLOBAL_LEAGUE_ID,
+          }),
+          "rival team",
+        );
       }
 
       const result = await playerService.getLeaguesByPlayerId(me.value.id);

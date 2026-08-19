@@ -14,9 +14,7 @@ import {
 } from "../../../model/languageScale";
 import { isContentArticleTitle } from "../../../external-apis/wikimedia/wikimedia";
 import type { WikimediaClient } from "../../../external-apis/wikimedia/client";
-import { createWikimediaClient } from "./wikimediaClient";
 import { LanguageScaleRepository } from "../repositories/languageScaleRepository";
-import { LanguageScaleRepositoryD1 } from "../repositories/d1/languageScaleRepositoryD1";
 import { Result, failure, success } from "../repositories/result";
 
 /**
@@ -71,18 +69,15 @@ export class LanguageScaleCalibrationService {
   private repository: LanguageScaleRepository;
   private wikimedia: WikimediaClient;
 
-  constructor(
-    dbOrRepository: LanguageScaleRepository | D1Database,
-    wikimedia?: WikimediaClient,
-  ) {
-    this.repository =
-      "getByDomain" in dbOrRepository
-        ? dbOrRepository
-        : new LanguageScaleRepositoryD1(dbOrRepository);
+  constructor(deps: {
+    languageScales: LanguageScaleRepository;
     // Injected rather than imported at module scope: the Workers test pool
     // silently no-ops `vi.mock`, so a client reached through the module graph
     // would be unmockable and every test would hit Wikimedia for real.
-    this.wikimedia = wikimedia ?? createWikimediaClient();
+    wikimedia: WikimediaClient;
+  }) {
+    this.repository = deps.languageScales;
+    this.wikimedia = deps.wikimedia;
   }
 
   /**

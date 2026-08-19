@@ -1,129 +1,101 @@
-import { env } from "cloudflare:workers";
+import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect, beforeEach } from "vitest";
 import { NotificationService } from "../../services/notification";
 import { PlayerService } from "../../services/player";
+import { TeamService } from "../../services/team";
 import { GLOBAL_LEAGUE_ID } from "../../services/league";
-import { insertTeam } from "../utils/d1TestUtils";
+import { unwrap } from "../../repositories/result";
+import { anotherLeague } from "../support/subjects";
+import { repositories } from "../support/target";
 
 describe("NotificationService Integration Tests", () => {
   let notificationService: NotificationService;
   let playerService: PlayerService;
+  let teamService: TeamService;
   let playerId: string;
   let teamId: string;
 
-  beforeEach(async () => {
-    notificationService = new NotificationService(env.db);
-    playerService = new PlayerService(env.db);
-
-    const playerResult = await playerService.createPlayer(
-      "notifytester",
-      "notifytester@example.com",
-      "account-notify-1",
-    );
-    expect(playerResult.ok).toBe(true);
-    if (!playerResult.ok) throw new Error("setup failed: player");
-    playerId = playerResult.value.id;
-
-    teamId = "team-notify-1";
-    await insertTeam(env.db, {
-      id: teamId,
-      name: "Notify FC",
-      playerId,
-      leagueId: GLOBAL_LEAGUE_ID,
-    });
-  });
-
-  // Helper: insert a contract then a notification referencing it
-  async function insertNotification(opts: {
+  /** A notification about a contract the given team holds. */
+  async function notify(opts: {
     notificationId: string;
-    contractId: string;
     teamId: string;
     articleId?: string;
     message?: string;
     date?: string;
-    isRead?: number;
   }): Promise<void> {
-    const articleId = opts.articleId ?? "Cat";
-    await env.db
-      .prepare(
-        "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
-      )
-      .bind(
-        opts.contractId,
-        opts.teamId,
-        articleId,
-        "2026-01-01",
-        "2026-01-08",
-        50,
-      )
-      .run();
+    const contract = unwrap(
+      await repositories().contracts.create({
+        teamId: opts.teamId,
+        articleId: opts.articleId ?? "Cat",
+        purchaseDate: Temporal.PlainDate.from("2026-01-01"),
+        expireDate: Temporal.PlainDate.from("2026-01-08"),
+        purchasePrice: 50,
+      }),
+      "contract",
+    );
 
-    await env.db
-      .prepare(
-        "INSERT INTO notifications (id, contractId, message, date, isRead) VALUES (?, ?, ?, ?, ?)",
-      )
-      .bind(
-        opts.notificationId,
-        opts.contractId,
-        opts.message ?? "Test notification",
-        opts.date ?? "2026-01-05",
-        opts.isRead ?? 0,
-      )
-      .run();
+    unwrap(
+      await repositories().notifications.create({
+        id: opts.notificationId,
+        contractId: contract.id,
+        message: opts.message ?? "Test notification",
+        date: opts.date ?? "2026-01-05",
+      }),
+      "notification",
+    );
   }
+
+  beforeEach(async () => {
+    notificationService = new NotificationService(repositories());
+    playerService = new PlayerService(repositories());
+    teamService = new TeamService(repositories());
+
+    playerId = unwrap(
+      await playerService.createPlayer(
+        "notifytester",
+        "notifytester@example.com",
+        "account-notify-1",
+      ),
+      "player",
+    ).id;
+
+    teamId = unwrap(
+      await teamService.createTeam(playerId, GLOBAL_LEAGUE_ID, "Notify FC"),
+      "team",
+    ).id;
+  });
 
   describe("getMyNotifications", () => {
     it("should return only notifications for the player's team in the specified league", async () => {
-      // Insert a second player and team so we can confirm isolation
-      const otherLeagueId = "league-notify-other";
-      await env.db
-        .prepare(
-          "INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(
+      const otherLeagueId = (await anotherLeague()).id;
+
+      const otherPlayerId = unwrap(
+        await playerService.createPlayer(
+          "othernotify",
+          "othernotify@example.com",
+          "account-other-notify-1",
+        ),
+        "other player",
+      ).id;
+      const otherTeamId = unwrap(
+        await teamService.createTeam(
+          otherPlayerId,
           otherLeagueId,
-          "Other Notify League",
-          "system",
-          new Date().toISOString(),
-          new Date().toISOString(),
-          "en",
-          "🌍",
-        )
-        .run();
+          "Other Notify FC",
+        ),
+        "other team",
+      ).id;
 
-      const otherPlayerResult = await playerService.createPlayer(
-        "othernotify",
-        "othernotify@example.com",
-        "account-other-notify-1",
-      );
-      expect(otherPlayerResult.ok).toBe(true);
-      if (!otherPlayerResult.ok) throw new Error("setup failed");
-      const otherPlayerId = otherPlayerResult.value.id;
-
-      const otherTeamId = "team-notify-other-1";
-      await insertTeam(env.db, {
-        id: otherTeamId,
-        name: "Other Notify FC",
-        playerId: otherPlayerId,
-        leagueId: otherLeagueId,
-      });
-
-      // Notification for our player's team in global league
-      await insertNotification({
+      await notify({
         notificationId: "notif-1",
-        contractId: "contract-notif-1",
         teamId,
         message: "Your contract is expiring",
-        date: "2026-01-05",
       });
-
-      // Notification for the other player's team — should NOT appear in our results
-      await insertNotification({
+      // The other player's, which must not appear in our results.
+      await notify({
         notificationId: "notif-other-1",
-        contractId: "contract-notif-other-1",
         teamId: otherTeamId,
         message: "Someone else's notification",
-        date: "2026-01-05",
       });
 
       const result = await notificationService.getMyNotifications(
@@ -155,44 +127,24 @@ describe("NotificationService Integration Tests", () => {
 
   describe("getAllForPlayer", () => {
     it("should return notifications across all leagues for the player", async () => {
-      // Create a second league and team for the same player
-      const secondLeagueId = "league-notify-second";
-      await env.db
-        .prepare(
-          "INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(
+      const secondLeagueId = (await anotherLeague()).id;
+
+      const secondTeamId = unwrap(
+        await teamService.createTeam(
+          playerId,
           secondLeagueId,
-          "Second Notify League",
-          "system",
-          new Date().toISOString(),
-          new Date().toISOString(),
-          "en",
-          "🌍",
-        )
-        .run();
+          "Second Notify FC",
+        ),
+        "second team",
+      ).id;
 
-      const secondTeamId = "team-notify-second-1";
-      await insertTeam(env.db, {
-        id: secondTeamId,
-        name: "Second Notify FC",
-        playerId,
-        leagueId: secondLeagueId,
-      });
-
-      // Notification in global league
-      await insertNotification({
+      await notify({
         notificationId: "notif-all-1",
-        contractId: "contract-all-1",
         teamId,
         message: "Global notification",
-        date: "2026-01-05",
       });
-
-      // Notification in second league
-      await insertNotification({
+      await notify({
         notificationId: "notif-all-2",
-        contractId: "contract-all-2",
         teamId: secondTeamId,
         message: "Second league notification",
         date: "2026-01-06",
@@ -212,14 +164,7 @@ describe("NotificationService Integration Tests", () => {
 
   describe("markAsRead", () => {
     it("should flip isRead to true for an existing notification", async () => {
-      await insertNotification({
-        notificationId: "notif-read-1",
-        contractId: "contract-read-1",
-        teamId,
-        message: "Mark me read",
-        date: "2026-01-05",
-        isRead: 0,
-      });
+      await notify({ notificationId: "notif-read-1", teamId });
 
       const markResult = await notificationService.markAsRead(
         "notif-read-1",
@@ -227,14 +172,11 @@ describe("NotificationService Integration Tests", () => {
       );
       expect(markResult.ok).toBe(true);
 
-      // Verify directly in DB that isRead is now 1
-      const row = await env.db
-        .prepare("SELECT isRead FROM notifications WHERE id = ?")
-        .bind("notif-read-1")
-        .first<{ isRead: number }>();
-
-      expect(row).not.toBeNull();
-      expect(row!.isRead).toBe(1);
+      const rows = unwrap(
+        await repositories().notifications.getByPlayerId(playerId),
+        "notification read-back",
+      );
+      expect(rows.find((row) => row.id === "notif-read-1")?.isRead).toBe(true);
     });
 
     it("should return a failure when the notification ID does not exist", async () => {
@@ -250,35 +192,29 @@ describe("NotificationService Integration Tests", () => {
     });
 
     it("should return a failure when the notification exists but belongs to another player", async () => {
-      // Create a second player with their own team and notification
-      const otherPlayerResult = await playerService.createPlayer(
-        "othernotifyread",
-        "othernotifyread@example.com",
-        "account-other-notify-read-1",
-      );
-      expect(otherPlayerResult.ok).toBe(true);
-      if (!otherPlayerResult.ok) throw new Error("setup failed: other player");
-      const otherPlayerId = otherPlayerResult.value.id;
+      const otherPlayerId = unwrap(
+        await playerService.createPlayer(
+          "othernotifyread",
+          "othernotifyread@example.com",
+          "account-other-notify-read-1",
+        ),
+        "other player",
+      ).id;
+      const otherTeamId = unwrap(
+        await teamService.createTeam(
+          otherPlayerId,
+          GLOBAL_LEAGUE_ID,
+          "Other Read FC",
+        ),
+        "other team",
+      ).id;
 
-      const otherTeamId = "team-notify-read-other-1";
-      await insertTeam(env.db, {
-        id: otherTeamId,
-        name: "Other Read FC",
-        playerId: otherPlayerId,
-        leagueId: GLOBAL_LEAGUE_ID,
-      });
-
-      // Insert notification belonging to the other player's team
-      await insertNotification({
+      await notify({
         notificationId: "notif-read-other-1",
-        contractId: "contract-read-other-1",
         teamId: otherTeamId,
         message: "Another player's notification",
-        date: "2026-01-05",
-        isRead: 0,
       });
 
-      // Attempt to mark it as read using the first player's ID — should be rejected
       const result = await notificationService.markAsRead(
         "notif-read-other-1",
         playerId,

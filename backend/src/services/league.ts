@@ -32,7 +32,6 @@ import {
   LEAGUE_ERRORS,
   LeagueRepository,
 } from "../repositories/leagueRepository";
-import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
 import { Result, failure, success } from "../repositories/result";
 import { withUniqueInvitationCode } from "./invitationCode";
 import { LanguageScaleCalibrationService } from "./languageScaleCalibration";
@@ -175,23 +174,15 @@ export class LeagueService {
    * `calibration` is optional because only one of this service's methods needs
    * it — founding a league is the single moment a Language Scale Factor has to
    * exist — and requiring it would make every read-only construction carry a
-   * Wikimedia client it never calls. Constructed from a `D1Database` it is wired
-   * automatically; passed a repository (as tests do) it must be supplied to
-   * create a league, and `createLeague` refuses rather than silently defaulting
-   * the factor.
+   * Wikimedia client it never calls. `createLeague` refuses rather than silently
+   * defaulting the factor when it was not supplied.
    */
-  constructor(
-    repositoryOrDb: LeagueRepository | D1Database,
-    calibration?: LanguageScaleCalibrationService,
-  ) {
-    if ("getById" in repositoryOrDb) {
-      this.repository = repositoryOrDb;
-      this.calibration = calibration;
-      return;
-    }
-    this.repository = new LeagueRepositoryD1(repositoryOrDb);
-    this.calibration =
-      calibration ?? new LanguageScaleCalibrationService(repositoryOrDb);
+  constructor(deps: {
+    leagues: LeagueRepository;
+    calibration?: LanguageScaleCalibrationService;
+  }) {
+    this.repository = deps.leagues;
+    this.calibration = deps.calibration;
   }
 
   async getGlobalLeague(): Promise<Result<LeagueDTO>> {

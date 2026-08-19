@@ -17,6 +17,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply db --remote",
     "format": "prettier --check .",
     "formatfix": "prettier --write .",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tests.json",
     "lint": "eslint . --max-warnings 0",
     "lintfix": "eslint --fix .",
     "test:integration": "vitest run --config vitest.config.ts"

@@ -13,8 +13,11 @@ import wikipediaEditionRoutes from "./routes/wikipediaEditions";
 import type { WorkersAiBinding } from "./services/llmClient";
 import internal from "./routes/internal";
 import type { ContractSettlementParams } from "./workflows/contractSettlement";
+import { AppVariables } from "./appEnv";
+import { repositoriesFor } from "./composition";
+import { createWikimediaClient } from "./services/wikimediaClient";
 
-const app = new Hono<{ Bindings: Bindings }>();
+const app = new Hono<{ Bindings: Bindings; Variables: AppVariables }>();
 
 type Bindings = {
   db: D1Database;
@@ -45,6 +48,16 @@ app.use(
     credentials: true,
   }),
 );
+
+// Built once per isolate rather than per request: it carries a transport and a
+// response cache that only pay off when they outlive a single request.
+const wikimedia = createWikimediaClient();
+
+app.use("*", async (c, next) => {
+  c.set("repositories", repositoriesFor(c.env));
+  c.set("wikimedia", wikimedia);
+  return next();
+});
 
 app.get("/", (c) => {
   return c.json({

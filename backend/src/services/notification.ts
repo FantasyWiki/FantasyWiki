@@ -6,16 +6,9 @@ import {
   NotificationRepository,
   NotificationRow,
 } from "../repositories/notificationRepository";
-import { NotificationRepositoryD1 } from "../repositories/d1/notificationRepositoryD1";
 import { LeagueRepository } from "../repositories/leagueRepository";
-import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
 import { Result, success, failure } from "../repositories/result";
 import { toRawContract } from "./rawContract";
-
-export type NotificationServiceDeps = {
-  notificationRepository: NotificationRepository;
-  leagueRepository: LeagueRepository;
-};
 
 function rowToRawContract(row: NotificationRow, domain: Domain): RawContract {
   return toRawContract(
@@ -40,20 +33,12 @@ export class NotificationService {
   private repository: NotificationRepository;
   private leagueRepository: LeagueRepository;
 
-  constructor(depsOrDb: NotificationServiceDeps | D1Database) {
-    const deps =
-      "notificationRepository" in depsOrDb
-        ? depsOrDb
-        : NotificationService.d1Deps(depsOrDb as D1Database);
-    this.repository = deps.notificationRepository;
-    this.leagueRepository = deps.leagueRepository;
-  }
-
-  private static d1Deps(db: D1Database): NotificationServiceDeps {
-    return {
-      notificationRepository: new NotificationRepositoryD1(db),
-      leagueRepository: new LeagueRepositoryD1(db),
-    };
+  constructor(deps: {
+    notifications: NotificationRepository;
+    leagues: LeagueRepository;
+  }) {
+    this.repository = deps.notifications;
+    this.leagueRepository = deps.leagues;
   }
 
   async getMyNotifications(

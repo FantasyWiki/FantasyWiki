@@ -42,11 +42,12 @@ export default defineConfig({
   test: {
     globals: true,
     testTimeout: 30000,
-    include: ["src/**/*.integration.test.ts", "src/**/*.spec.ts"],
-    setupFiles: [
-      "./src/tests/apply-migrations.ts",
-      "./src/tests/setup-cloudflare.ts",
+    include: [
+      "src/**/*.integration.test.ts",
+      "src/**/*.spec.ts",
+      "src/**/*.d1.test.ts",
     ],
+    setupFiles: ["./src/tests/setup.ts"],
     coverage: {
       provider: "istanbul",
       reporter: ["text", "json-summary", "lcov"],

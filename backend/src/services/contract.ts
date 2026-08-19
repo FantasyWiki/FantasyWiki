@@ -30,18 +30,12 @@ import {
   DueContract,
   LeagueContractRow,
 } from "../repositories/contractRepository";
-import { ContractRepositoryD1 } from "../repositories/d1/contractRepositoryD1";
 import { LeagueRepository } from "../repositories/leagueRepository";
-import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
 import { TEAM_ERRORS, TeamRepository } from "../repositories/teamRepository";
-import { TeamRepositoryD1 } from "../repositories/d1/teamRepositoryD1";
 import { PlayerRepository } from "../repositories/playerRepository";
-import { PlayerRepositoryD1 } from "../repositories/d1/playerRepositoryD1";
 import { NotificationRepository } from "../repositories/notificationRepository";
-import { NotificationRepositoryD1 } from "../repositories/d1/notificationRepositoryD1";
 import { Result, success, failure } from "../repositories/result";
 import { WikimediaClient } from "../../../external-apis/wikimedia/client";
-import { createWikimediaClient } from "./wikimediaClient";
 import { toRawContract } from "./rawContract";
 
 // Re-exported for callers; both live in model/ so the repository layer can
@@ -97,22 +91,20 @@ export class ContractService {
   private wikimedia: WikimediaClient;
   private notificationRepo: NotificationRepository;
 
-  constructor(
-    db: D1Database,
-    contractRepo?: ContractRepository,
-    leagueRepo?: LeagueRepository,
-    teamRepo?: TeamRepository,
-    playerRepo?: PlayerRepository,
-    wikimedia?: WikimediaClient,
-    notificationRepo?: NotificationRepository,
-  ) {
-    this.contractRepo = contractRepo ?? new ContractRepositoryD1(db);
-    this.leagueRepo = leagueRepo ?? new LeagueRepositoryD1(db);
-    this.teamRepo = teamRepo ?? new TeamRepositoryD1(db);
-    this.playerRepo = playerRepo ?? new PlayerRepositoryD1(db);
-    this.wikimedia = wikimedia ?? createWikimediaClient();
-    this.notificationRepo =
-      notificationRepo ?? new NotificationRepositoryD1(db);
+  constructor(deps: {
+    contracts: ContractRepository;
+    leagues: LeagueRepository;
+    teams: TeamRepository;
+    players: PlayerRepository;
+    notifications: NotificationRepository;
+    wikimedia: WikimediaClient;
+  }) {
+    this.contractRepo = deps.contracts;
+    this.leagueRepo = deps.leagues;
+    this.teamRepo = deps.teams;
+    this.playerRepo = deps.players;
+    this.notificationRepo = deps.notifications;
+    this.wikimedia = deps.wikimedia;
   }
 
   /**

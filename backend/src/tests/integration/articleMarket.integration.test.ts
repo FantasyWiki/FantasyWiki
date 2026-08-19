@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect } from "vitest";
 import { ArticleMarketService } from "../../services/articleMarket";
@@ -9,6 +8,7 @@ import { WikimediaClient } from "../../../../external-apis/wikimedia/client";
 import { TopReadEntry } from "../../../../external-apis/wikimedia/wikimedia";
 import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
 import { fakeLeagueRepository } from "../utils/fakeRepositories";
+import { REFERENCE_SCALE } from "../../../../model/languageScale";
 
 const sampleLeague: League = {
   id: "global",
@@ -17,6 +17,7 @@ const sampleLeague: League = {
   startDate: Temporal.Now.instant(),
   endDate: Temporal.Now.instant(),
   domain: "en",
+  languageScale: REFERENCE_SCALE,
   visibility: LeagueVisibility.PUBLIC,
   invitePolicy: LeagueInvitePolicy.MEMBERS,
   closedAt: null,
@@ -73,11 +74,10 @@ describe("ArticleMarketService.getMarket", () => {
       snapshotDate: "2026-06-29",
       entries: [topReadEntry()],
     }));
-    const service = new ArticleMarketService(
-      env.db,
+    const service = new ArticleMarketService({
+      leagues: leagueRepoReturning(sampleLeague),
       wikimedia,
-      leagueRepoReturning(sampleLeague),
-    );
+    });
 
     const result = await service.getMarket("global");
 
@@ -114,11 +114,10 @@ describe("ArticleMarketService.getMarket", () => {
         }),
       ],
     }));
-    const service = new ArticleMarketService(
-      env.db,
+    const service = new ArticleMarketService({
+      leagues: leagueRepoReturning(sampleLeague),
       wikimedia,
-      leagueRepoReturning(sampleLeague),
-    );
+    });
 
     const result = await service.getMarket("global");
 
@@ -138,11 +137,10 @@ describe("ArticleMarketService.getMarket", () => {
       snapshotDate: "2026-06-29",
       entries: [topReadEntry({ averageViews30d: 9000 })],
     }));
-    const service = new ArticleMarketService(
-      env.db,
+    const service = new ArticleMarketService({
+      leagues: leagueRepoReturning(sampleLeague),
       wikimedia,
-      leagueRepoReturning(sampleLeague),
-    );
+    });
 
     const result = await service.getMarket("global");
 
@@ -160,13 +158,12 @@ describe("ArticleMarketService.getMarket", () => {
       requestedDomain = domain;
       return { domain, snapshotDate: "2026-06-29", entries: [] };
     });
-    const service = new ArticleMarketService(
-      env.db,
-      wikimedia,
-      fakeLeagueRepository({
+    const service = new ArticleMarketService({
+      leagues: fakeLeagueRepository({
         getById: async () => success({ ...sampleLeague, domain: "it" }),
       }),
-    );
+      wikimedia,
+    });
 
     const result = await service.getMarket("global");
 
@@ -178,13 +175,12 @@ describe("ArticleMarketService.getMarket", () => {
     const wikimedia = wikimediaClientWithTopRead(async () => {
       throw new Error("should not be called");
     });
-    const service = new ArticleMarketService(
-      env.db,
-      wikimedia,
-      fakeLeagueRepository({
+    const service = new ArticleMarketService({
+      leagues: fakeLeagueRepository({
         getById: async () => failure("league global not found"),
       }),
-    );
+      wikimedia,
+    });
 
     const result = await service.getMarket("global");
 
@@ -195,11 +191,10 @@ describe("ArticleMarketService.getMarket", () => {
     const wikimedia = wikimediaClientWithTopRead(async () => {
       throw new Error("upstream timeout");
     });
-    const service = new ArticleMarketService(
-      env.db,
+    const service = new ArticleMarketService({
+      leagues: leagueRepoReturning(sampleLeague),
       wikimedia,
-      leagueRepoReturning(sampleLeague),
-    );
+    });
 
     const result = await service.getMarket("global");
 
@@ -210,11 +205,10 @@ describe("ArticleMarketService.getMarket", () => {
     const wikimedia = wikimediaClientWithTopRead(async () => {
       throw "boom";
     });
-    const service = new ArticleMarketService(
-      env.db,
+    const service = new ArticleMarketService({
+      leagues: leagueRepoReturning(sampleLeague),
       wikimedia,
-      leagueRepoReturning(sampleLeague),
-    );
+    });
 
     const result = await service.getMarket("global");
 

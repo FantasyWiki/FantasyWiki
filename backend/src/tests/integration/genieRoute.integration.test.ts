@@ -4,6 +4,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { GENIE_ERRORS } from "../../../../dto/genieDTO";
 import me from "../../routes/me";
 import { PlayerService } from "../../services/player";
+import { injectDeps } from "../support/injectDeps";
+import { repositories } from "../support/target";
 
 /**
  * The AI binding is supplied by the test, not by the platform: the `test`
@@ -45,6 +47,7 @@ function appFor(googleAccountId: string) {
     c.set("jwtPayload", { sub: googleAccountId });
     await next();
   });
+  app.use("*", injectDeps());
   app.route("/api/me", me);
   return app;
 }
@@ -94,7 +97,7 @@ describe("POST /api/me/genie-turns", () => {
     // A fresh account per test: the rate limiter is real in this pool and keys
     // on the player, so a reused id leaks quota between tests.
     const accountId = `account-genie-${crypto.randomUUID()}`;
-    const player = await new PlayerService(env.db).createPlayer(
+    const player = await new PlayerService(repositories()).createPlayer(
       `seeker-${crypto.randomUUID()}`,
       "seeker@example.com",
       accountId,

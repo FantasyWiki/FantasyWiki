@@ -21,8 +21,18 @@ const DAY = 24 * 60 * 60 * 1000;
  * `ttlMs` is an optional default time-to-live, in milliseconds, applied
  * to entries managed by this cache implementation.
  */
-export type CacheLike = Pick<Storage, "getItem" | "setItem" | "removeItem"> & {
+export type CacheLike = WebStorageLike & {
     ttlMs?: number;
+};
+
+/**
+ * The slice of the Web Storage API this module needs, spelled out locally so
+ * the shared client compiles under a runtime whose lib has no DOM `Storage`.
+ */
+type WebStorageLike = {
+    getItem(key: string): string | null;
+    setItem(key: string, value: string): void;
+    removeItem(key: string): void;
 };
 
 /**
@@ -92,10 +102,9 @@ function createFetchHttp(fetchFn: typeof fetch): WikimediaHttp {
  * @param ttlMs - the ttl of the cache in milliseconds. If not provided, entries do not expire automatically.
  */
 export function getDefaultCache(ttlMs?: number): CacheLike | null {
-    if (typeof window === "undefined") return null;
-
     try {
-        const storage = window.localStorage;
+        const storage = (globalThis as { localStorage?: WebStorageLike }).localStorage;
+        if (!storage) return null;
 
         return {
             getItem: storage.getItem.bind(storage),

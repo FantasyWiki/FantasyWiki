@@ -91,12 +91,14 @@ than to be reached for in both directions.
 
 ## Testing
 
-- Backend tests run with Vitest
+- Backend tests run with Vitest, in the Workers pool, against a real D1 database
 - Command: `cd backend && npm run test`
-- Integration-focused backend tests are under `backend/src/tests/integration`
+- Which layer a test may name — and why only `composition.ts` chooses an implementation — is in
+  [Backend Testing](../development/backend-testing.md)
 
 ## Related
 
+- [Backend Testing](../development/backend-testing.md)
 - [Backend Error Constants](./backend-error-constants.md)
 - [API Naming Rules](../development/api-naming-rules.md)
 - [Wikimedia Client Architecture](./wikimedia-client-architecture.md)

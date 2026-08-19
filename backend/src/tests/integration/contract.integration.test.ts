@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect, beforeEach } from "vitest";
 import {
@@ -9,65 +8,74 @@ import {
 import { NotificationService } from "../../services/notification";
 import { LineupService, RawTeamLineUp } from "../../services/lineup";
 import { PlayerService } from "../../services/player";
-import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
-import { ContractRepositoryD1 } from "../../repositories/d1/contractRepositoryD1";
+import { TeamService } from "../../services/team";
+import { GLOBAL_LEAGUE_ID } from "../../services/league";
 import {
   ContractRepository,
   CONTRACT_WRITE_ERRORS,
   LeagueContractRow,
   NewContract,
 } from "../../repositories/contractRepository";
-import { success, failure } from "../../repositories/result";
-import { WikimediaClient } from "../../../../external-apis/wikimedia/client";
+import { success, failure, unwrap } from "../../repositories/result";
 import { STARTING_CREDITS } from "../../../../model/team";
+import type { Contract } from "../../../../model";
 import {
   TIER_DAYS,
   computeContractPrice,
   normalizedViews,
 } from "../../../../model/pricing";
+import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
 import { REFERENCE_SCALE } from "../../../../model/languageScale";
-import { insertTeam } from "../utils/d1TestUtils";
+import { aLeague, anotherLeague, aPlayer } from "../support/subjects";
+import { repositories } from "../support/target";
+import {
+  unusedWikimedia,
+  wikimediaWithArticleViews,
+  wikimediaWithAvg,
+} from "../support/wikimedia";
 
 /**
- * Build a WikimediaClient stub whose only exercised capability is
- * `pageviews.getArticleViews` — the buy-contract pricing lookup. Every other
- * namespace throws so an accidental dependency on it fails loudly.
- */
-function wikimediaClientWithArticleViews(
-  getArticleViews: WikimediaClient["pageviews"]["getArticleViews"],
-): WikimediaClient {
-  const unimplemented = () => {
-    throw new Error("not implemented in stub");
-  };
-  return {
-    pageviews: {
-      getArticleViews,
-      getTopReadList: unimplemented,
-      getViewsByDomain: unimplemented,
-    },
-    article: {
-      getSummary: unimplemented,
-      getLinkedArticles: unimplemented,
-      search: unimplemented,
-    },
-  } as unknown as WikimediaClient;
-}
-
-/**
- * Reads a team's current (derived) credits through the real repository
- * rather than a raw column read — credits are computed from the contracts
- * ledger, not stored.
+ * Reads a team's current (derived) credits through the repository rather than a
+ * column — credits are computed from the contracts ledger, not stored.
  */
 async function getDerivedCredits(
   playerId: string,
   leagueId: string,
 ): Promise<number | null> {
-  const result = await new TeamRepositoryD1(env.db).getByPlayerAndLeague(
+  const result = await repositories().teams.getByPlayerAndLeague(
     playerId,
     leagueId,
   );
   if (!result.ok || result.value === null) return null;
   return result.value.credits;
+}
+
+/** A contract the team holds. The window is stated because tests turn on it. */
+async function holdContract(spec: {
+  teamId: string;
+  articleId: string;
+  purchasePrice: number;
+  purchaseDate: string;
+  expireDate: string;
+}): Promise<Contract> {
+  return unwrap(
+    await repositories().contracts.create({
+      teamId: spec.teamId,
+      articleId: spec.articleId,
+      purchaseDate: Temporal.PlainDate.from(spec.purchaseDate),
+      expireDate: Temporal.PlainDate.from(spec.expireDate),
+      purchasePrice: spec.purchasePrice,
+    }),
+    `contract on ${spec.articleId}`,
+  );
+}
+
+/** The contract as stored, for the assertions that check a write landed. */
+async function readContract(id: string): Promise<Contract | null> {
+  return unwrap(
+    await repositories().contracts.getById(id),
+    "contract read-back",
+  );
 }
 
 describe("ContractService.getLeagueContracts Integration Tests", () => {
@@ -79,8 +87,11 @@ describe("ContractService.getLeagueContracts Integration Tests", () => {
   let teamId: string;
 
   beforeEach(async () => {
-    contractService = new ContractService(env.db);
-    playerService = new PlayerService(env.db);
+    contractService = new ContractService({
+      ...repositories(),
+      wikimedia: unusedWikimedia(),
+    });
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "contracttester",
@@ -91,63 +102,46 @@ describe("ContractService.getLeagueContracts Integration Tests", () => {
     if (!playerResult.ok) throw new Error("setup failed: player");
     playerId = playerResult.value.id;
 
-    leagueId = "league-contracts-1";
-    await env.db
-      .prepare(
-        `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    // An "it" league, so the domain the DTO reports is visibly the league's
+    // rather than a default. Founded by someone else, because the player under
+    // test creates their own team below and a founder already has one.
+    leagueId = (
+      await aLeague(
+        {
+          name: "Contracts League",
+          adminId: await aPlayer(),
+          startDate: Temporal.Instant.from("2024-01-01T00:00:00Z"),
+          endDate: Temporal.Instant.from("2124-01-01T00:00:00Z"),
+          domain: "it",
+          languageScale: REFERENCE_SCALE,
+          icon: "🏆",
+          visibility: LeagueVisibility.PUBLIC,
+          invitePolicy: LeagueInvitePolicy.MEMBERS,
+          invitationCode: null,
+        },
+        "Contract Founders",
       )
-      .bind(
+    ).league.id;
+    otherLeagueId = (await anotherLeague()).id;
+
+    teamId = unwrap(
+      await new TeamService(repositories()).createTeam(
+        playerId,
         leagueId,
-        "Contracts League",
-        playerId,
-        new Date().toISOString(),
-        new Date().toISOString(),
-        "it",
-        "🏆",
-      )
-      .run();
-
-    otherLeagueId = "league-contracts-2";
-    await env.db
-      .prepare(
-        `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        otherLeagueId,
-        "Other Contracts League",
-        playerId,
-        new Date().toISOString(),
-        new Date().toISOString(),
-        "en",
-        "🌍",
-      )
-      .run();
-
-    teamId = "team-contracts-1";
-    await insertTeam(env.db, {
-      id: teamId,
-      name: "Contract FC",
-      playerId,
-      leagueId,
-    });
+        "Contract FC",
+      ),
+      "team",
+    ).id;
   });
 
   it("maps every contract held by a team in the league to a RawContract", async () => {
-    await env.db
-      .prepare(
-        "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
-      )
-      .bind(
-        "contract-league-1",
-        teamId,
-        "Bitcoin",
-        "2026-01-01",
-        "2026-01-08",
-        150,
-      )
-      .run();
+    const contract = await holdContract({
+      teamId,
+      articleId: "Bitcoin",
+      purchasePrice: 150,
+      purchaseDate: "2026-01-01",
+      expireDate: "2026-01-08",
+    });
 
     const result = await contractService.getLeagueContracts(leagueId);
 
@@ -156,7 +150,7 @@ describe("ContractService.getLeagueContracts Integration Tests", () => {
     expect(result.value).toHaveLength(1);
 
     const raw = result.value[0];
-    expect(raw.id).toBe("contract-league-1");
+    expect(raw.id).toBe(contract.id);
     expect(raw.purchasePrice).toBe(150);
     expect(raw.team).toEqual({
       id: teamId,
@@ -174,47 +168,35 @@ describe("ContractService.getLeagueContracts Integration Tests", () => {
   });
 
   it("only returns contracts for teams within the requested league", async () => {
-    const otherTeamId = "team-contracts-other-1";
-    await insertTeam(env.db, {
-      id: otherTeamId,
-      name: "Other Contract FC",
-      playerId,
-      leagueId: otherLeagueId,
+    const otherTeamId = unwrap(
+      await new TeamService(repositories()).createTeam(
+        playerId,
+        otherLeagueId,
+        "Other Contract FC",
+      ),
+      "other team",
+    ).id;
+
+    const mine = await holdContract({
+      teamId,
+      articleId: "Bitcoin",
+      purchasePrice: 150,
+      purchaseDate: "2026-01-01",
+      expireDate: "2026-01-08",
     });
-
-    await env.db
-      .prepare(
-        "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
-      )
-      .bind(
-        "contract-league-mine",
-        teamId,
-        "Bitcoin",
-        "2026-01-01",
-        "2026-01-08",
-        150,
-      )
-      .run();
-
-    await env.db
-      .prepare(
-        "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
-      )
-      .bind(
-        "contract-league-other",
-        otherTeamId,
-        "Ethereum",
-        "2026-01-01",
-        "2026-01-08",
-        200,
-      )
-      .run();
+    await holdContract({
+      teamId: otherTeamId,
+      articleId: "Ethereum",
+      purchasePrice: 200,
+      purchaseDate: "2026-01-01",
+      expireDate: "2026-01-08",
+    });
 
     const result = await contractService.getLeagueContracts(leagueId);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.map((c) => c.id)).toEqual(["contract-league-mine"]);
+    expect(result.value.map((c) => c.id)).toEqual([mine.id]);
   });
 
   it("returns an empty list when the league has no contracts", async () => {
@@ -243,17 +225,6 @@ describe("ContractService.buyContract Integration Tests", () => {
   let playerId: string;
   let teamId: string;
 
-  function wikimediaWithAvg(averageViews30d: number): WikimediaClient {
-    return wikimediaClientWithArticleViews(async () => ({
-      latestDayViews: undefined,
-      averageViews30d,
-      weekViews: undefined,
-      previousWeekViews: undefined,
-      monthViews: undefined,
-      yearViews: undefined,
-    }));
-  }
-
   function priceFor(
     averageViews30d: number,
     tier: "SHORT" | "MEDIUM" | "LONG",
@@ -265,7 +236,7 @@ describe("ContractService.buyContract Integration Tests", () => {
   }
 
   beforeEach(async () => {
-    playerService = new PlayerService(env.db);
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "buyertester",
@@ -276,41 +247,23 @@ describe("ContractService.buyContract Integration Tests", () => {
     if (!playerResult.ok) throw new Error("setup failed: player");
     playerId = playerResult.value.id;
 
-    leagueId = "league-buy-1";
-    await env.db
-      .prepare(
-        `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        leagueId,
-        "Buy League",
+    // Prices below assume the "en" language scale, which is the Global League's.
+    leagueId = GLOBAL_LEAGUE_ID;
+    teamId = unwrap(
+      await new TeamService(repositories()).createTeam(
         playerId,
-        new Date().toISOString(),
-        new Date().toISOString(),
-        "en",
-        "🏆",
-      )
-      .run();
-
-    teamId = "team-buy-1";
-    await insertTeam(env.db, {
-      id: teamId,
-      name: "Buy FC",
-      playerId,
-      leagueId,
-    });
+        leagueId,
+        "Buy FC",
+      ),
+      "team",
+    ).id;
   });
 
   it("creates a contract and debits the exact ADR 0005 price from the team's credits", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -335,23 +288,20 @@ describe("ContractService.buyContract Integration Tests", () => {
     const credits = await getDerivedCredits(playerId, leagueId);
     expect(credits).toBe(STARTING_CREDITS - expectedPrice);
 
-    const contractRow = await env.db
-      .prepare("SELECT * FROM contracts WHERE teamId = ?")
-      .bind(teamId)
-      .first<{ articleId: string; settled: number }>();
-    expect(contractRow?.articleId).toBe("Bitcoin");
-    expect(contractRow?.settled).toBe(0);
+    const held = unwrap(
+      await repositories().contracts.getByTeamId(teamId),
+      "team's contracts",
+    );
+    expect(held).toHaveLength(1);
+    expect(held[0].articleId).toBe("Bitcoin");
+    expect(held[0].settled).toBe(false);
   });
 
   it("reflects the debited credits on a subsequent read of the team's contracts", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const buyResult = await service.buyContract(
       playerId,
@@ -366,7 +316,10 @@ describe("ContractService.buyContract Integration Tests", () => {
 
     // Re-query the system through a fresh call rather than trusting the buy
     // result: the remaining credits must have been persisted.
-    const readService = new ContractService(env.db);
+    const readService = new ContractService({
+      ...repositories(),
+      wikimedia: unusedWikimedia(),
+    });
     const contractsResult = await readService.getMyContracts(
       playerId,
       leagueId,
@@ -381,14 +334,10 @@ describe("ContractService.buyContract Integration Tests", () => {
   });
 
   it("fails with 'No team found for this league' when the player has no team there", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -404,14 +353,10 @@ describe("ContractService.buyContract Integration Tests", () => {
   });
 
   it("rejects an invalid tier", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -432,35 +377,26 @@ describe("ContractService.buyContract Integration Tests", () => {
     expect(rivalPlayerResult.ok).toBe(true);
     if (!rivalPlayerResult.ok) throw new Error("setup failed: rival player");
 
-    const otherTeamId = "team-buy-other-1";
-    await insertTeam(env.db, {
-      id: otherTeamId,
-      name: "Rival FC",
-      playerId: rivalPlayerResult.value.id,
-      leagueId,
+    const otherTeamId = unwrap(
+      await new TeamService(repositories()).createTeam(
+        rivalPlayerResult.value.id,
+        leagueId,
+        "Rival FC",
+      ),
+      "rival team",
+    ).id;
+    await holdContract({
+      teamId: otherTeamId,
+      articleId: "Bitcoin",
+      purchasePrice: 100,
+      purchaseDate: "2026-07-01",
+      expireDate: "2026-07-08",
     });
-    await env.db
-      .prepare(
-        "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
-      )
-      .bind(
-        "contract-rival-1",
-        otherTeamId,
-        "Bitcoin",
-        "2026-07-01",
-        "2026-07-08",
-        100,
-      )
-      .run();
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -476,28 +412,18 @@ describe("ContractService.buyContract Integration Tests", () => {
   });
 
   it("rejects buying an article the team already owns", async () => {
-    await env.db
-      .prepare(
-        "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
-      )
-      .bind(
-        "contract-mine-1",
-        teamId,
-        "Bitcoin",
-        "2026-07-01",
-        "2026-07-08",
-        100,
-      )
-      .run();
+    await holdContract({
+      teamId,
+      articleId: "Bitcoin",
+      purchasePrice: 100,
+      purchaseDate: "2026-07-01",
+      expireDate: "2026-07-08",
+    });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -513,30 +439,20 @@ describe("ContractService.buyContract Integration Tests", () => {
   });
 
   it("rejects buying a contract once the team already holds MAX_TEAM_CONTRACTS", async () => {
-    for (let i = 0; i < MAX_TEAM_CONTRACTS; i++) {
-      await env.db
-        .prepare(
-          "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
-        )
-        .bind(
-          `contract-full-${i}`,
-          teamId,
-          `Article_${i}`,
-          "2026-07-01",
-          "2026-07-08",
-          10,
-        )
-        .run();
+    for (let held = 0; held < MAX_TEAM_CONTRACTS; held++) {
+      await holdContract({
+        teamId,
+        articleId: `Article_${held}`,
+        purchasePrice: 10,
+        purchaseDate: "2026-07-01",
+        expireDate: "2026-07-08",
+      });
     }
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -554,28 +470,18 @@ describe("ContractService.buyContract Integration Tests", () => {
   it("rejects buying when the computed price exceeds the team's credits", async () => {
     // Credits are derived from the ledger, not a settable column: spend down
     // to 1 remaining credit via a pre-existing contract instead.
-    await env.db
-      .prepare(
-        "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
-      )
-      .bind(
-        "contract-buy-drain",
-        teamId,
-        "Ethereum",
-        "2026-01-01",
-        "2026-01-08",
-        STARTING_CREDITS - 1,
-      )
-      .run();
+    await holdContract({
+      teamId,
+      articleId: "Ethereum",
+      purchasePrice: STARTING_CREDITS - 1,
+      purchaseDate: "2026-01-01",
+      expireDate: "2026-01-08",
+    });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -589,21 +495,18 @@ describe("ContractService.buyContract Integration Tests", () => {
     const credits = await getDerivedCredits(playerId, leagueId);
     expect(credits).toBe(1);
 
-    const contractRow = await env.db
-      .prepare("SELECT * FROM contracts WHERE teamId = ? AND articleId = ?")
-      .bind(teamId, "Bitcoin")
-      .first();
-    expect(contractRow).toBeNull();
+    // The rejected buy wrote nothing: only the draining contract is held.
+    const held = unwrap(
+      await repositories().contracts.getByTeamId(teamId),
+      "team's contracts",
+    );
+    expect(held.map((contract) => contract.articleId)).toEqual(["Ethereum"]);
   });
 
   it("rejects the buy when the views fetch omits averageViews30d", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaClientWithArticleViews(async () => ({
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithArticleViews(async () => ({
         latestDayViews: undefined,
         averageViews30d: undefined,
         weekViews: undefined,
@@ -611,7 +514,7 @@ describe("ContractService.buyContract Integration Tests", () => {
         monthViews: undefined,
         yearViews: undefined,
       })),
-    );
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -628,16 +531,12 @@ describe("ContractService.buyContract Integration Tests", () => {
   });
 
   it("rejects the buy with the thrown error's message when the views fetch fails", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaClientWithArticleViews(async () => {
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithArticleViews(async () => {
         throw new Error("Wikimedia API unavailable");
       }),
-    );
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -650,16 +549,12 @@ describe("ContractService.buyContract Integration Tests", () => {
   });
 
   it("falls back to a generic message when the views fetch rejects with a non-Error", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaClientWithArticleViews(async () => {
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithArticleViews(async () => {
         throw "network blip";
       }),
-    );
+    });
 
     const result = await service.buyContract(
       playerId,
@@ -682,7 +577,7 @@ describe("ContractService.getMyContracts Integration Tests", () => {
   let teamId: string;
 
   beforeEach(async () => {
-    playerService = new PlayerService(env.db);
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "mycontractstester",
@@ -693,55 +588,53 @@ describe("ContractService.getMyContracts Integration Tests", () => {
     if (!playerResult.ok) throw new Error("setup failed: player");
     playerId = playerResult.value.id;
 
-    leagueId = "league-my-1";
-    await env.db
-      .prepare(
-        `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    leagueId = (
+      await aLeague(
+        {
+          name: "My Contracts League",
+          adminId: await aPlayer(),
+          startDate: Temporal.Instant.from("2024-01-01T00:00:00Z"),
+          endDate: Temporal.Instant.from("2124-01-01T00:00:00Z"),
+          domain: "it",
+          languageScale: REFERENCE_SCALE,
+          icon: "🏆",
+          visibility: LeagueVisibility.PUBLIC,
+          invitePolicy: LeagueInvitePolicy.MEMBERS,
+          invitationCode: null,
+        },
+        "My Founders",
       )
-      .bind(
-        leagueId,
-        "My Contracts League",
+    ).league.id;
+    teamId = unwrap(
+      await new TeamService(repositories()).createTeam(
         playerId,
-        new Date().toISOString(),
-        new Date().toISOString(),
-        "it",
-        "🏆",
-      )
-      .run();
-
-    teamId = "team-my-1";
-    await insertTeam(env.db, {
-      id: teamId,
-      name: "My FC",
-      playerId,
-      leagueId,
-    });
+        leagueId,
+        "My FC",
+      ),
+      "team",
+    ).id;
   });
 
   it("returns the team's active contracts as RawContracts", async () => {
-    await env.db
-      .prepare(
-        "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
-      )
-      .bind(
-        "contract-mine-active",
-        teamId,
-        "Bitcoin",
-        "2026-07-01",
-        "2026-07-08",
-        150,
-      )
-      .run();
+    const active = await holdContract({
+      teamId,
+      articleId: "Bitcoin",
+      purchasePrice: 150,
+      purchaseDate: "2026-07-01",
+      expireDate: "2026-07-08",
+    });
 
-    const service = new ContractService(env.db);
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: unusedWikimedia(),
+    });
     const result = await service.getMyContracts(playerId, leagueId);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value).toHaveLength(1);
     expect(result.value[0]).toMatchObject({
-      id: "contract-mine-active",
+      id: active.id,
       purchasePrice: 150,
       team: {
         id: teamId,
@@ -754,22 +647,22 @@ describe("ContractService.getMyContracts Integration Tests", () => {
   });
 
   it("excludes settled contracts", async () => {
-    await env.db
-      .prepare(
-        "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice, settled) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      )
-      .bind(
-        "contract-mine-settled",
-        teamId,
-        "Ethereum",
-        "2026-06-01",
-        "2026-06-08",
-        100,
-        1,
-      )
-      .run();
+    const sold = await holdContract({
+      teamId,
+      articleId: "Ethereum",
+      purchasePrice: 100,
+      purchaseDate: "2026-06-01",
+      expireDate: "2026-06-08",
+    });
+    unwrap(
+      await repositories().contracts.settleSale(sold.id, teamId, 100),
+      "sale",
+    );
 
-    const service = new ContractService(env.db);
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: unusedWikimedia(),
+    });
     const result = await service.getMyContracts(playerId, leagueId);
 
     expect(result.ok).toBe(true);
@@ -779,7 +672,10 @@ describe("ContractService.getMyContracts Integration Tests", () => {
   });
 
   it("fails with 'No team found for this league' when the player has no team there", async () => {
-    const service = new ContractService(env.db);
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: unusedWikimedia(),
+    });
     const result = await service.getMyContracts(playerId, "nonexistent-league");
 
     expect(result).toEqual({
@@ -798,17 +694,6 @@ describe("ContractService.sellContract Integration Tests", () => {
   // derived sum), so a fresh team's pre-sale credits is just STARTING_CREDITS.
   const INITIAL_CREDITS = STARTING_CREDITS;
 
-  function wikimediaWithAvg(averageViews30d: number): WikimediaClient {
-    return wikimediaClientWithArticleViews(async () => ({
-      latestDayViews: undefined,
-      averageViews30d,
-      weekViews: undefined,
-      previousWeekViews: undefined,
-      monthViews: undefined,
-      yearViews: undefined,
-    }));
-  }
-
   function priceFor(averageViews30d: number, tierDays: number) {
     return computeContractPrice(
       normalizedViews(averageViews30d, REFERENCE_SCALE),
@@ -822,34 +707,29 @@ describe("ContractService.sellContract Integration Tests", () => {
    * `remainingDays / tierDays` regardless of the day the test runs.
    */
   async function insertSellableContract(opts: {
-    id: string;
     tierDays: number;
     remainingDays: number;
-    articleId?: string;
+    articleId: string;
     ownerTeamId?: string;
-  }): Promise<void> {
+  }): Promise<Contract> {
     const today = Temporal.Now.plainDateISO();
-    const purchaseDate = today.subtract({
-      days: opts.tierDays - opts.remainingDays,
-    });
-    const expireDate = today.add({ days: opts.remainingDays });
-    await env.db
-      .prepare(
-        "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
-      )
-      .bind(
-        opts.id,
-        opts.ownerTeamId ?? teamId,
-        opts.articleId ?? "Bitcoin",
-        purchaseDate.toString(),
-        expireDate.toString(),
-        0,
-      )
-      .run();
+    return unwrap(
+      await repositories().contracts.create({
+        teamId: opts.ownerTeamId ?? teamId,
+        articleId: opts.articleId,
+        purchaseDate: today.subtract({
+          days: opts.tierDays - opts.remainingDays,
+        }),
+        expireDate: today.add({ days: opts.remainingDays }),
+        // Irrelevant to the payout, and it keeps INITIAL_CREDITS simple.
+        purchasePrice: 0,
+      }),
+      "sellable contract",
+    );
   }
 
   beforeEach(async () => {
-    playerService = new PlayerService(env.db);
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "sellertester",
@@ -860,54 +740,32 @@ describe("ContractService.sellContract Integration Tests", () => {
     if (!playerResult.ok) throw new Error("setup failed: player");
     playerId = playerResult.value.id;
 
-    leagueId = "league-sell-1";
-    await env.db
-      .prepare(
-        `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        leagueId,
-        "Sell League",
+    // Payouts below assume the "en" language scale, which is the Global League's.
+    leagueId = GLOBAL_LEAGUE_ID;
+    teamId = unwrap(
+      await new TeamService(repositories()).createTeam(
         playerId,
-        new Date().toISOString(),
-        new Date().toISOString(),
-        "en",
-        "🏆",
-      )
-      .run();
-
-    teamId = "team-sell-1";
-    await insertTeam(env.db, {
-      id: teamId,
-      name: "Sell FC",
-      playerId,
-      leagueId,
-    });
+        leagueId,
+        "Sell FC",
+      ),
+      "team",
+    ).id;
   });
 
   it("pays out the prorated ADR 0005 price, credits the team, and settles the row", async () => {
     // MEDIUM tier (7 days) with 4 days remaining -> ratio 4/7.
-    await insertSellableContract({
-      id: "contract-sell-1",
+    const contract = await insertSellableContract({
+      articleId: "Bitcoin",
       tierDays: TIER_DAYS.MEDIUM,
       remainingDays: 4,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
-    const result = await service.sellContract(
-      playerId,
-      leagueId,
-      "contract-sell-1",
-    );
+    const result = await service.sellContract(playerId, leagueId, contract.id);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -920,12 +778,8 @@ describe("ContractService.sellContract Integration Tests", () => {
     expect(expectedPayout).toBeGreaterThan(0);
     expect(result.value.team.credits).toBe(INITIAL_CREDITS + expectedPayout);
 
-    // Row is retained (settled=1), never deleted.
-    const contractRow = await env.db
-      .prepare("SELECT settled FROM contracts WHERE id = ?")
-      .bind("contract-sell-1")
-      .first<{ settled: number }>();
-    expect(contractRow?.settled).toBe(1);
+    // Retained as settled, never deleted (ADR 0003).
+    expect((await readContract(contract.id))?.settled).toBe(true);
 
     // Credits persisted.
     const credits = await getDerivedCredits(playerId, leagueId);
@@ -933,26 +787,18 @@ describe("ContractService.sellContract Integration Tests", () => {
   });
 
   it("pays the full tier price when sold on the purchase day (ratio 1)", async () => {
-    await insertSellableContract({
-      id: "contract-sell-full",
+    const contract = await insertSellableContract({
+      articleId: "Bitcoin",
       tierDays: TIER_DAYS.LONG,
       remainingDays: TIER_DAYS.LONG,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(120000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(120000),
+    });
 
-    const result = await service.sellContract(
-      playerId,
-      leagueId,
-      "contract-sell-full",
-    );
+    const result = await service.sellContract(playerId, leagueId, contract.id);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -963,26 +809,18 @@ describe("ContractService.sellContract Integration Tests", () => {
 
   it("pays 0 (never negative) for a contract already past expiry", async () => {
     // Expired yesterday: remaining is negative, so the ratio floors at 0.
-    await insertSellableContract({
-      id: "contract-sell-expired",
+    const contract = await insertSellableContract({
+      articleId: "Bitcoin",
       tierDays: TIER_DAYS.SHORT,
       remainingDays: -1,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(120000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(120000),
+    });
 
-    const result = await service.sellContract(
-      playerId,
-      leagueId,
-      "contract-sell-expired",
-    );
+    const result = await service.sellContract(playerId, leagueId, contract.id);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -993,26 +831,21 @@ describe("ContractService.sellContract Integration Tests", () => {
   });
 
   it("writes the sale notification to the inbox with the exact story message", async () => {
-    await insertSellableContract({
-      id: "contract-sell-notif",
+    const contract = await insertSellableContract({
       tierDays: TIER_DAYS.MEDIUM,
       remainingDays: 4,
       articleId: "Cristiano_Ronaldo",
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     const sellResult = await service.sellContract(
       playerId,
       leagueId,
-      "contract-sell-notif",
+      contract.id,
     );
     expect(sellResult.ok).toBe(true);
 
@@ -1021,7 +854,7 @@ describe("ContractService.sellContract Integration Tests", () => {
 
     // The notification is retrievable through the inbox and its contractId FK
     // still resolves (the contract row was retained, not deleted).
-    const notificationService = new NotificationService(env.db);
+    const notificationService = new NotificationService(repositories());
     const notifications = await notificationService.getMyNotifications(
       playerId,
       leagueId,
@@ -1034,25 +867,27 @@ describe("ContractService.sellContract Integration Tests", () => {
     expect(notifications.value[0].message).toBe(
       `Sold Cristiano Ronaldo early for ${expectedPayout} credits`,
     );
-    expect(notifications.value[0].contract.id).toBe("contract-sell-notif");
+    expect(notifications.value[0].contract.id).toBe(contract.id);
   });
 
   it("removes the sold contract from the lineup (article returns to Free Agent)", async () => {
-    await insertSellableContract({
-      id: "contract-sell-lineup",
+    const contract = await insertSellableContract({
       tierDays: TIER_DAYS.MEDIUM,
       remainingDays: 4,
       articleId: "Bitcoin",
     });
 
-    const lineupService = LineupService.fromDb(env.db);
+    const lineupService = new LineupService({
+      ...repositories(),
+      teamService: new TeamService(repositories()),
+    });
     const payload: RawTeamLineUp = {
       formation: {
         date: new Date().toISOString(),
         schema: "4-3-3",
         formation: {
           GK: {
-            id: "contract-sell-lineup",
+            id: contract.id,
             team: {
               id: teamId,
               name: "Sell FC",
@@ -1075,18 +910,14 @@ describe("ContractService.sellContract Integration Tests", () => {
     );
     expect(saveResult.ok).toBe(true);
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
     const sellResult = await service.sellContract(
       playerId,
       leagueId,
-      "contract-sell-lineup",
+      contract.id,
     );
     expect(sellResult.ok).toBe(true);
 
@@ -1098,7 +929,7 @@ describe("ContractService.sellContract Integration Tests", () => {
     expect(lineupResult.value.formation.formation["GK"]).toBeUndefined();
     // ...and not lingering on the bench either.
     const benchIds = lineupResult.value.bench.map((c) => c.id);
-    expect(benchIds).not.toContain("contract-sell-lineup");
+    expect(benchIds).not.toContain(contract.id);
   });
 
   it("rejects selling a contract owned by another team", async () => {
@@ -1110,34 +941,27 @@ describe("ContractService.sellContract Integration Tests", () => {
     );
     expect(otherPlayerResult.ok).toBe(true);
     if (!otherPlayerResult.ok) throw new Error("setup failed: other player");
-    const otherTeamId = "team-sell-other-1";
-    await insertTeam(env.db, {
-      id: otherTeamId,
-      name: "Other Sell FC",
-      playerId: otherPlayerResult.value.id,
-      leagueId,
-    });
+    const otherTeamId = unwrap(
+      await new TeamService(repositories()).createTeam(
+        otherPlayerResult.value.id,
+        leagueId,
+        "Other Sell FC",
+      ),
+      "other team",
+    ).id;
 
-    await insertSellableContract({
-      id: "contract-sell-other",
+    const theirs = await insertSellableContract({
+      articleId: "Bitcoin",
       tierDays: TIER_DAYS.MEDIUM,
       remainingDays: 4,
       ownerTeamId: otherTeamId,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
-    const result = await service.sellContract(
-      playerId,
-      leagueId,
-      "contract-sell-other",
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
+    const result = await service.sellContract(playerId, leagueId, theirs.id);
 
     expect(result).toEqual({
       ok: false,
@@ -1145,11 +969,7 @@ describe("ContractService.sellContract Integration Tests", () => {
     });
 
     // Untouched: still unsettled, no payout to anyone.
-    const contractRow = await env.db
-      .prepare("SELECT settled FROM contracts WHERE id = ?")
-      .bind("contract-sell-other")
-      .first<{ settled: number }>();
-    expect(contractRow?.settled).toBe(0);
+    expect((await readContract(theirs.id))?.settled).toBe(false);
     const otherTeamCredits = await getDerivedCredits(
       otherPlayerResult.value.id,
       leagueId,
@@ -1158,42 +978,31 @@ describe("ContractService.sellContract Integration Tests", () => {
   });
 
   it("fails with 'Contract not found' for an unknown contract id", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
     const result = await service.sellContract(playerId, leagueId, "nope");
     expect(result).toEqual({ ok: false, error: "Contract not found" });
   });
 
   it("rejects selling an already-settled contract", async () => {
-    await insertSellableContract({
-      id: "contract-sell-twice",
+    const contract = await insertSellableContract({
+      articleId: "Bitcoin",
       tierDays: TIER_DAYS.MEDIUM,
       remainingDays: 4,
     });
-    await env.db
-      .prepare("UPDATE contracts SET settled = 1 WHERE id = ?")
-      .bind("contract-sell-twice")
-      .run();
+    // Already sold once, for nothing — the payout is beside the point here.
+    unwrap(
+      await repositories().contracts.settleSale(contract.id, teamId, 0),
+      "first sale",
+    );
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
-    const result = await service.sellContract(
-      playerId,
-      leagueId,
-      "contract-sell-twice",
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
+    const result = await service.sellContract(playerId, leagueId, contract.id);
     expect(result).toEqual({ ok: false, error: "Contract already sold" });
 
     // No double payout.
@@ -1202,19 +1011,15 @@ describe("ContractService.sellContract Integration Tests", () => {
   });
 
   it("rejects the sale when the views fetch omits averageViews30d", async () => {
-    await insertSellableContract({
-      id: "contract-sell-no-views",
+    const contract = await insertSellableContract({
+      articleId: "Bitcoin",
       tierDays: TIER_DAYS.MEDIUM,
       remainingDays: 4,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaClientWithArticleViews(async () => ({
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithArticleViews(async () => ({
         latestDayViews: undefined,
         averageViews30d: undefined,
         weekViews: undefined,
@@ -1222,13 +1027,9 @@ describe("ContractService.sellContract Integration Tests", () => {
         monthViews: undefined,
         yearViews: undefined,
       })),
-    );
+    });
 
-    const result = await service.sellContract(
-      playerId,
-      leagueId,
-      "contract-sell-no-views",
-    );
+    const result = await service.sellContract(playerId, leagueId, contract.id);
 
     expect(result).toEqual({
       ok: false,
@@ -1242,55 +1043,39 @@ describe("ContractService.sellContract Integration Tests", () => {
   });
 
   it("rejects the sale with the thrown error's message when the views fetch fails", async () => {
-    await insertSellableContract({
-      id: "contract-sell-fetch-error",
+    const contract = await insertSellableContract({
+      articleId: "Bitcoin",
       tierDays: TIER_DAYS.MEDIUM,
       remainingDays: 4,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaClientWithArticleViews(async () => {
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithArticleViews(async () => {
         throw new Error("Wikimedia API unavailable");
       }),
-    );
+    });
 
-    const result = await service.sellContract(
-      playerId,
-      leagueId,
-      "contract-sell-fetch-error",
-    );
+    const result = await service.sellContract(playerId, leagueId, contract.id);
 
     expect(result).toEqual({ ok: false, error: "Wikimedia API unavailable" });
   });
 
   it("falls back to a generic message when the sale's views fetch rejects with a non-Error", async () => {
-    await insertSellableContract({
-      id: "contract-sell-non-error",
+    const contract = await insertSellableContract({
+      articleId: "Bitcoin",
       tierDays: TIER_DAYS.MEDIUM,
       remainingDays: 4,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaClientWithArticleViews(async () => {
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithArticleViews(async () => {
         throw "network blip";
       }),
-    );
+    });
 
-    const result = await service.sellContract(
-      playerId,
-      leagueId,
-      "contract-sell-non-error",
-    );
+    const result = await service.sellContract(playerId, leagueId, contract.id);
 
     expect(result).toEqual({
       ok: false,
@@ -1299,11 +1084,12 @@ describe("ContractService.sellContract Integration Tests", () => {
   });
 });
 
-describe("ContractRepositoryD1.create guarded INSERT", () => {
+describe("the guarded contract write", () => {
   // Exercises the write-time guard directly, bypassing the service's
   // pre-checks — i.e. the exact state a concurrent purchase creates between
-  // a buyer's reads and their write.
-  let repo: ContractRepositoryD1;
+  // a buyer's reads and their write. Every implementation owes these, however it
+  // achieves atomicity, which is why they go through the interface.
+  let repo: ContractRepository;
   let playerService: PlayerService;
   let leagueId: string;
   let otherLeagueId: string;
@@ -1326,8 +1112,9 @@ describe("ContractRepositoryD1.create guarded INSERT", () => {
   }
 
   beforeEach(async () => {
-    repo = new ContractRepositoryD1(env.db);
-    playerService = new PlayerService(env.db);
+    repo = repositories().contracts;
+    playerService = new PlayerService(repositories());
+    const teamService = new TeamService(repositories());
 
     const buyer = await playerService.createPlayer(
       "guardbuyer",
@@ -1341,43 +1128,17 @@ describe("ContractRepositoryD1.create guarded INSERT", () => {
     );
     if (!buyer.ok || !rival.ok) throw new Error("setup failed: players");
 
-    leagueId = "league-guard-1";
-    otherLeagueId = "league-guard-2";
-    for (const [id, name] of [
-      [leagueId, "Guard League"],
-      [otherLeagueId, "Other Guard League"],
-    ]) {
-      await env.db
-        .prepare(
-          `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .bind(
-          id,
-          name,
-          buyer.value.id,
-          new Date().toISOString(),
-          new Date().toISOString(),
-          "en",
-          "🏆",
-        )
-        .run();
-    }
+    leagueId = GLOBAL_LEAGUE_ID;
+    otherLeagueId = (await anotherLeague()).id;
 
-    teamId = "team-guard-1";
-    rivalTeamId = "team-guard-2";
-    await insertTeam(env.db, {
-      id: teamId,
-      name: "Guard FC",
-      playerId: buyer.value.id,
-      leagueId,
-    });
-    await insertTeam(env.db, {
-      id: rivalTeamId,
-      name: "Guard Rivals",
-      playerId: rival.value.id,
-      leagueId,
-    });
+    teamId = unwrap(
+      await teamService.createTeam(buyer.value.id, leagueId, "Guard FC"),
+      "team",
+    ).id;
+    rivalTeamId = unwrap(
+      await teamService.createTeam(rival.value.id, leagueId, "Guard Rivals"),
+      "rival team",
+    ).id;
   });
 
   it("rejects the write when another team in the league holds an active contract on the article", async () => {
@@ -1417,19 +1178,20 @@ describe("ContractRepositoryD1.create guarded INSERT", () => {
   });
 
   it("does not let a contract in a different league block the article", async () => {
-    const foreignTeamId = "team-guard-foreign";
     const foreignPlayer = await playerService.createPlayer(
       "guardforeign",
       "guardforeign@example.com",
       "account-guard-3",
     );
     if (!foreignPlayer.ok) throw new Error("setup failed: foreign player");
-    await insertTeam(env.db, {
-      id: foreignTeamId,
-      name: "Foreign FC",
-      playerId: foreignPlayer.value.id,
-      leagueId: otherLeagueId,
-    });
+    const foreignTeamId = unwrap(
+      await new TeamService(repositories()).createTeam(
+        foreignPlayer.value.id,
+        otherLeagueId,
+        "Foreign FC",
+      ),
+      "foreign team",
+    ).id;
     const foreignResult = await repo.create(
       newContract(foreignTeamId, "Bitcoin"),
     );
@@ -1504,7 +1266,7 @@ describe("ContractService.buyContract conflict classification", () => {
       settleSale: unimplemented,
     } as unknown as ContractRepository;
 
-    const playerService = new PlayerService(env.db);
+    const playerService = new PlayerService(repositories());
     const playerResult = await playerService.createPlayer(
       "racebuyer",
       "racebuyer@example.com",
@@ -1513,36 +1275,20 @@ describe("ContractService.buyContract conflict classification", () => {
     expect(playerResult.ok).toBe(true);
     if (!playerResult.ok) return;
 
-    const leagueId = "league-race-1";
-    await env.db
-      .prepare(
-        `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        leagueId,
-        "Race League",
+    const leagueId = GLOBAL_LEAGUE_ID;
+    unwrap(
+      await new TeamService(repositories()).createTeam(
         playerResult.value.id,
-        new Date().toISOString(),
-        new Date().toISOString(),
-        "en",
-        "🏆",
-      )
-      .run();
-    await insertTeam(env.db, {
-      id: "team-race-1",
-      name: "Race FC",
-      playerId: playerResult.value.id,
-      leagueId,
-    });
+        leagueId,
+        "Race FC",
+      ),
+      "team",
+    );
 
-    const service = new ContractService(
-      env.db,
-      contractRepo,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaClientWithArticleViews(async () => ({
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: wikimediaWithArticleViews(async () => ({
         latestDayViews: undefined,
         averageViews30d: 9000,
         weekViews: undefined,
@@ -1550,7 +1296,7 @@ describe("ContractService.buyContract conflict classification", () => {
         monthViews: undefined,
         yearViews: undefined,
       })),
-    );
+    });
 
     const result = await service.buyContract(
       playerResult.value.id,
@@ -1590,7 +1336,7 @@ describe("ContractService.buyContract conflict classification", () => {
       settleSale: unimplemented,
     } as unknown as ContractRepository;
 
-    const playerService = new PlayerService(env.db);
+    const playerService = new PlayerService(repositories());
     const playerResult = await playerService.createPlayer(
       "classifybuyer",
       "classifybuyer@example.com",
@@ -1599,36 +1345,20 @@ describe("ContractService.buyContract conflict classification", () => {
     expect(playerResult.ok).toBe(true);
     if (!playerResult.ok) return;
 
-    const leagueId = "league-classify-1";
-    await env.db
-      .prepare(
-        `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        leagueId,
-        "Classify League",
+    const leagueId = GLOBAL_LEAGUE_ID;
+    unwrap(
+      await new TeamService(repositories()).createTeam(
         playerResult.value.id,
-        new Date().toISOString(),
-        new Date().toISOString(),
-        "en",
-        "🏆",
-      )
-      .run();
-    await insertTeam(env.db, {
-      id: "team-classify-1",
-      name: "Classify FC",
-      playerId: playerResult.value.id,
-      leagueId,
-    });
+        leagueId,
+        "Classify FC",
+      ),
+      "team",
+    );
 
-    const service = new ContractService(
-      env.db,
-      contractRepo,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaClientWithArticleViews(async () => ({
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: wikimediaWithArticleViews(async () => ({
         latestDayViews: undefined,
         averageViews30d: 9000,
         weekViews: undefined,
@@ -1636,7 +1366,7 @@ describe("ContractService.buyContract conflict classification", () => {
         monthViews: undefined,
         yearViews: undefined,
       })),
-    );
+    });
 
     const result = await service.buyContract(
       playerResult.value.id,
@@ -1664,44 +1394,54 @@ describe("ContractService.cancelRenewal Integration Tests", () => {
   let playerId: string;
   let teamId: string;
 
-  /** Inserts an unsettled contract expiring in `remainingDays` (negative = past due, unswept). */
+  /** An unsettled contract expiring in `remainingDays` (negative = past due, unswept). */
   async function insertContract(opts: {
-    id: string;
     remainingDays: number;
     renewalElected?: boolean;
     settled?: boolean;
-  }): Promise<void> {
+  }): Promise<Contract> {
     const today = Temporal.Now.plainDateISO();
-    await env.db
-      .prepare(
-        `INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice, settled, renewalElected)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        opts.id,
+    const contracts = repositories().contracts;
+
+    const created = unwrap(
+      await contracts.create({
         teamId,
-        "Bitcoin",
-        today.subtract({ days: TIER_DAYS.MEDIUM }).toString(),
-        today.add({ days: opts.remainingDays }).toString(),
-        0,
-        opts.settled ? 1 : 0,
-        opts.renewalElected ? 1 : 0,
-      )
-      .run();
+        articleId: "Bitcoin",
+        purchaseDate: today.subtract({ days: TIER_DAYS.MEDIUM }),
+        expireDate: today.add({ days: opts.remainingDays }),
+        purchasePrice: 0,
+      }),
+      "contract",
+    );
+
+    // Order matters: settling first would leave nothing electable.
+    if (opts.renewalElected) {
+      unwrap(
+        await contracts.electRenewal(created.id, teamId),
+        "renewal election",
+      );
+    }
+    if (opts.settled) {
+      unwrap(await contracts.settleSale(created.id, teamId, 0), "sale");
+    }
+    return created;
   }
 
-  async function readElected(contractId: string): Promise<number | undefined> {
-    const row = await env.db
-      .prepare("SELECT renewalElected FROM contracts WHERE id = ?")
-      .bind(contractId)
-      .first<{ renewalElected: number }>();
-    return row?.renewalElected;
+  async function readElected(contractId: string): Promise<boolean | undefined> {
+    const contract = unwrap(
+      await repositories().contracts.getById(contractId),
+      "contract read-back",
+    );
+    return contract?.renewalElected;
   }
 
   beforeEach(async () => {
-    service = new ContractService(env.db);
+    service = new ContractService({
+      ...repositories(),
+      wikimedia: unusedWikimedia(),
+    });
 
-    const playerResult = await new PlayerService(env.db).createPlayer(
+    const playerResult = await new PlayerService(repositories()).createPlayer(
       "canceltester",
       "canceltester@example.com",
       "account-cancel-1",
@@ -1710,77 +1450,45 @@ describe("ContractService.cancelRenewal Integration Tests", () => {
     if (!playerResult.ok) throw new Error("setup failed: player");
     playerId = playerResult.value.id;
 
-    leagueId = "league-cancel-1";
-    await env.db
-      .prepare(
-        `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        leagueId,
-        "Cancel League",
+    leagueId = GLOBAL_LEAGUE_ID;
+    teamId = unwrap(
+      await new TeamService(repositories()).createTeam(
         playerId,
-        new Date().toISOString(),
-        new Date().toISOString(),
-        "en",
-        "🏆",
-      )
-      .run();
-
-    teamId = "team-cancel-1";
-    await insertTeam(env.db, {
-      id: teamId,
-      name: "Cancel FC",
-      playerId,
-      leagueId,
-    });
+        leagueId,
+        "Cancel FC",
+      ),
+      "team",
+    ).id;
   });
 
   it("withdraws an election made through electRenewal", async () => {
-    await insertContract({ id: "contract-cancel-1", remainingDays: 1 });
+    const contract = await insertContract({ remainingDays: 1 });
 
-    const elect = await service.electRenewal(
-      playerId,
-      leagueId,
-      "contract-cancel-1",
-    );
+    const elect = await service.electRenewal(playerId, leagueId, contract.id);
     expect(elect.ok).toBe(true);
-    expect(await readElected("contract-cancel-1")).toBe(1);
+    expect(await readElected(contract.id)).toBe(true);
 
-    const result = await service.cancelRenewal(
-      playerId,
-      leagueId,
-      "contract-cancel-1",
-    );
+    const result = await service.cancelRenewal(playerId, leagueId, contract.id);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.renewalElected).toBe(false);
-    expect(await readElected("contract-cancel-1")).toBe(0);
+    expect(await readElected(contract.id)).toBe(false);
   });
 
   it("still withdraws once the term has lapsed but the sweep has not run", async () => {
-    await insertContract({
-      id: "contract-cancel-2",
+    const contract = await insertContract({
       remainingDays: -2,
       renewalElected: true,
     });
 
-    const result = await service.cancelRenewal(
-      playerId,
-      leagueId,
-      "contract-cancel-2",
-    );
+    const result = await service.cancelRenewal(playerId, leagueId, contract.id);
     expect(result.ok).toBe(true);
-    expect(await readElected("contract-cancel-2")).toBe(0);
+    expect(await readElected(contract.id)).toBe(false);
   });
 
   it("rejects a contract with no renewal elected", async () => {
-    await insertContract({ id: "contract-cancel-3", remainingDays: 1 });
+    const contract = await insertContract({ remainingDays: 1 });
 
-    const result = await service.cancelRenewal(
-      playerId,
-      leagueId,
-      "contract-cancel-3",
-    );
+    const result = await service.cancelRenewal(playerId, leagueId, contract.id);
     expect(result).toEqual({
       ok: false,
       error: CONTRACT_ERRORS.RENEWAL_NOT_ELECTED,
@@ -1788,18 +1496,13 @@ describe("ContractService.cancelRenewal Integration Tests", () => {
   });
 
   it("rejects a contract the sweep has already settled", async () => {
-    await insertContract({
-      id: "contract-cancel-4",
+    const contract = await insertContract({
       remainingDays: -1,
       renewalElected: true,
       settled: true,
     });
 
-    const result = await service.cancelRenewal(
-      playerId,
-      leagueId,
-      "contract-cancel-4",
-    );
+    const result = await service.cancelRenewal(playerId, leagueId, contract.id);
     expect(result).toEqual({
       ok: false,
       error: CONTRACT_ERRORS.ALREADY_SETTLED,

@@ -53,6 +53,7 @@ Seams, layers, and modules. The rules they implement live in `domain/`.
 | Doc | What it answers |
 |---|---|
 | [Local Development Setup](./development/local-dev-setup.md) | Env files, MSW, Wrangler |
+| [Backend Testing](./development/backend-testing.md) | The test tiers, which layer each may name, and how to seed |
 | [API Naming Rules](./development/api-naming-rules.md) | URL, identity, and request-body conventions |
 | [NPM Script Naming](./development/npm-script-naming.md) | Why `formatfix`, not `format:fix` |
 

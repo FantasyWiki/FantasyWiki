@@ -1,17 +1,17 @@
-import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
 import { TeamService } from "../../services/team";
 import { PlayerService } from "../../services/player";
-import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
 import type { TeamRepository } from "../../repositories/teamRepository";
 import { success, failure } from "../../repositories/result";
 import { STARTING_CREDITS } from "../../../../model/team";
+import { GLOBAL_LEAGUE_ID } from "../../services/league";
+import { anotherLeague } from "../support/subjects";
+import { repositories } from "../support/target";
 import type { Team } from "../../../../model";
 import {
   fakeLeagueRepository,
   fakeTeamRepository,
 } from "../utils/fakeRepositories";
-import { insertLeague } from "../utils/d1TestUtils";
 
 describe("TeamService Integration Tests", () => {
   let teamService: TeamService;
@@ -20,8 +20,8 @@ describe("TeamService Integration Tests", () => {
   let playerId: string;
 
   beforeEach(async () => {
-    teamService = new TeamService(env.db);
-    playerService = new PlayerService(env.db);
+    teamService = new TeamService(repositories());
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "leagueadmin",
@@ -32,16 +32,7 @@ describe("TeamService Integration Tests", () => {
     if (!playerResult.ok) throw new Error("setup failed");
     playerId = playerResult.value.id;
 
-    leagueId = "league-1";
-    // Through the shared helper, whose default season runs to 2124. This used
-    // to write `endDate = now`, i.e. a league that was over the instant it
-    // existed — harmless while nothing looked at the date, and a refused join
-    // the moment the lifecycle rules did.
-    await insertLeague(env.db, {
-      id: leagueId,
-      name: "Test League",
-      adminId: playerId,
-    });
+    leagueId = GLOBAL_LEAGUE_ID;
   });
 
   describe("createTeam", () => {
@@ -126,12 +117,9 @@ describe("TeamService Integration Tests", () => {
     });
 
     it("should allow the same team name in different leagues", async () => {
-      const otherLeagueId = "league-2";
-      await insertLeague(env.db, {
-        id: otherLeagueId,
-        name: "Other League",
-        adminId: playerId,
-      });
+      // Founded by someone else: the player under test has to be the one who
+      // creates their team in it, which the founder already would have.
+      const otherLeagueId = (await anotherLeague()).id;
 
       const firstResult = await teamService.createTeam(
         playerId,
@@ -293,12 +281,12 @@ describe("TeamService Integration Tests", () => {
         getByPlayerAndLeague: async () => failure("db error"),
       });
       const service = new TeamService({
-        teamRepository: failingRepository,
-        lineupRepository: {
+        teams: failingRepository,
+        lineups: {
           getByTeamId: async () => failure("unused"),
           upsert: async () => failure("unused"),
         },
-        leagueRepository: fakeLeagueRepository(),
+        leagues: fakeLeagueRepository(),
       });
 
       const result = await service.getMyTeam(playerId, leagueId, "Alice");
@@ -318,12 +306,12 @@ describe("TeamService Integration Tests", () => {
         getByPlayerAndLeague: async () => success(team),
       });
       const service = new TeamService({
-        teamRepository: repository,
-        lineupRepository: {
+        teams: repository,
+        lineups: {
           getByTeamId: async () => failure("unused"),
           upsert: async () => failure("unused"),
         },
-        leagueRepository: fakeLeagueRepository(),
+        leagues: fakeLeagueRepository(),
       });
 
       const result = await service.getMyTeam(playerId, leagueId, "Bob");
@@ -338,57 +326,5 @@ describe("TeamService Integration Tests", () => {
         });
       }
     });
-  });
-});
-
-describe("TeamRepositoryD1 error handling", () => {
-  const throwingDb = {
-    prepare: () => {
-      throw new Error("D1 unavailable");
-    },
-  } as unknown as D1Database;
-
-  it("should return a failure from create when D1 throws", async () => {
-    const repository = new TeamRepositoryD1(throwingDb);
-    const result = await repository.create({
-      name: "Test",
-      playerId: "p1",
-      leagueId: "l1",
-    });
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toContain("D1 unavailable");
-    }
-  });
-
-  it("should return a failure from existsByNameInLeague when D1 throws", async () => {
-    const repository = new TeamRepositoryD1(throwingDb);
-    const result = await repository.existsByNameInLeague("Test", "l1");
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toContain("D1 unavailable");
-    }
-  });
-
-  it("should return a failure from getByPlayerAndLeague when D1 throws", async () => {
-    const repository = new TeamRepositoryD1(throwingDb);
-    const result = await repository.getByPlayerAndLeague("p1", "l1");
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toContain("D1 unavailable");
-    }
-  });
-
-  it("should return a failure from getByIdAndLeague when D1 throws", async () => {
-    const repository = new TeamRepositoryD1(throwingDb);
-    const result = await repository.getByIdAndLeague("t1", "l1");
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toContain("D1 unavailable");
-    }
   });
 });

@@ -1,29 +1,15 @@
 import { Hono } from "hono";
 import { NotificationService } from "../services/notification";
 import { NOTIFICATION_ERRORS } from "../repositories/notificationRepository";
-import { playerErrorStatus, resolveCurrentPlayer } from "./helpers";
+import { AppVariables } from "../appEnv";
+import { currentPlayer } from "./currentPlayer";
 
-type Bindings = {
-  db: D1Database;
-};
+const notifications = new Hono<{ Variables: AppVariables }>();
 
-const notifications = new Hono<{ Bindings: Bindings }>();
-
-notifications.patch("/:id/read", async (c) => {
-  const playerResult = await resolveCurrentPlayer(c);
-  if (!playerResult.ok) {
-    return c.json(
-      { error: playerResult.error },
-      playerErrorStatus(playerResult.error),
-    );
-  }
-
+notifications.patch("/:id/read", currentPlayer, async (c) => {
   const id = c.req.param("id");
-  const notificationService = new NotificationService(c.env.db);
-  const result = await notificationService.markAsRead(
-    id,
-    playerResult.value.id,
-  );
+  const notificationService = new NotificationService(c.var.repositories);
+  const result = await notificationService.markAsRead(id, c.var.player.id);
   if (!result.ok) {
     const status =
       result.error === NOTIFICATION_ERRORS.NOT_FOUND

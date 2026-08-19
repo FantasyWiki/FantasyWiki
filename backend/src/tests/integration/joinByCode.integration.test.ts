@@ -10,10 +10,65 @@ import { TEAM_ERRORS } from "../../repositories/teamRepository";
 import { LeagueService } from "../../services/league";
 import { TeamService } from "../../services/team";
 import { PlayerService } from "../../services/player";
-import { insertLeague, resetD1Database } from "../utils/d1TestUtils";
+import { injectDeps } from "../support/injectDeps";
+import { LanguageScaleCalibrationService } from "../../services/languageScaleCalibration";
+import { createWikimediaClient } from "../../services/wikimediaClient";
+import { LeagueInvitePolicy } from "../../../../model/enums";
+import { LEAGUE_ICONS } from "../../../../model/league";
+import { REFERENCE_SCALE } from "../../../../model/languageScale";
+import { unwrap } from "../../repositories/result";
+import { aLeague, aPlayer } from "../support/subjects";
+import { repositories } from "../support/target";
+import type { League } from "../../../../model";
 
 const CODE = "ZK7QW";
 const OTHER_CODE = "M4RSX";
+
+/** A season that is still running, and one that ran out years ago. */
+const RUNNING = "2126-01-01T00:00:00Z";
+const RUN_OUT = "2020-01-01T00:00:00Z";
+
+/**
+ * A league in the three terms this file is about: how you get into it, when its
+ * season ends, and whose it is. Every one of them is named at the call site,
+ * because every one of them is what some test here turns on.
+ */
+async function seedLeague(attrs: {
+  visibility: LeagueVisibility;
+  invitationCode: string | null;
+  endDate: string;
+  adminId: string;
+}): Promise<League> {
+  return (
+    await aLeague(
+      {
+        name: "Friday Night Wiki",
+        adminId: attrs.adminId,
+        startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+        endDate: Temporal.Instant.from(attrs.endDate),
+        domain: "en",
+        languageScale: REFERENCE_SCALE,
+        icon: LEAGUE_ICONS[0],
+        visibility: attrs.visibility,
+        invitePolicy: LeagueInvitePolicy.MEMBERS,
+        invitationCode: attrs.invitationCode,
+      },
+      "Founders",
+    )
+  ).league;
+}
+
+/** Closes a league the way its admin does, since `closedAt` is never written directly. */
+async function close(league: League): Promise<void> {
+  unwrap(
+    await repositories().leagues.close(
+      league.id,
+      league.adminId,
+      Temporal.Instant.from("2026-01-01T00:00:00Z"),
+    ),
+    "closure",
+  );
+}
 
 /**
  * The binding allows five code-bearing requests a minute per player, and it is
@@ -23,16 +78,24 @@ const OTHER_CODE = "M4RSX";
  */
 const RATE_LIMIT = 5;
 
-async function makePlayerApp(): Promise<{ app: Hono; playerId: string }> {
+/**
+ * All these helpers need of the app is to drive requests at it — and the
+ * instance the builder returns carries the middleware chain in its type, which
+ * a bare `Hono` annotation will not accept.
+ */
+type TestApp = Pick<Hono, "request">;
+
+async function makePlayerApp(): Promise<{ app: TestApp; playerId: string }> {
   const accountId = `acct-join-${crypto.randomUUID()}`;
-  const player = await new PlayerService(env.db).createPlayer(
+  const player = await new PlayerService(repositories()).createPlayer(
     `joiner-${crypto.randomUUID()}`,
     "joiner@example.com",
     accountId,
   );
   if (!player.ok) throw new Error("setup failed");
 
-  const app = new Hono<{ Bindings: Env }>()
+  const app = new Hono()
+    .use("*", injectDeps())
     .use("*", async (c, next) => {
       c.set("jwtPayload", { sub: accountId });
       await next();
@@ -42,11 +105,11 @@ async function makePlayerApp(): Promise<{ app: Hono; playerId: string }> {
   return { app, playerId: player.value.id };
 }
 
-function resolve(app: Hono, code: string) {
+function resolve(app: TestApp, code: string) {
   return app.request(`/leagues/by-code/${encodeURIComponent(code)}`, {}, env);
 }
 
-function join(app: Hono, leagueId: string, body: unknown) {
+function join(app: TestApp, leagueId: string, body: unknown) {
   return app.request(
     `/leagues/${leagueId}/my-team`,
     {
@@ -59,16 +122,16 @@ function join(app: Hono, leagueId: string, body: unknown) {
 }
 
 describe("GET /leagues/by-code/:code", () => {
-  let app: Hono;
+  let app: TestApp;
+  let coded: League;
 
   beforeEach(async () => {
-    await resetD1Database(env.db);
     ({ app } = await makePlayerApp());
-    await insertLeague(env.db, {
-      id: "coded",
-      name: "Friday Night Wiki",
+    coded = await seedLeague({
       visibility: LeagueVisibility.PRIVATE,
       invitationCode: CODE,
+      endDate: RUNNING,
+      adminId: await aPlayer(),
     });
   });
 
@@ -79,10 +142,10 @@ describe("GET /leagues/by-code/:code", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      id: "coded",
+      id: coded.id,
       title: "Friday Night Wiki",
       visibility: LeagueVisibility.PRIVATE,
-      teamCount: 0,
+      teamCount: 1,
     });
   });
 
@@ -93,7 +156,7 @@ describe("GET /leagues/by-code/:code", () => {
     const response = await resolve(app, " zk7-qw ");
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({ id: "coded" });
+    await expect(response.json()).resolves.toMatchObject({ id: coded.id });
   });
 
   it("never carries the code it was asked about", async () => {
@@ -155,30 +218,31 @@ describe("GET /leagues/by-code/:code", () => {
     // Deliberate. Someone holding a real invitation should be told the season
     // ended, not that their code is bad — the preview carries `endDate` and
     // `closedAt` and the surface reaches that verdict itself.
-    await insertLeague(env.db, {
-      id: "finished",
-      endDate: "2020-01-01T00:00:00Z",
+    const finished = await seedLeague({
       visibility: LeagueVisibility.PRIVATE,
       invitationCode: OTHER_CODE,
+      endDate: RUN_OUT,
+      adminId: await aPlayer(),
     });
 
     const response = await resolve(app, OTHER_CODE);
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({ id: "finished" });
+    await expect(response.json()).resolves.toMatchObject({ id: finished.id });
   });
 });
 
 describe("the join rate limit", () => {
-  let app: Hono;
+  let app: TestApp;
+  let coded: League;
 
   beforeEach(async () => {
-    await resetD1Database(env.db);
     ({ app } = await makePlayerApp());
-    await insertLeague(env.db, {
-      id: "coded",
+    coded = await seedLeague({
       visibility: LeagueVisibility.PRIVATE,
       invitationCode: CODE,
+      endDate: RUNNING,
+      adminId: await aPlayer(),
     });
   });
 
@@ -205,7 +269,7 @@ describe("the join rate limit", () => {
       expect((await resolve(app, OTHER_CODE)).status).toBe(404);
     }
 
-    const response = await join(app, "coded", {
+    const response = await join(app, coded.id, {
       name: "Late Arrival",
       invitationCode: OTHER_CODE,
     });
@@ -232,7 +296,7 @@ describe("the join rate limit", () => {
   });
 
   it("lets a correct code through while budget remains", async () => {
-    const response = await join(app, "coded", {
+    const response = await join(app, coded.id, {
       name: "Invited XI",
       invitationCode: CODE,
     });
@@ -242,23 +306,22 @@ describe("the join rate limit", () => {
 });
 
 describe("joining a league that has ended", () => {
-  let app: Hono;
+  let app: TestApp;
   let playerId: string;
 
   beforeEach(async () => {
-    await resetD1Database(env.db);
     ({ app, playerId } = await makePlayerApp());
   });
 
   it("refuses a season that has run out, code or no code", async () => {
-    await insertLeague(env.db, {
-      id: "expired",
-      endDate: "2020-01-01T00:00:00Z",
+    const expired = await seedLeague({
       visibility: LeagueVisibility.PRIVATE,
       invitationCode: CODE,
+      endDate: RUN_OUT,
+      adminId: await aPlayer(),
     });
 
-    const response = await join(app, "expired", {
+    const response = await join(app, expired.id, {
       name: "Too Late FC",
       invitationCode: CODE,
     });
@@ -274,12 +337,15 @@ describe("joining a league that has ended", () => {
   it("refuses a public league the admin closed early", async () => {
     // The other half of `isLeagueInactive`, and the half a date comparison
     // alone would miss.
-    await insertLeague(env.db, {
-      id: "closed",
-      closedAt: "2026-01-01T00:00:00Z",
+    const closed = await seedLeague({
+      visibility: LeagueVisibility.PUBLIC,
+      invitationCode: null,
+      endDate: RUNNING,
+      adminId: await aPlayer(),
     });
+    await close(closed);
 
-    const response = await join(app, "closed", { name: "Shut Out" });
+    const response = await join(app, closed.id, { name: "Shut Out" });
 
     expect(response.status).toBe(409);
   });
@@ -287,17 +353,17 @@ describe("joining a league that has ended", () => {
   it("refuses the league's own admin as well", async () => {
     // Nobody is let back into an ended league — this is what makes it a state
     // of the league rather than a permission.
-    await insertLeague(env.db, {
-      id: "closed-mine",
-      adminId: playerId,
+    const mine = await seedLeague({
       visibility: LeagueVisibility.PRIVATE,
       invitationCode: CODE,
-      closedAt: "2026-01-01T00:00:00Z",
+      endDate: RUNNING,
+      adminId: playerId,
     });
+    await close(mine);
 
-    const result = await new TeamService(env.db).createTeam(
+    const result = await new TeamService(repositories()).createTeam(
       playerId,
-      "closed-mine",
+      mine.id,
       "Founders XI",
     );
 
@@ -306,9 +372,14 @@ describe("joining a league that has ended", () => {
 
   it("still lets a running league be joined", async () => {
     // The guard has to be the *rule*, not a blanket refusal.
-    await insertLeague(env.db, { id: "running" });
+    const running = await seedLeague({
+      visibility: LeagueVisibility.PUBLIC,
+      invitationCode: null,
+      endDate: RUNNING,
+      adminId: await aPlayer(),
+    });
 
-    const response = await join(app, "running", { name: "In Time FC" });
+    const response = await join(app, running.id, { name: "In Time FC" });
 
     expect(response.status).toBe(201);
   });
@@ -318,28 +389,34 @@ describe("LeagueService.getLeagueByInvitationCode", () => {
   let service: LeagueService;
 
   beforeEach(async () => {
-    await resetD1Database(env.db);
-    service = new LeagueService(env.db);
+    service = new LeagueService({
+      ...repositories(),
+      calibration: new LanguageScaleCalibrationService({
+        ...repositories(),
+        wikimedia: createWikimediaClient(),
+      }),
+    });
   });
 
   it("counts the teams already in the league it previews", async () => {
     // The preview is worth having because it answers "how many are playing";
     // going through `getLeagueById` is what supplies that, and is the reason
     // the repository call returns an id rather than a league.
-    await insertLeague(env.db, {
-      id: "sized",
+    const sized = await seedLeague({
       visibility: LeagueVisibility.PRIVATE,
       invitationCode: CODE,
+      endDate: RUNNING,
+      adminId: await aPlayer(),
     });
-    const player = await new PlayerService(env.db).createPlayer(
+    const player = await new PlayerService(repositories()).createPlayer(
       "sizer",
       "sizer@example.com",
       "acct-sizer",
     );
     if (!player.ok) throw new Error("setup failed");
-    await new TeamService(env.db).createTeam(
+    await new TeamService(repositories()).createTeam(
       player.value.id,
-      "sized",
+      sized.id,
       "First In",
       CODE,
     );
@@ -348,14 +425,20 @@ describe("LeagueService.getLeagueByInvitationCode", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.teamCount).toBe(1);
+    // The founding team, plus the one that just redeemed the code.
+    expect(result.value.teamCount).toBe(2);
   });
 
   it("never matches a league that has no code at all", async () => {
-    // A public league stores NULL there. SQL's NULL equals nothing — including
-    // the empty string — but the shape check refuses long before the query
-    // anyway, and both have to hold for this to stay true.
-    await insertLeague(env.db, { id: "codeless" });
+    // A public league is stored with no code at all. An absent code matches
+    // nothing — including the empty string — but the shape check refuses long
+    // before the lookup anyway, and both have to hold for this to stay true.
+    await seedLeague({
+      visibility: LeagueVisibility.PUBLIC,
+      invitationCode: null,
+      endDate: RUNNING,
+      adminId: await aPlayer(),
+    });
 
     await expect(service.getLeagueByInvitationCode("")).resolves.toEqual({
       ok: false,
@@ -366,7 +449,7 @@ describe("LeagueService.getLeagueByInvitationCode", () => {
   it("reads back a code a real league creation drew", async () => {
     // End to end against the writer, rather than against a hand-seeded row:
     // this is what would catch the two sides disagreeing on case or trimming.
-    const player = await new PlayerService(env.db).createPlayer(
+    const player = await new PlayerService(repositories()).createPlayer(
       "founder",
       "founder@example.com",
       "acct-founder",

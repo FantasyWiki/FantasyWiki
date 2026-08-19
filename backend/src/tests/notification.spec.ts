@@ -1,9 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect } from "vitest";
-import {
-  NotificationService,
-  NotificationServiceDeps,
-} from "../services/notification";
+import { NotificationService } from "../services/notification";
 import {
   NotificationRepository,
   NotificationRow,
@@ -13,6 +10,7 @@ import { success, failure } from "../repositories/result";
 import type { League } from "../../../model";
 import { LeagueInvitePolicy, LeagueVisibility } from "../../../model/enums";
 import { fakeLeagueRepository } from "./utils/fakeRepositories";
+import { REFERENCE_SCALE } from "../../../model/languageScale";
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
@@ -27,6 +25,7 @@ const enLeague: League = {
   startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
   endDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
   domain: "en",
+  languageScale: REFERENCE_SCALE,
   visibility: LeagueVisibility.PUBLIC,
   invitePolicy: LeagueInvitePolicy.MEMBERS,
   closedAt: null,
@@ -71,12 +70,12 @@ function makeLeagueRepo(l: League = enLeague): LeagueRepository {
   return fakeLeagueRepository({ getById: async () => success(l) });
 }
 
-function makeDeps(
-  overrides: Partial<NotificationServiceDeps> = {},
-): NotificationServiceDeps {
+type NotificationDeps = ConstructorParameters<typeof NotificationService>[0];
+
+function makeDeps(overrides: Partial<NotificationDeps> = {}): NotificationDeps {
   return {
-    notificationRepository: makeNotificationRepo(),
-    leagueRepository: makeLeagueRepo(),
+    notifications: makeNotificationRepo(),
+    leagues: makeLeagueRepo(),
     ...overrides,
   };
 }
@@ -95,7 +94,7 @@ describe("NotificationService (unit)", () => {
     it("maps a notification row to the correct RawNotification shape", async () => {
       const row = makeRow();
       const service = new NotificationService(
-        makeDeps({ notificationRepository: makeNotificationRepo([row]) }),
+        makeDeps({ notifications: makeNotificationRepo([row]) }),
       );
 
       const result = await service.getMyNotifications(PLAYER_ID, LEAGUE_ID);
@@ -127,8 +126,8 @@ describe("NotificationService (unit)", () => {
 
       const service = new NotificationService(
         makeDeps({
-          notificationRepository: makeNotificationRepo([row]),
-          leagueRepository: fakeLeagueRepository({
+          notifications: makeNotificationRepo([row]),
+          leagues: fakeLeagueRepository({
             getById: async () => success(itLeague),
           }),
         }),
@@ -169,13 +168,13 @@ describe("NotificationService (unit)", () => {
 
       const service = new NotificationService(
         makeDeps({
-          notificationRepository: {
+          notifications: {
             getByPlayerAndLeague: async () => success([enRow, itRow]),
             getByPlayerId: async () => success([enRow, itRow]),
             markAsRead: async () => success(undefined),
             create: async () => success(undefined),
           },
-          leagueRepository: leagueRepo,
+          leagues: leagueRepo,
         }),
       );
 
@@ -191,7 +190,7 @@ describe("NotificationService (unit)", () => {
     it("returns a failure when the notification repo fails", async () => {
       const service = new NotificationService(
         makeDeps({
-          notificationRepository: {
+          notifications: {
             getByPlayerAndLeague: async () => failure("db error"),
             getByPlayerId: async () => failure("db error"),
             markAsRead: async () => failure("unused"),
@@ -209,8 +208,8 @@ describe("NotificationService (unit)", () => {
       const row = makeRow();
       const service = new NotificationService(
         makeDeps({
-          notificationRepository: makeNotificationRepo([row]),
-          leagueRepository: fakeLeagueRepository({
+          notifications: makeNotificationRepo([row]),
+          leagues: fakeLeagueRepository({
             getById: async () => failure("league not found"),
           }),
         }),
@@ -233,7 +232,7 @@ describe("NotificationService (unit)", () => {
 
       const service = new NotificationService(
         makeDeps({
-          notificationRepository: makeNotificationRepo([row1, row2]),
+          notifications: makeNotificationRepo([row1, row2]),
         }),
       );
 
@@ -254,7 +253,7 @@ describe("NotificationService (unit)", () => {
 
       const service = new NotificationService(
         makeDeps({
-          notificationRepository: {
+          notifications: {
             getByPlayerAndLeague: async () => success([]),
             getByPlayerId: async () => success([]),
             markAsRead: async (id, playerId) => {
@@ -276,7 +275,7 @@ describe("NotificationService (unit)", () => {
     it("propagates a failure from the repository", async () => {
       const service = new NotificationService(
         makeDeps({
-          notificationRepository: {
+          notifications: {
             getByPlayerAndLeague: async () => success([]),
             getByPlayerId: async () => success([]),
             markAsRead: async () => failure("not found"),

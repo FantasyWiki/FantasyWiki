@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   ACCEPTANCE_MIN_DAILY_VIEWS,
@@ -7,16 +6,16 @@ import {
 } from "../../../../model/languageScale";
 import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
 import { LEAGUE_ICONS } from "../../../../model/league";
-import { LanguageScaleRepositoryD1 } from "../../repositories/d1/languageScaleRepositoryD1";
+import { unwrap } from "../../repositories/result";
 import {
   CALIBRATION_ERRORS,
   LanguageScaleCalibrationService,
 } from "../../services/languageScaleCalibration";
 import { LEAGUE_CREATION_ERRORS, LeagueService } from "../../services/league";
-import { LeagueRepositoryD1 } from "../../repositories/d1/leagueRepositoryD1";
 import { PlayerService } from "../../services/player";
 import type { WikimediaClient } from "../../../../external-apis/wikimedia/client";
 import type { CreateLeagueRequest } from "../../../../dto/leagueDTO";
+import { repositories } from "../support/target";
 
 /**
  * A Wikimedia client that answers from a per-edition view profile instead of the
@@ -91,16 +90,19 @@ const TINY = { top: 900, ranks: 700, decay: 0.97 };
 function service(profiles: Parameters<typeof fakeWikimedia>[0]) {
   const { client, requests } = fakeWikimedia(profiles);
   return {
-    calibration: new LanguageScaleCalibrationService(env.db, client),
+    calibration: new LanguageScaleCalibrationService({
+      ...repositories(),
+      wikimedia: client,
+    }),
     requests,
   };
 }
 
 describe("the seeded registry", () => {
   it("survives the per-test data reset", async () => {
-    // The seed is reference data, not test fixture: `resetD1Database` must not
+    // The seed is reference data, not test fixture: the per-test reset must not
     // clear it, or every league creation below would trigger a live calibration.
-    const repository = new LanguageScaleRepositoryD1(env.db);
+    const repository = repositories().languageScales;
 
     const en = await repository.getByDomain("en");
 
@@ -108,7 +110,7 @@ describe("the seeded registry", () => {
   });
 
   it("knows nothing about an edition never played", async () => {
-    const repository = new LanguageScaleRepositoryD1(env.db);
+    const repository = repositories().languageScales;
 
     const result = await repository.getByDomain("de");
 
@@ -133,9 +135,7 @@ describe("LanguageScaleCalibrationService.resolve", () => {
 
     // Persisted before returning, which is the invariant: no league may be
     // written against a factor that is not in the table yet.
-    const stored = await new LanguageScaleRepositoryD1(env.db).getByDomain(
-      "de",
-    );
+    const stored = await repositories().languageScales.getByDomain("de");
     expect(stored.ok && stored.value?.scale).toBeCloseTo(10, 5);
   });
 
@@ -148,9 +148,7 @@ describe("LanguageScaleCalibrationService.resolve", () => {
     if (result.ok) return;
     expect(result.error).toBe(CALIBRATION_ERRORS.BELOW_FLOOR);
 
-    const stored = await new LanguageScaleRepositoryD1(env.db).getByDomain(
-      "la",
-    );
+    const stored = await repositories().languageScales.getByDomain("la");
     expect(stored.ok && stored.value).toBeNull();
   });
 
@@ -211,7 +209,7 @@ describe("LanguageScaleCalibrationService.resolve", () => {
 
 describe("founding a league on an edition", () => {
   async function makePlayer(name: string) {
-    const result = await new PlayerService(env.db).createPlayer(
+    const result = await new PlayerService(repositories()).createPlayer(
       name,
       `${name}@example.com`,
       `acct-${name}`,
@@ -239,10 +237,13 @@ describe("founding a league on an edition", () => {
 
   beforeEach(() => {
     const { client } = fakeWikimedia({ en: BIG, de: TENTH, la: TINY });
-    leagues = new LeagueService(
-      env.db,
-      new LanguageScaleCalibrationService(env.db, client),
-    );
+    leagues = new LeagueService({
+      ...repositories(),
+      calibration: new LanguageScaleCalibrationService({
+        ...repositories(),
+        wikimedia: client,
+      }),
+    });
   });
 
   it("calibrates a never-played edition before the league exists", async () => {
@@ -257,9 +258,7 @@ describe("founding a league on an edition", () => {
     if (!result.ok) return;
     expect(result.value.languageScale).toBeCloseTo(10, 5);
 
-    const stored = await new LanguageScaleRepositoryD1(env.db).getByDomain(
-      "de",
-    );
+    const stored = await repositories().languageScales.getByDomain("de");
     expect(stored.ok && stored.value?.scale).toBeCloseTo(10, 5);
   });
 
@@ -275,16 +274,19 @@ describe("founding a league on an edition", () => {
     if (result.ok) return;
     expect(result.error).toBe(CALIBRATION_ERRORS.BELOW_FLOOR);
 
-    // The half state ADR 0002 rules out: no league, and no team either.
-    const leagueCount = await env.db
-      .prepare("SELECT COUNT(*) AS n FROM leagues WHERE domain = 'la'")
-      .first<{ n: number }>();
-    expect(leagueCount?.n).toBe(0);
-    const teamCount = await env.db
-      .prepare("SELECT COUNT(*) AS n FROM teams WHERE playerId = ?")
-      .bind(player.id)
-      .first<{ n: number }>();
-    expect(teamCount?.n).toBe(0);
+    // The half state ADR 0002 rules out: no league on that edition, and no team
+    // for the player who asked for it — the founding team is written in the same
+    // transaction, so a league missing from both reads leaves nothing behind.
+    const published = unwrap(
+      await repositories().leagues.listPublic(100),
+      "public leagues",
+    );
+    expect(published.map((league) => league.domain)).not.toContain("la");
+    const joined = unwrap(
+      await repositories().players.getLeaguesByPlayerId(player.id),
+      "leagues joined",
+    );
+    expect(joined).toEqual([]);
   });
 
   it("prices a league on a scaled edition above one on the reference", async () => {
@@ -310,9 +312,9 @@ describe("founding a league on an edition", () => {
     // A service handed only a repository has no calibrator. Refusing is the
     // point: the alternative is defaulting the factor to 1.0, which is precisely
     // the silent mis-pricing this whole path exists to prevent. Unreachable from
-    // the route layer, which always constructs from `c.env.db`.
+    // the route layer, which always constructs the calibrator alongside it.
     const player = await makePlayer("unwired");
-    const bare = new LeagueService(new LeagueRepositoryD1(env.db));
+    const bare = new LeagueService({ leagues: repositories().leagues });
 
     const result = await bare.createLeague(player.id, request());
 

@@ -1,11 +1,10 @@
-import { env } from "cloudflare:workers";
 import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect, beforeEach } from "vitest";
 import { ContractService, CONTRACT_ERRORS } from "../../services/contract";
 import { NotificationService } from "../../services/notification";
 import { PlayerService } from "../../services/player";
-import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
-import { ContractRepositoryD1 } from "../../repositories/d1/contractRepositoryD1";
+import { TeamService } from "../../services/team";
+import { GLOBAL_LEAGUE_ID } from "../../services/league";
 import {
   ContractRepository,
   DueContract,
@@ -14,54 +13,16 @@ import { NotificationRepository } from "../../repositories/notificationRepositor
 import { TeamRepository } from "../../repositories/teamRepository";
 import { LeagueRepository } from "../../repositories/leagueRepository";
 import { PlayerRepository } from "../../repositories/playerRepository";
-import { success, failure } from "../../repositories/result";
-import { WikimediaClient } from "../../../../external-apis/wikimedia/client";
+import { success, failure, unwrap } from "../../repositories/result";
 import { STARTING_CREDITS } from "../../../../model/team";
+import type { Contract } from "../../../../model";
 import {
   computeContractPrice,
   normalizedViews,
 } from "../../../../model/pricing";
 import { REFERENCE_SCALE } from "../../../../model/languageScale";
-import { insertTeam } from "../utils/d1TestUtils";
-
-/**
- * WikimediaClient stub exposing only `pageviews.getArticleViews`, the sole
- * capability the settlement sweep exercises; everything else throws so an
- * accidental dependency fails loudly. Mirrors the helper in
- * contract.integration.test.ts.
- */
-function wikimediaClientWithArticleViews(
-  getArticleViews: WikimediaClient["pageviews"]["getArticleViews"],
-): WikimediaClient {
-  const unimplemented = () => {
-    throw new Error("not implemented in stub");
-  };
-  return {
-    pageviews: {
-      getArticleViews,
-      getTopReadList: unimplemented,
-      getViewsByDomain: unimplemented,
-    },
-    article: {
-      getSummary: unimplemented,
-      getLinkedArticles: unimplemented,
-      search: unimplemented,
-    },
-  } as unknown as WikimediaClient;
-}
-
-function wikimediaWithAvg(
-  averageViews30d: number | undefined,
-): WikimediaClient {
-  return wikimediaClientWithArticleViews(async () => ({
-    latestDayViews: undefined,
-    averageViews30d,
-    weekViews: undefined,
-    previousWeekViews: undefined,
-    monthViews: undefined,
-    yearViews: undefined,
-  }));
-}
+import { repositories } from "../support/target";
+import { unusedWikimedia, wikimediaWithAvg } from "../support/wikimedia";
 
 function priceFor(averageViews30d: number, tierDays: number): number {
   return computeContractPrice(
@@ -98,10 +59,9 @@ function recordingNotificationRepo(sink: string[]): NotificationRepository {
  * while every other read still goes to the database.
  */
 function contractRepoOver(
-  db: D1Database,
   overrides: Partial<ContractRepository>,
 ): ContractRepository {
-  const real = new ContractRepositoryD1(db);
+  const real = repositories().contracts;
   return {
     getByTeamId: (...args) => real.getByTeamId(...args),
     getById: (...args) => real.getById(...args),
@@ -121,7 +81,7 @@ async function getDerivedCredits(
   playerId: string,
   leagueId: string,
 ): Promise<number | null> {
-  const result = await new TeamRepositoryD1(env.db).getByPlayerAndLeague(
+  const result = await repositories().teams.getByPlayerAndLeague(
     playerId,
     leagueId,
   );
@@ -129,16 +89,18 @@ async function getDerivedCredits(
   return result.value.credits;
 }
 
-async function readContractRow(id: string) {
-  return env.db.prepare("SELECT * FROM contracts WHERE id = ?").bind(id).first<{
-    purchaseDate: string;
-    expireDate: string;
-    purchasePrice: number;
-    settled: number;
-    salePayout: number | null;
-    renewalCount: number;
-    renewalElected: number;
-  }>();
+/**
+ * The settled contract itself. What it *paid out* is not on it — `salePayout` is
+ * a ledger column the derived balance sums (ADR 0007) — so tests read the payout
+ * through `getDerivedCredits`.
+ */
+async function readContract(id: string): Promise<Contract> {
+  const contract = unwrap(
+    await repositories().contracts.getById(id),
+    "contract read-back",
+  );
+  if (contract === null) throw new Error(`Contract ${id} disappeared`);
+  return contract;
 }
 
 describe("ContractService settlement sweep Integration Tests", () => {
@@ -153,7 +115,6 @@ describe("ContractService settlement sweep Integration Tests", () => {
    * so it is picked up by the settlement sweep (`expireDate <= today`).
    */
   async function insertDueContract(opts: {
-    id: string;
     tierDays: number;
     purchasePrice: number;
     daysPastExpiry?: number;
@@ -161,44 +122,62 @@ describe("ContractService settlement sweep Integration Tests", () => {
     renewalCount?: number;
     articleId?: string;
     ownerTeamId?: string;
-  }): Promise<void> {
+  }): Promise<Contract> {
+    const owner = opts.ownerTeamId ?? teamId;
     const today = Temporal.Now.plainDateISO();
     const expireDate = today.subtract({ days: opts.daysPastExpiry ?? 0 });
     const purchaseDate = expireDate.subtract({ days: opts.tierDays });
-    await env.db
-      .prepare(
-        `INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice, renewalElected, renewalCount)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        opts.id,
-        opts.ownerTeamId ?? teamId,
-        opts.articleId ?? "Bitcoin",
-        purchaseDate.toString(),
-        expireDate.toString(),
-        opts.purchasePrice,
-        opts.renewalElected ? 1 : 0,
-        opts.renewalCount ?? 0,
-      )
-      .run();
+    const contracts = repositories().contracts;
+
+    const created = unwrap(
+      await contracts.create({
+        teamId: owner,
+        articleId: opts.articleId ?? "Bitcoin",
+        purchaseDate,
+        expireDate,
+        purchasePrice: opts.purchasePrice,
+      }),
+      "due contract",
+    );
+
+    // A renewal count is only reachable by actually renewing, so a contract on
+    // its nth renewal is put there by n of them. Each rolls the window to the
+    // same dates, leaving only the count changed.
+    for (let renewal = 0; renewal < (opts.renewalCount ?? 0); renewal++) {
+      unwrap(
+        await contracts.electRenewal(created.id, owner),
+        "election before renewal",
+      );
+      unwrap(
+        await contracts.renew(
+          created.id,
+          purchaseDate,
+          expireDate,
+          opts.purchasePrice,
+        ),
+        "earlier renewal",
+      );
+    }
+
+    if (opts.renewalElected) {
+      unwrap(await contracts.electRenewal(created.id, owner), "election");
+    }
+    return readContract(created.id);
   }
 
-  /** Insert a far-future unsettled contract purely to drain derived credits. */
+  /** A far-future unsettled contract, held purely to drain derived credits. */
   async function insertCreditDrain(purchasePrice: number): Promise<void> {
     const today = Temporal.Now.plainDateISO();
-    await env.db
-      .prepare(
-        "INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
-      )
-      .bind(
-        "contract-drain",
+    unwrap(
+      await repositories().contracts.create({
         teamId,
-        "Drain_Article",
-        today.toString(),
-        today.add({ days: 30 }).toString(),
+        articleId: "Drain_Article",
+        purchaseDate: today,
+        expireDate: today.add({ days: 30 }),
         purchasePrice,
-      )
-      .run();
+      }),
+      "credit drain",
+    );
   }
 
   /** Runs the whole sweep: fetch due contracts, settle/renew each. */
@@ -213,7 +192,7 @@ describe("ContractService settlement sweep Integration Tests", () => {
   }
 
   beforeEach(async () => {
-    playerService = new PlayerService(env.db);
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "settletester",
@@ -224,66 +203,46 @@ describe("ContractService settlement sweep Integration Tests", () => {
     if (!playerResult.ok) throw new Error("setup failed: player");
     playerId = playerResult.value.id;
 
-    leagueId = "league-settle-1";
-    await env.db
-      .prepare(
-        `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        leagueId,
-        "Settle League",
+    // The Global League's domain is "en", which fixes every price below.
+    leagueId = GLOBAL_LEAGUE_ID;
+    teamId = unwrap(
+      await new TeamService(repositories()).createTeam(
         playerId,
-        new Date().toISOString(),
-        new Date().toISOString(),
-        "en",
-        "🏆",
-      )
-      .run();
-
-    teamId = "team-settle-1";
-    await insertTeam(env.db, {
-      id: teamId,
-      name: "Settle FC",
-      playerId,
-      leagueId,
-    });
+        leagueId,
+        "Settle FC",
+      ),
+      "team",
+    ).id;
   });
 
   it("settles an expired, non-renewed contract at a profit and notifies with the P&L", async () => {
     const tierDays = 7;
     const purchasePrice = 50;
-    await insertDueContract({
-      id: "contract-profit",
+    const contract = await insertDueContract({
       tierDays,
       purchasePrice,
       articleId: "Cristiano_Ronaldo",
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(120000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(120000),
+    });
     await runSweep(service);
 
     const currentPrice = priceFor(120000, tierDays);
     const delta = currentPrice - purchasePrice;
     expect(delta).toBeGreaterThan(0);
 
-    const row = await readContractRow("contract-profit");
-    expect(row?.settled).toBe(1);
-    expect(row?.salePayout).toBe(currentPrice);
+    expect((await readContract(contract.id)).settled).toBe(true);
 
-    // Credits = STARTING - purchasePrice + salePayout(settled).
+    // Credits = STARTING - purchasePrice + the payout, which is how much the
+    // settlement paid: STARTING - purchasePrice + salePayout(settled).
     const credits = await getDerivedCredits(playerId, leagueId);
     expect(credits).toBe(STARTING_CREDITS - purchasePrice + currentPrice);
 
     const notifications = await new NotificationService(
-      env.db,
+      repositories(),
     ).getMyNotifications(playerId, leagueId);
     expect(notifications.ok).toBe(true);
     if (!notifications.ok) return;
@@ -291,39 +250,36 @@ describe("ContractService settlement sweep Integration Tests", () => {
     expect(notifications.value[0].message).toBe(
       `Cristiano Ronaldo settled at expiry: +${delta} credits`,
     );
-    expect(notifications.value[0].contract.id).toBe("contract-profit");
+    expect(notifications.value[0].contract.id).toBe(contract.id);
   });
 
   it("settles an expired, non-renewed contract at a loss with a negative-signed notification", async () => {
     const tierDays = 7;
     const purchasePrice = 800;
-    await insertDueContract({
-      id: "contract-loss",
+    const contract = await insertDueContract({
       tierDays,
       purchasePrice,
       articleId: "Bitcoin",
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(9000),
+    });
     await runSweep(service);
 
     const currentPrice = priceFor(9000, tierDays);
     const delta = currentPrice - purchasePrice;
     expect(delta).toBeLessThan(0);
 
-    const row = await readContractRow("contract-loss");
-    expect(row?.settled).toBe(1);
-    expect(row?.salePayout).toBe(currentPrice);
+    expect((await readContract(contract.id)).settled).toBe(true);
+    // A loss still pays out the live price, which the balance is what shows.
+    expect(await getDerivedCredits(playerId, leagueId)).toBe(
+      STARTING_CREDITS - purchasePrice + currentPrice,
+    );
 
     const notifications = await new NotificationService(
-      env.db,
+      repositories(),
     ).getMyNotifications(playerId, leagueId);
     expect(notifications.ok).toBe(true);
     if (!notifications.ok) return;
@@ -336,25 +292,19 @@ describe("ContractService settlement sweep Integration Tests", () => {
     const tierDays = 7;
     const purchasePrice = 100;
     const renewalCount = 1;
-    await insertDueContract({
-      id: "contract-renew",
+    const before = await insertDueContract({
       tierDays,
       purchasePrice,
       renewalElected: true,
       renewalCount,
       articleId: "Ethereum",
     });
-    const oldRow = await readContractRow("contract-renew");
 
     const views = 9000;
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(views),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(views),
+    });
     await runSweep(service);
 
     const currentPrice = priceFor(views, tierDays);
@@ -367,22 +317,20 @@ describe("ContractService settlement sweep Integration Tests", () => {
       STARTING_CREDITS - purchasePrice,
     );
 
-    const row = await readContractRow("contract-renew");
+    const after = await readContract(before.id);
     // Not settled — the position rolls forward.
-    expect(row?.settled).toBe(0);
-    expect(row?.renewalElected).toBe(0);
-    expect(row?.renewalCount).toBe(renewalCount + 1);
-    expect(row?.purchasePrice).toBe(newPurchasePrice);
+    expect(after.settled).toBe(false);
+    expect(after.renewalElected).toBe(false);
+    expect(after.renewalCount).toBe(renewalCount + 1);
+    expect(after.purchasePrice).toBe(newPurchasePrice);
     // Window rolled: purchaseDate <- old expireDate, expireDate += tierDays.
-    expect(row?.purchaseDate).toBe(oldRow?.expireDate);
-    expect(row?.expireDate).toBe(
-      Temporal.PlainDate.from(oldRow!.expireDate)
-        .add({ days: tierDays })
-        .toString(),
+    expect(after.purchaseDate.toString()).toBe(before.expireDate.toString());
+    expect(after.expireDate.toString()).toBe(
+      before.expireDate.add({ days: tierDays }).toString(),
     );
 
     const notifications = await new NotificationService(
-      env.db,
+      repositories(),
     ).getMyNotifications(playerId, leagueId);
     expect(notifications.ok).toBe(true);
     if (!notifications.ok) return;
@@ -398,8 +346,7 @@ describe("ContractService settlement sweep Integration Tests", () => {
     // test seeded renewalCount >= 1, so nothing caught it. ADR 0003 charges
     // +10% per consecutive renewal, and the first renewal is one.
     const tierDays = 7;
-    await insertDueContract({
-      id: "contract-first-renewal",
+    const contract = await insertDueContract({
       tierDays,
       purchasePrice: 100,
       renewalElected: true,
@@ -409,23 +356,19 @@ describe("ContractService settlement sweep Integration Tests", () => {
 
     const views = 9000;
     await runSweep(
-      new ContractService(
-        env.db,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        wikimediaWithAvg(views),
-      ),
+      new ContractService({
+        ...repositories(),
+        wikimedia: wikimediaWithAvg(views),
+      }),
     );
 
     const currentPrice = priceFor(views, tierDays);
     const expectedPremium = Math.round(currentPrice * 0.1);
     expect(expectedPremium).toBeGreaterThan(0); // guard against a vacuous assertion
 
-    const row = await readContractRow("contract-first-renewal");
-    expect(row?.renewalCount).toBe(1);
-    expect(row?.purchasePrice).toBe(currentPrice + expectedPremium);
+    const renewed = await readContract(contract.id);
+    expect(renewed.renewalCount).toBe(1);
+    expect(renewed.purchasePrice).toBe(currentPrice + expectedPremium);
   });
 
   it("settles instead of renewing when the elected renewal is unaffordable", async () => {
@@ -433,8 +376,7 @@ describe("ContractService settlement sweep Integration Tests", () => {
     const purchasePrice = 0;
     // Drain credits so teamCredits is tiny, making the renewal unaffordable.
     await insertCreditDrain(STARTING_CREDITS - 10);
-    await insertDueContract({
-      id: "contract-renew-broke",
+    const contract = await insertDueContract({
       tierDays,
       purchasePrice,
       renewalElected: true,
@@ -447,26 +389,25 @@ describe("ContractService settlement sweep Integration Tests", () => {
     // Precondition: incremental cost (currentPrice - 0) exceeds the ~10 credits left.
     expect(currentPrice).toBeGreaterThan(10);
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(views),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(views),
+    });
     await runSweep(service);
 
-    const row = await readContractRow("contract-renew-broke");
+    const settled = await readContract(contract.id);
     // Fell through to settlement.
-    expect(row?.settled).toBe(1);
-    expect(row?.salePayout).toBe(currentPrice);
-    expect(row?.renewalElected).toBe(1); // untouched; only the sweep's settle path ran
-    expect(row?.renewalCount).toBe(0);
+    expect(settled.settled).toBe(true);
+    expect(settled.renewalElected).toBe(true); // untouched; only the settle path ran
+    expect(settled.renewalCount).toBe(0);
+    // Paid out the live price on top of the ~10 credits the drain left.
+    expect(await getDerivedCredits(playerId, leagueId)).toBe(
+      STARTING_CREDITS - (STARTING_CREDITS - 10) - purchasePrice + currentPrice,
+    );
 
     const delta = currentPrice - purchasePrice;
     const notifications = await new NotificationService(
-      env.db,
+      repositories(),
     ).getMyNotifications(playerId, leagueId);
     expect(notifications.ok).toBe(true);
     if (!notifications.ok) return;
@@ -478,20 +419,12 @@ describe("ContractService settlement sweep Integration Tests", () => {
   it("is idempotent: a second sweep over already-settled contracts is a no-op", async () => {
     const tierDays = 7;
     const purchasePrice = 50;
-    await insertDueContract({
-      id: "contract-idem",
-      tierDays,
-      purchasePrice,
-    });
+    const contract = await insertDueContract({ tierDays, purchasePrice });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(120000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(120000),
+    });
 
     await runSweep(service);
     const creditsAfterFirst = await getDerivedCredits(playerId, leagueId);
@@ -502,7 +435,7 @@ describe("ContractService settlement sweep Integration Tests", () => {
     );
     expect(secondDue.ok).toBe(true);
     if (secondDue.ok) {
-      expect(secondDue.value.map((c) => c.id)).not.toContain("contract-idem");
+      expect(secondDue.value.map((c) => c.id)).not.toContain(contract.id);
     }
     await runSweep(service);
 
@@ -511,7 +444,7 @@ describe("ContractService settlement sweep Integration Tests", () => {
 
     // No duplicate notification.
     const notifications = await new NotificationService(
-      env.db,
+      repositories(),
     ).getMyNotifications(playerId, leagueId);
     expect(notifications.ok).toBe(true);
     if (notifications.ok) {
@@ -520,33 +453,27 @@ describe("ContractService settlement sweep Integration Tests", () => {
   });
 
   it("re-picks (does not settle) a contract whose views fetch fails, so the sweep can retry later", async () => {
-    await insertDueContract({
-      id: "contract-noviews",
+    const unpriceable = await insertDueContract({
       tierDays: 7,
       purchasePrice: 50,
     });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(undefined),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: wikimediaWithAvg(undefined),
+    });
 
     const today = Temporal.Now.plainDateISO();
     const due = await service.getDueForSettlement(today);
     expect(due.ok).toBe(true);
     if (!due.ok) return;
-    const contract = due.value.find((c) => c.id === "contract-noviews");
+    const contract = due.value.find((c) => c.id === unpriceable.id);
     expect(contract).toBeDefined();
 
-    // Throws so the Workflow step retries; the row stays unsettled.
+    // Throws so the Workflow step retries; the contract stays unsettled.
     await expect(service.settleDueContract(contract!)).rejects.toThrow();
 
-    const row = await readContractRow("contract-noviews");
-    expect(row?.settled).toBe(0);
+    expect((await readContract(unpriceable.id)).settled).toBe(false);
   });
 });
 
@@ -557,34 +484,39 @@ describe("ContractService.electRenewal Integration Tests", () => {
   let teamId: string;
 
   async function insertContractExpiringIn(opts: {
-    id: string;
     remainingDays: number;
     settled?: boolean;
     ownerTeamId?: string;
-  }): Promise<void> {
+    articleId?: string;
+  }): Promise<Contract> {
+    const owner = opts.ownerTeamId ?? teamId;
     const today = Temporal.Now.plainDateISO();
     const tierDays = 7;
     const expireDate = today.add({ days: opts.remainingDays });
-    const purchaseDate = expireDate.subtract({ days: tierDays });
-    await env.db
-      .prepare(
-        `INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice, settled)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        opts.id,
-        opts.ownerTeamId ?? teamId,
-        "Bitcoin",
-        purchaseDate.toString(),
-        expireDate.toString(),
-        100,
-        opts.settled ? 1 : 0,
-      )
-      .run();
+    const contracts = repositories().contracts;
+
+    const created = unwrap(
+      await contracts.create({
+        teamId: owner,
+        articleId: opts.articleId ?? "Bitcoin",
+        purchaseDate: expireDate.subtract({ days: tierDays }),
+        expireDate,
+        purchasePrice: 100,
+      }),
+      "contract",
+    );
+
+    if (opts.settled) {
+      unwrap(
+        await contracts.settleSale(created.id, owner, 100),
+        "sale that settled it",
+      );
+    }
+    return readContract(created.id);
   }
 
   beforeEach(async () => {
-    playerService = new PlayerService(env.db);
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "electtester",
@@ -595,68 +527,42 @@ describe("ContractService.electRenewal Integration Tests", () => {
     if (!playerResult.ok) throw new Error("setup failed: player");
     playerId = playerResult.value.id;
 
-    leagueId = "league-elect-1";
-    await env.db
-      .prepare(
-        `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        leagueId,
-        "Elect League",
+    leagueId = GLOBAL_LEAGUE_ID;
+    teamId = unwrap(
+      await new TeamService(repositories()).createTeam(
         playerId,
-        new Date().toISOString(),
-        new Date().toISOString(),
-        "en",
-        "🏆",
-      )
-      .run();
-
-    teamId = "team-elect-1";
-    await insertTeam(env.db, {
-      id: teamId,
-      name: "Elect FC",
-      playerId,
-      leagueId,
-    });
+        leagueId,
+        "Elect FC",
+      ),
+      "team",
+    ).id;
   });
 
   it("elects renewal for a contract inside the final-24h window", async () => {
-    await insertContractExpiringIn({
-      id: "contract-elect-ok",
-      remainingDays: 1,
-    });
+    const contract = await insertContractExpiringIn({ remainingDays: 1 });
 
-    const service = new ContractService(env.db);
-    const result = await service.electRenewal(
-      playerId,
-      leagueId,
-      "contract-elect-ok",
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: unusedWikimedia(),
+    });
+    const result = await service.electRenewal(playerId, leagueId, contract.id);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.renewalElected).toBe(true);
 
-    const row = await env.db
-      .prepare("SELECT renewalElected FROM contracts WHERE id = ?")
-      .bind("contract-elect-ok")
-      .first<{ renewalElected: number }>();
-    expect(row?.renewalElected).toBe(1);
+    // Persisted, not just reported back.
+    expect((await readContract(contract.id)).renewalElected).toBe(true);
   });
 
   it("rejects election that is too early (outside the final-24h window)", async () => {
-    await insertContractExpiringIn({
-      id: "contract-elect-early",
-      remainingDays: 3,
-    });
+    const contract = await insertContractExpiringIn({ remainingDays: 3 });
 
-    const service = new ContractService(env.db);
-    const result = await service.electRenewal(
-      playerId,
-      leagueId,
-      "contract-elect-early",
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: unusedWikimedia(),
+    });
+    const result = await service.electRenewal(playerId, leagueId, contract.id);
 
     expect(result).toEqual({
       ok: false,
@@ -665,17 +571,13 @@ describe("ContractService.electRenewal Integration Tests", () => {
   });
 
   it("rejects election for an already-expired contract", async () => {
-    await insertContractExpiringIn({
-      id: "contract-elect-expired",
-      remainingDays: -1,
-    });
+    const contract = await insertContractExpiringIn({ remainingDays: -1 });
 
-    const service = new ContractService(env.db);
-    const result = await service.electRenewal(
-      playerId,
-      leagueId,
-      "contract-elect-expired",
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: unusedWikimedia(),
+    });
+    const result = await service.electRenewal(playerId, leagueId, contract.id);
 
     expect(result).toEqual({
       ok: false,
@@ -691,25 +593,24 @@ describe("ContractService.electRenewal Integration Tests", () => {
     );
     expect(otherPlayer.ok).toBe(true);
     if (!otherPlayer.ok) return;
-    const otherTeamId = "team-elect-other-1";
-    await insertTeam(env.db, {
-      id: otherTeamId,
-      name: "Other Elect FC",
-      playerId: otherPlayer.value.id,
-      leagueId,
-    });
-    await insertContractExpiringIn({
-      id: "contract-elect-other",
+    const otherTeamId = unwrap(
+      await new TeamService(repositories()).createTeam(
+        otherPlayer.value.id,
+        leagueId,
+        "Other Elect FC",
+      ),
+      "other team",
+    ).id;
+    const contract = await insertContractExpiringIn({
       remainingDays: 1,
       ownerTeamId: otherTeamId,
     });
 
-    const service = new ContractService(env.db);
-    const result = await service.electRenewal(
-      playerId,
-      leagueId,
-      "contract-elect-other",
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: unusedWikimedia(),
+    });
+    const result = await service.electRenewal(playerId, leagueId, contract.id);
 
     expect(result).toEqual({
       ok: false,
@@ -718,18 +619,16 @@ describe("ContractService.electRenewal Integration Tests", () => {
   });
 
   it("rejects electing an already-settled contract", async () => {
-    await insertContractExpiringIn({
-      id: "contract-elect-settled",
+    const contract = await insertContractExpiringIn({
       remainingDays: 1,
       settled: true,
     });
 
-    const service = new ContractService(env.db);
-    const result = await service.electRenewal(
-      playerId,
-      leagueId,
-      "contract-elect-settled",
-    );
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: unusedWikimedia(),
+    });
+    const result = await service.electRenewal(playerId, leagueId, contract.id);
 
     expect(result).toEqual({
       ok: false,
@@ -738,7 +637,10 @@ describe("ContractService.electRenewal Integration Tests", () => {
   });
 
   it("rejects electing a contract that does not exist", async () => {
-    const service = new ContractService(env.db);
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: unusedWikimedia(),
+    });
     const result = await service.electRenewal(playerId, leagueId, "no-such-id");
 
     expect(result).toEqual({
@@ -755,16 +657,16 @@ describe("ContractService.electRenewal Integration Tests", () => {
     );
     expect(outsider.ok).toBe(true);
     if (!outsider.ok) return;
-    await insertContractExpiringIn({
-      id: "contract-elect-noteam",
-      remainingDays: 1,
-    });
+    const contract = await insertContractExpiringIn({ remainingDays: 1 });
 
-    const service = new ContractService(env.db);
+    const service = new ContractService({
+      ...repositories(),
+      wikimedia: unusedWikimedia(),
+    });
     const result = await service.electRenewal(
       outsider.value.id,
       leagueId,
-      "contract-elect-noteam",
+      contract.id,
     );
 
     expect(result).toEqual({ ok: false, error: CONTRACT_ERRORS.NO_TEAM });
@@ -776,20 +678,17 @@ describe("ContractService.electRenewal Integration Tests", () => {
    * "already elected" — the contract is simply no longer electable.
    */
   it("rejects the election when the guarded write finds no electable row", async () => {
-    await insertContractExpiringIn({
-      id: "contract-elect-race",
-      remainingDays: 1,
-    });
-    const contractRepo = contractRepoOver(env.db, {
+    const contract = await insertContractExpiringIn({ remainingDays: 1 });
+    const contractRepo = contractRepoOver({
       electRenewal: async () => success(false),
     });
 
-    const service = new ContractService(env.db, contractRepo);
-    const result = await service.electRenewal(
-      playerId,
-      leagueId,
-      "contract-elect-race",
-    );
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: unusedWikimedia(),
+    });
+    const result = await service.electRenewal(playerId, leagueId, contract.id);
 
     expect(result).toEqual({
       ok: false,
@@ -798,11 +697,15 @@ describe("ContractService.electRenewal Integration Tests", () => {
   });
 
   it("propagates a failure to read the contract", async () => {
-    const contractRepo = contractRepoOver(env.db, {
+    const contractRepo = contractRepoOver({
       getById: async () => failure("Error fetching contract: D1 unavailable"),
     });
 
-    const service = new ContractService(env.db, contractRepo);
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: unusedWikimedia(),
+    });
     const result = await service.electRenewal(
       playerId,
       leagueId,
@@ -816,20 +719,17 @@ describe("ContractService.electRenewal Integration Tests", () => {
   });
 
   it("propagates a failure from the guarded election write", async () => {
-    await insertContractExpiringIn({
-      id: "contract-elect-writefail",
-      remainingDays: 1,
-    });
-    const contractRepo = contractRepoOver(env.db, {
+    const contract = await insertContractExpiringIn({ remainingDays: 1 });
+    const contractRepo = contractRepoOver({
       electRenewal: async () => failure("Error electing contract renewal"),
     });
 
-    const service = new ContractService(env.db, contractRepo);
-    const result = await service.electRenewal(
-      playerId,
-      leagueId,
-      "contract-elect-writefail",
-    );
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: unusedWikimedia(),
+    });
+    const result = await service.electRenewal(playerId, leagueId, contract.id);
 
     expect(result).toEqual({
       ok: false,
@@ -838,12 +738,11 @@ describe("ContractService.electRenewal Integration Tests", () => {
   });
 
   it("propagates a failure to read the team", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      failingTeamRepo("Error retrieving team"),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      teams: failingTeamRepo("Error retrieving team"),
+      wikimedia: unusedWikimedia(),
+    });
 
     const result = await service.electRenewal(playerId, leagueId, "contract-x");
 
@@ -851,11 +750,11 @@ describe("ContractService.electRenewal Integration Tests", () => {
   });
 
   it("propagates a failure to read the league", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      failingLeagueRepo("Error retrieving league"),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      leagues: failingLeagueRepo("Error retrieving league"),
+      wikimedia: unusedWikimedia(),
+    });
 
     const result = await service.electRenewal(playerId, leagueId, "contract-x");
 
@@ -867,23 +766,14 @@ describe("ContractService.electRenewal Integration Tests", () => {
    * already been written — so a failed player lookup must not fail the call.
    */
   it("still elects when the player lookup fails, leaving the name blank", async () => {
-    await insertContractExpiringIn({
-      id: "contract-elect-noplayer",
-      remainingDays: 1,
-    });
+    const contract = await insertContractExpiringIn({ remainingDays: 1 });
 
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      failingPlayerRepo("Error retrieving player"),
-    );
-    const result = await service.electRenewal(
-      playerId,
-      leagueId,
-      "contract-elect-noplayer",
-    );
+    const service = new ContractService({
+      ...repositories(),
+      players: failingPlayerRepo("Error retrieving player"),
+      wikimedia: unusedWikimedia(),
+    });
+    const result = await service.electRenewal(playerId, leagueId, contract.id);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -917,13 +807,14 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
       renewalCount: 0,
       renewalElected: false,
       domain: "en",
+      languageScale: REFERENCE_SCALE,
       teamCredits: STARTING_CREDITS,
       ...overrides,
     };
   }
 
   beforeEach(async () => {
-    playerService = new PlayerService(env.db);
+    playerService = new PlayerService(repositories());
 
     const playerResult = await playerService.createPlayer(
       "guardtester",
@@ -934,56 +825,48 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
     if (!playerResult.ok) throw new Error("setup failed: player");
     playerId = playerResult.value.id;
 
-    leagueId = "league-guard-1";
-    await env.db
-      .prepare(
-        `INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        leagueId,
-        "Guard League",
+    leagueId = GLOBAL_LEAGUE_ID;
+    teamId = unwrap(
+      await new TeamService(repositories()).createTeam(
         playerId,
-        new Date().toISOString(),
-        new Date().toISOString(),
-        "en",
-        "🏆",
-      )
-      .run();
-
-    teamId = "team-guard-1";
-    await insertTeam(env.db, {
-      id: teamId,
-      name: "Guard FC",
-      playerId,
-      leagueId,
-    });
+        leagueId,
+        "Guard FC",
+      ),
+      "team",
+    ).id;
   });
 
-  async function insertElectedContract(id: string): Promise<void> {
+  /** A contract whose owner has already elected renewal at expiry. */
+  async function insertElectedContract(
+    articleId = "Bitcoin",
+    owner?: string,
+  ): Promise<Contract> {
+    const holder = owner ?? teamId;
     const today = Temporal.Now.plainDateISO();
-    await env.db
-      .prepare(
-        `INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice, renewalElected)
-         VALUES (?, ?, ?, ?, ?, ?, 1)`,
-      )
-      .bind(
-        id,
-        teamId,
-        "Bitcoin",
-        today.subtract({ days: 7 }).toString(),
-        today.add({ days: 1 }).toString(),
-        100,
-      )
-      .run();
+    const contracts = repositories().contracts;
+
+    const created = unwrap(
+      await contracts.create({
+        teamId: holder,
+        articleId,
+        purchaseDate: today.subtract({ days: 7 }),
+        expireDate: today.add({ days: 1 }),
+        purchasePrice: 100,
+      }),
+      "contract",
+    );
+    unwrap(
+      await contracts.electRenewal(created.id, holder),
+      "renewal election",
+    );
+    return readContract(created.id);
   }
 
   it("rejects cancelling a contract that does not exist", async () => {
-    const result = await new ContractService(env.db).cancelRenewal(
-      playerId,
-      leagueId,
-      "no-such-id",
-    );
+    const result = await new ContractService({
+      ...repositories(),
+      wikimedia: unusedWikimedia(),
+    }).cancelRenewal(playerId, leagueId, "no-such-id");
 
     expect(result).toEqual({
       ok: false,
@@ -999,13 +882,12 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
     );
     expect(outsider.ok).toBe(true);
     if (!outsider.ok) return;
-    await insertElectedContract("contract-guard-noteam");
+    const contract = await insertElectedContract();
 
-    const result = await new ContractService(env.db).cancelRenewal(
-      outsider.value.id,
-      leagueId,
-      "contract-guard-noteam",
-    );
+    const result = await new ContractService({
+      ...repositories(),
+      wikimedia: unusedWikimedia(),
+    }).cancelRenewal(outsider.value.id, leagueId, contract.id);
 
     expect(result).toEqual({ ok: false, error: CONTRACT_ERRORS.NO_TEAM });
   });
@@ -1018,34 +900,20 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
     );
     expect(rival.ok).toBe(true);
     if (!rival.ok) return;
-    const rivalTeamId = "team-guard-rival-1";
-    await insertTeam(env.db, {
-      id: rivalTeamId,
-      name: "Rival Guard FC",
-      playerId: rival.value.id,
-      leagueId,
-    });
-    const today = Temporal.Now.plainDateISO();
-    await env.db
-      .prepare(
-        `INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice, renewalElected)
-         VALUES (?, ?, ?, ?, ?, ?, 1)`,
-      )
-      .bind(
-        "contract-guard-rival",
-        rivalTeamId,
-        "Bitcoin",
-        today.subtract({ days: 7 }).toString(),
-        today.add({ days: 1 }).toString(),
-        100,
-      )
-      .run();
+    const rivalTeamId = unwrap(
+      await new TeamService(repositories()).createTeam(
+        rival.value.id,
+        leagueId,
+        "Rival Guard FC",
+      ),
+      "rival team",
+    ).id;
+    const rivalContract = await insertElectedContract("Bitcoin", rivalTeamId);
 
-    const result = await new ContractService(env.db).cancelRenewal(
-      playerId,
-      leagueId,
-      "contract-guard-rival",
-    );
+    const result = await new ContractService({
+      ...repositories(),
+      wikimedia: unusedWikimedia(),
+    }).cancelRenewal(playerId, leagueId, rivalContract.id);
 
     expect(result).toEqual({
       ok: false,
@@ -1059,15 +927,16 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
    * race rather than silently un-electing an already-renewed contract.
    */
   it("rejects the withdrawal when the sweep renewed the contract first", async () => {
-    await insertElectedContract("contract-guard-race");
-    const contractRepo = contractRepoOver(env.db, {
+    const contract = await insertElectedContract();
+    const contractRepo = contractRepoOver({
       cancelRenewal: async () => success(false),
     });
 
-    const result = await new ContractService(
-      env.db,
-      contractRepo,
-    ).cancelRenewal(playerId, leagueId, "contract-guard-race");
+    const result = await new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: unusedWikimedia(),
+    }).cancelRenewal(playerId, leagueId, contract.id);
 
     expect(result).toEqual({
       ok: false,
@@ -1076,15 +945,16 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
   });
 
   it("propagates a failure from the guarded withdrawal write", async () => {
-    await insertElectedContract("contract-guard-writefail");
-    const contractRepo = contractRepoOver(env.db, {
+    const contract = await insertElectedContract();
+    const contractRepo = contractRepoOver({
       cancelRenewal: async () => failure("Error cancelling contract renewal"),
     });
 
-    const result = await new ContractService(
-      env.db,
-      contractRepo,
-    ).cancelRenewal(playerId, leagueId, "contract-guard-writefail");
+    const result = await new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: unusedWikimedia(),
+    }).cancelRenewal(playerId, leagueId, contract.id);
 
     expect(result).toEqual({
       ok: false,
@@ -1093,12 +963,11 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
   });
 
   it("propagates a failure to read the team", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      failingTeamRepo("Error retrieving team"),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      teams: failingTeamRepo("Error retrieving team"),
+      wikimedia: unusedWikimedia(),
+    });
 
     const result = await service.cancelRenewal(playerId, leagueId, "any");
 
@@ -1106,11 +975,11 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
   });
 
   it("propagates a failure to read the league", async () => {
-    const service = new ContractService(
-      env.db,
-      undefined,
-      failingLeagueRepo("Error retrieving league"),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      leagues: failingLeagueRepo("Error retrieving league"),
+      wikimedia: unusedWikimedia(),
+    });
 
     const result = await service.cancelRenewal(playerId, leagueId, "any");
 
@@ -1118,14 +987,15 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
   });
 
   it("propagates a failure to read the contract", async () => {
-    const contractRepo = contractRepoOver(env.db, {
+    const contractRepo = contractRepoOver({
       getById: async () => failure("Error fetching contract"),
     });
 
-    const result = await new ContractService(
-      env.db,
-      contractRepo,
-    ).cancelRenewal(playerId, leagueId, "any");
+    const result = await new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: unusedWikimedia(),
+    }).cancelRenewal(playerId, leagueId, "any");
 
     expect(result).toEqual({ ok: false, error: "Error fetching contract" });
   });
@@ -1137,18 +1007,15 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
    */
   it("does not notify when the settlement write finds the contract already settled", async () => {
     const messages: string[] = [];
-    const contractRepo = contractRepoOver(env.db, {
+    const contractRepo = contractRepoOver({
       settleExpiry: async () => success(false),
     });
-    const service = new ContractService(
-      env.db,
-      contractRepo,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(120000),
-      recordingNotificationRepo(messages),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      notifications: recordingNotificationRepo(messages),
+      wikimedia: wikimediaWithAvg(120000),
+    });
 
     await service.settleDueContract(dueContract());
 
@@ -1157,18 +1024,15 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
 
   it("does not notify when the renewal write finds the contract already renewed", async () => {
     const messages: string[] = [];
-    const contractRepo = contractRepoOver(env.db, {
+    const contractRepo = contractRepoOver({
       renew: async () => success(false),
     });
-    const service = new ContractService(
-      env.db,
-      contractRepo,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-      recordingNotificationRepo(messages),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      notifications: recordingNotificationRepo(messages),
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     await service.settleDueContract(dueContract({ renewalElected: true }));
 
@@ -1176,17 +1040,14 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
   });
 
   it("throws when the expiry settlement write fails, so the sweep step retries", async () => {
-    const contractRepo = contractRepoOver(env.db, {
+    const contractRepo = contractRepoOver({
       settleExpiry: async () => failure("Error settling contract at expiry"),
     });
-    const service = new ContractService(
-      env.db,
-      contractRepo,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(120000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: wikimediaWithAvg(120000),
+    });
 
     await expect(service.settleDueContract(dueContract())).rejects.toThrow(
       "Error settling contract at expiry",
@@ -1194,17 +1055,14 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
   });
 
   it("throws when the renewal write fails, so the sweep step retries", async () => {
-    const contractRepo = contractRepoOver(env.db, {
+    const contractRepo = contractRepoOver({
       renew: async () => failure("Error renewing contract"),
     });
-    const service = new ContractService(
-      env.db,
-      contractRepo,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(9000),
-    );
+    const service = new ContractService({
+      ...repositories(),
+      contracts: contractRepo,
+      wikimedia: wikimediaWithAvg(9000),
+    });
 
     await expect(
       service.settleDueContract(dueContract({ renewalElected: true })),
@@ -1218,43 +1076,34 @@ describe("ContractService cancelRenewal guards and settlement failure modes", ()
    */
   it("settles even when the notification cannot be written", async () => {
     const today = Temporal.Now.plainDateISO();
-    await env.db
-      .prepare(
-        `INSERT INTO contracts (id, teamId, articleId, purchaseDate, expireDate, purchasePrice)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        "contract-guard-nonotify",
+    const contract = unwrap(
+      await repositories().contracts.create({
         teamId,
-        "Bitcoin",
-        today.subtract({ days: 7 }).toString(),
-        today.toString(),
-        100,
-      )
-      .run();
+        articleId: "Bitcoin",
+        purchaseDate: today.subtract({ days: 7 }),
+        expireDate: today,
+        purchasePrice: 100,
+      }),
+      "due contract",
+    );
 
     const notificationRepo = {
       create: async () => failure("Error creating notification"),
     } as unknown as NotificationRepository;
-    const service = new ContractService(
-      env.db,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      wikimediaWithAvg(120000),
-      notificationRepo,
-    );
+    const service = new ContractService({
+      ...repositories(),
+      notifications: notificationRepo,
+      wikimedia: wikimediaWithAvg(120000),
+    });
 
     await expect(
-      service.settleDueContract(dueContract({ id: "contract-guard-nonotify" })),
+      service.settleDueContract(dueContract({ id: contract.id })),
     ).resolves.toBeUndefined();
 
-    const row = await env.db
-      .prepare("SELECT settled, salePayout FROM contracts WHERE id = ?")
-      .bind("contract-guard-nonotify")
-      .first<{ settled: number; salePayout: number }>();
-    expect(row?.settled).toBe(1);
-    expect(row?.salePayout).toBe(priceFor(120000, 7));
+    expect((await readContract(contract.id)).settled).toBe(true);
+    // The money write landed: the payout shows up on the derived balance.
+    expect(await getDerivedCredits(playerId, leagueId)).toBe(
+      STARTING_CREDITS - 100 + priceFor(120000, 7),
+    );
   });
 });

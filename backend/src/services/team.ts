@@ -15,40 +15,23 @@ import {
   TEAM_ERRORS,
   TeamRepository,
 } from "../repositories/teamRepository";
-import { TeamRepositoryD1 } from "../repositories/d1/teamRepositoryD1";
 import { LeagueRepository } from "../repositories/leagueRepository";
-import { LeagueRepositoryD1 } from "../repositories/d1/leagueRepositoryD1";
 import { LineupRepository } from "../repositories/lineupRepository";
-import { LineupRepositoryD1 } from "../repositories/d1/lineupRepositoryD1";
 import { Result, failure, success } from "../repositories/result";
-
-export type TeamServiceDeps = {
-  teamRepository: TeamRepository;
-  lineupRepository: LineupRepository;
-  leagueRepository: LeagueRepository;
-};
 
 export class TeamService {
   private teamRepository: TeamRepository;
   private lineupRepository: LineupRepository;
   private leagueRepository: LeagueRepository;
 
-  constructor(depsOrDb: TeamServiceDeps | D1Database) {
-    const deps =
-      "teamRepository" in depsOrDb
-        ? depsOrDb
-        : TeamService.d1Deps(depsOrDb as D1Database);
-    this.teamRepository = deps.teamRepository;
-    this.lineupRepository = deps.lineupRepository;
-    this.leagueRepository = deps.leagueRepository;
-  }
-
-  private static d1Deps(db: D1Database): TeamServiceDeps {
-    return {
-      teamRepository: new TeamRepositoryD1(db),
-      lineupRepository: new LineupRepositoryD1(db),
-      leagueRepository: new LeagueRepositoryD1(db),
-    };
+  constructor(deps: {
+    teams: TeamRepository;
+    lineups: LineupRepository;
+    leagues: LeagueRepository;
+  }) {
+    this.teamRepository = deps.teams;
+    this.lineupRepository = deps.lineups;
+    this.leagueRepository = deps.leagues;
   }
 
   /**

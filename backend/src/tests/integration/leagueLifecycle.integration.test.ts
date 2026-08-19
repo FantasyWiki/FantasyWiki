@@ -1,24 +1,32 @@
-import { env } from "cloudflare:workers";
 import { Temporal } from "@js-temporal/polyfill";
 import { describe, it, expect } from "vitest";
 import { GLOBAL_LEAGUE_ID } from "../../../../model";
-import { isLeagueInactive } from "../../../../model/league";
-import { LeagueVisibility } from "../../../../model/enums";
-import { LeagueRepositoryD1 } from "../../repositories/d1/leagueRepositoryD1";
-import { TeamRepositoryD1 } from "../../repositories/d1/teamRepositoryD1";
-import { PlayerRepositoryD1 } from "../../repositories/d1/playerRepositoryD1";
+import { isLeagueInactive, LEAGUE_ICONS } from "../../../../model/league";
+import { LeagueInvitePolicy, LeagueVisibility } from "../../../../model/enums";
+import { REFERENCE_SCALE } from "../../../../model/languageScale";
 import { LEAGUE_ERRORS } from "../../repositories/leagueRepository";
 import { TEAM_ERRORS } from "../../repositories/teamRepository";
+import { unwrap } from "../../repositories/result";
 import { LEAGUE_CLOSURE_ERRORS, LeagueService } from "../../services/league";
 import { PlayerService } from "../../services/player";
 import { TeamService } from "../../services/team";
 import { LeaderboardService } from "../../services/leaderboard";
-import { insertContract, insertLeague, insertTeam } from "../utils/d1TestUtils";
+import {
+  aLeague,
+  anotherLeague,
+  aPlayer,
+  aTeamIn,
+  unique,
+} from "../support/subjects";
+import { repositories } from "../support/target";
+import type { League, Team } from "../../../../model";
 
-const PAST = "2020-01-01T00:00:00Z";
+/** A season still running, and one that ran out years ago. */
+const RUNNING = "2126-01-01T00:00:00Z";
+const RUN_OUT = "2020-01-01T00:00:00Z";
 
 async function makePlayer(name: string) {
-  const result = await new PlayerService(env.db).createPlayer(
+  const result = await new PlayerService(repositories()).createPlayer(
     name,
     `${name}@example.com`,
     `acct-${name}`,
@@ -27,367 +35,65 @@ async function makePlayer(name: string) {
   return result.value;
 }
 
-/** The raw row, so a test can see what a guarded write actually wrote. */
-async function readLeagueClosedAt(id: string): Promise<string | null> {
-  const row = await env.db
-    .prepare("SELECT closedAt FROM leagues WHERE id = ?")
-    .bind(id)
-    .first<{ closedAt: string | null }>();
-  return row?.closedAt ?? null;
+/** Whether a departure has been recorded against this player's team. */
+async function hasLeft(playerId: string, leagueId: string): Promise<boolean> {
+  const membership = unwrap(
+    await repositories().teams.getMembership(playerId, leagueId),
+    "membership",
+  );
+  return membership?.leftAt != null;
 }
 
-async function readTeamLeftAt(teamId: string): Promise<string | null> {
-  const row = await env.db
-    .prepare("SELECT leftAt FROM teams WHERE id = ?")
-    .bind(teamId)
-    .first<{ leftAt: string | null }>();
-  return row?.leftAt ?? null;
+/**
+ * A league founded by `adminId`, with the founding team the production writer
+ * gives it. Every field is named because there is no default that would be right
+ * for all of them — a lifecycle test turns on the season's end as often as on
+ * who the admin is.
+ */
+async function seedLeague(attrs: {
+  adminId: string;
+  endDate: string;
+}): Promise<League> {
+  return (
+    await aLeague(
+      {
+        name: unique("Lifecycle League"),
+        adminId: attrs.adminId,
+        startDate: Temporal.Instant.from("2024-01-01T00:00:00Z"),
+        endDate: Temporal.Instant.from(attrs.endDate),
+        domain: "en",
+        languageScale: REFERENCE_SCALE,
+        icon: LEAGUE_ICONS[0],
+        visibility: LeagueVisibility.PUBLIC,
+        invitePolicy: LeagueInvitePolicy.MEMBERS,
+        invitationCode: null,
+      },
+      unique("Founders"),
+    )
+  ).league;
 }
 
-describe("migration 0008", () => {
-  it("leaves every existing league open and every existing team present", async () => {
-    // The migration adds two nullable columns and backfills nothing, which is
-    // the correct outcome: no league has been closed and no player has left.
-    // The Global League in particular has to come out of it playable, since it
-    // is the one league first login enrolls into.
-    const league = await new LeagueRepositoryD1(env.db).getById(
-      GLOBAL_LEAGUE_ID,
-    );
+/** Closes a league the way its admin does. */
+async function closeLeague(league: League): Promise<void> {
+  unwrap(
+    await repositories().leagues.close(
+      league.id,
+      league.adminId,
+      Temporal.Instant.from("2026-01-01T00:00:00Z"),
+    ),
+    "closure",
+  );
+}
 
-    expect(league.ok).toBe(true);
-    if (!league.ok) return;
-    expect(league.value.closedAt).toBeNull();
-    expect(isLeagueInactive(league.value, Temporal.Now.instant())).toBe(false);
-  });
-
-  it("defaults a league inserted without the column to open", async () => {
-    // Legacy INSERTs that name neither column must keep meaning what they did.
-    await env.db
-      .prepare(
-        "INSERT INTO leagues (id, name, adminId, startDate, endDate, domain, icon) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      )
-      .bind(
-        "legacy-lifecycle",
-        "Legacy",
-        "system",
-        "2026-01-01T00:00:00Z",
-        "2126-03-01T00:00:00Z",
-        "en",
-        "🏁",
-      )
-      .run();
-
-    const result = await new LeagueRepositoryD1(env.db).getById(
-      "legacy-lifecycle",
-    );
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.value.closedAt).toBeNull();
-  });
-});
-
-// ─── The guarded close, at the repository level ───────────────────────────────
-//
-// These bypass `LeagueService` entirely and go straight at the statement. That
-// is the point: the service's re-read exists to *explain* a refusal, and if the
-// conditions lived there instead of in the SQL, a concurrent request would slip
-// past them and no service-level test would ever notice
-// (docs/architecture/backend-error-constants.md §2).
-
-describe("LeagueRepositoryD1.close guarded UPDATE", () => {
-  it("stamps closedAt for the league's own admin", async () => {
-    const admin = await makePlayer("closer");
-    await insertLeague(env.db, { id: "lg-close", adminId: admin.id });
-    const at = Temporal.Instant.from("2026-08-12T10:00:00Z");
-
-    const result = await new LeagueRepositoryD1(env.db).close(
-      "lg-close",
-      admin.id,
-      at,
-    );
-
-    expect(result.ok).toBe(true);
-    expect(await readLeagueClosedAt("lg-close")).toBe(at.toString());
-  });
-
-  it("refuses a caller who is not the league's admin, and writes nothing", async () => {
-    // The authorization rule is a condition of the write, not a check before
-    // it. A stranger reaching the repository directly — which is exactly the
-    // shape of a concurrent request that arrived while the admin check was
-    // being made elsewhere — still cannot close the league.
-    const admin = await makePlayer("owner");
-    const stranger = await makePlayer("stranger");
-    await insertLeague(env.db, { id: "lg-guard", adminId: admin.id });
-
-    const result = await new LeagueRepositoryD1(env.db).close(
-      "lg-guard",
-      stranger.id,
-      Temporal.Now.instant(),
-    );
-
-    expect(result).toEqual({
-      ok: false,
-      error: LEAGUE_ERRORS.CLOSE_CONFLICT,
-    });
-    expect(await readLeagueClosedAt("lg-guard")).toBeNull();
-  });
-
-  it("refuses a second close and keeps the first moment", async () => {
-    // The whole reason `closedAt IS NULL` is in the statement: two closes
-    // racing would both find the column empty, and the later write would move
-    // the recorded end of the season. The first stamp is the true one.
-    const admin = await makePlayer("twice");
-    await insertLeague(env.db, { id: "lg-twice", adminId: admin.id });
-    const repository = new LeagueRepositoryD1(env.db);
-    const first = Temporal.Instant.from("2026-08-01T00:00:00Z");
-    const second = Temporal.Instant.from("2026-08-02T00:00:00Z");
-
-    expect((await repository.close("lg-twice", admin.id, first)).ok).toBe(true);
-    const result = await repository.close("lg-twice", admin.id, second);
-
-    expect(result).toEqual({
-      ok: false,
-      error: LEAGUE_ERRORS.CLOSE_CONFLICT,
-    });
-    expect(await readLeagueClosedAt("lg-twice")).toBe(first.toString());
-  });
-
-  it("refuses a league that is not there", async () => {
-    const result = await new LeagueRepositoryD1(env.db).close(
-      "no-such-league",
-      "whoever",
-      Temporal.Now.instant(),
-    );
-
-    expect(result).toEqual({
-      ok: false,
-      error: LEAGUE_ERRORS.CLOSE_CONFLICT,
-    });
-  });
-});
-
-// ─── The join gate, at the repository level ───────────────────────────────────
-
-describe("TeamRepositoryD1.create guarded INSERT — lifecycle conditions", () => {
-  it("refuses a closed league", async () => {
-    const player = await makePlayer("latecomer");
-    await insertLeague(env.db, { id: "lg-shut", closedAt: PAST });
-
-    const result = await new TeamRepositoryD1(env.db).create({
-      name: "Too Late FC",
-      playerId: player.id,
-      leagueId: "lg-shut",
-    });
-
-    expect(result).toEqual({ ok: false, error: TEAM_ERRORS.JOIN_CONFLICT });
-  });
-
-  it("refuses a player who already fields a team here", async () => {
-    // `UNIQUE (playerId, leagueId)` would also stop this, but as driver text
-    // the layer above would have to pattern-match. As a condition of the write
-    // it comes back through the sentinel protocol like every other refusal.
-    const player = await makePlayer("doubler");
-    await insertLeague(env.db, { id: "lg-dup" });
-    await insertTeam(env.db, {
-      id: "team-dup",
-      name: "First",
-      playerId: player.id,
-      leagueId: "lg-dup",
-    });
-
-    const result = await new TeamRepositoryD1(env.db).create({
-      name: "Second",
-      playerId: player.id,
-      leagueId: "lg-dup",
-    });
-
-    expect(result).toEqual({ ok: false, error: TEAM_ERRORS.JOIN_CONFLICT });
-  });
-
-  it("refuses a player who left, so leaving is final", async () => {
-    // This is what makes a departure a record rather than a toggle: the row
-    // they left is the only one they will ever have here, so the gate has to
-    // see it even though every "current member" read cannot.
-    const player = await makePlayer("returner");
-    await insertLeague(env.db, { id: "lg-back" });
-    await insertTeam(env.db, {
-      id: "team-back",
-      name: "Gone",
-      playerId: player.id,
-      leagueId: "lg-back",
-    });
-    await env.db
-      .prepare("UPDATE teams SET leftAt = ? WHERE id = ?")
-      .bind(PAST, "team-back")
-      .run();
-
-    const result = await new TeamRepositoryD1(env.db).create({
-      name: "Comeback FC",
-      playerId: player.id,
-      leagueId: "lg-back",
-    });
-
-    expect(result).toEqual({ ok: false, error: TEAM_ERRORS.JOIN_CONFLICT });
-  });
-
-  it("still admits a newcomer to an open league", async () => {
-    // The guard has to refuse the four cases above without refusing the
-    // ordinary one.
-    const player = await makePlayer("newcomer");
-    await insertLeague(env.db, { id: "lg-open" });
-
-    const result = await new TeamRepositoryD1(env.db).create({
-      name: "Fresh XI",
-      playerId: player.id,
-      leagueId: "lg-open",
-    });
-
-    expect(result.ok).toBe(true);
-  });
-});
-
-// ─── The guarded leave, at the repository level ───────────────────────────────
-
-describe("TeamRepositoryD1.leave guarded UPDATE", () => {
-  async function seedMember(
-    suffix: string,
-    leagueOpts: { closedAt?: string } = {},
-  ) {
-    const admin = await makePlayer(`admin-${suffix}`);
-    const member = await makePlayer(`member-${suffix}`);
-    const leagueId = `lg-${suffix}`;
-    await insertLeague(env.db, {
-      id: leagueId,
-      adminId: admin.id,
-      ...leagueOpts,
-    });
-    await insertTeam(env.db, {
-      id: `team-${suffix}`,
-      name: `Team ${suffix}`,
-      playerId: member.id,
-      leagueId,
-    });
-    await insertTeam(env.db, {
-      id: `${suffix}-bystander`,
-      name: `Bystander ${suffix}`,
-      playerId: (await makePlayer(`bystander-${suffix}`)).id,
-      leagueId,
-    });
-    return { admin, member, leagueId, teamId: `team-${suffix}` };
-  }
-
-  it("stamps leftAt on the departing player's team", async () => {
-    const { member, leagueId, teamId } = await seedMember("leave");
-    const at = Temporal.Instant.from("2026-08-12T12:00:00Z");
-
-    const result = await new TeamRepositoryD1(env.db).leave({
-      teamId,
-      playerId: member.id,
-      leagueId,
-      leftAt: at,
-    });
-
-    expect(result.ok).toBe(true);
-    expect(await readTeamLeftAt(teamId)).toBe(at.toString());
-  });
-
-  it("refuses a second departure and keeps the first moment", async () => {
-    const { member, leagueId, teamId } = await seedMember("twice-leave");
-    const repository = new TeamRepositoryD1(env.db);
-    const first = Temporal.Instant.from("2026-08-01T00:00:00Z");
-
-    const departure = { teamId, playerId: member.id, leagueId };
-    expect((await repository.leave({ ...departure, leftAt: first })).ok).toBe(
-      true,
-    );
-    const result = await repository.leave({
-      ...departure,
-      leftAt: Temporal.Instant.from("2026-08-05T00:00:00Z"),
-    });
-
-    expect(result).toEqual({ ok: false, error: TEAM_ERRORS.LEAVE_CONFLICT });
-    expect(await readTeamLeftAt(teamId)).toBe(first.toString());
-  });
-
-  it("lets the league's own admin out, and passes the league on", async () => {
-    // The member's team was inserted first, so they are the senior one and
-    // inherit. A league whose admin walked out could never be closed by anyone.
-    const { admin, member, leagueId } = await seedMember("adminleave");
-    await insertTeam(env.db, {
-      id: "team-adminleave-own",
-      name: "Founder XI",
-      playerId: admin.id,
-      leagueId,
-    });
-
-    const result = await new TeamRepositoryD1(env.db).leave({
-      teamId: "team-adminleave-own",
-      playerId: admin.id,
-      leagueId,
-      leftAt: Temporal.Now.instant(),
-    });
-
-    expect(result).toEqual({ ok: true, value: { leagueDeleted: false } });
-    expect(await readTeamLeftAt("team-adminleave-own")).not.toBeNull();
-    const league = await new LeagueRepositoryD1(env.db).getById(leagueId);
-    expect(league.ok && league.value.adminId).toBe(member.id);
-  });
-
-  it("refuses the Global League", async () => {
-    // Leaving it would strand the player: first run routes anyone without a
-    // Global League team to create one, and the join gate would then refuse.
-    const player = await makePlayer("globalleaver");
-    await insertTeam(env.db, {
-      id: "team-global",
-      name: "Worldwide",
-      playerId: player.id,
-      leagueId: GLOBAL_LEAGUE_ID,
-    });
-
-    const result = await new TeamRepositoryD1(env.db).leave({
-      teamId: "team-global",
-      playerId: player.id,
-      leagueId: GLOBAL_LEAGUE_ID,
-      leftAt: Temporal.Now.instant(),
-    });
-
-    expect(result).toEqual({ ok: false, error: TEAM_ERRORS.LEAVE_CONFLICT });
-    expect(await readTeamLeftAt("team-global")).toBeNull();
-  });
-
-  it("refuses a league closed in the meantime", async () => {
-    // The race the statement exists for: the admin's close landed between this
-    // player's pre-check and their write.
-    const { member, leagueId, teamId } = await seedMember("shutleave", {
-      closedAt: PAST,
-    });
-
-    const result = await new TeamRepositoryD1(env.db).leave({
-      teamId,
-      playerId: member.id,
-      leagueId,
-      leftAt: Temporal.Now.instant(),
-    });
-
-    expect(result).toEqual({ ok: false, error: TEAM_ERRORS.LEAVE_CONFLICT });
-    expect(await readTeamLeftAt(teamId)).toBeNull();
-  });
-
-  it("refuses a player who has no team in the league", async () => {
-    const outsider = await makePlayer("outsider");
-    await insertLeague(env.db, { id: "lg-outside" });
-
-    const result = await new TeamRepositoryD1(env.db).leave({
-      teamId: "no-such-team",
-      playerId: outsider.id,
-      leagueId: "lg-outside",
-      leftAt: Temporal.Now.instant(),
-    });
-
-    expect(result).toEqual({ ok: false, error: TEAM_ERRORS.LEAVE_CONFLICT });
-  });
-});
+/** The team a league wrote for its founder. */
+async function foundingTeam(league: League): Promise<Team> {
+  const team = unwrap(
+    await repositories().teams.getByPlayerAndLeague(league.adminId, league.id),
+    "founding team",
+  );
+  if (team === null) throw new Error("league has no founding team");
+  return team;
+}
 
 // ─── Service-level classification ────────────────────────────────────────────
 //
@@ -397,17 +103,11 @@ describe("TeamRepositoryD1.leave guarded UPDATE", () => {
 describe("LeagueService.closeLeague", () => {
   it("closes the league and answers with the DTO the page can replace", async () => {
     const admin = await makePlayer("svc-admin");
-    await insertLeague(env.db, { id: "svc-close", adminId: admin.id });
-    await insertTeam(env.db, {
-      id: "svc-close-team",
-      name: "Founders",
-      playerId: admin.id,
-      leagueId: "svc-close",
-    });
+    const league = await seedLeague({ adminId: admin.id, endDate: RUNNING });
 
-    const result = await new LeagueService(env.db).closeLeague(
+    const result = await new LeagueService(repositories()).closeLeague(
       admin.id,
-      "svc-close",
+      league.id,
     );
 
     expect(result.ok).toBe(true);
@@ -422,11 +122,11 @@ describe("LeagueService.closeLeague", () => {
     // readable by anyone holding its id, so there is nothing here to conceal.
     const admin = await makePlayer("svc-owner");
     const member = await makePlayer("svc-member");
-    await insertLeague(env.db, { id: "svc-notadmin", adminId: admin.id });
+    const league = await seedLeague({ adminId: admin.id, endDate: RUNNING });
 
-    const result = await new LeagueService(env.db).closeLeague(
+    const result = await new LeagueService(repositories()).closeLeague(
       member.id,
-      "svc-notadmin",
+      league.id,
     );
 
     expect(result).toEqual({
@@ -437,11 +137,11 @@ describe("LeagueService.closeLeague", () => {
 
   it("names a repeat close rather than reporting one that did not happen", async () => {
     const admin = await makePlayer("svc-twice");
-    await insertLeague(env.db, { id: "svc-twice-lg", adminId: admin.id });
-    const service = new LeagueService(env.db);
+    const league = await seedLeague({ adminId: admin.id, endDate: RUNNING });
+    const service = new LeagueService(repositories());
 
-    expect((await service.closeLeague(admin.id, "svc-twice-lg")).ok).toBe(true);
-    const result = await service.closeLeague(admin.id, "svc-twice-lg");
+    expect((await service.closeLeague(admin.id, league.id)).ok).toBe(true);
+    const result = await service.closeLeague(admin.id, league.id);
 
     expect(result).toEqual({
       ok: false,
@@ -450,7 +150,7 @@ describe("LeagueService.closeLeague", () => {
   });
 
   it("reports a league that is not there as not found", async () => {
-    const result = await new LeagueService(env.db).closeLeague(
+    const result = await new LeagueService(repositories()).closeLeague(
       "whoever",
       "no-such-league",
     );
@@ -462,11 +162,15 @@ describe("LeagueService.closeLeague", () => {
 describe("TeamService.createTeam — lifecycle refusals", () => {
   it("refuses a closed league by name", async () => {
     const player = await makePlayer("join-shut");
-    await insertLeague(env.db, { id: "join-shut-lg", closedAt: PAST });
+    const league = await seedLeague({
+      adminId: await aPlayer(),
+      endDate: RUNNING,
+    });
+    await closeLeague(league);
 
-    const result = await new TeamService(env.db).createTeam(
+    const result = await new TeamService(repositories()).createTeam(
       player.id,
-      "join-shut-lg",
+      league.id,
       "Too Late FC",
     );
 
@@ -481,15 +185,14 @@ describe("TeamService.createTeam — lifecycle refusals", () => {
     // cannot change, so checking it before the write is not a race, and the
     // rule stays stated once in `isLeagueInactive`.
     const player = await makePlayer("join-ended");
-    await insertLeague(env.db, {
-      id: "join-ended-lg",
-      startDate: "2024-01-01T00:00:00Z",
-      endDate: "2024-02-01T00:00:00Z",
+    const league = await seedLeague({
+      adminId: await aPlayer(),
+      endDate: RUN_OUT,
     });
 
-    const result = await new TeamService(env.db).createTeam(
+    const result = await new TeamService(repositories()).createTeam(
       player.id,
-      "join-ended-lg",
+      league.id,
       "Season Over FC",
     );
 
@@ -502,30 +205,25 @@ describe("TeamService.createTeam — lifecycle refusals", () => {
   // Rejoining is the same row with `leftAt` cleared, never a second team —
   // `UNIQUE (playerId, leagueId)` would refuse one, and there is nothing to
   // restore because leaving removed nothing.
-  async function seedDeparted(suffix: string, teamName = "Gone XI") {
-    const admin = await makePlayer(`rejoin-admin-${suffix}`);
-    const player = await makePlayer(`rejoiner-${suffix}`);
-    const leagueId = `rejoin-lg-${suffix}`;
-    await insertLeague(env.db, { id: leagueId, adminId: admin.id });
-    await insertTeam(env.db, {
-      id: `rejoin-team-${suffix}`,
-      name: teamName,
-      playerId: player.id,
-      leagueId,
+  async function seedDeparted(teamName: string) {
+    const player = await makePlayer(unique("rejoiner"));
+    const league = await seedLeague({
+      adminId: await aPlayer(),
+      endDate: RUNNING,
     });
-    await insertTeam(env.db, {
-      id: `rejoin-${suffix}-bystander`,
-      name: `Bystander ${suffix}`,
-      playerId: (await makePlayer(`bystander-rejoin-${suffix}`)).id,
-      leagueId,
-    });
-    const service = new TeamService(env.db);
-    expect((await service.leaveLeague(player.id, leagueId)).ok).toBe(true);
-    return { service, player, leagueId, teamId: `rejoin-team-${suffix}` };
+    const service = new TeamService(repositories());
+    const team = unwrap(
+      await service.createTeam(player.id, league.id, teamName),
+      "team",
+    );
+    // The founder stays behind: the last member's departure would take the
+    // league with it, leaving nothing to come back to.
+    expect((await service.leaveLeague(player.id, league.id)).ok).toBe(true);
+    return { service, player, leagueId: league.id, teamId: team.id };
   }
 
   it("puts a departed player back into the team they left", async () => {
-    const { service, player, leagueId, teamId } = await seedDeparted("back");
+    const { service, player, leagueId, teamId } = await seedDeparted("Gone XI");
 
     const result = await service.createTeam(player.id, leagueId, "Comeback FC");
 
@@ -534,21 +232,13 @@ describe("TeamService.createTeam — lifecycle refusals", () => {
     // The same row, renamed — not a second team beside the abandoned one.
     expect(result.value.id).toBe(teamId);
     expect(result.value.name).toBe("Comeback FC");
-
-    const rows = await env.db
-      .prepare(
-        "SELECT id, leftAt FROM teams WHERE playerId = ? AND leagueId = ?",
-      )
-      .bind(player.id, leagueId)
-      .all<{ id: string; leftAt: string | null }>();
-    expect(rows.results).toHaveLength(1);
-    expect(rows.results[0].leftAt).toBeNull();
+    expect(await hasLeft(player.id, leagueId)).toBe(false);
   });
 
   it("lets them keep the name they left under", async () => {
     // Their own departed row is still in the table; without excluding it, the
     // name check would find the returning player colliding with themselves.
-    const { service, player, leagueId } = await seedDeparted("samename");
+    const { service, player, leagueId } = await seedDeparted("Gone XI");
 
     const result = await service.createTeam(player.id, leagueId, "Gone XI");
 
@@ -556,14 +246,12 @@ describe("TeamService.createTeam — lifecycle refusals", () => {
   });
 
   it("still refuses a name another team in the league holds", async () => {
-    const { service, player, leagueId } = await seedDeparted("clash");
+    const { service, player, leagueId } = await seedDeparted("Gone XI");
     const rival = await makePlayer("rejoin-rival");
-    await insertTeam(env.db, {
-      id: "rejoin-rival-team",
-      name: "Taken United",
-      playerId: rival.id,
-      leagueId,
-    });
+    unwrap(
+      await service.createTeam(rival.id, leagueId, "Taken United"),
+      "rival team",
+    );
 
     const result = await service.createTeam(
       player.id,
@@ -575,15 +263,36 @@ describe("TeamService.createTeam — lifecycle refusals", () => {
   });
 
   it("re-checks the league's entry rules on the way back in", async () => {
-    // Left a public league that has since gone private: coming back needs the
-    // code, exactly as a first join would.
-    const { service, player, leagueId } = await seedDeparted("gated");
-    await env.db
-      .prepare(
-        "UPDATE leagues SET visibility = ?, invitationCode = ? WHERE id = ?",
+    // A private league they were invited into once: the invitation is not spent,
+    // so coming back needs the code again, exactly as the first join did. Master
+    // reached this by turning a public league private mid-test, which no
+    // production path can do — a league's visibility is fixed when it is founded.
+    const code = "ZK7QW";
+    const player = await makePlayer("gated-rejoiner");
+    const league = (
+      await aLeague(
+        {
+          name: unique("Gated Lifecycle League"),
+          adminId: await aPlayer(),
+          startDate: Temporal.Instant.from("2024-01-01T00:00:00Z"),
+          endDate: Temporal.Instant.from(RUNNING),
+          domain: "en",
+          languageScale: REFERENCE_SCALE,
+          icon: LEAGUE_ICONS[0],
+          visibility: LeagueVisibility.PRIVATE,
+          invitePolicy: LeagueInvitePolicy.MEMBERS,
+          invitationCode: code,
+        },
+        unique("Founders"),
       )
-      .bind(LeagueVisibility.PRIVATE, "ZK7QW", leagueId)
-      .run();
+    ).league;
+    const leagueId = league.id;
+    const service = new TeamService(repositories());
+    unwrap(
+      await service.createTeam(player.id, leagueId, "Invited XI", code),
+      "team",
+    );
+    expect((await service.leaveLeague(player.id, leagueId)).ok).toBe(true);
 
     const refused = await service.createTeam(
       player.id,
@@ -599,68 +308,62 @@ describe("TeamService.createTeam — lifecycle refusals", () => {
       player.id,
       leagueId,
       "Comeback FC",
-      "zk7qw",
+      code.toLowerCase(),
     );
     expect(allowed.ok).toBe(true);
   });
 
   it("refuses a second team to a player who never left", async () => {
-    const admin = await makePlayer("still-in-admin");
     const player = await makePlayer("still-in");
-    await insertLeague(env.db, { id: "still-in-lg", adminId: admin.id });
-    await insertTeam(env.db, {
-      id: "still-in-team",
-      name: "Present XI",
-      playerId: player.id,
-      leagueId: "still-in-lg",
+    const league = await seedLeague({
+      adminId: await aPlayer(),
+      endDate: RUNNING,
     });
-
-    const result = await new TeamService(env.db).createTeam(
-      player.id,
-      "still-in-lg",
-      "Second XI",
+    const service = new TeamService(repositories());
+    unwrap(
+      await service.createTeam(player.id, league.id, "Present XI"),
+      "team",
     );
+
+    const result = await service.createTeam(player.id, league.id, "Second XI");
 
     expect(result).toEqual({ ok: false, error: TEAM_ERRORS.ALREADY_HAS_TEAM });
   });
 });
 
 describe("TeamService.leaveLeague", () => {
-  async function seed(suffix: string) {
-    const admin = await makePlayer(`la-${suffix}`);
-    const member = await makePlayer(`lm-${suffix}`);
-    const leagueId = `ll-${suffix}`;
-    await insertLeague(env.db, { id: leagueId, adminId: admin.id });
-    await insertTeam(env.db, {
-      id: `lt-${suffix}`,
-      name: `Leavers ${suffix}`,
-      playerId: member.id,
-      leagueId,
-    });
-    await insertTeam(env.db, {
-      id: `lt-${suffix}-bystander`,
-      name: `Bystander ${suffix}`,
-      playerId: (await makePlayer(`bystander-ll-${suffix}`)).id,
-      leagueId,
-    });
-    return { admin, member, leagueId, teamId: `lt-${suffix}` };
+  async function seed() {
+    const admin = await makePlayer(unique("la"));
+    const member = await makePlayer(unique("lm"));
+    const league = await seedLeague({ adminId: admin.id, endDate: RUNNING });
+    // The founder is already in it, so the member's departure is never the last
+    // one — which would delete the league instead of recording a leave.
+    const team = unwrap(
+      await new TeamService(repositories()).createTeam(
+        member.id,
+        league.id,
+        unique("Leavers"),
+      ),
+      "team",
+    );
+    return { admin, member, leagueId: league.id, teamId: team.id };
   }
 
   it("lets a member walk away", async () => {
-    const { member, leagueId, teamId } = await seed("ok");
+    const { member, leagueId } = await seed();
 
-    const result = await new TeamService(env.db).leaveLeague(
+    const result = await new TeamService(repositories()).leaveLeague(
       member.id,
       leagueId,
     );
 
     expect(result.ok).toBe(true);
-    expect(await readTeamLeftAt(teamId)).not.toBeNull();
+    expect(await hasLeft(member.id, leagueId)).toBe(true);
   });
 
   it("names a repeat departure", async () => {
-    const { member, leagueId } = await seed("again");
-    const service = new TeamService(env.db);
+    const { member, leagueId } = await seed();
+    const service = new TeamService(repositories());
     expect((await service.leaveLeague(member.id, leagueId)).ok).toBe(true);
 
     const result = await service.leaveLeague(member.id, leagueId);
@@ -669,130 +372,81 @@ describe("TeamService.leaveLeague", () => {
   });
 
   it("hands the league to the longest-standing member when its admin leaves", async () => {
-    const { admin, leagueId } = await seed("adminsvc");
-    // The admin's own team goes in *after* the seeded member's, so the member
-    // is the senior one and inherits — join order is what decides.
-    await insertTeam(env.db, {
-      id: "lt-adminsvc-own",
-      name: "Founder XI",
-      playerId: admin.id,
-      leagueId,
-    });
+    const { admin, member, leagueId } = await seed();
 
-    const result = await new TeamService(env.db).leaveLeague(
+    const result = await new TeamService(repositories()).leaveLeague(
       admin.id,
       leagueId,
     );
 
     expect(result).toEqual({ ok: true, value: { leagueDeleted: false } });
-    const league = await new LeagueRepositoryD1(env.db).getById(leagueId);
-    expect(league.ok).toBe(true);
-    if (!league.ok) return;
-    expect(league.value.adminId).not.toBe(admin.id);
-    // Whoever inherited it is someone still playing, not the departed admin.
-    const remaining = await env.db
-      .prepare(
-        "SELECT playerId FROM teams WHERE leagueId = ? AND leftAt IS NULL",
-      )
-      .bind(leagueId)
-      .all<{ playerId: string }>();
-    expect(remaining.results.map((r) => r.playerId)).toContain(
-      league.value.adminId,
+    const league = unwrap(
+      await repositories().leagues.getById(leagueId),
+      "league",
     );
+    // The member is the only one still playing, so seniority has nowhere else to
+    // land — and what it must not land on is the admin who just walked out.
+    expect(league.adminId).toBe(member.id);
+    expect(await hasLeft(league.adminId, leagueId)).toBe(false);
   });
 
   it("deletes the league when its last member leaves, and everything under it", async () => {
+    // The founding team is the only one, and founding gave it a line-up — so
+    // this is the case where a departure empties the league.
     const admin = await makePlayer("solo-admin");
-    await insertLeague(env.db, { id: "solo-lg", adminId: admin.id });
-    await insertTeam(env.db, {
-      id: "solo-team",
-      name: "Only XI",
-      playerId: admin.id,
-      leagueId: "solo-lg",
-    });
-    await env.db
-      .prepare(
-        "INSERT INTO lineups (teamId, schema, formation, updatedAt) VALUES (?, ?, ?, ?)",
-      )
-      .bind("solo-team", "4-3-3", "{}", "2026-01-01T00:00:00Z")
-      .run();
+    const league = await seedLeague({ adminId: admin.id, endDate: RUNNING });
+    const team = await foundingTeam(league);
+    expect(
+      unwrap(await repositories().lineups.getByTeamId(team.id), "lineup"),
+    ).not.toBeNull();
 
-    const result = await new TeamService(env.db).leaveLeague(
+    const result = await new TeamService(repositories()).leaveLeague(
       admin.id,
-      "solo-lg",
+      league.id,
     );
 
     expect(result).toEqual({ ok: true, value: { leagueDeleted: true } });
-    expect(await new LeagueRepositoryD1(env.db).getById("solo-lg")).toEqual({
+    expect(await repositories().leagues.getById(league.id)).toEqual({
       ok: false,
       error: LEAGUE_ERRORS.NOT_FOUND,
     });
-    // The cascade, not a second set of DELETEs: the team and its lineup go
-    // with the league.
-    const teamRows = await env.db
-      .prepare("SELECT COUNT(*) AS n FROM teams WHERE leagueId = ?")
-      .bind("solo-lg")
-      .first<{ n: number }>();
-    const lineupRows = await env.db
-      .prepare("SELECT COUNT(*) AS n FROM lineups WHERE teamId = ?")
-      .bind("solo-team")
-      .first<{ n: number }>();
-    expect(teamRows?.n).toBe(0);
-    expect(lineupRows?.n).toBe(0);
+    // The cascade, not a second set of deletes: the team and its line-up go with
+    // the league.
+    expect(
+      unwrap(
+        await repositories().teams.getByIdAndLeague(team.id, league.id),
+        "team",
+      ),
+    ).toBeNull();
+    expect(
+      unwrap(await repositories().lineups.getByTeamId(team.id), "lineup"),
+    ).toBeNull();
   });
 
   it("keeps a league standing while anyone is still in it", async () => {
-    const { member, leagueId } = await seed("notlast");
+    const { member, leagueId } = await seed();
 
-    const result = await new TeamService(env.db).leaveLeague(
+    const result = await new TeamService(repositories()).leaveLeague(
       member.id,
       leagueId,
     );
 
     expect(result).toEqual({ ok: true, value: { leagueDeleted: false } });
-    expect((await new LeagueRepositoryD1(env.db).getById(leagueId)).ok).toBe(
-      true,
-    );
-  });
-
-  it("does not delete an abandoned league on a refused second departure", async () => {
-    // Everyone has left, so the league is already memberless. Asking again must
-    // not be read as the departure that empties it — the follow-up statements
-    // are conditioned on this leave actually writing.
-    const admin = await makePlayer("ghost-admin");
-    await insertLeague(env.db, { id: "ghost-lg", adminId: admin.id });
-    await insertTeam(env.db, {
-      id: "ghost-team",
-      name: "Gone",
-      playerId: admin.id,
-      leagueId: "ghost-lg",
-    });
-    await env.db
-      .prepare("UPDATE teams SET leftAt = ? WHERE id = ?")
-      .bind(PAST, "ghost-team")
-      .run();
-
-    const result = await new TeamService(env.db).leaveLeague(
-      admin.id,
-      "ghost-lg",
-    );
-
-    expect(result).toEqual({ ok: false, error: TEAM_ERRORS.ALREADY_LEFT });
-    expect((await new LeagueRepositoryD1(env.db).getById("ghost-lg")).ok).toBe(
-      true,
-    );
+    expect((await repositories().leagues.getById(leagueId)).ok).toBe(true);
   });
 
   it("refuses the Global League by name", async () => {
     const player = await makePlayer("svc-globalleaver");
-    await insertTeam(env.db, {
-      id: "lt-global",
-      name: "Worldwide",
-      playerId: player.id,
-      leagueId: GLOBAL_LEAGUE_ID,
-    });
+    unwrap(
+      await new TeamService(repositories()).createTeam(
+        player.id,
+        GLOBAL_LEAGUE_ID,
+        "Worldwide",
+      ),
+      "team",
+    );
 
-    const result = await new TeamService(env.db).leaveLeague(
+    const result = await new TeamService(repositories()).leaveLeague(
       player.id,
       GLOBAL_LEAGUE_ID,
     );
@@ -805,11 +459,11 @@ describe("TeamService.leaveLeague", () => {
 
   it("answers a non-member with no team rather than a bare conflict", async () => {
     const outsider = await makePlayer("svc-outsider");
-    await insertLeague(env.db, { id: "ll-outside" });
+    const league = await anotherLeague();
 
-    const result = await new TeamService(env.db).leaveLeague(
+    const result = await new TeamService(repositories()).leaveLeague(
       outsider.id,
-      "ll-outside",
+      league.id,
     );
 
     expect(result).toEqual({
@@ -819,13 +473,13 @@ describe("TeamService.leaveLeague", () => {
   });
 
   it("refuses a closed league — there is nothing left to walk out of", async () => {
-    const { member, leagueId } = await seed("shutsvc");
-    await env.db
-      .prepare("UPDATE leagues SET closedAt = ? WHERE id = ?")
-      .bind(PAST, leagueId)
-      .run();
+    const { admin, member, leagueId } = await seed();
+    unwrap(
+      await new LeagueService(repositories()).closeLeague(admin.id, leagueId),
+      "closure",
+    );
 
-    const result = await new TeamService(env.db).leaveLeague(
+    const result = await new TeamService(repositories()).leaveLeague(
       member.id,
       leagueId,
     );
@@ -839,72 +493,67 @@ describe("TeamService.leaveLeague", () => {
   it("refuses a finished season, so no departure is recorded against one", async () => {
     // A player who merely outlived a league did not abandon it. Stamping
     // `leftAt` on a finished season would put that on the record.
-    const player = await makePlayer("svc-outlived");
-    await insertLeague(env.db, {
-      id: "ll-ended",
-      startDate: "2024-01-01T00:00:00Z",
-      endDate: "2024-02-01T00:00:00Z",
+    // The team is written straight through the repository: the season is over, so
+    // the join the service offers would be refused for that very reason, and this
+    // test is about the *departure*.
+    const league = await seedLeague({
+      adminId: await aPlayer(),
+      endDate: RUN_OUT,
     });
-    await insertTeam(env.db, {
-      id: "lt-ended",
-      name: "Old Guard",
-      playerId: player.id,
-      leagueId: "ll-ended",
-    });
+    const team = await aTeamIn(league.id);
 
-    const result = await new TeamService(env.db).leaveLeague(
-      player.id,
-      "ll-ended",
+    const result = await new TeamService(repositories()).leaveLeague(
+      team.playerId,
+      league.id,
     );
 
     expect(result).toEqual({
       ok: false,
       error: TEAM_ERRORS.LEAGUE_INACTIVE,
     });
-    expect(await readTeamLeftAt("lt-ended")).toBeNull();
+    expect(await hasLeft(team.playerId, league.id)).toBe(false);
   });
 });
 
 // ─── What leaving means to the rest of the system ─────────────────────────────
 
 describe("a departed player's league", () => {
+  const DEPARTED_TEAM = "Departed XI";
+
   async function seedDeparture() {
-    const admin = await makePlayer("dep-admin");
-    const member = await makePlayer("dep-member");
-    await insertLeague(env.db, { id: "dep-lg", adminId: admin.id });
-    await insertTeam(env.db, {
-      id: "dep-admin-team",
-      name: "Founders",
-      playerId: admin.id,
-      leagueId: "dep-lg",
+    const member = await makePlayer(unique("dep-member"));
+    const league = await seedLeague({
+      adminId: await aPlayer(),
+      endDate: RUNNING,
     });
-    await insertTeam(env.db, {
-      id: "dep-team",
-      name: "Departed XI",
-      playerId: member.id,
-      leagueId: "dep-lg",
-    });
-    await insertContract(env.db, {
-      id: "dep-contract",
-      teamId: "dep-team",
-      articleId: "Some_Article",
-      purchaseDate: "2026-01-01",
-      expireDate: "2126-01-08",
-    });
-    const left = await new TeamService(env.db).leaveLeague(member.id, "dep-lg");
-    expect(left.ok).toBe(true);
-    return { admin, member };
+    const teams = new TeamService(repositories());
+    const team = unwrap(
+      await teams.createTeam(member.id, league.id, DEPARTED_TEAM),
+      "team",
+    );
+    unwrap(
+      await repositories().contracts.create({
+        teamId: team.id,
+        articleId: "Some_Article",
+        purchaseDate: Temporal.PlainDate.from("2026-01-01"),
+        expireDate: Temporal.PlainDate.from("2126-01-08"),
+        purchasePrice: 10,
+      }),
+      "contract",
+    );
+    expect((await teams.leaveLeague(member.id, league.id)).ok).toBe(true);
+    return { member, league, teamId: team.id };
   }
 
   it("stops answering getMyTeam, which is what closes every scoped surface", async () => {
     // Contracts, lineup, market and the invite-code membership check all reach
     // the league through this one read, so none of them needs to know that
     // leaving exists.
-    const { member } = await seedDeparture();
+    const { member, league } = await seedDeparture();
 
-    const result = await new TeamService(env.db).getMyTeam(
+    const result = await new TeamService(repositories()).getMyTeam(
       member.id,
-      "dep-lg",
+      league.id,
       "dep-member",
     );
 
@@ -914,57 +563,55 @@ describe("a departed player's league", () => {
   it("keeps the team row and its whole ledger", async () => {
     // The point of the design: no contract, performance or standing is lost, so
     // the season stays exactly as auditable as it was while it was being played.
-    await seedDeparture();
+    const { member, league, teamId } = await seedDeparture();
 
-    const team = await env.db
-      .prepare("SELECT name, leftAt FROM teams WHERE id = ?")
-      .bind("dep-team")
-      .first<{ name: string; leftAt: string | null }>();
-    const contracts = await env.db
-      .prepare("SELECT COUNT(*) AS n FROM contracts WHERE teamId = ?")
-      .bind("dep-team")
-      .first<{ n: number }>();
+    // Addressed by id rather than by player, because the player-scoped read is
+    // the very one a departure closes.
+    const team = unwrap(
+      await repositories().teams.getByIdAndLeague(teamId, league.id),
+      "team",
+    );
+    const contracts = unwrap(
+      await repositories().contracts.getByTeamId(teamId),
+      "contracts",
+    );
 
-    expect(team?.name).toBe("Departed XI");
-    expect(team?.leftAt).not.toBeNull();
-    expect(contracts?.n).toBe(1);
+    expect(team?.name).toBe(DEPARTED_TEAM);
+    expect(await hasLeft(member.id, league.id)).toBe(true);
+    expect(contracts).toHaveLength(1);
   });
 
   it("drops out of the leagues they play", async () => {
-    const { member } = await seedDeparture();
+    const { member, league } = await seedDeparture();
 
-    const result = await new PlayerRepositoryD1(env.db).getLeaguesByPlayerId(
-      member.id,
-    );
+    const result = await repositories().players.getLeaguesByPlayerId(member.id);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.map((l) => l.id)).not.toContain("dep-lg");
+    expect(result.value.map((l) => l.id)).not.toContain(league.id);
   });
 
   it("stops counting towards the league's size", async () => {
     // "How many teams play this league" is a question about now. Only the
-    // admin's team is still playing.
-    await seedDeparture();
+    // founder's team is still playing.
+    const { league } = await seedDeparture();
 
-    const result = await new LeagueRepositoryD1(env.db).countTeamsByLeague([
-      "dep-lg",
-    ]);
+    const result = await repositories().leagues.countTeamsByLeague([league.id]);
 
-    expect(result).toEqual({ ok: true, value: { "dep-lg": 1 } });
+    expect(result).toEqual({ ok: true, value: { [league.id]: 1 } });
   });
 
   it("keeps its place in the standings", async () => {
     // Erasing them would rewrite the league's history for everyone else too —
     // the ranks above and below them are only true with them in it.
-    await seedDeparture();
+    const { league } = await seedDeparture();
 
-    const result = await new LeaderboardService(env.db).getLeaderboard(
-      "dep-lg",
+    const result = await new LeaderboardService(repositories()).getLeaderboard(
+      league.id,
     );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.map((e) => e.team.name)).toContain("Departed XI");
+    expect(result.value.map((e) => e.team.name)).toContain(DEPARTED_TEAM);
   });
 });

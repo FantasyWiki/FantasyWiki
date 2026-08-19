@@ -3,6 +3,13 @@
   "name": "backend",
   "main": "src/index.ts",
   "compatibility_date": "2026-03-17",
+  // For the MongoDB target (docs/architecture/persistence-targets.md). Its
+  // driver reaches for node:net, node:tls and node:crypto, none of which exist
+  // in workerd without this. Inherited by every environment below, and inert
+  // for the D1 deployments — nothing else in the Worker imports a Node builtin,
+  // and the driver itself is only loaded by the one dynamic import that opens a
+  // Mongo connection.
+  "compatibility_flags": ["nodejs_compat"],
   "env": {
     // What the integration tests load (see vitest.config.ts). It mirrors
     // `production` except for the `ai` binding, which is deliberately absent:

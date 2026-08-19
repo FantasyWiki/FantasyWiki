@@ -6,3 +6,8 @@ node_modules/
 .vscode
 kls_database.db
 .env
+
+# The `mongod` the backend test suite downloads when no MONGO_URL points it at
+# a server. Outside node_modules on purpose, so `npm ci` does not throw away
+# 220MB (backend/vitest.shared.ts).
+backend/.cache/

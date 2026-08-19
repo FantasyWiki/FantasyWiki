@@ -2,6 +2,9 @@
 title: Backend Architecture
 type: architecture
 tags: [backend, hono, cloudflare, layering]
+related:
+  - "[[persistence-targets]]"
+  - "[[backend-testing]]"
 ---
 
 # FantasyWiki Backend Architecture
@@ -12,7 +15,8 @@ The backend is a Cloudflare Worker built with Hono. It follows a layered structu
 
 1. **Routes**: HTTP handling (`backend/src/routes`)
 2. **Services**: business workflows (`backend/src/services`)
-3. **Repositories**: persistence access (`backend/src/repositories`)
+3. **Repositories**: persistence access (`backend/src/repositories`), with one implementation per
+   store under `repositories/d1/` and `repositories/mongo/`
 
 Shared domain models are in the top-level `model/` package and are reused across frontend and backend.
 
@@ -34,11 +38,14 @@ FantasyWiki/
 │       │   ├── player.ts
 │       │   ├── leagues.ts
 │       │   └── wikimediaClient.ts
+│       ├── composition.ts
 │       └── repositories/
 │           ├── playerRepository.ts
 │           ├── result.ts
-│           └── d1/
-│               └── playerRepositoryD1.ts
+│           ├── d1/
+│           │   └── playerRepositoryD1.ts
+│           └── mongo/
+│               └── playerRepositoryMongo.ts
 └── frontend/
 ```
 
@@ -80,8 +87,12 @@ than to be reached for in both directions.
 
 ### Repositories (`backend/src/repositories`)
 - Define repository contracts (`playerRepository.ts`)
-- Implement D1 access in `repositories/d1/playerRepositoryD1.ts`
-- Encapsulate SQL and persistence error handling
+- Implement each store's access under `repositories/d1/` and `repositories/mongo/`
+- Encapsulate SQL, queries and persistence error handling — a store's own error wording never
+  leaves this layer
+
+A deployment runs on exactly one store, and `composition.ts` is the only module that picks it. See
+[Persistence Targets](./persistence-targets.md).
 
 ## Runtime and Data
 
@@ -91,13 +102,14 @@ than to be reached for in both directions.
 
 ## Testing
 
-- Backend tests run with Vitest, in the Workers pool, against a real D1 database
-- Command: `cd backend && npm run test`
+- Backend tests run with Vitest, in the Workers pool, against a real database
+- Commands: `cd backend && npm run test` (D1), `npm run testmongo` (MongoDB)
 - Which layer a test may name — and why only `composition.ts` chooses an implementation — is in
   [Backend Testing](../development/backend-testing.md)
 
 ## Related
 
+- [Persistence Targets](./persistence-targets.md)
 - [Backend Testing](../development/backend-testing.md)
 - [Backend Error Constants](./backend-error-constants.md)
 - [API Naming Rules](../development/api-naming-rules.md)

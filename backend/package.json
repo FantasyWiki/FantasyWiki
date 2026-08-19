@@ -20,13 +20,15 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tests.json",
     "lint": "eslint . --max-warnings 0",
     "lintfix": "eslint --fix .",
-    "test:integration": "vitest run --config vitest.config.ts"
+    "test:integration": "vitest run --config vitest.config.ts",
+    "testmongo": "vitest run --config vitest.mongo.config.ts"
   },
   "dependencies": {
     "@hono/oauth-providers": "^0.8.5",
     "@js-temporal/polyfill": "^0.5.1",
     "axios": "^1.16.0",
-    "hono": "^4.12.8"
+    "hono": "^4.12.8",
+    "mongodb": "^7.5.0"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.20.0",
@@ -38,6 +40,7 @@
     "eslint": "^10.0.3",
     "globals": "^17.4.0",
     "jiti": "^2.6.1",
+    "mongodb-memory-server-core": "^11.2.0",
     "prettier": "^3.8.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.57.1",

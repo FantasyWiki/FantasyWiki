@@ -19,8 +19,24 @@ jobs:
             dry = keywords.any? { |kw| branch.include?(kw) } ? '' : '--dry-run'
             puts "dry_run=#{dry}"
           RUBY
+      # The backend suite runs against both persistence targets
+      # (docs/architecture/persistence-targets.md). It starts a MongoDB replica
+      # set of its own when `MONGO_URL` is unset, which is what makes a local
+      # `./gradlew check` need nothing installed — but on a runner that means
+      # downloading a ~220MB `mongod` on every build, so CI hands it a container
+      # instead. A single node is enough; a replica set is required because the
+      # guarded writes are transactions.
+      - name: Start MongoDB
+        run: |
+          docker run -d --name mongo -p 27017:27017 mongo:8 --replSet rs0 --bind_ip_all
+          until docker exec mongo mongosh --quiet --eval 'db.adminCommand({ ping: 1 })' >/dev/null 2>&1; do
+            sleep 1
+          done
+          docker exec mongo mongosh --quiet --eval 'rs.initiate()'
       - name: Check
         run: ./gradlew check
+        env:
+          MONGO_URL: mongodb://127.0.0.1:27017/fantasywiki_test?directConnection=true
 
   success:
     runs-on: ubuntu-24.04

@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { NotificationService } from "../services/notification";
 import { PlayerDTO } from "../../../dto/playerDTO";
-import { AuthedVariables } from "../appEnv";
+import { AppVariables } from "../appEnv";
 import { currentPlayer } from "./currentPlayer";
 
-const player = new Hono<{ Variables: AuthedVariables }>();
+const player = new Hono<{ Variables: AppVariables }>();
 
 player.get("/", currentPlayer, async (c) => {
   const dto: PlayerDTO = {

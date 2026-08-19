@@ -421,3 +421,86 @@ describe("league lifecycle endpoints", () => {
     });
   });
 });
+
+/**
+ * Both routes below resolve the caller from the session, so neither works
+ * without `currentPlayer` in front of it. Registered without the middleware they
+ * still type-check — `c.var.player` is declared on the context whether or not
+ * the middleware that fills it has run — and then throw on the first
+ * dereference, which Hono answers 500. That is how the dashboard's recent-points
+ * card broke: every logged-in player got a 500 from `my-performances`, and
+ * neither route had a test to say otherwise. The status codes are the whole
+ * assertion here; a 500 means the guard has gone missing again.
+ */
+describe("the self-scoped routes resolve the caller from the session", () => {
+  const GOOGLE_ACCOUNT_ID = "acct-route-self-scoped";
+  const authed = new Hono()
+    .use("*", injectDeps())
+    .use("*", async (c, next) => {
+      c.set("jwtPayload", { sub: GOOGLE_ACCOUNT_ID });
+      await next();
+    })
+    .route("/leagues", leagues);
+
+  let leagueId: string;
+
+  beforeEach(async () => {
+    const player = unwrap(
+      await repositories().players.save({
+        username: "self-scoped-caller",
+        accountId: GOOGLE_ACCOUNT_ID,
+        email: "self-scoped-caller@example.com",
+      }),
+      "player",
+    );
+    // Founded by the caller, so the session's player has a team in it and the
+    // routes get past their "no team in league" answer to the part that needs
+    // the player at all.
+    leagueId = (
+      await aLeague(
+        {
+          name: "Session Scoped FC",
+          adminId: player.id,
+          startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+          endDate: Temporal.Instant.from("2126-01-01T00:00:00Z"),
+          domain: "en",
+          languageScale: REFERENCE_SCALE,
+          icon: "🌍",
+          visibility: LeagueVisibility.PUBLIC,
+          invitePolicy: LeagueInvitePolicy.MEMBERS,
+          invitationCode: null,
+        },
+        "Session Scoped Founders",
+      )
+    ).league.id;
+  });
+
+  it("answers GET /:id/my-performances with the session's team's points", async () => {
+    const response = await authed.request(
+      `/leagues/${leagueId}/my-performances?limit=2`,
+      {},
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual([]);
+  });
+
+  it("answers PUT /:id/lineup for the session's team", async () => {
+    const response = await authed.request(
+      `/leagues/${leagueId}/lineup`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          formation: { date: "2026-08-19", schema: "4-3-3", formation: {} },
+          bench: [],
+        }),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ success: true });
+  });
+});

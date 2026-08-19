@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { CreateProblemReportRequest } from "../../../dto/problemReportDTO";
 import { GitHubAppClient } from "../services/githubClient";
 import { REPORT_ERRORS, ProblemReportService } from "../services/problemReport";
-import { AuthedVariables } from "../appEnv";
+import { AppVariables } from "../appEnv";
 import { currentPlayer } from "./currentPlayer";
 
 /**
@@ -35,7 +35,7 @@ type Bindings = {
 
 const reports = new Hono<{
   Bindings: Bindings;
-  Variables: AuthedVariables;
+  Variables: AppVariables;
 }>();
 
 const VALIDATION_ERRORS: string[] = [

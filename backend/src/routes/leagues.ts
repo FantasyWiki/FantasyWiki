@@ -32,7 +32,7 @@ import { LEAGUE_ERRORS } from "../repositories/leagueRepository";
 import { PLAYER_ERRORS } from "../repositories/playerRepository";
 import { TEAM_ERRORS, type TeamError } from "../repositories/teamRepository";
 import { TeamDTO } from "../../../dto/teamDTO";
-import { AuthedVariables } from "../appEnv";
+import { AppVariables } from "../appEnv";
 import { currentPlayer } from "./currentPlayer";
 
 /**
@@ -71,7 +71,7 @@ export const JOIN_RATE_LIMITED = "JOIN_RATE_LIMITED";
 
 const leagues = new Hono<{
   Bindings: Bindings;
-  Variables: AuthedVariables;
+  Variables: AppVariables;
 }>();
 
 /**
@@ -398,7 +398,7 @@ leagues.get("/:id/invite-code", currentPlayer, async (c) => {
   return c.json(result.value);
 });
 
-leagues.get("/:id/my-performances", async (c) => {
+leagues.get("/:id/my-performances", currentPlayer, async (c) => {
   const leagueId = c.req.param("id");
   const rawLimit = parseInt(c.req.query("limit") ?? "2", 10);
   const limit = Math.max(1, Number.isNaN(rawLimit) ? 2 : rawLimit);
@@ -654,7 +654,7 @@ leagues.get("/:id/teams/:teamId/lineup", async (c) => {
   return c.json(result.value);
 });
 
-leagues.put("/:id/lineup", async (c) => {
+leagues.put("/:id/lineup", currentPlayer, async (c) => {
   const leagueId = c.req.param("id");
   const body: unknown = await c.req.json().catch(() => null);
   const payloadResult = parseLineupPayload(body);

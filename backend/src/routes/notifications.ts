@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { NotificationService } from "../services/notification";
 import { NOTIFICATION_ERRORS } from "../repositories/notificationRepository";
-import { AuthedVariables } from "../appEnv";
+import { AppVariables } from "../appEnv";
 import { currentPlayer } from "./currentPlayer";
 
-const notifications = new Hono<{ Variables: AuthedVariables }>();
+const notifications = new Hono<{ Variables: AppVariables }>();
 
 notifications.patch("/:id/read", currentPlayer, async (c) => {
   const id = c.req.param("id");

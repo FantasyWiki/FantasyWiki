@@ -6,7 +6,7 @@ import {
 } from "../../../dto/genieDTO";
 import { ArticleGenieService } from "../services/articleGenie";
 import { WorkersAiBinding, createLlmClient } from "../services/llmClient";
-import { AuthedVariables } from "../appEnv";
+import { AppVariables } from "../appEnv";
 import { currentPlayer } from "./currentPlayer";
 
 interface RateLimiter {
@@ -23,7 +23,7 @@ type Bindings = {
  * and no `playerId` is ever accepted from the client
  * (docs/development/api-naming-rules.md).
  */
-const me = new Hono<{ Bindings: Bindings; Variables: AuthedVariables }>();
+const me = new Hono<{ Bindings: Bindings; Variables: AppVariables }>();
 
 /**
  * Everything the client got wrong about its own request. The Genie is additive,

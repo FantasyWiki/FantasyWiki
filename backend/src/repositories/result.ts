@@ -10,7 +10,7 @@ export const failure = <E>(error: E): Result<never, E> => ({
 
 export function unwrap<T>(result: Result<T>, what: string): T {
   if (!result.ok) {
-    throw new Error(`Could not create ${what}: ${result.error}`);
+    throw new Error(`Could not resolve ${what}: ${result.error}`);
   }
   return result.value;
 }

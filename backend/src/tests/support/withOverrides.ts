@@ -12,7 +12,7 @@ export function withOverrides<T extends object>(
 ): T {
   return new Proxy(base, {
     get(target, property, receiver) {
-      if (property in overrides) {
+      if (Object.hasOwn(overrides, property)) {
         return overrides[property as keyof T];
       }
       const value = Reflect.get(target, property, receiver);

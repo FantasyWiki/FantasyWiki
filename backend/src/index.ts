@@ -49,9 +49,13 @@ app.use(
   }),
 );
 
+// Built once per isolate rather than per request: it carries a transport and a
+// response cache that only pay off when they outlive a single request.
+const wikimedia = createWikimediaClient();
+
 app.use("*", async (c, next) => {
   c.set("repositories", repositoriesFor(c.env));
-  c.set("wikimedia", createWikimediaClient());
+  c.set("wikimedia", wikimedia);
   return next();
 });
 

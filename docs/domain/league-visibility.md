@@ -13,8 +13,9 @@ Every league is **public** or **private**.
 - A **public** league can be joined by any authenticated player, with nothing
   in hand. It has **no invitation code** — there is nothing for one to guard.
 - A **private** league can be joined only by presenting its **invitation
-  code** — or by its **league admin**, who is never locked out of the league
-  they own.
+  code**. There is no exception for its **league admin**, and none is needed:
+  an admin is already in the league they own — see below — so there is nothing
+  for an exception to let in.
 
 The Global League is public, and therefore codeless. It is the one league every
 player is enrolled in on first login, so it must stay joinable by anyone.
@@ -54,8 +55,12 @@ league list is scoped to the leagues a player has a team in, so a league written
 without its founder would be invisible to everyone, and a private one would hold
 an invitation code nobody could reach.
 
-The founder is the league's **admin**, which is what lets them back in without
-presenting the code to their own league.
+The founder is the league's **admin** — and because founding *is* joining, an
+admin is a member by construction and never has to get past the gate at all.
+Nor is there a back way in for one who left: leaving
+[hands the league on](./league-lifecycle.md#when-the-admin-leaves) in the same
+transaction, so a founder coming back to their own private league presents its
+code like anybody else. The gate therefore never has to name the admin.
 
 A caller the policy does not allow is answered exactly as if the league did not
 exist. Telling a stranger that a code exists tells them there is something

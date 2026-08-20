@@ -31,9 +31,12 @@ export class TeamRepositoryD1 implements TeamRepository {
       // check and the write — see docs/architecture/backend-error-constants.md
       // §2, and contractRepositoryD1.create for the same shape.
       //
-      // Three ways in: the league is public; the presented code matches; or
-      // the joiner is the league's own admin, who must not be locked out of
-      // the league they created.
+      // Two ways in: the league is public, or the presented code matches.
+      // There is no third for the league's own admin, and none is needed — a
+      // league and its founder's team are written in one transaction, so an
+      // admin is a member by construction and never reaches this statement,
+      // and an admin who leaves has handed the league on before they can knock
+      // (#537).
       //
       // `closedAt IS NULL` is here and the season's end date is not, and the
       // asymmetry is the point: `closedAt` can be written by another request
@@ -61,7 +64,6 @@ export class TeamRepositoryD1 implements TeamRepository {
               )
               AND (
                     l.visibility = ?
-                 OR l.adminId = ?
                  OR (l.invitationCode IS NOT NULL AND l.invitationCode = ?)
               )`,
         )
@@ -72,7 +74,6 @@ export class TeamRepositoryD1 implements TeamRepository {
           team.leagueId,
           team.playerId,
           LeagueVisibility.PUBLIC,
-          team.playerId,
           // No code offered can never match: the column is compared against a
           // sentinel that is not a legal code rather than against NULL, which
           // would make the whole condition NULL either way.
@@ -126,6 +127,10 @@ export class TeamRepositoryD1 implements TeamRepository {
       // Setting `leftAt` back to NULL is the whole of coming back: the row, its
       // contracts and its standing were never removed, so there is nothing to
       // restore (docs/domain/league-lifecycle.md).
+      //
+      // A league's founder is not exempt from its code either. Leaving hands
+      // the league on, so by the time anyone knocks here they are an ex-admin
+      // like any other returning player.
       const result = await this.db
         .prepare(
           `UPDATE teams
@@ -139,7 +144,6 @@ export class TeamRepositoryD1 implements TeamRepository {
                        AND l.closedAt IS NULL
                        AND (
                              l.visibility = ?
-                          OR l.adminId = ?
                           OR (l.invitationCode IS NOT NULL
                               AND l.invitationCode = ?)
                        )
@@ -150,7 +154,6 @@ export class TeamRepositoryD1 implements TeamRepository {
           team.playerId,
           team.leagueId,
           LeagueVisibility.PUBLIC,
-          team.playerId,
           team.invitationCode ?? "",
         )
         .run();
@@ -275,9 +278,22 @@ export class TeamRepositoryD1 implements TeamRepository {
     try {
       // Stamp the departure, hand the league on if its admin is the one
       // walking out, and erase the league if nobody is left — one batch, so D1
-      // runs them as one transaction. Statements 2 and 3 are conditioned on
-      // this exact departure having been written, or a refused leave would
-      // delete a league everyone had already abandoned.
+      // runs them as one transaction.
+      //
+      // Statements 2 and 3 each carry `EXISTS (SELECT 1 FROM teams WHERE
+      // id = ? AND leftAt = ?)`: they act only if *this* departure was the one
+      // written. Without it a refused leave would still be read by statement 3
+      // as the one that emptied the league, and delete a league everyone had
+      // already abandoned.
+      //
+      // No production path reaches that state today, and the conditioning is
+      // kept anyway (#538). It bites only on a memberless league still
+      // standing, and statement 3 is itself the reason no such league exists —
+      // the last member's departure takes the league with it. This is not dead
+      // code; it is code whose trigger this same batch removes, and anything
+      // that stops a league being deleted here — an empty league kept for its
+      // archive, a soft close — makes it live again. Do not drop it for want
+      // of a test.
       const results = await this.db.batch([
         this.db
           .prepare(

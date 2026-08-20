@@ -36,11 +36,11 @@ export const TEAM_ERRORS = {
    * the same thing.
    *
    * Its own error rather than folded into `LEAGUE_IS_PRIVATE` or a 404, because
-   * it is the one join refusal that is *not* about the caller: a valid code and
-   * the league's own admin are turned away by it too, and telling someone their
-   * invitation is fine but the season ended is the difference between a dead
-   * link and an explanation. Nothing is hidden by saying so — the league page,
-   * its standings and its end date are already readable by anyone with the id
+   * it is the one join refusal that is *not* about the caller: a valid code is
+   * turned away by it too, and telling someone their invitation is fine but the
+   * season ended is the difference between a dead link and an explanation.
+   * Nothing is hidden by saying so — the league page, its standings and its end
+   * date are already readable by anyone with the id
    * (docs/domain/league-visibility.md).
    */
   LEAGUE_INACTIVE: "This league is no longer running.",
@@ -98,10 +98,17 @@ export interface TeamRepository {
    * derived credits is trivially STARTING_CREDITS.
    *
    * `invitationCode` is the code the joiner presented, if any. The league's
-   * own rules — public, or private and this code matches, or private and this
-   * is the admin — are evaluated *inside* the INSERT rather than checked
-   * first, because D1 has no interactive transactions and a check followed by
-   * a write is a race. Rejection surfaces as `TEAM_ERRORS.JOIN_CONFLICT`.
+   * own rules — public, or private and this code matches — are evaluated
+   * *inside* the INSERT rather than checked first, because D1 has no
+   * interactive transactions and a check followed by a write is a race.
+   * Rejection surfaces as `TEAM_ERRORS.JOIN_CONFLICT`.
+   *
+   * The league's **admin is not a third way in**, and wants none: founding a
+   * league writes its founder's team in the same transaction, so an admin is
+   * already a member by construction and never joins. If they leave,
+   * {@link leave} hands the league on before they can come back, so a founder
+   * returning to their own private league is asked for its code like anybody
+   * else (docs/domain/league-visibility.md).
    *
    * Two further conditions ride in the same statement: the league is not
    * closed, and this player holds no row here already. A player who *left* does
@@ -125,7 +132,9 @@ export interface TeamRepository {
    *
    * Guarded like {@link create} and for the same reason: they really did leave,
    * the league is not closed, and its entry rules admit them — a player who
-   * left a league that has since gone private needs the code like anyone else.
+   * left a league that has since gone private needs the code like anyone else,
+   * and so does the founder of a private league they walked out of, since
+   * leaving handed the adminship on.
    * Rejection surfaces as `TEAM_ERRORS.JOIN_CONFLICT`, classified by the same
    * re-read.
    */
@@ -198,8 +207,13 @@ export interface TeamRepository {
    * `TEAM_ERRORS.LEAVE_CONFLICT`.
    *
    * `teamId` is passed rather than looked up here so steps 2 and 3 can be
-   * conditioned on this exact departure having been written; see the
-   * implementation. See docs/domain/league-lifecycle.md for the rules.
+   * conditioned on this exact departure having been written — without that, a
+   * refused second departure would be read as the one that emptied the league,
+   * and step 3 would delete it. That state is unreachable by construction: step
+   * 3 is itself why a memberless league never stands, since the last member's
+   * departure takes the league with it. The conditioning is kept regardless,
+   * for the day something else leaves one standing; the implementation says so
+   * at length. See docs/domain/league-lifecycle.md for the rules.
    */
   leave(departure: {
     teamId: string;

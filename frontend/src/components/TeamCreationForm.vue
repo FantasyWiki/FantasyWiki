@@ -78,10 +78,11 @@ import { TeamDTO } from "../../../dto/teamDTO";
  * `invitationCode` is what the host was let through the gate with, handed back
  * so the write can present it too — a private league checks it inside the
  * INSERT, so naming a team is the moment it is actually spent. Absent for
- * signup, for a public league, and for a league's own admin, none of which need
- * one. The form neither validates nor displays it: the surface that collected
- * it already did (`useLeagueByCode`), and re-checking here would be a second
- * copy of a rule the shared model states once.
+ * signup and for a public league, neither of which needs one; a league's own
+ * admin never reaches this form for their own league, since founding it created
+ * their team. The form neither validates nor displays it: the surface that
+ * collected it already did (`useLeagueByCode`), and re-checking here would be a
+ * second copy of a rule the shared model states once.
  */
 const props = defineProps<{ league: LeagueDTO; invitationCode?: string }>();
 const emit = defineEmits<{ created: [team: TeamDTO] }>();

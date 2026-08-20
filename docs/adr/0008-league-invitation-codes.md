@@ -16,6 +16,12 @@ related:
 > The join-by-code flow (#7) landed with `GET /api/leagues/by-code/:code`,
 > `LeagueRepository.findIdByInvitationCode`, the `/leagues/join` page and invitation links — and
 > with the rate limiting §1 left as the one accepted risk's outstanding mitigation.
+>
+> **Amended (#537):** the third arm of the gate below, `l.adminId = ?`, was removed from both the
+> join `INSERT` and the rejoin `UPDATE`. Once league creation wrote the founder's team in the same
+> transaction, no path could reach it — an admin is a member by construction, and one who leaves
+> has handed the league on before they can come back. The snippet and the wording here are the
+> amended ones.
 
 Leagues could not be private, and joining one was ungated: any authenticated player who knew a
 league id could create a team in it. This ADR records how the invitation code is shaped, where it
@@ -124,7 +130,7 @@ INSERT INTO teams (id, name, playerId, leagueId)
 SELECT ?, ?, ?, l.id
   FROM leagues l
  WHERE l.id = ?
-   AND (l.visibility = 'public' OR l.adminId = ? OR l.invitationCode = ?)
+   AND (l.visibility = 'public' OR l.invitationCode = ?)
 ```
 
 On rejection the repository returns one sentinel, `TEAM_ERRORS.JOIN_CONFLICT` — at write time it
@@ -145,13 +151,13 @@ a guesser their generator is aimed correctly, which is most of what they want to
 One join refusal is deliberately *not* hidden. A league whose season has ended, or that its admin
 closed early, answers `TEAM_ERRORS.LEAGUE_INACTIVE` (409) — the rule is `isLeagueInactive` in
 `model/league.ts` and is not respelled anywhere else. It is safe to be plain about because it is
-not about the caller: a valid code and the league's own admin are turned away by it too, and the
-league's dates are already readable by anyone with its id. Telling someone holding a real
-invitation that the season is over, rather than that their code is bad, is the difference between
-an explanation and a dead link. This one check sits in the service rather than inside the guarded
-`INSERT`, because moving it there would mean writing the model function out a second time as SQL;
-what that costs is a race one request wide, and one extra team in a league that has stopped scoring
-is not the failure the guarded write exists to prevent.
+not about the caller: a valid code is turned away by it too, and the league's dates are already
+readable by anyone with its id. Telling someone holding a real invitation that the season is over,
+rather than that their code is bad, is the difference between an explanation and a dead link. This
+one check sits in the service rather than inside the guarded `INSERT`, because moving it there
+would mean writing the model function out a second time as SQL; what that costs is a race one
+request wide, and one extra team in a league that has stopped scoring is not the failure the
+guarded write exists to prevent.
 
 ### 4. Uniqueness is an index plus a bounded retry
 
@@ -187,7 +193,8 @@ consistent rather than an exception.
 ## Consequences
 
 - `adminId` becomes load-bearing. It was stored, selected by both repositories, and read by no
-  production code; it now decides both admin entry and the `admin` invite policy.
+  production code; it now decides the `admin` invite policy. (It also decided entry to the league
+  the admin owned, until #537 found that arm of the gate unreachable and removed it.)
 - `TEAM_ERRORS` grew from one constant to six, because the route could no longer map every
   `createTeam` failure to 400 — a permission refusal is 403 and a missing league 404, and a status
   may never be derived from message content.

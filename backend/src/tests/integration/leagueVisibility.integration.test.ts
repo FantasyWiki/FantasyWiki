@@ -209,6 +209,38 @@ describe("the join gate", () => {
     expect(result).toEqual({ ok: false, error: TEAM_ERRORS.LEAGUE_IS_PRIVATE });
   });
 
+  it("asks a founder who left their own private league for its code", async () => {
+    // The gate used to admit `l.adminId` outright, and #537 removed it as
+    // unreachable. The clause itself was never testable — that is what made it
+    // worth removing — so what is pinned here is the reason it was unreachable:
+    // a founder who walks out is an ex-admin by the time they can knock,
+    // because leaving hands the league on in the same transaction.
+    const founder = await makePlayer("founder");
+    const league = await seedPrivate(founder.id);
+    const successor = await makePlayer("successor");
+    unwrap(
+      await teamService.createTeam(
+        successor.id,
+        league.id,
+        "Successors",
+        PRIVATE_CODE,
+      ),
+      "successor's team",
+    );
+    unwrap(await teamService.leaveLeague(founder.id, league.id), "departure");
+
+    const bare = await teamService.createTeam(founder.id, league.id, "Return");
+    const withCode = await teamService.createTeam(
+      founder.id,
+      league.id,
+      "Return",
+      PRIVATE_CODE,
+    );
+
+    expect(bare).toEqual({ ok: false, error: TEAM_ERRORS.LEAGUE_IS_PRIVATE });
+    expect(withCode.ok).toBe(true);
+  });
+
   it("does not treat a codeless private league as open to an empty code", async () => {
     // The SQL compares against '' when no code is offered. A private league
     // whose code is NULL must not match that.

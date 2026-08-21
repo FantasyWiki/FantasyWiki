@@ -5,10 +5,12 @@ name: Nightly scoring
 # Wikimedia signals and POST them to the backend's /internal endpoints, which
 # score and persist them.
 #
-# `schedule:` only ever fires from the default branch, so the nightly run always
-# executes master's collector code — the collector is not per-branch deployed the
-# way the Worker is. It targets **production only**: the QA backend is not
-# scored. The job is scoped to the `production` GitHub Environment so the ingest
+# It runs the collector as the container image publish-images.yml pushes to
+# GHCR, rather than building it from source here — so the nightly scores exactly
+# the artefact that was published for master, and needs neither a checkout nor a
+# JDK. `schedule:` only ever fires from the default branch anyway; the collector
+# is not per-branch deployed the way the Worker is. It targets **production
+# only**: the QA backend is not scored. The job is scoped to the `production` GitHub Environment so the ingest
 # secret it reads is the production one. Manual runs can backfill a specific day
 # via `date`.
 
@@ -34,27 +36,47 @@ concurrency:
 
 jobs:
   score:
+    # Where this runs is a repository-variable decision, not a code one: set
+    # SCORING_RUNNER=external when something else owns the nightly, unset it to
+    # take it back. A manual dispatch always runs regardless — clicking Run is an
+    # explicit instruction, and it is how you backfill a day mid-handover.
+    #
+    # An unrecognised value runs here, deliberately. The ingest upserts on
+    # (teamId, date), so scoring twice costs only Wikimedia budget while scoring
+    # neither costs a missing day — a typo should fail toward the cheap mistake.
+    if: github.event_name == 'workflow_dispatch' || vars.SCORING_RUNNER != 'external'
     # Records the deployment target and scopes the ingest secret to production.
     environment: production
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    permissions:
+      contents: read
+      # Pulling the collector image published by publish-images.yml.
+      packages: read
     steps:
-      - name: Checkout
-        uses: DanySK/action-checkout@0.2.31
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      # No checkout and no JDK: this runs the image rather than the sources, so
+      # it scores exactly the artefact that was published for master.
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          distribution: temurin
-          java-version: "21"
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Run the scoring collector
         shell: bash
         run: |
           date_arg="${{ github.event.inputs.date }}"
+          args=()
           if [ -n "$date_arg" ]; then
-            ./gradlew :scoring-collector:run --args="--date=$date_arg"
-          else
-            ./gradlew :scoring-collector:run
+            args+=("--date=$date_arg")
           fi
+          # `-e NAME` with no value forwards this step's environment, which keeps
+          # the ingest secret off a command line any process listing could read.
+          docker run --rm \
+            -e BACKEND_URL \
+            -e SCORING_INGEST_SECRET \
+            -e WIKIMEDIA_USER_AGENT \
+            "ghcr.io/${{ github.repository_owner }}/scoring-collector:latest" "${args[@]}"
         env:
           # Production backend Worker; the URL is public (see deploy-strategy.md).
           BACKEND_URL: https://backend.luca0patrignani.workers.dev

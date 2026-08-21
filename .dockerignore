@@ -5,6 +5,12 @@
 **/node_modules
 **/dist
 **/build
+
+# ...except the collector's Gradle distribution. Its Dockerfile copies that in
+# rather than building it — see the note there — so it is the one build output
+# that has to reach the context.
+!scoring-collector/build/install
+!scoring-collector/build/install/**
 **/coverage
 .git
 .gradle

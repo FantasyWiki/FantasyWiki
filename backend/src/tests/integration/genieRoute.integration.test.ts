@@ -226,6 +226,50 @@ describe("POST /api/me/genie-turns", () => {
     expect(await response.json()).toEqual({ error: GENIE_ERRORS.ASLEEP });
   });
 
+  /**
+   * The `local` environment leaves Workers AI unbound so a clone with no
+   * Cloudflare credentials can still run the app (see `wrangler.jsonc`), and
+   * the `test` environment does the same for CI. No stub here, therefore, is
+   * exactly that deployment.
+   */
+  it("answers asleep when the deployment has no model bound at all", async () => {
+    expect(env.AI).toBeUndefined();
+
+    const response = await post(app, VALID_TURN);
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: GENIE_ERRORS.ASLEEP });
+  });
+
+  it("answers asleep on the seeding route too, before it reads the body", async () => {
+    // The other half of the feature. The guard runs ahead of body parsing, so
+    // an empty body is enough to prove which check answered.
+    const response = await app.request(
+      "/api/me/genie-seeds",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: GENIE_ERRORS.ASLEEP });
+  });
+
+  it("spends no rate-limit quota on a deployment that has no model", async () => {
+    // The limiter allows 20 a minute and is real in this pool. A build that
+    // never offers the feature must not be able to lock the player out of
+    // anything, so the check comes first and the 21st call still reports the
+    // genie asleep rather than rate-limited.
+    for (let i = 0; i < 21; i += 1) {
+      const response = await post(app, VALID_TURN);
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({ error: GENIE_ERRORS.ASLEEP });
+    }
+  });
+
   it("answers 404 when the session has no player behind it", async () => {
     stubAi(GOOD_REPLY);
 

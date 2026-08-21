@@ -1,0 +1,21 @@
+# Anything reproducible from the sources, or specific to the host that built
+# them. node_modules matters most: the backend's better-sqlite3 is a native
+# module, and a copy compiled on Windows or macOS cannot load inside a Linux
+# container.
+**/node_modules
+**/dist
+**/build
+**/coverage
+.git
+.gradle
+.kotlin
+.idea
+.vscode
+backend/.wrangler
+frontend/.ionic
+
+# Secrets. The entrypoint writes a local .dev.vars from the committed example
+# instead, so a stray copy of the real one never reaches an image layer.
+backend/.dev.vars
+backend/.env
+frontend/.env.local

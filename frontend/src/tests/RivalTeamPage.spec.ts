@@ -63,6 +63,7 @@ function makePlugins() {
     email: "player@example.com",
     name: "Player One",
     picture: "",
+    features: { articleGenie: false },
   });
 
   const leagueStore = useLeagueStore();

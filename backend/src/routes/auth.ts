@@ -14,7 +14,11 @@ type Bindings = {
   FRONTEND_URL: string;
 };
 
-export function resolveFrontendUrl(env: Bindings): string {
+/**
+ * Takes only the field it reads, so anything holding a `FRONTEND_URL` can ask —
+ * the dev sign-in route has no OAuth client to speak of.
+ */
+export function resolveFrontendUrl(env: { FRONTEND_URL: string }): string {
   let url = env.FRONTEND_URL ?? "localhost:5173";
 
   if (!url.startsWith("http://") && !url.startsWith("https://")) {

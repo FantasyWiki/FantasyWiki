@@ -42,3 +42,15 @@ jobs:
     permissions:
       contents: write
       packages: write
+
+  # Container images to GHCR, for the services Cloudflare does not host. Behind
+  # the same gate as deploy — an image is only worth publishing for a revision
+  # that passed check.
+  publish-images:
+    needs:
+      - ci-cd
+    uses: ./.github/workflows/publish-images.yml
+    secrets: inherit
+    permissions:
+      contents: read
+      packages: write

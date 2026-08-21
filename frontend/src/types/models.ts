@@ -1,3 +1,4 @@
+import type { SessionFeaturesDTO } from "../../../dto/sessionDTO";
 import type { ContractDTO } from "../../../dto/contractDTO";
 import type { LeagueDTO } from "../../../dto/leagueDTO";
 import type { TeamDTO } from "../../../dto/teamDTO";
@@ -102,4 +103,6 @@ export interface Session {
   email: string;
   name: string;
   picture: string;
+  /** Which optional features the backend this build talks to actually has. */
+  features: SessionFeaturesDTO;
 }

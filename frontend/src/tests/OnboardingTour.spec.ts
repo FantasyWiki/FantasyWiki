@@ -23,6 +23,7 @@ function signIn() {
     email: "player@example.com",
     name: "Player One",
     picture: "",
+    features: { articleGenie: false },
   });
 }
 

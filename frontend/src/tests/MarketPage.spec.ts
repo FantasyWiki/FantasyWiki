@@ -9,6 +9,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import router from "@/router/index";
 import MarketPage from "@/views/MarketPage.vue";
 import { useLeagueStore } from "@/stores/league";
+import { useAppStore } from "@/stores/app";
 import { useMarket } from "@/composables/useMarket";
 import type { LeagueDTO } from "../../../dto/leagueDTO";
 import type { TeamDTO } from "../../../dto/teamDTO";
@@ -106,10 +107,44 @@ function makePlugins(currentTeam: TeamDTO | null = null) {
   return { plugins, pinia };
 }
 
+/**
+ * The Article Genie is optional — a backend with no Workers AI binding reports
+ * it off on the session — so signing in has to say which kind of backend this
+ * is (docs/development/local-dev-setup.md).
+ */
+function signIn(articleGenie: boolean) {
+  useAppStore().setUserFromData({
+    sub: "player-1",
+    email: "player@example.com",
+    name: "Player One",
+    picture: "",
+    features: { articleGenie },
+  });
+}
+
 describe("MarketPage.vue", () => {
   beforeEach(async () => {
     await router.push("/market");
     await router.isReady();
+  });
+
+  it("offers the Genie when the backend has the model bound", async () => {
+    const { plugins } = makePlugins();
+    signIn(true);
+    const wrapper = mount(MarketPage, { global: { plugins } });
+    await flushPromises();
+    expect(wrapper.find(".genie-trigger").exists()).toBe(true);
+  });
+
+  it("shows no trace of the Genie when the backend cannot wake it", async () => {
+    const { plugins } = makePlugins();
+    signIn(false);
+    const wrapper = mount(MarketPage, { global: { plugins } });
+    await flushPromises();
+    expect(wrapper.find(".genie-trigger").exists()).toBe(false);
+    expect(wrapper.findComponent({ name: "ArticleGenie" }).exists()).toBe(
+      false
+    );
   });
 
   it("mounts and renders article rows from the wikimedia top-read list", async () => {

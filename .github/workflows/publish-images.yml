@@ -1,0 +1,72 @@
+name: Publish Images
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+# Only the branches that already deploy. A feature branch's image would be an
+# untagged layer nobody pulls, kept alive by the registry's retention rules.
+jobs:
+  publish:
+    if: github.ref_name == 'master' || github.ref_name == 'dev'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      # GITHUB_TOKEN is the whole credential for GHCR — publishing needs no new
+      # secret, unlike the Cloudflare deploys next door.
+      packages: write
+    strategy:
+      matrix:
+        # One entry per publishable service. The backend and frontend demo
+        # images belong here too the day someone wants `docker compose pull`
+        # instead of a local build.
+        include:
+          - name: scoring-collector
+            dockerfile: docker/scoring-collector.Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      # The Dockerfile copies this in rather than building it, so it has to
+      # exist before the build context is packed. See the note in the file.
+      - name: Build the distribution
+        run: ./gradlew :${{ matrix.name }}:installDist
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
+          # `sha-<short>` on every build is the tag a rollback names; the
+          # branch aliases are what a human or a compose file pulls.
+          tags: |
+            type=sha,format=short
+            type=raw,value=latest,enable=${{ github.ref_name == 'master' }}
+            type=raw,value=dev,enable=${{ github.ref_name == 'dev' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

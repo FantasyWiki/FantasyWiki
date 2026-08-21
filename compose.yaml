@@ -1,0 +1,85 @@
+# Development in containers: clone, `docker compose up`, open localhost:5173.
+# Nothing to install on the host but Docker, and no credentials to obtain — the
+# Article Genie is off (it is the one feature needing a Cloudflare account) and
+# `/auth/dev` signs you in without Google.
+#
+# For the built, no-hot-reload variant:
+#   docker compose -f compose.yaml -f compose.demo.yaml up
+#
+# See docs/development/docker-local-dev.md.
+
+name: fantasywiki
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      target: dev
+    # Not remapped, and not remappable: `http://127.0.0.1:8787/auth/google` is
+    # registered with Google as a redirect URI, and FRONTEND_URL feeds both that
+    # redirect and the session cookie's Secure flag.
+    ports:
+      - "8787:8787"
+    volumes:
+      # The repository, so an edit on the host restarts the Worker.
+      - .:/workspace
+      # ...except the installs, which stay the container's own. The image built
+      # them for Linux; letting the host's copies show through would put a
+      # Windows or macOS build of better-sqlite3 in their place.
+      - backend_node_modules:/workspace/backend/node_modules
+      - root_node_modules:/workspace/node_modules
+      # D1's local state. A named volume rather than the host's .wrangler for
+      # the same reason, and it means `docker compose down` keeps your data —
+      # `down -v` is how you ask for a clean database.
+      - backend_wrangler_state:/workspace/backend/.wrangler
+    environment:
+      # Bind-mounted filesystems do not deliver inotify events on Windows or
+      # macOS, so Wrangler's watcher has to poll to see an edit at all.
+      CHOKIDAR_USEPOLLING: "true"
+    healthcheck:
+      # `/` is the Worker's own unauthenticated echo of its FRONTEND_URL
+      # resolution, so a 200 here means the whole app booted, not just the port.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+      target: dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/workspace
+      - frontend_node_modules:/workspace/frontend/node_modules
+      - root_node_modules:/workspace/node_modules
+    environment:
+      # 127.0.0.1 inside this container is this container. The proxy has to name
+      # the other one — the single likeliest thing to get wrong here.
+      BACKEND_ORIGIN: http://backend:8787
+      VITE_HOST: 0.0.0.0
+      VITE_POLL: "true"
+      # Set here rather than in .env.local: Vite lets a real environment
+      # variable win over the file, so the container's answer is the same
+      # whatever a developer happens to have in their own .env.local.
+      VITE_BACKEND_URL: http://127.0.0.1:8787
+      # The real backend, against a real (empty) database. `VITE_MOCK=true`
+      # instead paints the UI from fixtures without persisting anything.
+      VITE_MOCK: "false"
+      # Shows the "Continue as demo player" button. The backend independently
+      # refuses /auth/dev unless it is on the `local` environment, so this alone
+      # cannot open a door anywhere else.
+      VITE_DEV_LOGIN: "true"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  root_node_modules:
+  backend_node_modules:
+  frontend_node_modules:
+  backend_wrangler_state:

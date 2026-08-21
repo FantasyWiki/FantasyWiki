@@ -2,6 +2,8 @@
 # http://git-scm.com/docs/gitignore
 
 *.env*
+# ...but the checked-in template of it is how a fresh clone gets started.
+!.env.local.example
 *~
 *.sw[mnpcod]
 .tmp

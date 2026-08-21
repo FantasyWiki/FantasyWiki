@@ -31,6 +31,20 @@
       <ion-text>{{ $t("auth.login.signInGoogle") }}</ion-text>
     </ion-button>
 
+    <!-- Local development only, and gated twice: this build has to have been
+         started with VITE_DEV_LOGIN=true, and the backend refuses /auth/dev
+         unless it is running on the `local` environment. Neither side trusts
+         the other. See docs/development/docker-local-dev.md. -->
+    <div v-if="isDevLoginEnabled" class="dev-login">
+      <ion-button fill="clear" size="small" @click="signInAsDemoPlayer">
+        <ion-icon :icon="terminalOutline" slot="start" />
+        {{ $t("auth.login.signInDemo") }}
+      </ion-button>
+      <ion-text color="medium">
+        <p>{{ $t("auth.login.signInDemoNote") }}</p>
+      </ion-text>
+    </div>
+
     <ion-text color="medium" class="login-terms">
       <p>
         <i18n-t keypath="auth.login.termsPrefix" tag="span">
@@ -59,6 +73,7 @@ import {
   closeOutline,
   lockClosedOutline,
   logoGoogle,
+  terminalOutline,
 } from "ionicons/icons";
 import { computed } from "vue";
 import AppLogo from "@/components/AppLogo.vue";
@@ -78,6 +93,17 @@ function dismiss() {
 
 function signInWithGoogle() {
   window.location.href = "/auth/google";
+}
+
+/**
+ * Only ever true in a local build. It lets someone with no share of the
+ * project's Google OAuth client still get past the login wall — a reviewer, a
+ * new collaborator, or the container in `compose.yaml`.
+ */
+const isDevLoginEnabled = import.meta.env.VITE_DEV_LOGIN === "true";
+
+function signInAsDemoPlayer() {
+  window.location.href = "/auth/dev";
 }
 </script>
 
@@ -148,6 +174,19 @@ function signInWithGoogle() {
   --padding-start: 1rem;
   --padding-end: 1rem;
   height: 48px;
+}
+
+/* Deliberately quiet: a development affordance, not a second front door. */
+.dev-login {
+  text-align: center;
+  border-top: 1px solid var(--ion-color-step-150, #e0e0e0);
+  padding-top: 0.75rem;
+  width: 100%;
+}
+
+.dev-login p {
+  margin: 0;
+  font-size: 0.75rem;
 }
 
 .login-terms {

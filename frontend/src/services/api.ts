@@ -36,6 +36,7 @@ import {
   type ContractTier,
 } from "../../../model/pricing";
 import { createWikimediaClient } from "@/services/wikimediaClient";
+import type { SessionDTO, SessionFeaturesDTO } from "../../../dto/sessionDTO";
 
 const API_BASE_URL = "/api";
 
@@ -389,8 +390,27 @@ export const dashboardApi = {
 
 // ── Session ───────────────────────────────────────────────────────────────────
 
+/**
+ * Every optional feature defaults to off. A response without a `features` block
+ * came from a backend that predates the flag, and hiding a feature that turns
+ * out to be there costs a player nothing next to offering one that isn't.
+ */
+function readFeatures(
+  raw: Partial<SessionFeaturesDTO> | undefined
+): SessionFeaturesDTO {
+  return { articleGenie: raw?.articleGenie ?? false };
+}
+
+/** What actually arrives: an older backend sends no `features` at all. */
+type RawSession = Omit<SessionDTO, "features"> & {
+  features?: Partial<SessionFeaturesDTO>;
+};
+
 export const sessionApi = {
-  get: () => apiRequest<Session>("/session"),
+  get: async (): Promise<Session> => {
+    const raw = await apiRequest<RawSession>("/session");
+    return { ...raw, features: readFeatures(raw.features) };
+  },
   delete: () =>
     apiRequest<{ success: boolean }>("/session", { method: "DELETE" }),
 };

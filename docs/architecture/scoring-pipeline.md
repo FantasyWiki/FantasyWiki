@@ -154,6 +154,34 @@ selects the production ingest secret and can carry protection rules). QA gets no
 scored data from this workflow. `workflow_dispatch` takes a `date` input for
 backfill.
 
+### What runs, and where
+
+The workflow runs the collector as the **container image** published to GHCR by
+`publish-images.yml` — `ghcr.io/fantasywiki/scoring-collector:latest` — not as a
+Gradle build of the checked-out source. No checkout, no JDK, and the nightly
+scores exactly the artefact that was published for master.
+
+Whether *this* workflow runs it at all is a repository-variable decision:
+
+| `SCORING_RUNNER` | The nightly |
+|---|---|
+| unset | Runs here, on a GitHub runner. **Default.** |
+| `external` | Skipped — something else owns the day. |
+
+A manual `workflow_dispatch` runs regardless of the variable, which is how you
+backfill a day while the handover is in place. An unrecognised value runs here,
+deliberately: the ingest upserts on `(teamId, date)`, so scoring twice costs
+only Wikimedia budget while scoring neither costs a missing day, and a typo
+should fail toward the cheap mistake.
+
+`external` is a **handover, not a pause** — the schedule stays wired up, so
+clearing the variable resumes scoring with nothing else to change. Only one
+scheduler should be live at a time, for the same rate-budget reason.
+
+Because the image is the unit of delivery, **a failed publish breaks the
+nightly**: `latest` only moves when `publish-images.yml` is green. That coupling
+is the price of not rebuilding the collector every night.
+
 - Cron is ~05:00 UTC, ~2h after AQS publishes day `D`; GitHub's 10–30 min jitter
   is absorbed by that buffer.
 - `BACKEND_URL` and `WIKIMEDIA_USER_AGENT` are public and inlined; only
@@ -189,6 +217,15 @@ built diverges on the other two:
 - **Host: GitHub Actions, not Cloud Run.** Free is a hard constraint, and Actions
   is already the repo's CI home — the fewest new moving parts. Cloud Run's free
   tier also works but adds a whole GCP account/IAM/Artifact Registry surface.
+
+  Partly reopened: the collector now *is* a container image, and
+  `SCORING_RUNNER=external` hands the schedule over without touching code — so
+  the host is no longer a property of the code at all, only of where that image
+  is run. That removes the *packaging* obstacle to ADR 0004's host, not the
+  whole objection: Cloud Run pulls only from Artifact Registry or GCR, so
+  targeting it specifically still needs the image mirrored there and the GCP
+  account this divergence was avoiding. Anything that can pull a public OCI
+  image (a VPS, Fly.io, a scheduler on a machine you own) needs no mirror.
 - **Delivery: POST-through-backend, not direct D1.** The backend stays the sole
   D1 writer and enforces its own invariants, instead of the collector holding a
   whole-database write token.

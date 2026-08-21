@@ -77,6 +77,7 @@ describe("GuidePage.vue", () => {
       email: "player@example.com",
       name: "Player One",
       picture: "",
+      features: { articleGenie: false },
     });
     const player = await mountGuide();
 

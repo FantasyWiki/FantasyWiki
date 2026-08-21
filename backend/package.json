@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "wrangler dev --env local",
+    "dev:genie": "wrangler dev --env local-genie",
     "deploy": "npm run deploy:production",
     "deploy:production": "wrangler deploy --minify",
     "deploy:preview": "wrangler deploy --env preview --minify",
@@ -15,6 +16,7 @@
     "test-coverage": "vitest run --coverage",
     "db:init:local": "wrangler d1 migrations apply db --local --env local",
     "db:migrate:remote": "wrangler d1 migrations apply db --remote",
+    "db:seed:demo": "wrangler d1 execute db --local --env local --file=./seeds/demo.sql",
     "format": "prettier --check .",
     "formatfix": "prettier --write .",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tests.json",

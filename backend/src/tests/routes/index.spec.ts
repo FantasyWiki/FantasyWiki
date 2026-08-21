@@ -69,6 +69,10 @@ describe("backend app", () => {
       email: "user@example.com",
       name: "User One",
       picture: "https://example.com/u.png",
+      // This env binds no Workers AI, as the `local` environment doesn't, so
+      // the session tells the frontend to hide the Article Genie
+      // (docs/architecture/article-genie-llm.md).
+      features: { articleGenie: false },
     });
   });
 

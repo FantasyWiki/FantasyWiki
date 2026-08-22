@@ -31,6 +31,7 @@ function makePlugins(seedStore = true) {
     email: "player@example.com",
     name: "Player One",
     picture: "",
+    features: { articleGenie: false },
   });
 
   // Seeded the way NavBar's initialize() leaves it: the page must still read the

@@ -102,6 +102,17 @@ export const useAppStore = defineStore("app", () => {
     return languageCode.value === code;
   };
 
+  /**
+   * Whether this backend can wake the Article Genie. It rides on the session
+   * because that is the one API call the mock layer lets through to the real
+   * Worker, so it stays true even in `devMock` — and it defaults to false while
+   * no session is loaded, which keeps the Genie out of the market for a visitor
+   * who has no backend answer yet.
+   */
+  const isArticleGenieAvailable = computed(
+    (): boolean => currentUser.value?.features.articleGenie ?? false
+  );
+
   // ========== ACTIONS ==========
 
   /**
@@ -223,6 +234,7 @@ export const useAppStore = defineStore("app", () => {
     languageDisplay,
     availableLanguages,
     isLanguage,
+    isArticleGenieAvailable,
     // Actions
     setLanguage,
     cycleLanguage,

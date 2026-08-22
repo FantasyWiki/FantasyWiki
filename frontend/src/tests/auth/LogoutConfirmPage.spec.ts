@@ -24,6 +24,7 @@ describe("LogoutConfirmPage.vue", () => {
       name: "Test User",
       email: "test@example.com",
       picture: "https://example.com/avatar.png",
+      features: { articleGenie: false },
     };
 
     const wrapper = mount(LogoutConfirmPage, {

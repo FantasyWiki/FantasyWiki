@@ -30,6 +30,7 @@ describe("router auth guard", () => {
       email: "player@example.com",
       name: "Player One",
       picture: "",
+      features: { articleGenie: false },
     });
 
     await router.push("/market");

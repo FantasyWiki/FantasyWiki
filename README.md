@@ -113,38 +113,74 @@ Full rules: [`docs/domain/`](./docs/domain/) · Vocabulary: [`CONTEXT.md`](./CON
 | **Database** | Cloudflare D1 |
 | **Auth** | Google OAuth → HTTP-only cookie with a signed JWT |
 | **Shared** | Framework-agnostic TypeScript (`dto/`, `model/`) |
+| **Nightly scoring** | Kotlin/JVM batch, delivered as a container image on GHCR |
 | **Build** | Gradle-orchestrated monorepo over npm subprojects |
 | **CI/CD** | GitHub Actions → Cloudflare Workers + Pages |
+| **Local dev** | Docker Compose, optional — see [Quick start](#quick-start) |
 
 ## Repository layout
 
 ```
 FantasyWiki/
-├── dto/            # Shared API shapes (frontend + backend)
-├── model/          # Shared domain entities
-├── external-apis/  # Wikimedia client (pageviews, article links)
-├── backend/        # Cloudflare Worker: routes → services → repositories
-├── frontend/       # Vue 3 + Ionic SPA
-└── docs/           # Documentation, grouped by concept
+├── dto/                # Shared API shapes (frontend + backend)
+├── model/              # Shared domain entities
+├── external-apis/      # Wikimedia client (pageviews, article links)
+├── backend/            # Cloudflare Worker: routes → services → repositories
+├── frontend/           # Vue 3 + Ionic SPA
+├── scoring-collector/  # Kotlin nightly batch — the one service Cloudflare does not host
+├── docker/             # Dockerfiles, one per service
+├── compose.yaml        # Local stack (+ compose.demo.yaml: built, seeded, no hot reload)
+└── docs/               # Documentation, grouped by concept
 ```
 
 ## Quick start
 
+Two ways in. **Start with Docker if you can** — it asks you for nothing: no
+accounts, no secrets, not even Node. The native toolchain is what you need to
+ship, and [Which one](#which-one) says exactly where the line falls.
+
+### Option A — Docker (recommended)
+
+**Prerequisites** — Docker with Compose v2. Nothing else.
+
+```bash
+git clone https://github.com/FantasyWiki/FantasyWiki.git
+cd FantasyWiki
+docker compose up
+```
+
+Open <http://localhost:5173> and sign in with **Continue as demo player**.
+There is nothing to obtain first: no Cloudflare account, no Google OAuth client
+secret, no env file to fill in. The repository is bind-mounted, so an edit on
+your machine hot-reloads inside the containers.
+
+For a database that already has a league, rival squads and scored days in it,
+run the demo profile instead:
+
+```bash
+docker compose -f compose.yaml -f compose.demo.yaml up --build
+```
+
+Both modes in full: [`docker-local-dev.md`](./docs/development/docker-local-dev.md).
+
+### Option B — Node and Gradle on your machine
+
 **Prerequisites** — Node `24.18.0`, npm `11.18.0` (pinned in `engines`), and a JDK for the Gradle wrapper.
 
-**1. Create the two env files.** Both are gitignored. Full walkthrough:
+**1. Create the two env files.** Both are gitignored, and a `.example` sits
+beside each as its checked-in shape. Full walkthrough:
 [`local-dev-setup.md`](./docs/development/local-dev-setup.md).
 
 ```bash
-# backend/.dev.vars
-GOOGLE_CLIENT_SECRET=...
-JWT_SECRET=...
-FRONTEND_URL=localhost:5173
-
-# frontend/.env.local
-VITE_BACKEND_URL=http://127.0.0.1:8787
-VITE_MOCK=true
+cp backend/.dev.vars.example backend/.dev.vars
+cp frontend/.env.local.example frontend/.env.local
 ```
+
+`.dev.vars` leaves two blanks. `JWT_SECRET` is any random 32+ characters you
+generate yourself. `GOOGLE_CLIENT_SECRET` is the only thing here you have to be
+*given* — and you can skip it, exactly as the containers do, by uncommenting
+`VITE_DEV_LOGIN=true` in `frontend/.env.local` and signing in as the demo
+player.
 
 **2. Run it.** Gradle downloads its own Node and installs dependencies for you.
 
@@ -159,6 +195,16 @@ Frontend → <http://localhost:5173> · Backend → <http://127.0.0.1:8787>
 
 With `VITE_MOCK=true`, MSW mocks every `/api/*` call *except* `/api/session` and
 `/auth/*` — so you get a **real Google login** against **mocked game data**.
+
+### Which one
+
+Containers are a **development** convenience, and they are not how anything
+ships: Workers and Pages are serverless, so no image is ever deployed. Almost
+everything works in both — the suites, the linters, `wrangler dev`, local D1
+migrations. Two things do not: the image has no JDK, so `./gradlew check
+--parallel` (the PR gate) is native only, and it is given no Cloudflare
+credentials, so deploys are too. The full split is in
+[`docker-local-dev.md`](./docs/development/docker-local-dev.md#what-docker-is-not-for).
 
 <!--
 ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -221,7 +267,13 @@ Deploys are branch-based. Details: [`deploy-strategy.md`](./docs/deployment/depl
 |---|---|---|
 | `master` | 🚀 Production | Worker `backend`, Pages `frontend`, D1 `db` |
 | `dev` | 🧪 QA | Worker `backend-preview`, Pages `frontend` (dev), D1 `db-preview` |
-| `feature/*` · `renovate/*` | ✅ CI only | `./gradlew check`, no deploy |
+| `feat/*` · `renovate/*` | ✅ CI only | `./gradlew check`, no deploy |
+
+The Kotlin **scoring collector** is the exception, because Cloudflare hosts
+nothing that is not a Worker or a Page. It ships as a container image to GHCR
+and the nightly runs that image — on a GitHub runner by default, or on anything
+else that can pull it. Both options, and the switch between them:
+[`scoring-pipeline.md`](./docs/architecture/scoring-pipeline.md#what-runs-and-where).
 
 ## Documentation
 

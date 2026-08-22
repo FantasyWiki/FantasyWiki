@@ -1,0 +1,40 @@
+# Overrides compose.yaml to run the built app instead of the dev servers: no
+# source mounts, no hot reload, nothing on the host to keep in sync.
+#
+#   docker compose -f compose.yaml -f compose.demo.yaml up --build
+#
+# This is the form to hand to someone who wants to *see* FantasyWiki rather than
+# work on it. See docs/development/docker-local-dev.md.
+
+services:
+  backend:
+    build:
+      target: demo
+    # Only the database survives a restart. `!override` because Compose *adds*
+    # to a list from the base file by default — without it the source bind mount
+    # from compose.yaml would still be here, hiding the sources baked into the
+    # image behind whatever is on the host.
+    volumes: !override
+      - backend_wrangler_state:/workspace/backend/.wrangler
+    environment:
+      # The demo profile is meant to be looked at, so it arrives populated: one
+      # public league of three rival teams with full squads and scored days.
+      # Unset in compose.yaml, so `docker compose up` and host development both
+      # stay empty. See backend/seeds/demo.sql.
+      SEED_DEMO_DATA: "true"
+
+  frontend:
+    build:
+      target: demo
+      # Vite substitutes VITE_* into the bundle at build time, so for the built
+      # app these are build arguments; the environment block below would arrive
+      # far too late to affect them.
+      args:
+        VITE_BACKEND_URL: http://127.0.0.1:8787
+        VITE_MOCK: "false"
+        VITE_DEV_LOGIN: "true"
+    # Same reason as above, and here it would be worse: a bind mount over
+    # /workspace hides the built bundle, so `vite preview` would serve nothing.
+    volumes: !reset []
+    environment:
+      VITE_HOST: 0.0.0.0

@@ -21,8 +21,23 @@ The project uses two environment layers:
 | `backend/.dev.vars` | `backend/` | Secrets for Wrangler (backend) |
 | `frontend/.env.local` | `frontend/` | Overrides for Vite (frontend) |
 
-Neither file is committed to the repository. Both are loaded automatically by
-their respective tools at startup.
+Neither file is committed to the repository; a `.example` sits beside each one
+as its checked-in shape, so the quickest start is:
+
+```bash
+cp backend/.dev.vars.example backend/.dev.vars
+cp frontend/.env.local.example frontend/.env.local
+```
+
+Then fill in the two blanks in `.dev.vars` (see Step 1). Both files are loaded
+automatically by their respective tools at startup.
+
+**You do not need a Cloudflare account to run FantasyWiki locally.** The one
+feature that needs one — the Article Genie — is switched off by default and the
+app hides it; see [Running without a Cloudflare account](#running-without-a-cloudflare-account).
+
+To skip installing Node and npm as well — and to skip `GOOGLE_CLIENT_SECRET`
+entirely — see [Running FantasyWiki in Docker](./docker-local-dev.md) instead.
 
 ---
 
@@ -48,7 +63,9 @@ GH_APP_PRIVATE_KEY=<optional; only needed to exercise the problem report form>
   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
   ```
 - `GOOGLE_CLIENT_SECRET` is sensitive — ask a team member or find it in the
-  Google Cloud Console under the OAuth 2.0 client for this project.
+  Google Cloud Console under the OAuth 2.0 client for this project. It is the
+  only value here you cannot produce yourself, and you can leave it blank: set
+  `VITE_DEV_LOGIN=true` in Step 2 and sign in as the demo player instead.
 - `GH_APP_PRIVATE_KEY` backs the in-app problem report form (`/report`), which opens an
   issue on `FantasyWiki/FantasyWiki` as `FantasyWiki[bot]`. **Leave it unset unless you are
   working on that form** — every submission with a valid key files a **real** issue (labelled
@@ -62,6 +79,8 @@ GH_APP_PRIVATE_KEY=<optional; only needed to exercise the problem report form>
 
   In CI it is a **GitHub Actions secret** of the same name, pushed to the Worker by the deploy
   workflow — not a `wrangler secret put`.
+- **Nothing in this file is a Cloudflare credential.** Workers AI is bound to the Worker rather than
+  keyed, which is why it is switched off by environment rather than by secret.
 
 ---
 
@@ -72,6 +91,7 @@ Create the file at `FantasyWiki/frontend/.env.local` with the following content:
 ```ini
 VITE_BACKEND_URL=http://127.0.0.1:8787
 VITE_MOCK=true
+# VITE_DEV_LOGIN=true
 ```
 
 **Notes:**
@@ -80,6 +100,13 @@ VITE_MOCK=true
 - `VITE_MOCK=true` enables MSW (Mock Service Worker), which intercepts all API
   calls except `/api/session` and `/auth/*`, which pass through to the real
   local backend.
+- `VITE_DEV_LOGIN=true` puts a **Continue as demo player** button on the login
+  screen, which mints the same session Google would without going near Google —
+  so you can leave `GOOGLE_CLIENT_SECRET` blank and skip Step 3 entirely. The
+  button only exists in a build started with the variable set, and the backend
+  answers `/auth/dev` with a 404 unless it is running as `--env local`, so
+  neither side relies on the other. It is what the containers use; see
+  [Running FantasyWiki in Docker](./docker-local-dev.md).
 
 ---
 
@@ -105,7 +132,7 @@ Open two terminals:
 ```bash
 # Terminal 1 — backend
 cd backend
-npx wrangler dev
+npm run dev          # wrangler dev --env local
 # Should print: Ready on http://127.0.0.1:8787
 ```
 
@@ -123,6 +150,40 @@ Or from the project root using Gradle:
 ```
 
 Wait for both "Ready" messages before opening the browser.
+
+---
+
+## Running Without a Cloudflare Account
+
+`npm run dev` (and `./gradlew dev` / `devMock`) starts the Worker on the `local`
+environment, which **declares no Workers AI binding**. That is deliberate:
+Workers AI has no local simulator, so the binding's mere presence makes Wrangler
+open a remote proxy session and ask you to log in to Cloudflare. With it
+declared, a fresh clone could not start the backend at all — the whole app held
+up by one optional feature.
+
+The consequence is visible in exactly one place: the **Article Genie** button
+next to the market's search bar is not rendered. The backend reports the feature
+off on `GET /api/session` and the frontend hides both the trigger and the panel,
+so there is no broken button to click. Everything else — leagues, the market,
+formations, scoring — behaves normally.
+
+### Turning the Genie on
+
+Only needed if you are working on the Genie itself. It requires a Cloudflare
+account, and every question spends part of the day's shared neuron allocation.
+
+```bash
+wrangler login          # once
+cd backend && npm run dev:genie
+```
+
+That runs the `local-genie` environment — `local` plus the `ai` binding. It uses
+the same local D1 data as `local`, so no re-migration is needed when switching
+between them.
+
+See [Article Genie LLM Integration](../architecture/article-genie-llm.md) for how
+the flag propagates from the binding to the button.
 
 ---
 
@@ -158,10 +219,14 @@ so those requests reach the real Wrangler backend. Everything else is mocked.
 | `ERR_SSL_PROTOCOL_ERROR` | `VITE_BACKEND_URL` missing `http://` prefix | Add `http://` explicitly in `.env.local` |
 | `redirect_uri_mismatch` | Local URI not registered in Google Console | Follow Step 3 above |
 | `401` on `/api/session` | `FRONTEND_URL` in `.dev.vars` still points to production | Check `.dev.vars` exists inside `backend/` and restart Wrangler |
-| Backend not reachable | Wrangler not running or wrong port | Run `npx wrangler dev` and check the port in the log |
+| Backend not reachable | Wrangler not running or wrong port | Run `npm run dev` in `backend/` and check the port in the log |
 | Cookie not sent | Browser privacy settings blocking cookies | Use Chrome/Firefox, disable aggressive privacy extensions during dev |
+| Wrangler asks you to log in to Cloudflare | You started the `local-genie` env (or added an `ai` binding to `local`) | Use `npm run dev` — the Genie is optional, see above |
+| No Genie button in the market | Expected on `npm run dev` | Nothing to fix; `npm run dev:genie` if you need it |
 
 ## Related
 
 - [Deploy Strategy & Branch Policy](../deployment/deploy-strategy.md)
 - [NPM Script Naming Convention](./npm-script-naming.md)
+- [Article Genie LLM Integration](../architecture/article-genie-llm.md)
+- [Running FantasyWiki in Docker](./docker-local-dev.md)

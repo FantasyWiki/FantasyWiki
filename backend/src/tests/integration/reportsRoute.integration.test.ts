@@ -13,6 +13,7 @@ import reports from "../../routes/reports";
 import { PlayerService } from "../../services/player";
 import { injectDeps } from "../support/injectDeps";
 import { repositories } from "../support/target";
+import { aWindowWithRoomToSpendIt } from "../support/rateLimitWindow";
 
 // The route builds a real GitHubAppClient, so the only way to keep it off the
 // network is to replace global fetch — this pool ignores vi.mock and does not
@@ -194,6 +195,7 @@ describe("POST /api/reports", () => {
     });
 
     // The binding allows 3 per 60s per player.
+    await aWindowWithRoomToSpendIt();
     for (let i = 0; i < 3; i++) {
       expect((await post(app, VALID_REPORT)).status).toBe(201);
     }

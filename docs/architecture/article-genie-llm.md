@@ -242,6 +242,38 @@ a tap. That keeps the injection surface to one clamped field.
 - **Redirect titles.** `prop=links` returns targets as written (`"ArXiv (identifier)"`), so link
   data must be resolved to canonical titles before matching against article titles.
 
+## Optional by construction
+
+The Genie is the only feature that needs a Cloudflare account, so a deployment without one carries
+no trace of it rather than a button that can only fail.
+
+The `local` environment in `wrangler.jsonc` therefore declares **no `ai` binding**, for the same
+reason `test` doesn't: Workers AI has no local simulator, so the binding's mere presence makes
+Wrangler open a remote proxy session and demand credentials. Declaring it would mean a fresh clone
+cannot start the Worker *at all* — the whole app held hostage by one optional feature. `npm run
+dev:genie` (the `local-genie` environment) is the opt-in for whoever is actually working on it.
+
+The absence then propagates in one direction, from the binding outwards:
+
+| Layer | Behaviour when `env.AI` is undefined |
+|-------|--------------------------------------|
+| `GET /api/session` | `features.articleGenie: false` |
+| `POST /api/me/genie-seeds`, `/genie-turns` | 503 `GENIE_ASLEEP`, checked *before* the rate limiter so a build that never offers the feature cannot spend the player's quota on it |
+| `MarketPage.vue` | No trigger button and no modal — the app store's `isArticleGenieAvailable` gates both |
+
+Two points of design, both deliberate:
+
+- **The flag is read off the binding, not off a var.** A deployment cannot claim a capability it
+  has no credentials for, so config and reality cannot drift apart.
+- **It rides on the session** rather than on a `/api/features` route of its own, because
+  `/api/session` is the one `/api/*` path MSW passes through to the real backend
+  (`frontend/src/mocks/handlers.ts`). In `devMock` — the mode someone running the app for the first
+  time uses — a dedicated route would be answered by a handler that cannot know what the Worker is
+  bound to.
+
+The reuse of `GENIE_ASLEEP` is not laziness: quota exhaustion and an unbound model mean the same
+thing to a player, and the frontend already dismisses that code to the ordinary search bar.
+
 ## Testing
 
 - **Backend** — inject a stub `LlmClient`; never rely on `vi.mock` under the Workers pool.
@@ -252,6 +284,9 @@ a tap. That keeps the injection surface to one clamped field.
   `CLOUDFLARE_API_TOKEN` — which CI, running `./gradlew check`, does not have. With the binding
   declared the *entire* backend suite fails to start, not just the Genie's tests. Route tests supply
   `env.AI` themselves, which is what they should do anyway.
+- **A deployment with no binding at all is itself a case to cover.** `test` omits `ai`, so a
+  route test that simply doesn't stub `env.AI` *is* that deployment — see
+  `genieRoute.integration.test.ts` and `routes/session.spec.ts`.
 - **Frontend** — MSW with `onUnhandledRequest: "error"`, per `frontend/src/tests/setup.ts`.
   Cover: seeding merge and dedupe, ranking order, the asleep popup, and dismissal to the search
   bar.

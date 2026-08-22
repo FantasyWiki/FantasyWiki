@@ -1,0 +1,22 @@
+# Copy to `backend/.dev.vars` and fill in. That file is gitignored; this one is
+# the checked-in shape of it. See docs/development/local-dev-setup.md.
+
+# Public — the project's Google OAuth client. Safe to keep as-is.
+GOOGLE_CLIENT_ID=457796621894-7krpa8n09mekpj2cdd952jjkf1c3ookt.apps.googleusercontent.com
+
+# Sensitive — ask a team member, or use your own Google OAuth client.
+GOOGLE_CLIENT_SECRET=
+
+# Any random string of 32+ characters. Generate one with:
+#   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+JWT_SECRET=
+
+FRONTEND_URL=localhost:5173
+
+# Optional — only to work on the problem report form at /report. Every
+# submission with a valid key files a real issue on the tracker.
+# GH_APP_PRIVATE_KEY=
+
+# Nothing here is a Cloudflare credential. The Article Genie is the one feature
+# that needs a Cloudflare account, and `npm run dev` leaves it switched off —
+# `npm run dev:genie` is the opt-in.

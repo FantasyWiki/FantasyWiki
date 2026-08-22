@@ -71,6 +71,7 @@ describe("NavBar.vue", () => {
       name: "Test User",
       email: "test@example.com",
       picture: "https://example.com/avatar.png",
+      features: { articleGenie: false },
     };
 
     const wrapper = mount(NavBar, {
@@ -114,6 +115,7 @@ describe("NavBar.vue", () => {
       name: "Test User",
       email: "test@example.com",
       picture: "https://example.com/avatar.png",
+      features: { articleGenie: false },
     };
     await flushPromises();
 

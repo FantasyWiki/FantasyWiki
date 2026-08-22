@@ -54,6 +54,7 @@ describe("SettingsMenu.vue", () => {
       name: "Test User",
       email: "test@example.com",
       picture: "https://example.com/avatar.png",
+      features: { articleGenie: false },
     };
     expect(mountMenu(pinia).find(".account-row").exists()).toBe(true);
   });
@@ -73,6 +74,7 @@ describe("SettingsMenu.vue", () => {
       email: "player@example.com",
       name: "Player One",
       picture: "",
+      features: { articleGenie: false },
     });
     const wrapper = mountMenu(pinia);
     // The row hands over a page to read; replaying the guided tour is a

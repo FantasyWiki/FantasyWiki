@@ -19,6 +19,7 @@ import { REFERENCE_SCALE } from "../../../../model/languageScale";
 import { unwrap } from "../../repositories/result";
 import { aLeague, aPlayer } from "../support/subjects";
 import { repositories } from "../support/target";
+import { aWindowWithRoomToSpendIt } from "../support/rateLimitWindow";
 import type { League } from "../../../../model";
 
 const CODE = "ZK7QW";
@@ -247,6 +248,7 @@ describe("the join rate limit", () => {
   });
 
   it("stops a caller grinding the resolve endpoint", async () => {
+    await aWindowWithRoomToSpendIt();
     for (let i = 0; i < RATE_LIMIT; i++) {
       expect((await resolve(app, OTHER_CODE)).status).toBe(404);
     }
@@ -265,6 +267,7 @@ describe("the join rate limit", () => {
    * shared namespace would be an unenforced comment without this.
    */
   it("spends one budget across resolving and redeeming", async () => {
+    await aWindowWithRoomToSpendIt();
     for (let i = 0; i < RATE_LIMIT; i++) {
       expect((await resolve(app, OTHER_CODE)).status).toBe(404);
     }
@@ -284,6 +287,7 @@ describe("the join rate limit", () => {
     // Signup and the public-league shelf both post without a code, and neither
     // is a guessing surface — a codeless join learns only "this league is
     // private", which is the same sentence for every private league there is.
+    await aWindowWithRoomToSpendIt();
     for (let i = 0; i < RATE_LIMIT; i++) {
       expect((await resolve(app, OTHER_CODE)).status).toBe(404);
     }

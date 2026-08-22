@@ -14,7 +14,14 @@ interface RateLimiter {
 }
 
 type Bindings = {
-  AI: WorkersAiBinding;
+  /**
+   * Optional because the `local` environment deliberately leaves the Workers AI
+   * binding out (see `wrangler.jsonc`): it has no local simulator, so declaring
+   * it would make `wrangler dev` demand Cloudflare credentials that a fresh
+   * clone has none of, and the whole Worker would fail to start over one
+   * optional feature. Where it is absent the Genie is simply asleep.
+   */
+  AI?: WorkersAiBinding;
   GENIE_RATE_LIMITER: RateLimiter;
 };
 
@@ -43,6 +50,21 @@ const VALIDATION_ERRORS: string[] = [
 ];
 
 /**
+ * A deployment without the Workers AI binding has no genie to wake. Checked
+ * before the rate limiter so a build that never offers the feature cannot spend
+ * the player's budget on it, and answered with `ASLEEP` because that is what
+ * the absence means to a player — the same code quota exhaustion already
+ * returns, and the same one the frontend already knows how to dismiss.
+ *
+ * Belt and braces: `GET /api/session` reports the same fact as a feature flag
+ * and the frontend hides the Genie's entry point, so this should be unreachable
+ * from the app itself.
+ */
+function llmFor(ai: WorkersAiBinding | undefined) {
+  return ai === undefined ? undefined : createLlmClient(ai);
+}
+
+/**
  * Reads the player's opening text into the searches that seed the candidate
  * set, so the browser can go and run them.
  *
@@ -52,6 +74,11 @@ const VALIDATION_ERRORS: string[] = [
  * about articles *describing* OpenAI rather than ones relating it to Portugal.
  */
 me.post("/genie-seeds", currentPlayer, async (c) => {
+  const llm = llmFor(c.env.AI);
+  if (llm === undefined) {
+    return c.json({ error: GENIE_ERRORS.ASLEEP }, 503);
+  }
+
   const { success } = await c.env.GENIE_RATE_LIMITER.limit({
     key: c.var.player.id,
   });
@@ -66,7 +93,7 @@ me.post("/genie-seeds", currentPlayer, async (c) => {
     return c.json({ error: GENIE_ERRORS.MALFORMED_BODY }, 400);
   }
 
-  const service = new ArticleGenieService(createLlmClient(c.env.AI));
+  const service = new ArticleGenieService(llm);
   const result = await service.seed(request);
 
   if (!result.ok) {
@@ -88,6 +115,11 @@ me.post("/genie-seeds", currentPlayer, async (c) => {
  * real ceiling, and it fails closed on its own.
  */
 me.post("/genie-turns", currentPlayer, async (c) => {
+  const llm = llmFor(c.env.AI);
+  if (llm === undefined) {
+    return c.json({ error: GENIE_ERRORS.ASLEEP }, 503);
+  }
+
   const { success } = await c.env.GENIE_RATE_LIMITER.limit({
     key: c.var.player.id,
   });
@@ -102,7 +134,7 @@ me.post("/genie-turns", currentPlayer, async (c) => {
     return c.json({ error: GENIE_ERRORS.MALFORMED_BODY }, 400);
   }
 
-  const service = new ArticleGenieService(createLlmClient(c.env.AI));
+  const service = new ArticleGenieService(llm);
   const result = await service.takeTurn(request);
 
   if (!result.ok) {

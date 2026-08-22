@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { jwt } from "hono/jwt";
 import { Temporal } from "@js-temporal/polyfill";
 import auth, { resolveFrontendUrl } from "./routes/auth";
+import devAuth from "./routes/devAuth";
 import session from "./routes/session";
 import leagues from "./routes/leagues";
 import notifications from "./routes/notifications";
@@ -33,7 +34,9 @@ type Bindings = {
   REPORT_RATE_LIMITER: {
     limit(o: { key: string }): Promise<{ success: boolean }>;
   };
-  AI: WorkersAiBinding;
+  // Optional: the `local` env leaves Workers AI unbound so a clone with no
+  // Cloudflare credentials can still boot (see `wrangler.jsonc`).
+  AI?: WorkersAiBinding;
   GENIE_RATE_LIMITER: {
     limit(o: { key: string }): Promise<{ success: boolean }>;
   };
@@ -68,6 +71,11 @@ app.get("/", (c) => {
 
 // Mount auth routes
 app.route("/auth", auth);
+
+// Signing in without Google, refused unless ENVIRONMENT is "local". Mounted
+// beside the Google flow because it produces the identical session — see
+// routes/devAuth.ts.
+app.route("/auth", devAuth);
 
 // Internal routes for the scoring engine — service-token auth (not user JWT),
 // so mounted outside the /api/* Google-JWT guard (docs/architecture/scoring-pipeline.md).

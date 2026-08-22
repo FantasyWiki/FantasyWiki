@@ -84,7 +84,12 @@
               "
               :debounce="200"
             />
-            <ion-button fill="outline" class="genie-trigger" @click="openGenie">
+            <ion-button
+              v-if="isArticleGenieAvailable"
+              fill="outline"
+              class="genie-trigger"
+              @click="openGenie"
+            >
               <ion-icon slot="start" :icon="sparklesOutline" />
               {{ t("market.genie.trigger") }}
             </ion-button>
@@ -396,6 +401,7 @@
     <!-- /page-container -->
 
     <article-genie
+      v-if="isArticleGenieAvailable"
       :is-open="isGenieOpen"
       @results="onGenieResults"
       @close="closeGenie"
@@ -450,6 +456,8 @@ import NavBar from "@/layout/NavBar.vue";
 import PageReveal from "@/components/PageReveal.vue";
 import ArticleDetail from "@/components/ArticleDetail.vue";
 import ArticleGenie from "@/components/ArticleGenie.vue";
+import { storeToRefs } from "pinia";
+import { useAppStore } from "@/stores/app";
 import { useLeagueStore } from "@/stores/league";
 import {
   useMarket,
@@ -503,6 +511,11 @@ const {
   setGenieResults,
   ITEMS_PER_PAGE,
 } = useMarket();
+
+// The Article Genie is optional: a backend with no Workers AI binding says so
+// on the session, and the market then shows no trace of it rather than a button
+// that can only report the genie asleep (docs/development/local-dev-setup.md).
+const { isArticleGenieAvailable } = storeToRefs(useAppStore());
 
 // A full modal, owned by the component itself (as ArticleDetail does). The
 // session behind it survives being dismissed, so this is only visibility.

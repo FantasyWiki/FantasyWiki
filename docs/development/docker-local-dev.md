@@ -5,6 +5,7 @@ tags: [docker, compose, setup, onboarding, ghcr]
 related:
   - "[[local-dev-setup]]"
   - "[[article-genie-llm]]"
+  - "[[scoring-pipeline]]"
   - "[[deploy-strategy]]"
 ---
 
@@ -63,6 +64,36 @@ missing.
 
 ---
 
+## What Docker is not for
+
+Compose is a **development** convenience, and it cannot become a deployment
+target: the frontend is a Cloudflare Pages project and the backend a Worker,
+both serverless. Nothing in production runs a container of this app, so no
+`compose.yaml` here is ever `up` anywhere but a laptop. The one image the
+project does ship — the Kotlin scoring collector — is not part of this stack;
+it is [below](#publishing-images).
+
+Two things are missing from the image, and they are missing for different
+reasons. It carries Node but no JDK — the bind mount puts `gradlew` right there
+in `/workspace` with nothing behind it — and it is given no Cloudflare
+credentials, by design, since not needing any is the whole point.
+
+| | In a container | Natively |
+|---|---|---|
+| Run it, click around, sign in | ✅ | ✅ |
+| Edit code with hot reload | ✅ | ✅ |
+| `npm test` / `lint` / `format`, per subproject | ✅ | ✅ |
+| `wrangler dev`, local D1 migrations, `cf-typegen` | ✅ | ✅ |
+| `./gradlew check --parallel` — the PR gate | ❌ no JDK | ✅ |
+| `wrangler deploy`, `db:migrate:remote` | ❌ no credentials | ✅ |
+
+So: **containers to run FantasyWiki, the native toolchain to ship it.** Anyone
+opening a PR needs the second as well, which is what
+[Local Development Setup](./local-dev-setup.md) installs — and that path needs
+no Cloudflare account either, only a JDK.
+
+---
+
 ## The two modes
 
 Both publish the same ports, so nothing about the app's URLs changes between
@@ -76,7 +107,8 @@ docker compose up
 
 The repository is bind-mounted, so an edit on the host restarts Wrangler and
 hot-reloads Vite. This is the mode for a collaborator who wants to write code
-without installing the toolchain.
+and run the suites without installing Node — up to the point where a PR needs
+`./gradlew check`.
 
 ### Demo — built, no hot reload
 
@@ -194,10 +226,21 @@ docker build -f docker/scoring-collector.Dockerfile -t scoring-collector .
 Adding the backend and frontend demo images is one more entry in that workflow's
 matrix, the day someone wants `docker compose pull` instead of a local build.
 
+### Running the collector
+
+Publishing an image rather than building from source at run time buys two
+things: the nightly scores exactly the artefact that passed `check` for master,
+and **the nightly does not have to run on a GitHub runner at all**. Any host
+that can pull the image and set three environment variables can own the day
+instead. Both routes, the command each takes, and the repository variable that
+hands over between them are in
+[Nightly Scoring Pipeline](../architecture/scoring-pipeline.md#what-runs-and-where).
+
 ---
 
 ## Related
 
 - [Local Development Setup](./local-dev-setup.md) — running it without Docker
 - [Article Genie LLM Integration](../architecture/article-genie-llm.md) — why the Genie is optional
+- [Nightly Scoring Pipeline](../architecture/scoring-pipeline.md) — where the published image is actually run
 - [Deploy Strategy & Branch Policy](../deployment/deploy-strategy.md)

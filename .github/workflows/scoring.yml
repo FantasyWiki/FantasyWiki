@@ -70,13 +70,19 @@ jobs:
           if [ -n "$date_arg" ]; then
             args+=("--date=$date_arg")
           fi
+          # Docker refuses a repository name with an uppercase letter in it, and
+          # the owner here is `FantasyWiki`. publish-images.yml never trips on
+          # this because docker/metadata-action lowercases the name for you;
+          # this step talks to the daemon directly, so it has to do it itself.
+          owner="${{ github.repository_owner }}"
+          image="ghcr.io/${owner,,}/scoring-collector:latest"
           # `-e NAME` with no value forwards this step's environment, which keeps
           # the ingest secret off a command line any process listing could read.
           docker run --rm \
             -e BACKEND_URL \
             -e SCORING_INGEST_SECRET \
             -e WIKIMEDIA_USER_AGENT \
-            "ghcr.io/${{ github.repository_owner }}/scoring-collector:latest" "${args[@]}"
+            "$image" "${args[@]}"
         env:
           # Production backend Worker; the URL is public (see deploy-strategy.md).
           BACKEND_URL: https://backend.luca0patrignani.workers.dev

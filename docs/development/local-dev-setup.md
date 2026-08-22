@@ -63,7 +63,9 @@ GH_APP_PRIVATE_KEY=<optional; only needed to exercise the problem report form>
   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
   ```
 - `GOOGLE_CLIENT_SECRET` is sensitive — ask a team member or find it in the
-  Google Cloud Console under the OAuth 2.0 client for this project.
+  Google Cloud Console under the OAuth 2.0 client for this project. It is the
+  only value here you cannot produce yourself, and you can leave it blank: set
+  `VITE_DEV_LOGIN=true` in Step 2 and sign in as the demo player instead.
 - `GH_APP_PRIVATE_KEY` backs the in-app problem report form (`/report`), which opens an
   issue on `FantasyWiki/FantasyWiki` as `FantasyWiki[bot]`. **Leave it unset unless you are
   working on that form** — every submission with a valid key files a **real** issue (labelled
@@ -89,6 +91,7 @@ Create the file at `FantasyWiki/frontend/.env.local` with the following content:
 ```ini
 VITE_BACKEND_URL=http://127.0.0.1:8787
 VITE_MOCK=true
+# VITE_DEV_LOGIN=true
 ```
 
 **Notes:**
@@ -97,6 +100,13 @@ VITE_MOCK=true
 - `VITE_MOCK=true` enables MSW (Mock Service Worker), which intercepts all API
   calls except `/api/session` and `/auth/*`, which pass through to the real
   local backend.
+- `VITE_DEV_LOGIN=true` puts a **Continue as demo player** button on the login
+  screen, which mints the same session Google would without going near Google —
+  so you can leave `GOOGLE_CLIENT_SECRET` blank and skip Step 3 entirely. The
+  button only exists in a build started with the variable set, and the backend
+  answers `/auth/dev` with a 404 unless it is running as `--env local`, so
+  neither side relies on the other. It is what the containers use; see
+  [Running FantasyWiki in Docker](./docker-local-dev.md).
 
 ---
 

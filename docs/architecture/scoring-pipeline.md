@@ -161,7 +161,43 @@ The workflow runs the collector as the **container image** published to GHCR by
 Gradle build of the checked-out source. No checkout, no JDK, and the nightly
 scores exactly the artefact that was published for master.
 
-Whether *this* workflow runs it at all is a repository-variable decision:
+That is also what makes the *where* replaceable. The collector is a stateless
+single-shot process — three environment variables in, HTTP out, exit code as
+the verdict — so anything that can pull an image and run it on a timer can be
+the scheduler. There are two supported ones.
+
+**Option 1 — a GitHub runner. The default, and what runs today.** Nothing to
+set up: `schedule:` fires it and the `production` Environment selects the right
+ingest secret.
+
+**Option 2 — anywhere that can run a container.** Set the repository variable
+`SCORING_RUNNER=external` so this workflow stands down, then run the same image
+on your own timer:
+
+```bash
+docker run --rm \
+  -e BACKEND_URL=https://backend.luca0patrignani.workers.dev \
+  -e SCORING_INGEST_SECRET \
+  -e WIKIMEDIA_USER_AGENT="FantasyWiki/1.0 (https://fantasywiki.pages.dev; you@example.com)" \
+  ghcr.io/fantasywiki/scoring-collector:sha-<short> \
+  --date=2026-08-21
+```
+
+- **`--date` is optional** and defaults to the last completed UTC day. Pass it
+  only to backfill.
+- **`-e SCORING_INGEST_SECRET` carries no value on purpose.** That form
+  forwards the variable from the calling environment, keeping the secret off a
+  command line any process listing could read. The other two are public.
+- **Pin `sha-<short>`, not `latest`.** An external scheduler following `latest`
+  changes collector on every master merge without anyone deciding to; the sha
+  tag is the one a rollback can name.
+- **Pulling needs `read:packages`** unless the package is public. `scoring.yml`
+  gets away with the automatic `GITHUB_TOKEN`, which nothing outside Actions
+  has — an external host needs its own token.
+- Schedule it after ~05:00 UTC, for the AQS reason below, and keep only one
+  scheduler live.
+
+The switch itself:
 
 | `SCORING_RUNNER` | The nightly |
 |---|---|
@@ -255,4 +291,5 @@ platform is revisited.
 - [ADR 0004: Scoring Engine Platform](../adr/0004-scoring-engine-platform.md) — superseded in part, see Divergence
 - [Backend Architecture](./backend-architecture.md) — the layering `/internal` sits in
 - [Wikimedia Client Architecture](./wikimedia-client-architecture.md) — the *frontend/backend* Wikimedia client, separate from the collector's
+- [Running FantasyWiki in Docker](../development/docker-local-dev.md) — the workflow that publishes the collector image
 - [Deploy Strategy](../deployment/deploy-strategy.md) — which backend the workflow targets

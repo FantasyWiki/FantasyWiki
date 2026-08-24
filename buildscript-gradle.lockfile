@@ -2,8 +2,8 @@
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
 # To regenerate this file, run: ./gradlew dependencies --write-locks
-com.dorongold.plugins:task-tree:4.0.1=classpath
-com.dorongold.task-tree:com.dorongold.task-tree.gradle.plugin:4.0.1=classpath
+com.dorongold.plugins:task-tree:4.0.2=classpath
+com.dorongold.task-tree:com.dorongold.task-tree.gradle.plugin:4.0.2=classpath
 com.fasterxml.jackson.core:jackson-annotations:2.14.2=classpath
 com.fasterxml.jackson.core:jackson-core:2.14.2=classpath
 com.fasterxml.jackson.core:jackson-databind:2.14.2=classpath

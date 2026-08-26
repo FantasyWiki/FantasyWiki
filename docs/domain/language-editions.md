@@ -25,33 +25,27 @@ The rules themselves are stated once, in
 implemented in `model/languageScale.ts`. What is here is the evidence: what was
 measured, when, and which design choices the numbers forced.
 
-## The cheap route, and why it is trustworthy
+## How the views are gathered, and why the aggregate is trustworthy
 
-`L` needs each edition's 30-day-average views for ranks 1..500. There are two ways
-to get them:
+`L` needs each edition's 30-day-average views for ranks 1..500. It reads **30
+daily `/top` lists and aggregates them per title** — about 31 requests per
+edition — because each daily response already carries view counts for up to
+1,000 titles. Nothing is fetched per article.
 
-| route | requests per edition |
-| --- | --- |
-| one `/top` list → 500 titles → one `/per-article` 30-day series each | ~501 |
-| 30 daily `/top` lists, aggregated per title | ~31 |
+Aggregating a list is not the same measurement as asking for a title's own
+30-day series, so it was checked against one. **Over the same window
+(2026-07-17 … 2026-08-15), `en` vs `it`:**
 
-ADR 0002 assumed the first and concluded calibration was "too much work to run
-synchronously inside a single request/Worker invocation". The second gets the same
-answer because each daily `/top` response already carries view counts for up to
-1,000 titles.
-
-**Measured over the same 30-day window (2026-07-17 … 2026-08-15), `en` vs `it`:**
-
-| ranks compared | cheap route | expensive route | difference |
+| ranks compared | aggregated daily lists | per-title series | difference |
 | --- | --- | --- | --- |
 | K = 50 | 10.85 | 10.76 | 0.8% |
 | K = 100 | 11.00 | 10.96 | 0.4% |
 | K = 150 | 11.29 | 11.14 | 1.3% |
 | **K = 500** (the locked rank count) | **11.54** | **11.53** | **0.1%** |
 
-The cheap route is validated at the rank count the formula actually uses. That is
-the whole justification for calibrating synchronously inside league creation
-instead of behind a Cloudflare Workflow.
+They agree to 0.1% at the rank count the formula actually uses, which is what
+makes 31 requests inside league creation an honest measurement rather than a
+shortcut.
 
 ### Why the truncation does not bite
 
@@ -60,7 +54,7 @@ contributes nothing for those days. The daily cutoff is not small — a median o
 **7,883 views/day** for `en` and **704** for `it` — and only 200 of `en`'s top 500
 window-ranked titles appear on all 30 days. So the undercount is real:
 
-| | median cheap/true mean, top 500 |
+| | median aggregated/true mean, top 500 |
 | --- | --- |
 | `en` | 0.970 |
 | `it` | 0.952 |

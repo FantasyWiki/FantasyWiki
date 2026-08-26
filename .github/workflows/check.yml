@@ -22,6 +22,17 @@ jobs:
       - name: Check
         run: ./gradlew check
 
+      # `check` already depends on koverXmlReport, so this costs nothing but the
+      # upload. The documentation build reads it to draw the collector's bar.
+      - name: Publish the collector's coverage for the docs build
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-scoring-collector
+          path: scoring-collector/build/reports/kover/report.xml
+          if-no-files-found: warn
+          retention-days: 7
+
   success:
     runs-on: ubuntu-24.04
     needs:

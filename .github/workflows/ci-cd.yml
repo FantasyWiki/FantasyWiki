@@ -15,8 +15,51 @@ jobs:
       github.event_name != 'pull_request'
       || github.event.pull_request.head.repo.full_name == github.repository
       || startsWith(github.head_ref, 'dependabot/')
+    outputs:
+      docs: ${{ steps.touched.outputs.docs }}
     steps:
       - run: 'true'
+
+      # Whether this push touched anything the documentation site is built
+      # from. Answered through the compare API rather than a checkout plus a
+      # path-filter action: the dispatcher already runs on every push, and this
+      # adds a couple of seconds to it instead of a whole extra job.
+      #
+      # Anything it cannot answer — a first push to a branch, a manual run —
+      # counts as touched. Publishing an unchanged site costs two minutes;
+      # skipping a changed one ships stale documentation.
+      - name: Did this touch the docs?
+        id: touched
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        shell: bash
+        run: |
+          if [ -z "${BEFORE}" ] || [ "${BEFORE}" = "0000000000000000000000000000000000000000" ]; then
+            echo "docs=true" >> "$GITHUB_OUTPUT"
+            echo "No comparable base — treating the docs as touched."
+            exit 0
+          fi
+
+          files=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BEFORE}...${AFTER}" \
+            --jq '.files[].filename' 2>/dev/null) || {
+            echo "docs=true" >> "$GITHUB_OUTPUT"
+            echo "Compare failed — treating the docs as touched."
+            exit 0
+          }
+
+          # `docs/**` covers the site itself now that it lives at `docs/site`.
+          # `backend/openapi.yaml` is the one documentation file that lives
+          # outside `docs/`, next to the Worker it describes — the API reference
+          # is rendered from it, so a change to it has to republish the site.
+          if grep -qE '^(docs/|backend/openapi\.yaml|CONTEXT\.md|PRODUCT\.md|DESIGN\.md|AGENTS\.md|CLAUDE\.md|\.github/workflows/(docs|coverage)\.yml)' <<< "$files"; then
+            echo "docs=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "docs touched: $(tail -1 "$GITHUB_OUTPUT")"
+
   ci-cd:
     needs:
       - dispatcher
@@ -29,7 +72,7 @@ jobs:
   coverage:
     needs:
       - dispatcher
-    uses: ./.github/workflows/backend-coverage.yml
+    uses: ./.github/workflows/coverage.yml
     secrets: inherit
     permissions:
       contents: write
@@ -42,6 +85,21 @@ jobs:
     permissions:
       contents: write
       packages: write
+
+  # The technical documentation site. Behind the same gate as deploy, after
+  # coverage because the board it draws is built from that job's artifacts, and
+  # only when the push actually touched something the site is built from.
+  docs:
+    needs:
+      - dispatcher
+      - ci-cd
+      - coverage
+    if: needs.dispatcher.outputs.docs == 'true'
+    uses: ./.github/workflows/docs.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
 
   # Container images to GHCR, for the services Cloudflare does not host. Behind
   # the same gate as deploy — an image is only worth publishing for a revision

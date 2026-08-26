@@ -1,0 +1,387 @@
+/**
+ * The site wears the app's palette.
+ *
+ * Every value below comes from `DESIGN.md` and `frontend/src/theme/variables.css`
+ * — League Green for action, Wiki Gold for reward and prestige, paper-sage
+ * neutrals for everything else. Nothing here invents a colour: if the
+ * documentation and the product ever look like two different projects, this
+ * file is where they diverged.
+ */
+
+:root {
+  /* League Green — the core action colour. */
+  --fw-green: #1e7e50;
+  --fw-green-light: #358e62;
+  --fw-green-dark: #1a6f46;
+  --fw-green-bright: #3ab87a;
+
+  /* Wiki Gold — reward, ranking, prestige. An accent, never a fill. */
+  --fw-gold: #f5c842;
+  --fw-gold-dark: #d8b03a;
+
+  /* Paper and sage neutrals. */
+  --fw-paper: #fbfbf7;
+  --fw-surface: #f0f5f0;
+  --fw-ink: #171f1b;
+  --fw-muted: #737f73;
+  --fw-border: #cdd8cd;
+
+  --fw-danger: #eb445a;
+
+  /* Section identity — the Atlas, the cards and the sidebar all read from
+     these, so a section has one colour across the whole site. */
+  --fw-type-domain: #1e7e50;
+  --fw-type-architecture: #2f6f9e;
+  --fw-type-adr: #b4791f;
+  --fw-type-development: #7a5aa8;
+  --fw-type-deployment: #b45a3c;
+  --fw-type-agents: #5f7d8c;
+  --fw-type-charter: #4a6b57;
+  --fw-type-guide: #737f73;
+  --fw-type-index: #737f73;
+
+  --fw-radius-sm: 4px;
+  --fw-radius-md: 8px;
+  --fw-radius-lg: 16px;
+
+  --vp-font-family-base: "Source Sans 3", -apple-system, BlinkMacSystemFont,
+    "Helvetica Neue", Roboto, sans-serif;
+  --vp-font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+    monospace;
+}
+
+/* ── Light ─────────────────────────────────────────────────────────────── */
+
+:root {
+  --vp-c-brand-1: var(--fw-green);
+  --vp-c-brand-2: var(--fw-green-light);
+  --vp-c-brand-3: var(--fw-green);
+  --vp-c-brand-soft: rgba(30, 126, 80, 0.12);
+
+  --vp-c-bg: var(--fw-paper);
+  --vp-c-bg-alt: var(--fw-surface);
+  --vp-c-bg-soft: #f5f8f4;
+  --vp-c-bg-elv: #ffffff;
+
+  --vp-c-text-1: var(--fw-ink);
+  --vp-c-text-2: #4a564d;
+  --vp-c-text-3: var(--fw-muted);
+
+  --vp-c-divider: var(--fw-border);
+  --vp-c-gutter: var(--fw-border);
+  --vp-c-border: var(--fw-border);
+
+  --vp-c-tip-1: var(--fw-green);
+  --vp-c-tip-soft: rgba(30, 126, 80, 0.1);
+  --vp-c-warning-1: var(--fw-gold-dark);
+  --vp-c-warning-soft: rgba(245, 200, 66, 0.18);
+  --vp-c-danger-1: #c23a4c;
+  --vp-c-danger-soft: rgba(235, 68, 90, 0.12);
+
+  --vp-c-default-soft: rgba(115, 127, 115, 0.1);
+
+  --vp-code-block-bg: #f4f7f2;
+
+  --vp-home-hero-name-color: var(--fw-green);
+  --vp-button-brand-bg: var(--fw-green);
+  --vp-button-brand-hover-bg: var(--fw-green-dark);
+  --vp-button-brand-active-bg: var(--fw-green-dark);
+}
+
+/* ── Dark ──────────────────────────────────────────────────────────────── */
+
+.dark {
+  --vp-c-brand-1: var(--fw-green-bright);
+  --vp-c-brand-2: #52c98e;
+  --vp-c-brand-3: #2a8f5f;
+  --vp-c-brand-soft: rgba(58, 184, 122, 0.16);
+
+  --vp-c-bg: #111c16;
+  --vp-c-bg-alt: #0d1712;
+  --vp-c-bg-soft: #16231c;
+  --vp-c-bg-elv: #1a221d;
+
+  --vp-c-text-1: #f0f0ed;
+  --vp-c-text-2: #b8c4bb;
+  --vp-c-text-3: #8aa294;
+
+  --vp-c-divider: #24352b;
+  --vp-c-gutter: #24352b;
+  --vp-c-border: #2c4033;
+
+  --vp-c-tip-1: var(--fw-green-bright);
+  --vp-c-warning-1: var(--fw-gold);
+  --vp-c-danger-1: #ff7183;
+
+  --vp-code-block-bg: #0d1712;
+
+  --fw-type-domain: #4fc98c;
+  --fw-type-architecture: #6aa9d8;
+  --fw-type-adr: #e0ac4e;
+  --fw-type-development: #ab8fd6;
+  --fw-type-deployment: #e08b6a;
+  --fw-type-agents: #8ab0c0;
+  --fw-type-charter: #8fb79e;
+  --fw-type-guide: #8aa294;
+  --fw-type-index: #8aa294;
+}
+
+/* ── Typography ────────────────────────────────────────────────────────── */
+
+/**
+ * Libre Baskerville for the headings, Source Sans 3 for everything a reader
+ * scans. `DESIGN.md` calls it the Editorial-Gameplay Pairing: the serif says
+ * "knowledge", the sans keeps the data legible.
+ */
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3,
+.VPHero .name,
+.VPHero .text,
+.fw-serif {
+  font-family: "Libre Baskerville", Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+.vp-doc h1 {
+  font-size: clamp(2rem, 4vw, 2.6rem);
+  line-height: 1.15;
+}
+
+.vp-doc h2 {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--vp-c-divider);
+  font-size: 1.5rem;
+}
+
+.vp-doc h3 {
+  font-size: 1.15rem;
+}
+
+.vp-doc p,
+.vp-doc li {
+  line-height: 1.68;
+}
+
+.vp-doc blockquote {
+  border-left: 3px solid var(--fw-gold);
+  background: var(--vp-c-bg-soft);
+  border-radius: 0 var(--fw-radius-sm) var(--fw-radius-sm) 0;
+  padding: 0.1rem 1rem;
+}
+
+.vp-doc table {
+  display: table;
+  width: 100%;
+}
+
+.vp-doc tr:nth-child(2n) {
+  background: var(--vp-c-bg-soft);
+}
+
+.vp-doc th {
+  background: var(--vp-c-bg-alt);
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-2);
+}
+
+/* Wide content scrolls inside itself rather than pushing the page sideways. */
+.vp-doc div[class*="language-"],
+.vp-doc .table-wrapper {
+  border-radius: var(--fw-radius-md);
+  overflow-x: auto;
+}
+
+/* ── Chrome ────────────────────────────────────────────────────────────── */
+
+.VPNavBar.has-sidebar .content-body,
+.VPNavBar .divider {
+  background: transparent;
+}
+
+.VPSidebarItem.level-0 > .item > .text {
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-3);
+  font-weight: 600;
+}
+
+.VPFooter {
+  border-top: 1px solid var(--vp-c-divider);
+  background: var(--vp-c-bg-alt);
+}
+
+.VPFooter .message,
+.VPFooter .copyright {
+  font-size: 0.78rem;
+}
+
+/* ── Shared component surfaces ─────────────────────────────────────────── */
+
+.fw-card {
+  display: block;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: var(--fw-radius-md);
+  background: var(--vp-c-bg-elv);
+  text-decoration: none !important;
+  color: inherit;
+  transition:
+    border-color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+a.fw-card:hover {
+  border-color: var(--vp-c-brand-1);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(23, 31, 27, 0.08);
+}
+
+.fw-grid {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  margin: 1.5rem 0;
+}
+
+.fw-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-3);
+}
+
+/* A tag chip, tinted by the section it belongs to. */
+.fw-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--vp-c-default-soft);
+  color: var(--vp-c-text-2);
+  white-space: nowrap;
+}
+
+.fw-chip[data-type] {
+  color: var(--fw-chip-color, var(--vp-c-text-2));
+  background: color-mix(in srgb, var(--fw-chip-color, var(--fw-muted)) 14%, transparent);
+}
+
+/* ── Mermaid ───────────────────────────────────────────────────────────── */
+
+.fw-mermaid {
+  margin: 1.6rem 0;
+  padding: 1.1rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: var(--fw-radius-md);
+  background: var(--vp-c-bg-elv);
+  overflow-x: auto;
+  text-align: center;
+}
+
+.fw-mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/*
+ * Wide enough that fewer diagrams have to scroll.
+ *
+ * A doc page leaves 73px of empty gutter to the left of the prose column and
+ * 104px to the right of it before the outline starts (measured at 1440px and
+ * up; below that the gutters close and this rule stays off). Taking most of it
+ * for the figure alone widens every diagram by a quarter without moving a word
+ * of prose or touching the outline.
+ */
+@media (min-width: 1440px) {
+  .vp-doc .fw-mermaid {
+    margin-left: -3.5rem;
+    margin-right: -5rem;
+  }
+}
+
+.fw-mermaid--error {
+  border-color: var(--vp-c-danger-1);
+  text-align: left;
+}
+
+/* ── Figures ───────────────────────────────────────────────────────────── */
+
+.fw-figure {
+  margin: 1.8rem 0;
+}
+
+.fw-figure img {
+  width: 100%;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: var(--fw-radius-md);
+}
+
+.fw-figure figcaption {
+  margin-top: 0.55rem;
+  font-size: 0.82rem;
+  color: var(--vp-c-text-3);
+  text-align: center;
+}
+
+/* ── The brand mark ────────────────────────────────────────────────────── */
+
+/*
+ * The app sets "Fantasy" in ink and "Wiki" in League Green (AppLogo.vue), and
+ * the landing title wears the name the same way. The nav bar deliberately does
+ * not: it keeps the default theme's type and colour, because a second styled
+ * copy of the mark two centimetres above this one is one too many.
+ */
+.vp-doc h1.fw-brand-title {
+  font-family: "Libre Baskerville", Georgia, serif;
+  font-size: clamp(1.9rem, 4.2vw, 2.6rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  margin: 0 0 0.6rem;
+}
+
+.vp-doc h1.fw-brand-title span {
+  color: var(--vp-c-brand-1);
+}
+
+/* ── The landing page ──────────────────────────────────────────────────── */
+
+/*
+ * The Atlas and the coverage board are the width of the page, not the width of
+ * a column of prose. VitePress caps a document with no sidebar at 992px, in a
+ * rule carrying its own scope attribute, so an override has to outrank that —
+ * which is why this lives here rather than in the page's own <style> block,
+ * where it would lose on specificity and look correct in the markdown anyway.
+ */
+.Layout.fw-landing .VPContent .VPDoc .container,
+.Layout.fw-landing .VPContent .VPDoc .content {
+  max-width: 1180px;
+}
+
+.Layout.fw-landing .vp-doc {
+  max-width: none;
+}
+
+
+.Layout.fw-landing .vp-doc h2 {
+  font-size: 1.35rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

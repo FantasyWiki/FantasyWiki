@@ -277,7 +277,14 @@ else that can pull it. Both options, and the switch between them:
 
 ## Documentation
 
-**Start at [`docs/README.md`](./docs/README.md)** — the map of content.
+**📚 [fantasywiki.github.io/FantasyWiki](https://fantasywiki.github.io/FantasyWiki/)** — the
+technical documentation site: architecture and data-flow diagrams, a live
+coverage board, and an interactive **Docs Atlas** that draws every link between
+these documents. It is built from this repository on every push to `master`, so
+it cannot drift from what is written here.
+
+**Start at [`docs/README.md`](./docs/README.md)** — the same map of content, in
+the repository.
 
 | Where | What's in it |
 |---|---|
@@ -290,8 +297,12 @@ else that can pull it. Both options, and the switch between them:
 | ✨ [`PRODUCT.md`](./PRODUCT.md) · [`DESIGN.md`](./DESIGN.md) | Product vision and UI tone |
 
 Every doc carries `title`/`type`/`tags` frontmatter and ends with a `## Related`
-section — so the tree doubles as an Obsidian-style knowledge graph while every
-link stays clickable on GitHub.
+section, so the tree is a graph as well as a folder — and every link stays a
+plain relative link, clickable on GitHub. That graph is what the
+[Docs Atlas](https://fantasywiki.github.io/FantasyWiki/#the-docs-atlas) draws.
+
+Adding to the docs? Read
+[`docs/agents/documentation-site.md`](./docs/agents/documentation-site.md) first.
 
 ## Contributing
 

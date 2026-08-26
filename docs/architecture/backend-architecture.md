@@ -101,4 +101,5 @@ than to be reached for in both directions.
 - [Backend Testing](../development/backend-testing.md)
 - [Backend Error Constants](./backend-error-constants.md)
 - [API Naming Rules](../development/api-naming-rules.md)
+- [OpenAPI Spec](../agents/openapi-spec.md)
 - [Wikimedia Client Architecture](./wikimedia-client-architecture.md)

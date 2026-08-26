@@ -1,0 +1,85 @@
+name: Documentation
+
+# Builds and publishes the technical documentation site at
+# https://fantasywiki.github.io/FantasyWiki/ — see docs/agents/documentation-site.md.
+#
+# Production only, and only when the push touched something the site is built
+# from — the dispatcher in ci-cd.yml decides that and gates the call. The docs
+# describe `master`, and a QA copy of them would be a second URL nobody knows
+# which of to trust.
+#
+# One-time setup, which a workflow cannot do for itself: Settings → Pages →
+# Build and deployment → Source must be set to "GitHub Actions".
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    if: github.ref_name == 'master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # The mirror stamps each document with the date it last changed, read
+          # from `git log`. A shallow clone silently costs every timestamp.
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: "docs/site/package.json"
+          cache: "npm"
+          cache-dependency-path: docs/site/package-lock.json
+
+      # Produced by the coverage and check jobs earlier in this same run. The
+      # board renders a package with no report as unmeasured, so a missing
+      # artifact degrades the page rather than failing the build.
+      - name: Collect the coverage reports
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          path: docs/site/build/coverage-input
+          pattern: coverage-*
+
+      - name: Flatten the artifact layout
+        shell: bash
+        run: |
+          cd docs/site/build/coverage-input || exit 0
+          for dir in coverage-*; do
+            [ -d "$dir" ] || continue
+            mv "$dir" "${dir#coverage-}"
+          done
+          ls -R .
+
+      - name: Install
+        run: npm ci
+        working-directory: docs/site
+
+      # Dead-link detection is on, so this step is also the check that the
+      # markdown mirror rewrote every link that leaves the docs tree.
+      - name: Build
+        run: npm run build
+        working-directory: docs/site
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/site/build/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

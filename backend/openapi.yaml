@@ -1,0 +1,2112 @@
+# The FantasyWiki HTTP contract. Hand-written, and gated in both directions
+# against the Worker's own route table by src/tests/routes/openapi.spec.ts —
+# a route added and not described here fails the suite.
+#
+# Why it is written rather than generated, and what an operation owes a reader:
+# docs/agents/openapi-spec.md.
+openapi: 3.1.0
+
+info:
+  title: FantasyWiki API
+  version: "1.0.0"
+  summary: The HTTP contract of the FantasyWiki Worker.
+  description: |
+    A fantasy league played with Wikipedia articles. Players found leagues, buy
+    contracts on articles out of a Top Read Snapshot, field a formation, and are
+    scored on how much those articles were read.
+
+    Three authentication regimes sit side by side, and which one applies is
+    decided by the path prefix rather than by the operation:
+
+    | Prefix | Who calls it | How |
+    |---|---|---|
+    | `/auth/*` | A browser being signed in | Nothing yet — this is where a session is minted |
+    | `/api/*` | The frontend, as a signed-in player | The `session_token` cookie, HTTP-only |
+    | `/internal/*` | The scoring engine | A bearer service token |
+
+    Identity is always resolved server-side, from the session or the token. No
+    endpoint takes a `playerId` from the client, which is why the self-scoped
+    reads are spelled `/api/me` and `my-…` rather than carrying an id in the
+    path.
+
+    Every failure answers the same shape, a single `error` field carrying a
+    constant the frontend matches on. The constant is never parsed for meaning;
+    the status code is what says whose fault it was.
+  license:
+    name: AGPL-3.0-only
+    identifier: AGPL-3.0-only
+  contact:
+    name: FantasyWiki on GitHub
+    url: https://github.com/FantasyWiki/FantasyWiki
+
+servers:
+  - url: https://backend.luca0patrignani.workers.dev
+    description: Production — the Worker the live app talks to
+  - url: https://backend-preview.luca0patrignani.workers.dev
+    description: QA — deployed from the dev branch
+  - url: http://127.0.0.1:8787
+    description: Local — wrangler dev
+
+tags:
+  - name: Service
+    description: The Worker itself.
+  - name: Authentication
+    description: >
+      Minting a session. Both operations end in a redirect back to the frontend
+      with the session cookie set, so neither is callable from a documentation
+      page.
+  - name: Session
+    description: Who the caller is, and signing them out.
+  - name: Leagues
+    description: >
+      Founding, finding and closing leagues. A league is never deleted — closing
+      one records its closure and leaves everything in it readable.
+  - name: Teams
+    description: Joining a league with a team, and leaving one.
+  - name: Market
+    description: >
+      The Article Availability shelf a league offers, and the contracts a player
+      holds against it.
+  - name: Line-ups
+    description: The formation a team fields, and the days it has been scored on.
+  - name: Notifications
+    description: What happened to a player's contracts while they were away.
+  - name: Article Genie
+    description: >
+      The conversational article finder. Present only where the deployment has
+      the Workers AI binding; GET /api/session reports whether it does.
+  - name: Reports
+    description: Filing a problem report as a GitHub issue.
+  - name: Reference data
+    description: Answers that are the same for every player.
+  - name: Internal
+    description: >
+      The scoring engine's two endpoints. Outside /api/* because the caller is a
+      service rather than a person, and authenticated with a shared bearer
+      secret instead of a session.
+
+security:
+  - sessionCookie: []
+
+paths:
+  /:
+    get:
+      operationId: getRuntimeInfo
+      tags: [Service]
+      summary: What frontend URL this deployment resolved
+      description: >
+        A deployment probe, not part of the game. It answers with the configured
+        FRONTEND_URL and the absolute URL the Worker derived from it, which is
+        the value every OAuth redirect and cookie decision is made against — the
+        one piece of environment that silently breaks sign-in when it is wrong.
+      security: []
+      responses:
+        "200":
+          description: The resolved frontend URL.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [resolved_url, FRONTEND_URL]
+                properties:
+                  resolved_url:
+                    type: string
+                    description: Absolute, scheme included.
+                    examples: ["https://fantasywiki.pages.dev"]
+                  FRONTEND_URL:
+                    type: string
+                    description: As configured, which may carry no scheme.
+                    examples: ["fantasywiki.pages.dev"]
+
+  /auth/google:
+    get:
+      operationId: signInWithGoogle
+      tags: [Authentication]
+      summary: Sign in with Google
+      description: |
+        Both halves of the OAuth exchange. Called without a code it redirects to
+        Google; called with one it exchanges it, finds or creates the player,
+        signs a seven-day JWT and sets it as the HTTP-only `session_token`
+        cookie before redirecting to the frontend callback.
+
+        A first sign-in redirects to `/auth/callback?new=1`, which is what the
+        frontend uses to start the onboarding tour.
+      security: []
+      responses:
+        "302":
+          description: >
+            To Google, or back to the frontend. A failed exchange redirects to
+            /home?error=auth_failed rather than answering an error status — the
+            caller is a browser mid-navigation, not a client reading JSON.
+          headers:
+            Set-Cookie:
+              description: >
+                session_token, HTTP-only, SameSite=Lax, seven days. Secure
+                whenever the frontend URL is HTTPS.
+              schema:
+                type: string
+            Location:
+              schema:
+                type: string
+        "500":
+          description: The Worker is missing GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET or JWT_SECRET.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/dev:
+    get:
+      operationId: signInAsDemoPlayer
+      tags: [Authentication]
+      summary: Sign in without Google (local only)
+      description: |
+        The Google flow with the identity provider removed, so the app can be
+        run by someone who has no share of the project's OAuth client. It
+        produces the identical session — same claims, same secret, same cookie —
+        so no feature downstream has to know this route exists.
+
+        Outside a machine running `wrangler dev` it answers 404 rather than 403:
+        saying "forbidden" would advertise that the route exists somewhere.
+      security: []
+      responses:
+        "302":
+          description: To the frontend callback, with the session cookie set.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+            Location:
+              schema:
+                type: string
+        "404":
+          description: ENVIRONMENT is not "local", so this route does not exist here.
+        "500":
+          description: The Worker is missing JWT_SECRET.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /internal/scoring-inputs:
+    get:
+      operationId: getScoringInputs
+      tags: [Internal]
+      summary: The day's scorable teams
+      description: >
+        Every team with a line-up to score on the given day, flattened into the
+        shape the scoring engine consumes: the articles it fielded and the
+        Chemistry Link topology of its schema.
+      security:
+        - serviceToken: []
+      parameters:
+        - name: date
+          in: query
+          required: true
+          description: The day to score. An impossible date is rejected rather than rolled over.
+          schema:
+            type: string
+            format: date
+          example: "2026-08-26"
+      responses:
+        "200":
+          description: One entry per scorable team. Empty when nothing was fielded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScoringInput"
+        "400":
+          description: The date parameter is missing or not a real date.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /internal/performances:
+    post:
+      operationId: ingestPerformances
+      tags: [Internal]
+      summary: Write back the day's computed performances
+      description: >
+        Idempotent and chunkable: the engine may send a day in several calls and
+        may resend one it already sent, which is what lets a failed run be
+        retried without reconciling first.
+      security:
+        - serviceToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PerformanceIngest"
+      responses:
+        "200":
+          description: How many rows the call wrote.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [written]
+                properties:
+                  written:
+                    type: integer
+                    minimum: 0
+        "400":
+          description: Malformed JSON, a missing or impossible date, or a result the service refused.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/session:
+    get:
+      operationId: getSession
+      tags: [Session]
+      summary: The signed-in player
+      description: >
+        Read straight off the JWT rather than out of the database — these are
+        the claims the cookie carries, not a player record. `features` is read
+        off the Worker's own bindings, so a deployment that was never given the
+        Workers AI model reports the Genie as absent whatever any config says.
+      responses:
+        "200":
+          description: The session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      operationId: signOut
+      tags: [Session]
+      summary: Sign out
+      description: >
+        Expires the session cookie. Nothing server-side is revoked — the JWT is
+        stateless, and a copy taken before this call stays valid until it
+        expires.
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/leagues:
+    get:
+      operationId: getMyLeagues
+      tags: [Leagues]
+      summary: The leagues the caller plays in
+      responses:
+        "200":
+          description: Every league the caller fields a team in, the Global League included.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/League"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NoSuchPlayer"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    post:
+      operationId: createLeague
+      tags: [Leagues]
+      summary: Found a league
+      description: >
+        The founder is the caller, resolved from the session and never taken
+        from the body, and is written into the league as both its admin and its
+        first team in one transaction. The response carries no invitation code —
+        a private league's founder reads theirs from the invite-code endpoint,
+        which they now pass by being a member.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLeagueRequest"
+      responses:
+        "201":
+          description: The league as founded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/League"
+        "400":
+          description: >
+            A field the caller sent and can fix: an unknown icon, domain,
+            duration, visibility or invite policy, a name or team name outside
+            its length bounds, or an edition below the acceptance floor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NoSuchPlayer"
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "503":
+          description: >
+            Wikimedia was unreachable, so the edition's Language Scale Factor
+            could not be measured. The request was well-formed and the same
+            payload retried in a minute may found the league.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/leagues/global:
+    get:
+      operationId: getGlobalLeague
+      tags: [Leagues]
+      summary: The Global League
+      responses:
+        "200":
+          description: The league every player belongs to.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/League"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: The Global League has not been seeded in this deployment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/leagues/public:
+    get:
+      operationId: getPublicLeagues
+      tags: [Leagues]
+      summary: Every public league, newest first
+      description: >
+        The shelf offered to a player looking for somewhere else to play. Not
+        caller-scoped: the leagues they already play are dropped client-side,
+        where the list of those already lives.
+      responses:
+        "200":
+          description: Public leagues.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/League"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/leagues/by-code/{code}:
+    get:
+      operationId: getLeagueByInviteCode
+      tags: [Leagues]
+      summary: The league an invitation code opens
+      description: >
+        The preview that lets a player see what they have been invited to before
+        naming a team in it. Rate limited, and this is the endpoint that most
+        needs it: it is the cheapest possible probe of the code space — one GET,
+        no body, no write. It shares its bucket with the join path, so
+        alternating between the two buys no extra attempts. A malformed code, an
+        unused code and a missing league are one answer.
+      parameters:
+        - $ref: "#/components/parameters/InvitationCode"
+      responses:
+        "200":
+          description: The league the code opens.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/League"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: No league answers to this code.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: >
+            The caller has spent their code attempts. Not a leak — they learn
+            about their own quota, never about the code they sent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/leagues/{id}:
+    get:
+      operationId: getLeague
+      tags: [Leagues]
+      summary: One league
+      description: >
+        Readable by anyone holding the id, private leagues included: visibility
+        governs joining, not reading. Nothing caller-specific is on this shape —
+        that is the my-role endpoint.
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+      responses:
+        "200":
+          description: The league.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/League"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NoSuchLeague"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/leagues/{id}/leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [Leagues]
+      summary: The league standings
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+      responses:
+        "200":
+          description: >
+            Every team in the league, ranked. `rankDelta` is null on the first
+            scored day, when there is no previous position to have moved from.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaderboardEntry"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/leagues/{id}/my-role:
+    get:
+      operationId: getMyRole
+      tags: [Leagues]
+      summary: What the caller is in this league
+      description: >
+        It exists so the page can offer the right two actions, not to authorize
+        either: both are settled again inside their own write.
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+      responses:
+        "200":
+          description: Membership and adminship.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueRole"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NoSuchLeague"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/leagues/{id}/invite-code:
+    get:
+      operationId: getInviteCode
+      tags: [Leagues]
+      summary: The league's invitation code
+      description: >
+        For a caller its invite policy lets hand it out. Not `my-`: the code is
+        the league's datum, not the caller's — the caller only decides whether
+        they may see it. A caller the policy does not trust is answered 404
+        rather than 403, so the endpoint never confirms that a code exists.
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+      responses:
+        "200":
+          description: The code.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueInvite"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: No such league, no code on it, or the caller may not see it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/leagues/{id}/closure:
+    post:
+      operationId: closeLeague
+      tags: [Leagues]
+      summary: Close a league early
+      description: >
+        A noun, and POST rather than DELETE on the league, because nothing is
+        removed: this creates the league's closure and leaves the league itself
+        — teams, contracts, standings — entirely readable. There is no endpoint
+        that deletes a league, and there should not be one.
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+      responses:
+        "200":
+          description: The league, now carrying its closedAt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/League"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: >
+            The caller is not the league's admin. 403 rather than 404: a
+            league's page, dates and standings are readable by anyone holding
+            its id, so there is nothing here to conceal.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NoSuchLeague"
+        "409":
+          description: The league is already closed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/leagues/{id}/my-team:
+    get:
+      operationId: getMyTeam
+      tags: [Teams]
+      summary: The caller's team in this league
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+      responses:
+        "200":
+          description: The team.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: The caller fields no team in this league.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    post:
+      operationId: joinLeague
+      tags: [Teams]
+      summary: Join a league with a team
+      description: >
+        Only a request that presents a code spends from the rate-limit bucket,
+        which keeps the limiter off signup and off the public-league shelf —
+        neither carries one, and neither is a guessing surface. A request
+        without a code learns only "this league is private", which is the same
+        sentence for every private league in the database.
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  description: The team's name, unique within the league.
+                  example: Bibliophiles FC
+                invitationCode:
+                  type: string
+                  description: Only consulted for a private league; a public one ignores it.
+                  example: 7QK3M
+      responses:
+        "201":
+          description: The team as created, with its starting credits.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+        "400":
+          description: A missing name, a name outside its length bounds or already taken, or the caller already has a team here.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The league is private and no valid code was presented.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NoSuchLeague"
+        "409":
+          description: >
+            The season has ended or the league was closed. 409 rather than 403:
+            the refusal is about the state of the league, not about who is
+            asking — a valid code and the admin themselves are turned away too.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: The caller has spent their code attempts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/leagues/{id}/my-departure:
+    post:
+      operationId: leaveLeague
+      tags: [Teams]
+      summary: Leave a league
+      description: >
+        A departure rather than a deletion, because the team stays: it keeps its
+        contracts and its place in the final table. The last member leaving is
+        the one case where the league itself goes, which the response reports.
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+      responses:
+        "200":
+          description: Whether the departure emptied the league.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [leagueDeleted]
+                properties:
+                  leagueDeleted:
+                    type: boolean
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Nobody may leave the Global League.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: The caller fields no team in this league.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: The season has ended, or the departure is already on the record.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/leagues/{id}/market:
+    get:
+      operationId: getMarket
+      tags: [Market]
+      summary: The league's Article Availability
+      description: >
+        The league's Top Read Snapshot priced for its Language Scale Factor,
+        with the Owner Team named where an article is already under contract. An
+        owned article stays on the shelf rather than disappearing from it, so a
+        player can see who took it.
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+      responses:
+        "200":
+          description: The shelf.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MarketArticle"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NoSuchLeague"
+
+  /api/leagues/{id}/contracts:
+    get:
+      operationId: getLeagueContracts
+      tags: [Market]
+      summary: Every contract in the league
+      description: >
+        Unscoped, and readable by anyone holding the league id: who owns what is
+        already visible from the market shelf and the standings.
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+      responses:
+        "200":
+          description: Every live contract.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Contract"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NoSuchLeague"
+
+  /api/leagues/{id}/my-contracts:
+    get:
+      operationId: getMyContracts
+      tags: [Market]
+      summary: The caller's contracts in this league
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+      responses:
+        "200":
+          description: The caller's live contracts.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Contract"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: The caller fields no team in this league.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    post:
+      operationId: buyContract
+      tags: [Market]
+      summary: Buy a contract on an article
+      description: >
+        The price is the league's, computed at purchase and frozen for the term
+        — a contract is bought at a price, not at a rate. The tier decides how
+        long the term runs.
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [articleId, tier]
+              properties:
+                articleId:
+                  type: string
+                  description: The canonical page title, underscored — the article's identity.
+                  example: Cristiano_Ronaldo
+                tier:
+                  $ref: "#/components/schemas/ContractTier"
+      responses:
+        "201":
+          description: The contract as bought.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contract"
+        "400":
+          description: >
+            An unknown tier, an article already under contract to someone else
+            or already owned by the caller, a full team, or not enough credits.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: The caller fields no team in this league.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/leagues/{id}/my-contracts/{contractId}/sell:
+    post:
+      operationId: sellContract
+      tags: [Market]
+      summary: Sell a contract before it expires
+      description: >
+        An Early Sell settles at the article's current value prorated over the
+        part of the term already served, which is what stops a sale from being
+        a free exit from a bad buy.
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+        - $ref: "#/components/parameters/ContractId"
+      responses:
+        "200":
+          description: The contract as settled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contract"
+        "400":
+          description: Not the caller's contract, already sold, already settled, or expired.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: No such contract, or the caller fields no team in this league.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/leagues/{id}/my-contracts/{contractId}/renew:
+    post:
+      operationId: electRenewal
+      tags: [Market]
+      summary: Elect to renew a contract at expiry
+      description: >
+        An intent, not a purchase: the settlement sweep is what acts on it, at
+        the price the article commands then plus the renewal premium. Only
+        electable inside the renewal window.
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+        - $ref: "#/components/parameters/ContractId"
+      responses:
+        "200":
+          description: The contract, now carrying the election.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contract"
+        "400":
+          description: Not the caller's contract, the renewal window is closed, or the contract is already gone.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: No such contract, or the caller fields no team in this league.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    delete:
+      operationId: cancelRenewal
+      tags: [Market]
+      summary: Withdraw a renewal election
+      description: >
+        DELETE on the same path because the election is the resource being
+        removed. The intent can be withdrawn any time before the settlement
+        sweep acts on it.
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+        - $ref: "#/components/parameters/ContractId"
+      responses:
+        "200":
+          description: The contract, with the election withdrawn.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contract"
+        "400":
+          description: Not the caller's contract, or no election to withdraw.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: No such contract, or the caller fields no team in this league.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/leagues/{id}/lineup:
+    get:
+      operationId: getMyLineup
+      tags: [Line-ups]
+      summary: The caller's line-up in this league
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+      responses:
+        "200":
+          description: The formation and the bench.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamLineup"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: The caller fields no team in this league.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    put:
+      operationId: saveMyLineup
+      tags: [Line-ups]
+      summary: Save the caller's line-up
+      description: >
+        PUT because the line-up is replaced wholesale rather than amended. The
+        schema must be a known formation and every occupied position must belong
+        to it, which is what the read side relies on when it indexes the
+        Chemistry Link topology by schema.
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamLineup"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "400":
+          description: An unknown schema, a position outside it, or a contract the caller does not hold.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NoSuchPlayer"
+
+  /api/leagues/{id}/teams/{teamId}/lineup:
+    get:
+      operationId: getRivalLineup
+      tags: [Line-ups]
+      summary: Another team's line-up
+      description: >
+        Read-only, and the team is named in the path because the viewer does not
+        own it. That id is not a security control: the standings already name
+        every team in the league to every member. A team id from another league
+        is not found rather than readable.
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The rival's formation and bench.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamLineup"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: No such team in this league.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/leagues/{id}/my-performances:
+    get:
+      operationId: getMyPerformances
+      tags: [Line-ups]
+      summary: The caller's recent scored days
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+        - name: limit
+          in: query
+          required: false
+          description: How many days back, most recent first. Floored at 1.
+          schema:
+            type: integer
+            minimum: 1
+            default: 2
+      responses:
+        "200":
+          description: One entry per scored day.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Performance"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: The caller fields no team in this league.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/leagues/{id}/my-notifications:
+    get:
+      operationId: getMyLeagueNotifications
+      tags: [Notifications]
+      summary: The caller's notifications in this league
+      parameters:
+        - $ref: "#/components/parameters/LeagueId"
+      responses:
+        "200":
+          description: Notifications, each carrying the contract it is about.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NoSuchPlayer"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [Notifications]
+      summary: Mark a notification read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The notification belongs to another player.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: No such notification.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/player:
+    get:
+      operationId: getPlayer
+      tags: [Session]
+      summary: The caller's player record
+      description: >
+        The row behind the session, as distinct from the claims the cookie
+        carries: this id is what every contract and team in the database is
+        keyed by.
+      responses:
+        "200":
+          description: The player.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NoSuchPlayer"
+
+  /api/player/notifications:
+    get:
+      operationId: getMyNotifications
+      tags: [Notifications]
+      summary: The caller's notifications across every league
+      responses:
+        "200":
+          description: Notifications, newest first, each naming the league it belongs to.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NoSuchPlayer"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/me/genie-seeds:
+    post:
+      operationId: seedGenie
+      tags: [Article Genie]
+      summary: Read an opening request into searches
+      description: >
+        Separate from a turn only because of ordering: a turn is defined over a
+        candidate list, and there is no list until the query has been read. The
+        Worker answers with the searches, and the browser runs them.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  maxLength: 200
+                  example: Portuguese footballers who played in England
+      responses:
+        "200":
+          description: The keywords and anchors to search on.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [keywords, anchors]
+                properties:
+                  keywords:
+                    type: string
+                  anchors:
+                    type: array
+                    maxItems: 3
+                    items:
+                      type: string
+        "400":
+          description: >
+            A malformed body, or a query that is missing or too long. None of
+            these should ever reach a player — they mean the frontend built a
+            payload it should not have, and a 400 says so instead of burning a
+            model call.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NoSuchPlayer"
+        "429":
+          description: GENIE_RATE_LIMITED — the caller's budget for this window is spent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: >
+            GENIE_ASLEEP where the deployment has no Workers AI binding, or the
+            model refused. 503 rather than 502: the day's neuron allocation
+            coming back is a matter of waiting.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/me/genie-turns:
+    post:
+      operationId: takeGenieTurn
+      tags: [Article Genie]
+      summary: One turn of the Article Genie
+      description: >
+        The Worker does exactly one thing here — call the model — because every
+        other part of the feature is cheaper in the browser: the Wikimedia
+        search and link fetches run against the client's own cache, where
+        neither the subrequest nor the CPU limit applies.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenieTurnRequest"
+      responses:
+        "200":
+          description: The Genie's utterance, its next question, and which candidates survive it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenieTurnResponse"
+        "400":
+          description: A malformed body, too many candidates, none at all, an over-long history, or an unknown bucket.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NoSuchPlayer"
+        "429":
+          description: GENIE_RATE_LIMITED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: GENIE_ASLEEP, or the model refused.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/reports:
+    post:
+      operationId: createProblemReport
+      tags: [Reports]
+      summary: File a problem report
+      description: >
+        Opens a labelled GitHub issue as the FantasyWiki app rather than under a
+        maintainer's own account. The reporter is the session, never the body.
+        Rate limited per player, which is really there to protect the shared
+        GitHub credential from its secondary limits.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProblemReportRequest"
+      responses:
+        "201":
+          description: The issue that was opened.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [issueNumber, issueUrl]
+                properties:
+                  issueNumber:
+                    type: integer
+                  issueUrl:
+                    type: string
+                    format: uri
+        "400":
+          description: A malformed body, an unknown category, or a missing or over-long title or body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NoSuchPlayer"
+        "429":
+          description: REPORT_RATE_LIMITED — a double submit, or a script.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: >
+            GitHub was unreachable. The frontend answers this by offering the
+            pre-filled issue link, so the reporter never loses what they typed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/wikipedia-editions:
+    get:
+      operationId: getWikipediaEditions
+      tags: [Reference data]
+      summary: The Wikipedia editions a league can be founded on
+      description: >
+        Unscoped: the answer is the same for every player, which is what lets
+        the client hold it for the session. Every live edition, unfiltered — the
+        acceptance floor is applied at league creation instead of here.
+      responses:
+        "200":
+          description: Every live edition.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WikipediaEdition"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "503":
+          description: Wikimedia was unreachable. The request was well-formed and will work later.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session_token
+      description: >
+        A seven-day HS256 JWT, set by the sign-in redirect and HTTP-only, so no
+        script — the frontend's own included — can read it. The frontend simply
+        sends every request with credentials included. Identity is the `sub`
+        claim; nothing about who is asking is ever taken from a URL or a body.
+    serviceToken:
+      type: http
+      scheme: bearer
+      description: >
+        The shared secret the scoring engine presents on /internal/*. Compared
+        in constant time, and an unset secret fails closed rather than open.
+
+  parameters:
+    LeagueId:
+      name: id
+      in: path
+      required: true
+      description: The league's id.
+      schema:
+        type: string
+    ContractId:
+      name: contractId
+      in: path
+      required: true
+      description: The contract's id.
+      schema:
+        type: string
+    InvitationCode:
+      name: code
+      in: path
+      required: true
+      description: >
+        Five characters from an alphabet with no look-alikes, so a code read off
+        a screen and typed back in cannot be mistyped into a different valid
+        one. In the path rather than a query string because it is the resource
+        being addressed.
+      schema:
+        type: string
+        minLength: 5
+        maxLength: 5
+      example: 7QK3M
+
+  responses:
+    Success:
+      description: Done.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [success]
+            properties:
+              success:
+                type: boolean
+                const: true
+    Unauthorized:
+      description: No session cookie, or one that has expired or does not verify.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NoSuchPlayer:
+      description: >
+        The session verifies but names a player this deployment has no record
+        of — a cookie outliving the database it was minted against.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NoSuchLeague:
+      description: No league answers to this id.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ServerError:
+      description: >
+        Something nobody named — a D1 outage, an upstream failure. Never a
+        refusal the caller could act on: those are 4xx and carry a constant.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Error:
+      type: object
+      description: >
+        Every failure, in one shape. `error` carries a constant the frontend
+        matches on exactly; its wording is not part of the contract and must
+        never be parsed for meaning.
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: NOT_ENOUGH_CREDITS
+
+    Session:
+      type: object
+      required: [sub, email, name, picture, features]
+      properties:
+        sub:
+          type: string
+          description: The Google account id the session was minted for.
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        picture:
+          type: string
+          description: Avatar URL. Empty for the demo player.
+        features:
+          type: object
+          description: What this deployment can offer, read off its own bindings.
+          required: [articleGenie]
+          properties:
+            articleGenie:
+              type: boolean
+
+    Player:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+
+    Team:
+      type: object
+      required: [id, name, credits, player]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        credits:
+          type: number
+          description: >
+            Derived, not stored: the starting budget less what the team's live
+            contracts cost. Stated once, in a database view.
+        player:
+          $ref: "#/components/schemas/Player"
+
+    Article:
+      type: object
+      required: [id, title, domain]
+      properties:
+        id:
+          type: string
+          description: The canonical page title, underscored. This is the article's identity.
+          example: Cristiano_Ronaldo
+        title:
+          type: string
+          description: The display form, with spaces.
+          example: Cristiano Ronaldo
+        domain:
+          $ref: "#/components/schemas/Domain"
+
+    Domain:
+      type: string
+      description: >
+        A Wikipedia language edition code, as Wikimedia writes them — lowercase
+        letters, digits and hyphens. What an edition may actually host a league
+        on is decided against live data at league creation, not by this shape.
+      maxLength: 20
+      pattern: "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+      examples: ["en", "it", "pt-br"]
+
+    ContractTier:
+      type: string
+      description: How long a contract's term runs.
+      enum: [SHORT, MEDIUM, LONG]
+
+    Contract:
+      type: object
+      description: >
+        A contract as it travels. Dates and durations are ISO-8601 strings on
+        the wire; the frontend deserialises them into Temporal values in its
+        service layer rather than trusting the shape it received.
+      required: [id, team, article, startDate, duration, purchasePrice]
+      properties:
+        id:
+          type: string
+        team:
+          $ref: "#/components/schemas/Team"
+        article:
+          $ref: "#/components/schemas/Article"
+        startDate:
+          type: string
+          format: date-time
+          description: When the term began, as an instant.
+          example: "2026-08-20T00:00:00Z"
+        duration:
+          type: string
+          description: The term, as an ISO-8601 duration.
+          example: P7D
+        purchasePrice:
+          type: number
+          description: >
+            What was paid, frozen at purchase. A contract is bought at a price,
+            not at a rate, which is what makes a settlement a gain or a loss.
+        renewalCount:
+          type: integer
+          minimum: 0
+          default: 0
+          description: Consecutive renewals so far, which drive the renewal premium.
+        renewalElected:
+          type: boolean
+          default: false
+          description: Whether the owner has elected to renew at expiry.
+
+    League:
+      type: object
+      required:
+        [
+          id,
+          title,
+          domain,
+          languageScale,
+          icon,
+          startDate,
+          endDate,
+          visibility,
+          teamCount,
+          closedAt,
+        ]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        domain:
+          $ref: "#/components/schemas/Domain"
+        languageScale:
+          type: number
+          description: >
+            The Language Scale Factor every price and every score in this league
+            is computed at, measured when it was founded and frozen there. A
+            league that read a live registry would silently re-price every
+            contract in it the day the registry was recalibrated.
+        icon:
+          type: string
+          description: One emoji from the league icon set.
+          example: "🏆"
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        visibility:
+          $ref: "#/components/schemas/LeagueVisibility"
+        teamCount:
+          type: integer
+          minimum: 0
+        closedAt:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            When the admin closed the league early, or null while it is still
+            open. Never unset once written, and never accompanied by a delete.
+
+    LeagueVisibility:
+      type: string
+      description: >
+        Whether a league can be joined by anyone or only with its invitation
+        code. The rule governs joining, not reading — a private league's page
+        and standings stay visible.
+      enum: [public, private]
+
+    LeagueInvitePolicy:
+      type: string
+      description: Who may hand out the league's invitation code.
+      enum: [members, admin]
+
+    LeagueDuration:
+      type: string
+      description: >
+        How long a season runs, as the choices a player is offered. Floored at
+        two weeks because a shorter season could not hold a LONG contract to
+        expiry, and capped at six months because past that a Top Read Snapshot's
+        article mix has turned over enough that the market a player joined is
+        not the one they end in.
+      enum: ["2w", "1m", "2m", "3m", "6m"]
+
+    CreateLeagueRequest:
+      type: object
+      required:
+        [name, icon, domain, duration, visibility, invitePolicy, teamName]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 50
+        icon:
+          type: string
+          description: One emoji from the league icon set.
+          example: "🏆"
+        domain:
+          $ref: "#/components/schemas/Domain"
+        duration:
+          $ref: "#/components/schemas/LeagueDuration"
+        visibility:
+          $ref: "#/components/schemas/LeagueVisibility"
+        invitePolicy:
+          $ref: "#/components/schemas/LeagueInvitePolicy"
+        teamName:
+          type: string
+          description: The founder's own team, created in the same transaction.
+
+    LeagueInvite:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          example: 7QK3M
+
+    LeagueRole:
+      type: object
+      required: [isMember, isAdmin]
+      properties:
+        isMember:
+          type: boolean
+        isAdmin:
+          type: boolean
+
+    LeaderboardEntry:
+      type: object
+      required: [team, cumulativePoints, rank, rankDelta]
+      properties:
+        team:
+          $ref: "#/components/schemas/Team"
+        cumulativePoints:
+          type: number
+        rank:
+          type: integer
+          minimum: 1
+        rankDelta:
+          type: [integer, "null"]
+          description: >
+            Places gained since the previous scored day, or null on the first
+            one — there is no earlier position to have moved from, and zero
+            would claim there was.
+
+    MarketArticle:
+      type: object
+      required:
+        [
+          id,
+          title,
+          slug,
+          yesterdayViews,
+          weekViews,
+          monthViews,
+          yearViews,
+          averageViews30d,
+          price,
+          owner,
+        ]
+      properties:
+        id:
+          type: string
+          example: Cristiano_Ronaldo
+        title:
+          type: string
+          example: Cristiano Ronaldo
+        slug:
+          type: string
+          description: The path segment on Wikipedia.
+        yesterdayViews:
+          type: integer
+        weekViews:
+          type: integer
+        monthViews:
+          type: integer
+        yearViews:
+          type: integer
+        averageViews30d:
+          type: number
+          description: The thirty-day average the article's Base Points are taken from.
+        price:
+          type: number
+          description: What a contract on it costs in this league, at this league's Language Scale Factor.
+        owner:
+          type: [object, "null"]
+          description: The Owner Team, or null while the article is a Free Agent.
+          required: [name, teamName]
+          properties:
+            name:
+              type: string
+            teamName:
+              type: string
+
+    Schema:
+      type: string
+      description: A formation shape.
+      enum: ["4-3-3", "4-4-2", "3-5-2", "4-2-3-1", "5-3-2"]
+
+    Position:
+      type: string
+      description: A slot on the pitch. Which of these a line-up may occupy is decided by its schema.
+      enum:
+        [
+          LW,
+          LST,
+          ST,
+          RST,
+          RW,
+          LAM,
+          CLAM,
+          CAM,
+          CRAM,
+          RAM,
+          LM,
+          CLM,
+          CM,
+          CRM,
+          RM,
+          LDM,
+          CDLM,
+          CDM,
+          CDRM,
+          RDM,
+          LB,
+          CLB,
+          CB,
+          CRB,
+          RB,
+          GK,
+        ]
+
+    ChemistryLevel:
+      type: string
+      description: >
+        How strongly two adjacent articles link to each other. Mutual links are
+        excellent, one-way good, neither weak; empty is an unfilled slot.
+      enum: [empty, weak, good, excellent]
+
+    ChemistryLink:
+      type: object
+      description: >
+        One edge of the schema's fixed topology. The set of edges is decided by
+        the schema, not by the client — a saved line-up whose links do not match
+        its schema is normalised back to the schema's own.
+      required: [from, to, level]
+      properties:
+        from:
+          $ref: "#/components/schemas/Position"
+        to:
+          $ref: "#/components/schemas/Position"
+        level:
+          $ref: "#/components/schemas/ChemistryLevel"
+
+    Formation:
+      type: object
+      required: [date, schema, formation]
+      properties:
+        date:
+          type: string
+          format: date-time
+        schema:
+          $ref: "#/components/schemas/Schema"
+        formation:
+          type: object
+          description: >
+            The occupied slots, keyed by position. Every key must belong to the
+            schema; a position the schema does not have is refused rather than
+            ignored.
+          propertyNames:
+            $ref: "#/components/schemas/Position"
+          additionalProperties:
+            oneOf:
+              - $ref: "#/components/schemas/Contract"
+              - type: "null"
+        chemistry:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChemistryLink"
+
+    TeamLineup:
+      type: object
+      required: [formation, bench]
+      properties:
+        formation:
+          $ref: "#/components/schemas/Formation"
+        bench:
+          type: array
+          items:
+            $ref: "#/components/schemas/Contract"
+
+    Performance:
+      type: object
+      description: |
+        One team's score for one day.
+
+        **The formation it was scored on is not sent.** It is held in the
+        database as the opaque snapshot the scoring engine relayed, under a
+        column `PerformanceService` does not read, so the field is `undefined`
+        by the time the response is serialised and is dropped. `PerformanceDTO`
+        declares it as present and required; this document describes what
+        actually arrives, and the two disagree until the service resolves the
+        snapshot or the DTO stops promising it.
+      required: [teamId, date, points]
+      properties:
+        teamId:
+          type: string
+        date:
+          type: string
+          format: date
+          example: "2026-08-26"
+        points:
+          type: number
+
+    Notification:
+      type: object
+      description: What happened to one of the player's contracts while they were away.
+      required: [id, leagueId, contract, message, date, isRead]
+      properties:
+        id:
+          type: string
+        leagueId:
+          type: string
+        contract:
+          $ref: "#/components/schemas/Contract"
+        message:
+          type: string
+        date:
+          type: string
+          format: date
+        isRead:
+          type: boolean
+
+    WikipediaEdition:
+      type: object
+      required: [code, autonym, englishName]
+      properties:
+        code:
+          $ref: "#/components/schemas/Domain"
+        autonym:
+          type: string
+          description: What the edition calls its own language.
+          example: italiano
+        englishName:
+          type: string
+          example: Italian
+
+    GenieCandidate:
+      type: object
+      required: [id, title]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+          maxLength: 300
+        description:
+          type: string
+          maxLength: 1000
+
+    GenieExchange:
+      type: object
+      required: [question, answer]
+      properties:
+        question:
+          type: string
+          maxLength: 2000
+        answer:
+          type: string
+          maxLength: 500
+          description: The player's reply, or "unsure".
+
+    GenieBucket:
+      type: string
+      description: >
+        How many candidates are still standing, as flavour rather than a count.
+        The Genie speaks in character and never reads the number out.
+      enum: [vast, many, "a dozen or so", "a handful", "almost there"]
+
+    GenieTurnRequest:
+      type: object
+      required: [query, history, candidates, bucket]
+      properties:
+        query:
+          type: string
+          maxLength: 200
+        history:
+          type: array
+          maxItems: 15
+          items:
+            $ref: "#/components/schemas/GenieExchange"
+        candidates:
+          type: array
+          minItems: 1
+          maxItems: 40
+          description: Ids must be distinct — a duplicate is refused rather than deduplicated.
+          items:
+            $ref: "#/components/schemas/GenieCandidate"
+        bucket:
+          $ref: "#/components/schemas/GenieBucket"
+
+    GenieTurnResponse:
+      type: object
+      required: [utterance, question, keep, options, kind, done]
+      properties:
+        utterance:
+          type: string
+          description: What the Genie says before it asks.
+        question:
+          type: string
+        keep:
+          type: array
+          description: The candidate ids that survive this turn.
+          items:
+            type: integer
+        options:
+          type: array
+          items:
+            type: string
+        kind:
+          type: string
+          description: >
+            Whether the question narrows the field or only ranks it. A filter
+            may discard candidates; a preference may not.
+          enum: [filter, preference]
+        done:
+          type: boolean
+
+    ReportCategory:
+      type: string
+      enum: [broken, visual, idea, language, rules, other]
+
+    CreateProblemReportRequest:
+      type: object
+      required: [category, title, body, contactConsent]
+      properties:
+        category:
+          $ref: "#/components/schemas/ReportCategory"
+        title:
+          type: string
+          maxLength: 120
+        body:
+          type: string
+        contactConsent:
+          type: boolean
+          description: Whether the reporter is willing to be followed up on the issue.
+        diagnostics:
+          type: object
+          description: What the client can say about where the problem happened.
+          properties:
+            route:
+              type: string
+            locale:
+              type: string
+            viewport:
+              type: string
+            userAgent:
+              type: string
+
+    ScoringInput:
+      type: object
+      description: One scorable team, flattened into what the scoring engine needs and nothing else.
+      required:
+        [leagueId, teamId, domain, articles, chemistryLinks, formationSnapshot]
+      properties:
+        leagueId:
+          type: string
+        teamId:
+          type: string
+        domain:
+          $ref: "#/components/schemas/Domain"
+        articles:
+          type: array
+          description: The canonical titles fielded that day.
+          items:
+            type: string
+        chemistryLinks:
+          type: array
+          description: The schema's topology as article pairs, already resolved from positions.
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items:
+              type: string
+        formationSnapshot:
+          type: string
+          description: >
+            The position-to-article map, pre-serialised. Opaque to the backend,
+            which stores it verbatim and hands it back untouched.
+
+    PerformanceResult:
+      type: object
+      required: [teamId, articleViews, chemistryLevels, formationSnapshot]
+      properties:
+        teamId:
+          type: string
+        articleViews:
+          type: array
+          items:
+            type: integer
+        chemistryLevels:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChemistryLevel"
+        formationSnapshot:
+          type: string
+          description: Echoed back from the scoring input it was computed from.
+
+    PerformanceIngest:
+      type: object
+      required: [date, results]
+      properties:
+        date:
+          type: string
+          format: date
+          example: "2026-08-26"
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/PerformanceResult"

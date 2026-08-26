@@ -1,9 +1,7 @@
 <template>
   <footer class="info-footer">
     <nav class="footer-links">
-      <!-- TODO: point to the GitHub Pages site once the report and the
-           user guide are published there. -->
-      <a :href="`${REPO_URL}#readme`" target="_blank" rel="noopener">
+      <a :href="TECHNICAL_DOCS_URL" target="_blank" rel="noopener">
         {{ $t("footer.technicalDocs") }}
       </a>
       <span aria-hidden="true">·</span>
@@ -50,6 +48,10 @@ import { logoGithub } from "ionicons/icons";
 import { useAppStore } from "@/stores/app";
 
 const REPO_URL = "https://github.com/FantasyWiki/FantasyWiki";
+
+// The published technical documentation, built from the repository's own docs
+// by `docs/site/` and deployed to GitHub Pages (docs/agents/documentation-site.md).
+const TECHNICAL_DOCS_URL = "https://fantasywiki.github.io/FantasyWiki/";
 
 const appStore = useAppStore();
 </script>

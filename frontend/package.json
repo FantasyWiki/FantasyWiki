@@ -17,7 +17,8 @@
     "lintfix": "eslint --fix",
     "format": "prettier --check .",
     "formatfix": "prettier --write .",
-    "g:component": "plop component"
+    "g:component": "plop component",
+    "test-coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@capacitor/app": "8.1.1",
@@ -45,6 +46,7 @@
     "@pinia/testing": "^1.0.3",
     "@vitejs/plugin-legacy": "^7.2.1",
     "@vitejs/plugin-vue": "^6.0.3",
+    "@vitest/coverage-v8": "^4.1.11",
     "@vue/eslint-config-typescript": "^14.0.0",
     "@vue/test-utils": "^2.3.0",
     "eslint": "^10.1.0",

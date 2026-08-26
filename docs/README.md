@@ -7,9 +7,9 @@ tags: [index, map-of-content]
 # FantasyWiki Documentation
 
 Docs are grouped by **concept**, not by component. Every doc carries YAML
-frontmatter (`title`, `type`, `tags`, `related`) so the tree reads as a knowledge
-graph — in Obsidian the `related` wikilinks form the edges, and on GitHub the
-inline `[text](./path.md)` links stay clickable.
+frontmatter (`title`, `type`, `tags`, `related`) and ends with a `## Related`
+list, so the tree reads as a graph: the inline `[text](./path.md)` links are the
+edges, and they stay clickable wherever the file is read.
 
 ## Map of content
 
@@ -78,9 +78,24 @@ doc disagree, **the ADR wins**.
 [0007 Derived Team Credits](./adr/0007-derived-team-credits.md) ·
 [0008 League Invitation Codes](./adr/0008-league-invitation-codes.md)
 
-### `agents/` — machine-read repo metadata
-Issue tracker, triage labels, and domain-context layout. Skills read these at
-**fixed paths** — do not move or rename them.
+## The published site
+
+Everything below `docs/` except `agents/` is mirrored to
+**<https://fantasywiki.github.io/FantasyWiki/>**, alongside an authored
+orientation layer that exists only there: architecture and data-flow diagrams, a
+coverage board, and an interactive graph of this documentation tree. The site is
+a view of this directory — the source of truth stays here.
+
+One directory is deliberately not on that map: `agents/`. It holds machine-read metadata — the issue tracker, the triage labels,
+the domain-context layout, the working agreements for this site and for the
+HTTP contract — which skills load at **fixed paths**, so do not move or rename
+anything in it. It is indexed
+by [`AGENTS.md`](../AGENTS.md), not here, and it is not published: a link into it
+from a published page resolves to GitHub.
+
+Before adding a page or a diagram, read
+[Documentation Site](./agents/documentation-site.md); before adding a route,
+[OpenAPI Spec](./agents/openapi-spec.md).
 
 ## Repo-root documents
 
@@ -120,8 +135,8 @@ table, so a link written in it can never be clickable. Links go in the body.
 
 **Every link is a relative markdown link in the body**, e.g.
 `[Lineup Rules](../domain/lineup-rules.md)`. That single form is clickable on
-GitHub *and* counts as a graph edge in Obsidian, so the graph and the rendered
-docs can never disagree.
+GitHub, survives the mirror onto the published site, *and* is what the graph is
+built from — so the graph and the rendered docs can never disagree.
 
 Do **not** use `[[wikilinks]]`, and do not put links in frontmatter — neither
 renders as a link on GitHub.

@@ -24,10 +24,9 @@ tags: [scoring, language, decision]
 > *before* the league row is written. Three things this ADR got wrong or left open, all now
 > settled by measurement (see [Wikipedia Language Editions](../domain/language-editions.md)):
 >
-> 1. **Calibration is synchronous after all.** "Too much work to run inside a single Worker
->    invocation" priced the per-article route at ~501 requests. Aggregating 30 daily `/top`
->    lists costs ~31 per edition and agrees with the expensive route to **0.1% at K = 500**.
->    No Workflow, and no caching of the `en` side either.
+> 1. **Calibration is synchronous.** Aggregating 30 daily `/top` lists costs ~31 requests
+>    per edition, so it runs inside league creation. No Workflow, and no caching of the
+>    `en` side either.
 > 2. **The floor is counted per day**, not off window means — the two disagree by enough to
 >    flip a verdict (`ca`: 231 vs 143 against a threshold of 300), and the per-day basis is
 >    the one this ADR's own figures were measured on (`en` 985, reproduced at 986).
@@ -71,9 +70,9 @@ A domain is only accepted (league creation allowed) if its top-list has **≥300
 
 `L` is computed and stored per domain, not derived inline per request. League creation on an already-calibrated domain reads the stored value; a never-before-seen domain triggers calibration (siteinfo + 30 daily top lists + median, `en` side cached/reused across calibrations) which must complete and be persisted **before** the league is created — see the invariant above.
 
-The original claim that this is "too much work to run synchronously inside a single request/Worker invocation" assumed one `/per-article` 30-day series per title (~501 requests). It is ~31 per edition via the daily `/top` lists, so it *does* run synchronously inside league creation, and an edition that fails the floor is refused there rather than half-created.
+Calibration reads 30 daily `/top` lists per edition — ~31 requests, ~61 counting the reference side — so it runs synchronously inside league creation, and an edition that fails the floor is refused there rather than half-created.
 
-**The `en` side is not cached**, contrary to this ADR's suggestion. Calibrating a new edition measures both it and the reference, ~61 requests. A cache was built and removed: it only ever saved anything when two never-played editions were founded within days of each other, and it cost a second table with a staleness rule of its own. One store remains — `language_scales`, the registry that must never be silently recomputed.
+**The `en` side is not cached.** A cache was built and removed: it only ever saved anything when two never-played editions were founded within days of each other, and it cost a second table with a staleness rule of its own. One store remains — `language_scales`, the registry that must never be silently recomputed.
 
 A league **copies** its factor rather than reading the registry per query. A join would mean the ~annual recalibration re-rated every contract in every existing league on that edition, which the invariant above forbids; a copy confines a new measurement to leagues founded after it.
 

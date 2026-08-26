@@ -1,0 +1,29 @@
+{
+  "name": "fantasywiki-docs-site",
+  "version": "1.0.0",
+  "description": "FantasyWiki technical documentation site (VitePress)",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0",
+  "engines": {
+    "node": "24.18.1",
+    "npm": "11.19.0"
+  },
+  "scripts": {
+    "mirror": "node scripts/prepare.mjs",
+    "dev": "npm run mirror && vitepress dev .",
+    "build": "npm run mirror && npm run diagrams && vitepress build .",
+    "preview": "vitepress preview .",
+    "snapshot": "node scripts/snapshot-atlas.mjs",
+    "diagrams": "node scripts/check-diagrams.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "gray-matter": "^4.0.3",
+    "jsdom": "^27.1.0",
+    "mermaid": "11.12.0",
+    "swagger-ui-dist": "^5.32.14",
+    "vitepress": "1.6.4",
+    "yaml": "^2.9.0"
+  }
+}

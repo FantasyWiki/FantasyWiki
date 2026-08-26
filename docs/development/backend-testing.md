@@ -107,4 +107,5 @@ measured rather than assumed.
 ## Related
 
 - [Backend Architecture](../architecture/backend-architecture.md)
+- [OpenAPI Spec](../agents/openapi-spec.md)
 - [ADR 0007: Derived Team Credits](../adr/0007-derived-team-credits.md)

@@ -17,6 +17,7 @@ describe("InfoFooter.vue", () => {
     expect(hrefs).toContain(
       "https://github.com/FantasyWiki/FantasyWiki/issues"
     );
+    expect(hrefs).toContain("https://fantasywiki.github.io/FantasyWiki/");
     expect(wrapper.find("a[href='/legal']").exists()).toBe(true);
     expect(wrapper.find("a[href='/guide']").exists()).toBe(true);
   });

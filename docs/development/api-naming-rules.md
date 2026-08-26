@@ -75,5 +75,6 @@ tags: [conventions, api, rest, security]
 
 ## Related
 
+- [OpenAPI Spec](../agents/openapi-spec.md)
 - [Backend Architecture](../architecture/backend-architecture.md)
 - [Backend Error Constants](../architecture/backend-error-constants.md)

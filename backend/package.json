@@ -3,7 +3,7 @@
   "type": "module",
   "engines": {
     "node": "24.18.1",
-    "npm": "11.19.0"
+    "npm": "11.19.1"
   },
   "scripts": {
     "dev": "wrangler dev --env local",

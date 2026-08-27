@@ -158,6 +158,14 @@ That is what CI does (`.github/workflows/check.yml`): a container is cheaper on 
 220MB download per build. The consequence is that the self-starting path is only ever exercised
 locally.
 
+One thing this suite is structurally unable to check: Cloudflare's rule that an
+I/O object belongs to the request that created it. Tests run outside any request
+context, so a MongoDB connection shared across "requests" is fine here and hangs
+in `wrangler dev`
+([Persistence Targets](../architecture/persistence-targets.md)). Connection
+lifetime has to be exercised against a running server, with more than one
+request.
+
 The Mongo run sets `fileParallelism: false`, because there is one Mongo. The D1 pool hands every
 test file its own database, so the suite is written as if each file owned the store — `reset()`
 before every test, ids that only have to be unique within a file. Parallel files sharing one server

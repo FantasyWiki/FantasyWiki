@@ -109,6 +109,34 @@ remote proxy session and demand a live Cloudflare token, turning a local-only
 run into one that cannot start without an account. It keeps the rate limiters,
 which the join and report routes call unconditionally.
 
+### One connection per request, and why it cannot be cached
+
+A Worker owns its I/O objects **per request**: a socket opened while handling
+one request may not be touched by the next. The MongoDB driver's pooled
+connection is exactly such a socket, so a `MongoClient` cached in a module
+variable serves the request that opened it and then breaks every request after —
+and it does not break loudly. The driver never reports an error; the promise
+simply never settles, and workerd eventually kills the request with *"your
+Worker's code had hung and would never generate a response"*.
+
+So a client's lifetime is a request's lifetime. `MongoStore` holds one and
+`repositoriesFor` builds one store per request, which gives each request a
+single connection shared by all its repository calls. Nothing closes them —
+sockets are reclaimed when the request context ends.
+
+Two consequences worth carrying:
+
+- **The test suite cannot catch this.** It runs outside any request context,
+  where the restriction does not apply, so a module-level cache passes all 571
+  tests and fails on the second request in `wrangler dev`. If you change how the
+  connection is held, exercise it with *two* requests.
+- **A Workflow is not one request.** `ContractSettlementWorkflow.run` builds its
+  service once and uses it across several `step.do(...)` calls, which is fine on
+  D1 and would hit exactly this wall on Mongo. Nothing runs into it today — no
+  Cloudflare deployment uses MongoDB, and the local config binds no Workflow —
+  but a Mongo target on Workers would have to build its repositories inside each
+  step.
+
 ## What is stored
 
 Collection names and field names mirror the D1 columns, so `backend/migrations/`

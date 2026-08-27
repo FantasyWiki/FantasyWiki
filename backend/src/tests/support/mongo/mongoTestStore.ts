@@ -1,14 +1,16 @@
-import {
-  mongoContext,
-  type MongoTarget,
-} from "../../../repositories/mongo/connection";
+import type { MongoTarget } from "../../../repositories/mongo/connection";
 import { seedBaseline } from "../../../repositories/mongo/bootstrap";
 import { COLLECTIONS } from "../../../repositories/mongo/schema";
+import { MongoStore } from "../../../repositories/mongo/store";
 import { TestStore } from "../testStore";
 
 /** The Mongo {@link TestStore}: the only Mongo the test suite still contains. */
 export class MongoTestStore implements TestStore {
-  constructor(private readonly target: MongoTarget) {}
+  private readonly store: MongoStore;
+
+  constructor(target: MongoTarget) {
+    this.store = new MongoStore(target);
+  }
 
   /**
    * Empties every collection and re-seeds the baseline, rather than dropping the
@@ -22,7 +24,7 @@ export class MongoTestStore implements TestStore {
    * is part of what the suite is judging.
    */
   async reset(): Promise<void> {
-    const { db } = await mongoContext(this.target);
+    const { db } = await this.store.context();
     await Promise.all(
       Object.values(COLLECTIONS).map((name) =>
         db.collection(name).deleteMany({}),

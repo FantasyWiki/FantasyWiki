@@ -1,7 +1,7 @@
 import type { ClientSession } from "mongodb";
 import {
   inTransaction,
-  mongoContext,
+  openMongo,
   type MongoContext,
   type MongoTarget,
 } from "./connection";
@@ -16,12 +16,30 @@ import { collections, type MongoCollections } from "./schema";
  * settlement Workflow and the test seam all call it that way — while connecting
  * is not, so the connection has to be reached for on the first call rather than
  * built when the repositories are.
+ *
+ * One store is one connection, and that is the whole point of the class: a
+ * Worker owns its sockets per request, so a client may not outlive the request
+ * that opened it (see {@link openMongo}). `repositoriesFor` builds a store per
+ * request, so caching here — and nowhere higher — gives each request one
+ * connection shared by all of its repository calls, and none inherited from
+ * another request's.
  */
 export class MongoStore {
+  private connection?: Promise<MongoContext>;
+
   constructor(private readonly target: MongoTarget) {}
 
   context(): Promise<MongoContext> {
-    return mongoContext(this.target);
+    // The promise, not the resolved client, so two calls racing the first
+    // connect share it rather than opening two.
+    this.connection ??= openMongo(this.target).catch((error) => {
+      // A failed connect must not be remembered as the answer: the next call
+      // gets a fresh attempt rather than this one's error for the whole
+      // request.
+      this.connection = undefined;
+      throw error;
+    });
+    return this.connection;
   }
 
   async collections(): Promise<MongoCollections> {

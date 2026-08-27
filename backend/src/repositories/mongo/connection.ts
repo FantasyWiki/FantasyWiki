@@ -14,32 +14,25 @@ export interface MongoContext {
 }
 
 /**
- * One client per target per isolate, and the schema ensured once behind it.
+ * Open a connection, and ensure the schema behind it.
  *
- * A `MongoClient` owns a connection pool, so building one per request — which
- * is what a per-request `repositoriesFor` would do — would open a pool per
- * request and close none of them. Caching the *promise* rather than the client
- * is what makes two concurrent first requests share one connect instead of
- * racing to open two.
+ * **Not cached at module scope, and it must not be.** A Worker owns its I/O
+ * objects per *request*: a socket opened while handling one request cannot be
+ * touched by the next one, and the MongoDB driver's pooled connection is
+ * exactly such a socket. A client cached in a module variable therefore serves
+ * the request that opened it and then hangs every request after — not an error
+ * the driver reports, but a promise that never settles, which workerd
+ * eventually kills with "your Worker's code had hung".
+ *
+ * So the lifetime of a client is the lifetime of a request, and
+ * {@link MongoStore} — which `repositoriesFor` builds one of per request — is
+ * where it is cached. Sockets are reclaimed when the request context ends, so
+ * nothing has to close them.
+ *
+ * The test suite cannot catch this: it runs outside any request context, where
+ * the restriction does not apply. `wrangler dev` is where it shows.
  */
-const contexts = new Map<string, Promise<MongoContext>>();
-
-export function mongoContext(target: MongoTarget): Promise<MongoContext> {
-  const key = `${target.url} ${target.database ?? ""}`;
-  let context = contexts.get(key);
-  if (!context) {
-    context = open(target).catch((error) => {
-      // A failed connect must not be remembered as the answer: the next caller
-      // gets a fresh attempt rather than this one's error forever.
-      contexts.delete(key);
-      throw error;
-    });
-    contexts.set(key, context);
-  }
-  return context;
-}
-
-async function open(target: MongoTarget): Promise<MongoContext> {
+export async function openMongo(target: MongoTarget): Promise<MongoContext> {
   // Imported here rather than at the top of the file, so a D1 deployment — and
   // the D1 half of the test suite — never loads the driver at all. Everything
   // else this module names from `mongodb` is a type, and types are erased.

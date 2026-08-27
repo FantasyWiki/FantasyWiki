@@ -23,10 +23,21 @@ import { TestStore } from "./testStore";
  * The bundle cannot be a Worker binding — bindings are built from
  * JSON-serializable values in the vitest config, while the repositories need
  * handles that only exist inside the isolate.
+ *
+ * Both are built once per isolate rather than per call, which the suite calls
+ * them thousands of times. For D1 that is merely tidy — every set wraps the same
+ * `env.db`. For Mongo it is what keeps the run to one connection: a `MongoStore`
+ * holds one, deliberately, because in a Worker a socket may not outlive the
+ * request that opened it, and a test file is not a request.
  */
-export const repositories = (): Repositories => repositoriesFor(env);
+let built: Repositories | undefined;
+let resetter: TestStore | undefined;
+
+export const repositories = (): Repositories =>
+  (built ??= repositoriesFor(env));
 
 export const store = (): TestStore =>
-  env.PERSISTENCE === MONGO_PERSISTENCE
-    ? new MongoTestStore(mongoTargetFor(env))
-    : new D1TestStore(env.db, env.TEST_MIGRATIONS);
+  (resetter ??=
+    env.PERSISTENCE === MONGO_PERSISTENCE
+      ? new MongoTestStore(mongoTargetFor(env))
+      : new D1TestStore(env.db, env.TEST_MIGRATIONS));

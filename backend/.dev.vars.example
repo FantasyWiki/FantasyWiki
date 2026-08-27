@@ -17,6 +17,37 @@ FRONTEND_URL=localhost:5173
 # submission with a valid key files a real issue on the tracker.
 # GH_APP_PRIVATE_KEY=
 
-# Nothing here is a Cloudflare credential. The Article Genie is the one feature
-# that needs a Cloudflare account, and `npm run dev` leaves it switched off —
-# `npm run dev:genie` is the opt-in.
+# Optional, and needed by one feature only: the Article Genie, the one thing
+# here that needs a Cloudflare account. `npm run dev` leaves it switched off and
+# `npm run devgenie` is the opt-in; the four Docker commands split the same way
+# (`./gradlew noGenie` wants none of this, `./gradlew up` does).
+#
+# Create the token at https://dash.cloudflare.com/profile/api-tokens →
+# "Create Token" → "Create Custom Token", with the least it can work with:
+#
+#   Account · Workers Scripts · Edit   (open the remote preview session)
+#   Account · Workers AI · Read         (call the model)
+#   Account · Account Settings · Read   (resolve the account)
+#
+# Workers Scripts · Edit is the one everybody misses, and it makes this a write
+# credential rather than a read-only one: Workers AI has no local simulator, so
+# `wrangler dev` opens a remote preview session to carry the calls, and that
+# lives under Workers Scripts. Without it the backend refuses to start.
+#
+# This replaces `wrangler login` where a browser cannot help: inside a container
+# that flow's callback listens on the container's own localhost, so nothing
+# routes back from the browser on your machine. Compose passes this whole file
+# into the container's environment, which is where Wrangler looks.
+#
+# Natively `wrangler login` still works and is easier. If you would rather use a
+# token there too, export it in your shell — Wrangler reads this file for the
+# Worker's vars, not for its own credentials.
+#
+# See docs/development/local-dev-setup.md#creating-a-cloudflare-api-token.
+CLOUDFLARE_API_TOKEN=
+
+# The account the token belongs to — the hex id in the dashboard URL, or under
+# Workers & Pages → Overview. Required whenever the token can see more than
+# one account: wrangler.jsonc declares no `account_id`, so Wrangler asks the
+# API, and with several accounts it cannot choose for you.
+CLOUDFLARE_ACCOUNT_ID=

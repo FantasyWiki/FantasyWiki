@@ -53,7 +53,7 @@ Seams, layers, and modules. The rules they implement live in `domain/`.
 | Doc | What it answers |
 |---|---|
 | [Local Development Setup](./development/local-dev-setup.md) | Env files, MSW, Wrangler |
-| [Running FantasyWiki in Docker](./development/docker-local-dev.md) | `docker compose up` with no credentials to obtain |
+| [Running FantasyWiki in Docker](./development/docker-local-dev.md) | `./gradlew noGenie` with no credentials to obtain, and the three other combinations |
 | [Backend Testing](./development/backend-testing.md) | The test tiers, which layer each may name, and how to seed |
 | [API Naming Rules](./development/api-naming-rules.md) | URL, identity, and request-body conventions |
 | [NPM Script Naming](./development/npm-script-naming.md) | Why `formatfix`, not `format:fix` |

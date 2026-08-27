@@ -258,9 +258,11 @@
       },
     },
     // `local` plus Workers AI, for working on the Article Genie. Needs a
-    // Cloudflare account: `wrangler login` (or CLOUDFLARE_API_TOKEN), because
-    // every call is proxied to the real model and spends the day's neuron
-    // allocation. Run it with `npm run dev:genie`. Wrangler does not inherit
+    // Cloudflare account: CLOUDFLARE_API_TOKEN (or `wrangler login`, natively),
+    // because every call is proxied to the real model and spends the day's
+    // neuron allocation. Run it with `npm run devgenie`, or `./gradlew up` in
+    // Docker, where the token is the only option — `wrangler login`'s OAuth
+    // callback listens on the host's localhost. Wrangler does not inherit
     // bindings into named environments, which is why this is a copy of `local`
     // rather than an overlay — the same reason the four envs above repeat each
     // other.

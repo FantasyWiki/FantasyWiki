@@ -251,7 +251,9 @@ The `local` environment in `wrangler.jsonc` therefore declares **no `ai` binding
 reason `test` doesn't: Workers AI has no local simulator, so the binding's mere presence makes
 Wrangler open a remote proxy session and demand credentials. Declaring it would mean a fresh clone
 cannot start the Worker *at all* — the whole app held hostage by one optional feature. `npm run
-dev:genie` (the `local-genie` environment) is the opt-in for whoever is actually working on it.
+devgenie` (the `local-genie` environment) is the opt-in for whoever is actually working on it —
+`./gradlew up` in Docker, where the credential must be a `CLOUDFLARE_API_TOKEN` rather than a
+`wrangler login` session (see [Running FantasyWiki in Docker](../development/docker-local-dev.md#the-article-genie)).
 
 The absence then propagates in one direction, from the binding outwards:
 

@@ -43,9 +43,10 @@ export default defineConfig({
     watch: process.env.VITE_POLL === "true" ? { usePolling: true } : undefined,
     proxy: { ...backendProxy },
   },
-  // `vite preview` serves the built bundle in the demo container. It needs the
-  // same proxy — otherwise the SPA loads and every API call 404s — and the same
-  // port, because FRONTEND_URL and the Google redirect URI both name 5173.
+  // `npm run preview` serves the built bundle on this machine — the local way to
+  // see what Pages will deploy. It needs the same proxy, otherwise the SPA loads
+  // and every API call 404s, and the same port, because FRONTEND_URL and the
+  // Google redirect URI both name 5173.
   preview: {
     host: process.env.VITE_HOST ?? "localhost",
     port: 5173,

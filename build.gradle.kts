@@ -37,18 +37,102 @@ tasks.register("check") {
 }
 
 tasks.register("dev") {
+    group = "development"
+    description = "Run the app on this machine, with the Article Genie (needs `wrangler login`)"
+    dependsOn(
+        ":frontend:devNoMock",
+        ":backend:npm_run_devgenie",
+    )
+}
+
+tasks.register("devNoGenie") {
+    group = "development"
+    description = "Run the app on this machine, without the Article Genie"
     dependsOn(
         ":frontend:devNoMock",
         ":backend:npm_run_dev",
     )
 }
 
+// No Genie here on purpose, unlike `dev`. MSW fakes the market the Genie
+// searches, so pairing mocked game data with a live model bills real neurons to
+// interrogate fixtures — and this is the task a first run is pointed at, which
+// should ask for no account at all.
 tasks.register("devMock") {
+    group = "development"
+    description = "Run the app on this machine against MSW mocks (no Cloudflare account needed)"
     dependsOn(
         ":frontend:devMock",
         ":backend:npm_run_dev",
     )
 }
+
+/**
+ * The Docker stack, one memorable name per combination.
+ *
+ * Two switches used to mean juggling `-f` files, `--profile` flags and an
+ * environment variable on the command line; these four tasks name the four
+ * answers instead. The Genie axis is NPM_CMD — which wrangler environment the
+ * Worker runs in — and the demo-data axis is Compose's `demo` profile, which
+ * adds a db-seed service that runs to completion before the Worker starts.
+ *
+ *   ./gradlew up            # dev servers, Article Genie on   (needs a token)
+ *   ./gradlew noGenie       # dev servers, Article Genie off  (no credentials)
+ *   ./gradlew demo          # ...seeded with the demo league, Genie on
+ *   ./gradlew demoNoGenie   # ...seeded with the demo league, Genie off
+ *
+ * The Genie ones need CLOUDFLARE_API_TOKEN in `backend/.dev.vars`, which is
+ * where this project's other local secrets already live — the committed
+ * .dev.vars.example says how to create one. Without it the backend stops with a
+ * message saying so rather than hanging on an OAuth flow it cannot finish.
+ */
+fun registerComposeTask(
+    name: String,
+    description: String,
+    npmCommand: String,
+    vararg composeArgs: String,
+) = tasks.register<Exec>(name) {
+    group = "docker"
+    this.description = description
+    // The compose file lives at the repository root, which is this project.
+    workingDir = layout.projectDirectory.asFile
+    commandLine("docker", "compose", *composeArgs, "up")
+    // Through the environment rather than concatenated into the command line:
+    // `NPM_CMD=x docker ...` is bash syntax that neither PowerShell nor cmd
+    // understands, and this is the one build everyone runs on whichever shell
+    // they happen to have.
+    environment("NPM_CMD", npmCommand)
+    // `up` never returns, so there is no output to be up to date with. Without
+    // this Gradle would call a second run of an unchanged stack UP-TO-DATE and
+    // start nothing.
+    outputs.upToDateWhen { false }
+}
+
+registerComposeTask(
+    "up",
+    "Run the app in Docker, with the Article Genie (needs a Cloudflare token)",
+    npmCommand = "devgenie",
+)
+
+registerComposeTask(
+    "noGenie",
+    "Run the app in Docker, without the Article Genie",
+    npmCommand = "dev",
+)
+
+registerComposeTask(
+    "demo",
+    "Run the app in Docker with the demo league seeded, with the Article Genie (needs a token)",
+    npmCommand = "devgenie",
+    "--profile", "demo",
+)
+
+registerComposeTask(
+    "demoNoGenie",
+    "Run the app in Docker with the demo league seeded, without the Article Genie",
+    npmCommand = "dev",
+    "--profile", "demo",
+)
 
 tasks.register("fix") {
     dependsOn(

@@ -8,9 +8,21 @@ This repo is a Gradle-orchestrated monorepo (`frontend` + `backend`) where each 
 
 ```bash
 ./gradlew check      # root npm_ci + frontend:check + backend:check
-./gradlew dev        # frontend devNoMock + backend wrangler dev
-./gradlew devMock    # frontend devMock + backend wrangler dev
+./gradlew dev        # frontend devNoMock + backend wrangler dev, Article Genie on
+./gradlew devNoGenie # the same, Genie off - the one needing no Cloudflare account
+./gradlew devMock    # frontend devMock (MSW) + backend wrangler dev, Genie off
 ./gradlew fix        # frontend/backend format+lint fix tasks
+```
+
+The same app in Docker, one name per combination (see
+`docs/development/docker-local-dev.md`). `up`/`demo` need a CLOUDFLARE_API_TOKEN
+in `backend/.dev.vars`; the other two need nothing:
+
+```bash
+./gradlew up          # dev servers, Article Genie on
+./gradlew noGenie     # dev servers, Article Genie off
+./gradlew demo        # ...with the demo league seeded, Genie on
+./gradlew demoNoGenie # ...with the demo league seeded, Genie off
 ```
 
 ### Frontend (`cd frontend`)

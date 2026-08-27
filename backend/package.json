@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "wrangler dev --env local",
-    "dev:genie": "wrangler dev --env local-genie",
+    "devgenie": "wrangler dev --env local-genie",
     "deploy": "npm run deploy:production",
     "deploy:production": "wrangler deploy --minify",
     "deploy:preview": "wrangler deploy --env preview --minify",

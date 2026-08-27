@@ -24,9 +24,21 @@ FantasyWiki/
 
 ```bash
 ./gradlew check      # npm_ci + frontend:check + backend:check (format, lint, test, audit)
-./gradlew dev        # frontend devNoMock + backend wrangler dev
-./gradlew devMock    # frontend devMock (MSW) + backend wrangler dev
+./gradlew dev        # frontend devNoMock + backend wrangler dev, Article Genie on
+./gradlew devNoGenie # the same, Genie off - the one needing no Cloudflare account
+./gradlew devMock    # frontend devMock (MSW) + backend wrangler dev, Genie off
 ./gradlew fix        # frontend/backend formatfix + lintfix
+```
+
+The same app in Docker, one name per combination (see
+`docs/development/docker-local-dev.md`). `up`/`demo` need a CLOUDFLARE_API_TOKEN
+in `backend/.dev.vars`; the other two need nothing:
+
+```bash
+./gradlew up          # dev servers, Article Genie on
+./gradlew noGenie     # dev servers, Article Genie off
+./gradlew demo        # ...with the demo league seeded, Genie on
+./gradlew demoNoGenie # ...with the demo league seeded, Genie off
 ```
 
 ### Frontend (`cd frontend`)
@@ -122,6 +134,9 @@ Branch-based deploys to Cloudflare (see `docs/deployment/deploy-strategy.md`):
 
 - `master` → production Worker `backend`, Pages project `frontend`, D1 `db`
 - `dev` → QA Worker `backend-preview`, Pages `frontend` (dev branch), D1 `db-preview`
-- `feature/*` and `renovate/*` → CI only (`./gradlew check`), no deploy
+- `feat/*` and `renovate/*` → CI only (`./gradlew check`), no deploy
 
-The `dispatcher.yml` workflow routes to `build.yml` (CI, all branches) and `deploy.yml` (deploy on `master`/`dev`).
+`ci-cd.yml` is the single entry point: a `dispatcher` job in it fans out to
+`check.yml` (CI, all branches), `coverage.yml`, `deploy.yml` (deploy on
+`master`/`dev`), `docs.yml` (only when `docs/` changed) and
+`publish-images.yml`. There is no `dispatcher.yml` or `build.yml` file.

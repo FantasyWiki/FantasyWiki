@@ -243,9 +243,10 @@ before every backend test.
 **The obligation.** Someone should be able to run the whole thing without
 obtaining a single credential.
 
-**The mechanism.** `docker compose up` against published images, a dev sign-in
+**The mechanism.** `./gradlew noGenie` against published images, a dev sign-in
 route that refuses to exist outside the local environment, and MSW standing in
-for the API in the browser.
+for the API in the browser. Only the Article Genie asks for a credential, and
+only the two tasks that name it.
 
 → [Running FantasyWiki in Docker](../docs/development/docker-local-dev.md)
 

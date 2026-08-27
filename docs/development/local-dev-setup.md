@@ -155,8 +155,9 @@ Wait for both "Ready" messages before opening the browser.
 
 ## Running Without a Cloudflare Account
 
-`npm run dev` (and `./gradlew dev` / `devMock`) starts the Worker on the `local`
-environment, which **declares no Workers AI binding**. That is deliberate:
+`npm run dev` (and `./gradlew devNoGenie` / `devMock`) starts the Worker on the
+`local` environment, which **declares no Workers AI binding**. `./gradlew dev` is
+the one that does not: it runs `local-genie`, and wants the account below. That is deliberate:
 Workers AI has no local simulator, so the binding's mere presence makes Wrangler
 open a remote proxy session and ask you to log in to Cloudflare. With it
 declared, a fresh clone could not start the backend at all — the whole app held
@@ -175,7 +176,7 @@ account, and every question spends part of the day's shared neuron allocation.
 
 ```bash
 wrangler login          # once
-cd backend && npm run dev:genie
+cd backend && npm run devgenie
 ```
 
 That runs the `local-genie` environment — `local` plus the `ai` binding. It uses
@@ -184,6 +185,88 @@ between them.
 
 See [Article Genie LLM Integration](../architecture/article-genie-llm.md) for how
 the flag propagates from the binding to the button.
+
+### Creating a Cloudflare API token
+
+`wrangler login` is the easy path natively, and the *only* thing that works
+where a browser does. It is not always available: in a container its OAuth
+callback listens on `localhost:8976`, which is the container's own loopback, so
+the consenting browser on the host has nothing to talk to. It is also the wrong
+shape for CI, which has no browser at all.
+
+An API token covers both. Wrangler reads `CLOUDFLARE_API_TOKEN` from the
+environment and prefers it over any stored login session, so it needs no
+interaction anywhere.
+
+**1. Create it.** Go to
+<https://dash.cloudflare.com/profile/api-tokens> → **Create Token** →
+**Create Custom Token** (the bottom option — the templates above it are all
+far broader than this needs), then add the least that works:
+
+| Section | Group | Resource | Level |
+|---|---|---|---|
+| Account | **Workers Scripts** | your account | **Edit** |
+| Account | Workers AI | your account | **Read** |
+| Account | Account Settings | your account | **Read** |
+
+Workers AI · Read calls the model, and Account Settings · Read lets Wrangler
+resolve which account you mean. Leave *Client IP Address Filtering* empty and
+*TTL* at the default unless you have a reason.
+
+**Workers Scripts · Edit is the surprising one, and it is not optional.** Because
+Workers AI has no local simulator, `wrangler dev` opens a *remote preview
+session* to carry the calls, and that machinery lives under Workers Scripts
+rather than under Workers AI. Without it Wrangler stops with
+`Failed to establish remote session due to an authentication issue` and the
+backend never starts — while `wrangler whoami` still succeeds, because the token
+is perfectly valid and merely unauthorised for that one endpoint
+(`GET /accounts/<id>/workers/subdomain/edge-preview`, error code 10000).
+`WRANGLER_LOG=debug` is what prints the endpoint; the plain error does not.
+
+So **this token is not read-only**: Workers Scripts · Edit can publish a Worker
+to your account, and it will be sitting in a file on your laptop. It is still
+narrower than the deploy token CI uses — no Pages, no D1 — but treat it as a
+write credential, and if that is not a trade you want, `./gradlew noGenie` and
+`npm run dev` need no Cloudflare account at all.
+
+**2. Find your account id.** It is the hex string in the dashboard URL
+(`dash.cloudflare.com/<account id>/...`), and also sits under **Workers & Pages
+→ Overview** in the right-hand sidebar.
+
+**3. Put both where they are read from.** `wrangler.jsonc` declares no
+`account_id`, so Wrangler asks the API — which means `CLOUDFLARE_ACCOUNT_ID` is
+**required, not optional**, as soon as your token can see more than one account.
+
+- **Natively** — export them in your shell, or leave `wrangler login` in place
+  and skip the token entirely.
+
+  ```bash
+  export CLOUDFLARE_API_TOKEN=...
+  export CLOUDFLARE_ACCOUNT_ID=...
+  ```
+
+- **In Docker** — put both at the bottom of `backend/.dev.vars`, the same
+  file the Worker's other secrets live in (`.dev.vars.example` carries the two
+  names, commented with how to create the token). Compose passes that whole
+  file into the container's environment, so nothing has to be exported there
+  either.
+
+  ```bash
+  cp backend/.dev.vars.example backend/.dev.vars   # if you have none yet
+  ```
+
+  There is no `.env` in the repository root, on purpose — a third env file for
+  two values is a worse trade than putting them beside the secrets that were
+  already there. Note the direction of the split, though: Wrangler reads
+  `.dev.vars` for the **Worker's** vars, never for its own credentials, so
+  natively that file does *not* authenticate you. Only Compose turns it into
+  the process environment Wrangler actually reads.
+
+Then `./gradlew dev --parallel` natively, or `./gradlew up` in Docker. The
+backend prints `==> Article Genie on` and the market grows its Genie button;
+without a token the Docker path stops with a message saying so rather than
+hanging on a login it cannot finish. Container specifics are in
+[Running FantasyWiki in Docker](./docker-local-dev.md#the-article-genie).
 
 ---
 
@@ -222,7 +305,7 @@ so those requests reach the real Wrangler backend. Everything else is mocked.
 | Backend not reachable | Wrangler not running or wrong port | Run `npm run dev` in `backend/` and check the port in the log |
 | Cookie not sent | Browser privacy settings blocking cookies | Use Chrome/Firefox, disable aggressive privacy extensions during dev |
 | Wrangler asks you to log in to Cloudflare | You started the `local-genie` env (or added an `ai` binding to `local`) | Use `npm run dev` — the Genie is optional, see above |
-| No Genie button in the market | Expected on `npm run dev` | Nothing to fix; `npm run dev:genie` if you need it |
+| No Genie button in the market | Expected on `npm run dev` | Nothing to fix; `npm run devgenie` if you need it |
 
 ## Related
 

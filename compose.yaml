@@ -1,10 +1,20 @@
-# Development in containers: clone, `docker compose up`, open localhost:5173.
-# Nothing to install on the host but Docker, and no credentials to obtain — the
-# Article Genie is off (it is the one feature needing a Cloudflare account) and
-# `/auth/dev` signs you in without Google.
+# Development in containers: clone, `./gradlew noGenie`, open localhost:5173.
+# Nothing to install on the host but Docker and a JDK, and nothing to obtain.
 #
-# For the built, no-hot-reload variant:
-#   docker compose -f compose.yaml -f compose.demo.yaml up
+# Two things are optional and independently switchable, which is what the
+# `./gradlew` wrappers below are for — one memorable name per combination
+# instead of a growing pile of -f files and --profile flags:
+#
+#   ./gradlew up            # dev servers, Article Genie on   (needs a token)
+#   ./gradlew noGenie       # dev servers, Article Genie off  (no credentials)
+#   ./gradlew demo          # ...seeded with the demo league, Genie on
+#   ./gradlew demoNoGenie   # ...seeded with the demo league, Genie off
+#
+# The Genie axis is NPM_CMD (which wrangler environment the Worker runs in);
+# the data axis is the `demo` profile (whether db-seed runs before the Worker).
+# Both are plain Compose, so the raw commands still work if you prefer them:
+#
+#   NPM_CMD=dev docker compose --profile demo up
 #
 # See docs/development/docker-local-dev.md.
 
@@ -16,6 +26,17 @@ services:
       context: .
       dockerfile: docker/backend.Dockerfile
       target: dev
+    # The Genie switch. `devgenie` runs the Worker on wrangler's `local-genie`
+    # environment, which binds Workers AI and therefore needs the Cloudflare
+    # credentials below; `dev` binds no model and needs nothing. Defaulted here
+    # rather than in the Dockerfile so that a bare `docker run` of the image
+    # still starts without credentials.
+    #
+    # `-- --ip 0.0.0.0` is not optional: Wrangler binds loopback by default,
+    # which inside a container is reachable only from that same container,
+    # published port or not. Dropping it leaves the healthcheck passing (it
+    # calls 127.0.0.1 from inside) while every call from the frontend fails.
+    command: ["npm", "run", "${NPM_CMD:-devgenie}", "--", "--ip", "0.0.0.0"]
     # Not remapped, and not remappable: `http://127.0.0.1:8787/auth/google` is
     # registered with Google as a redirect URI, and FRONTEND_URL feeds both that
     # redirect and the session cookie's Secure flag.
@@ -33,10 +54,35 @@ services:
       # the same reason, and it means `docker compose down` keeps your data —
       # `down -v` is how you ask for a clean database.
       - backend_wrangler_state:/workspace/backend/.wrangler
+    # Where CLOUDFLARE_API_TOKEN comes from, and the reason there is no `.env`
+    # in the repository root: this project's local secrets already have a home,
+    # so the Genie's credentials go in it rather than in a third file next to
+    # the other two. Wrangler reads the same file for the Worker's own vars, and
+    # needs the token in the *process* environment — which is what this does and
+    # what `wrangler login` cannot do from inside a container.
+    #
+    # `required: false` because a fresh clone has no such file at all: the
+    # entrypoint writes one on first boot, and the two no-Genie run modes never
+    # want anything out of it.
+    env_file:
+      - path: ./backend/.dev.vars
+        required: false
+        # Without this Compose expands `$` inside the values it reads, so a
+        # secret with a `$` in it silently arrives truncated (and warns about an
+        # undefined variable named after whatever followed the sign).
+        format: raw
     environment:
       # Bind-mounted filesystems do not deliver inotify events on Windows or
       # macOS, so Wrangler's watcher has to poll to see an edit at all.
       CHOKIDAR_USEPOLLING: "true"
+    depends_on:
+      # `required: false` is the hinge: without the `demo` profile db-seed is
+      # not part of the project at all, and the dependency simply disappears
+      # rather than failing the run. With it, the Worker waits for the seed to
+      # finish, so the two never touch the D1 files at the same time.
+      db-seed:
+        condition: service_completed_successfully
+        required: false
     healthcheck:
       # `/` is the Worker's own unauthenticated echo of its FRONTEND_URL
       # resolution, so a 200 here means the whole app booted, not just the port.
@@ -45,6 +91,31 @@ services:
       timeout: 5s
       retries: 30
       start_period: 30s
+
+  # Runs to completion before `backend` starts, and only under the `demo`
+  # profile. It is the same image and the same entrypoint, so it applies the
+  # migrations first and seeds a schema that exists; the volumes below are
+  # `backend`'s, repeated rather than shared through an anchor because they have
+  # to match exactly — a different .wrangler mount would seed a different
+  # database, and a missing node_modules mount would have no wrangler to run.
+  # No ports: nothing connects to it.
+  #
+  # The seed deletes its own rows before reinserting them, so booting the demo
+  # profile again replaces the demo league rather than stacking a second copy of
+  # it — which is what makes running it on every `up` safe, not merely safe the
+  # first time.
+  db-seed:
+    profiles: ["demo"]
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      target: dev
+    command: ["npm", "run", "db:seed:demo"]
+    volumes:
+      - .:/workspace
+      - backend_node_modules:/workspace/backend/node_modules
+      - root_node_modules:/workspace/node_modules
+      - backend_wrangler_state:/workspace/backend/.wrangler
 
   frontend:
     build:
@@ -67,8 +138,8 @@ services:
       # variable win over the file, so the container's answer is the same
       # whatever a developer happens to have in their own .env.local.
       VITE_BACKEND_URL: http://127.0.0.1:8787
-      # The real backend, against a real (empty) database. `VITE_MOCK=true`
-      # instead paints the UI from fixtures without persisting anything.
+      # The real backend, against a real database. `VITE_MOCK=true` instead
+      # paints the UI from fixtures without persisting anything.
       VITE_MOCK: "false"
       # Shows the "Continue as demo player" button. The backend independently
       # refuses /auth/dev unless it is on the `local` environment, so this alone

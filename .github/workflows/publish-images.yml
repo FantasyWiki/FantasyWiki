@@ -17,9 +17,9 @@ jobs:
       packages: write
     strategy:
       matrix:
-        # One entry per publishable service. The backend and frontend demo
-        # images belong here too the day someone wants `docker compose pull`
-        # instead of a local build.
+        # One entry per publishable service. Only the collector qualifies:
+        # Cloudflare runs the backend and the frontend, and their images here
+        # exist to develop against rather than to ship.
         include:
           - name: scoring-collector
             dockerfile: docker/scoring-collector.Dockerfile

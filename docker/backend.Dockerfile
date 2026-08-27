@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 #
 # The Cloudflare Worker, run by Wrangler exactly as it is on a developer's own
-# machine — `wrangler dev` is the only way to run a Worker locally, so the demo
-# image runs the same command as the dev one and differs only in whether the
-# sources are baked in or mounted.
+# machine — `wrangler dev` is the only way to run a Worker locally, container or
+# not. The sources arrive through a bind mount, so an edit on the host restarts
+# the Worker without a rebuild.
 #
 # See docs/development/docker-local-dev.md.
 
@@ -35,20 +35,15 @@ EXPOSE 8787
 ENTRYPOINT ["backend-entrypoint"]
 # --ip 0.0.0.0: Wrangler binds loopback by default, which inside a container is
 # reachable only from that same container, published port or not.
+#
+# `dev` and not `devgenie`: this default is what a bare `docker run` of the
+# image gets, and that has no Cloudflare credentials, so the Genie environment
+# would refuse to start. Under Compose it never applies — compose.yaml always
+# passes a command, and *its* default is `devgenie`.
 CMD ["npm", "run", "dev", "--", "--ip", "0.0.0.0"]
 
 # ── dev ───────────────────────────────────────────────────────────────────────
-# Sources arrive through a bind mount, so edits are picked up without a rebuild.
+# The only stage. It is named rather than implicit because compose.yaml asks for
+# it by name, and because a stage that bakes the sources in would go here beside
+# it the day one is needed.
 FROM deps AS dev
-
-# ── demo ──────────────────────────────────────────────────────────────────────
-# Self-contained: `docker run` with no repository checkout anywhere.
-FROM deps AS demo
-WORKDIR /workspace
-# The Worker imports from ../../dto, ../../model and ../../external-apis, so the
-# unit of copying is the monorepo, not the subproject.
-COPY dto ./dto
-COPY model ./model
-COPY external-apis ./external-apis
-COPY backend ./backend
-WORKDIR /workspace/backend

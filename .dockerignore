@@ -20,8 +20,15 @@
 backend/.wrangler
 frontend/.ionic
 
-# Secrets. The entrypoint writes a local .dev.vars from the committed example
-# instead, so a stray copy of the real one never reaches an image layer.
+# Secrets. backend/.dev.vars holds all of them, the Article Genie's Cloudflare
+# token included; Compose passes it into the container at run time and no
+# Dockerfile copies it, so excluding it here keeps it out of the build context
+# handed to the daemon as well. The entrypoint writes a local one from the
+# committed example, so a stray copy of the real file never reaches a layer.
+# Both spellings on purpose: `**/.env` is documented to match zero directories
+# too, but a secrets exclusion is the wrong place to rely on reading a spec
+# correctly, so the root one is named outright as well.
+.env
+**/.env
 backend/.dev.vars
-backend/.env
 frontend/.env.local

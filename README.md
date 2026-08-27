@@ -129,24 +129,24 @@ FantasyWiki/
 ├── frontend/           # Vue 3 + Ionic SPA
 ├── scoring-collector/  # Kotlin nightly batch — the one service Cloudflare does not host
 ├── docker/             # Dockerfiles, one per service
-├── compose.yaml        # Local stack (+ compose.demo.yaml: built, seeded, no hot reload)
+├── compose.yaml        # Local stack, driven by ./gradlew up | noGenie | demo | demoNoGenie
 └── docs/               # Documentation, grouped by concept
 ```
 
 ## Quick start
 
-Two ways in. **Start with Docker if you can** — it asks you for nothing: no
-accounts, no secrets, not even Node. The native toolchain is what you need to
-ship, and [Which one](#which-one) says exactly where the line falls.
+**Run it in Docker.** One command, and it asks you for nothing: no accounts, no
+secrets, not even Node. The native toolchain is the
+[alternative](#on-your-machine-instead), and you need it only to *ship*.
 
-### Option A — Docker (recommended)
+### In Docker
 
-**Prerequisites** — Docker with Compose v2. Nothing else.
+**Prerequisites** — Docker with Compose v2, and a JDK for the Gradle wrapper.
 
 ```bash
 git clone https://github.com/FantasyWiki/FantasyWiki.git
 cd FantasyWiki
-docker compose up
+./gradlew noGenie
 ```
 
 Open <http://localhost:5173> and sign in with **Continue as demo player**.
@@ -154,16 +154,39 @@ There is nothing to obtain first: no Cloudflare account, no Google OAuth client
 secret, no env file to fill in. The repository is bind-mounted, so an edit on
 your machine hot-reloads inside the containers.
 
-For a database that already has a league, rival squads and scored days in it,
-run the demo profile instead:
+Two things are optional and switch independently, so there are four commands and
+one name for each. **Genie** is the Article Genie, the single feature that needs
+a Cloudflare account; `backend/.dev.vars.example` says how to get a token.
+**Demo** seeds the database with a public league, rival squads and scored days,
+for when you would rather look at FantasyWiki than start it empty.
 
-```bash
-docker compose -f compose.yaml -f compose.demo.yaml up --build
-```
+| | Genie off | Genie on |
+|---|---|---|
+| **Empty database** | `./gradlew noGenie` | `./gradlew up` |
+| **Seeded database** | `./gradlew demoNoGenie` | `./gradlew demo` |
 
-Both modes in full: [`docker-local-dev.md`](./docs/development/docker-local-dev.md).
+Each is a one-line wrapper around `docker compose up`, so the raw commands still
+work if you prefer them — `./gradlew tasks --group docker` prints what each one
+runs. Everything in full:
+[`docker-local-dev.md`](./docs/development/docker-local-dev.md).
 
-### Option B — Node and Gradle on your machine
+### On your machine instead
+
+Two things genuinely need the native toolchain, and both are about the
+serverless platform rather than the app:
+
+- **Shipping.** The frontend is a Cloudflare Pages project and the backend a
+  Worker, so `wrangler deploy` and `wrangler pages deploy` are how anything
+  reaches production — nothing here is ever deployed as an image. The only
+  credential the containers ever hold is the Article Genie's token, which is
+  narrower than that (no Pages, no D1).
+- **`./gradlew check --parallel`, the PR gate.** The image carries Node but no
+  JDK; the bind mount puts `gradlew` in front of you with nothing behind it.
+
+Plus the obvious third reason: you would rather not run Docker. Everything else
+works in both — the suites, the linters, `wrangler dev`, local D1 migrations —
+and the full split is in
+[`docker-local-dev.md`](./docs/development/docker-local-dev.md#what-docker-is-not-for).
 
 **Prerequisites** — Node `24.18.0`, npm `11.18.0` (pinned in `engines`), and a JDK for the Gradle wrapper.
 
@@ -183,6 +206,7 @@ generate yourself. `GOOGLE_CLIENT_SECRET` is the only thing here you have to be
 player.
 
 **2. Run it.** Gradle downloads its own Node and installs dependencies for you.
+This one needs no Cloudflare account — of the Gradle tasks, only `dev` does.
 
 ```bash
 ./gradlew devMock --parallel
@@ -195,16 +219,6 @@ Frontend → <http://localhost:5173> · Backend → <http://127.0.0.1:8787>
 
 With `VITE_MOCK=true`, MSW mocks every `/api/*` call *except* `/api/session` and
 `/auth/*` — so you get a **real Google login** against **mocked game data**.
-
-### Which one
-
-Containers are a **development** convenience, and they are not how anything
-ships: Workers and Pages are serverless, so no image is ever deployed. Almost
-everything works in both — the suites, the linters, `wrangler dev`, local D1
-migrations. Two things do not: the image has no JDK, so `./gradlew check
---parallel` (the PR gate) is native only, and it is given no Cloudflare
-credentials, so deploys are too. The full split is in
-[`docker-local-dev.md`](./docs/development/docker-local-dev.md#what-docker-is-not-for).
 
 <!--
 ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -221,11 +235,15 @@ credentials, so deploys are too. The full split is in
 ### Root — Gradle, both subprojects (always `--parallel`)
 
 ```bash
-./gradlew devMock --parallel   # frontend (MSW-mocked) + backend
-./gradlew dev     --parallel   # frontend (real API) + backend
-./gradlew check   --parallel   # install, format, lint, test, audit — what CI runs
-./gradlew fix     --parallel   # format + lint autofix
+./gradlew devMock    --parallel   # frontend (MSW-mocked) + backend
+./gradlew devNoGenie --parallel   # frontend (real API) + backend
+./gradlew dev        --parallel   # ...and the Article Genie (needs Cloudflare)
+./gradlew check      --parallel   # install, format, lint, test, audit — what CI runs
+./gradlew fix        --parallel   # format + lint autofix
 ```
+
+The Docker equivalents — `up`, `noGenie`, `demo`, `demoNoGenie` — need no
+`--parallel`, since Compose runs the services. See [In Docker](#in-docker).
 
 ### Frontend (`cd frontend`)
 

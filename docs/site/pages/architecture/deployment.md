@@ -129,9 +129,11 @@ the system despite being the one that runs unattended.
 
 ## Running the whole stack locally
 
-`docker compose up` brings up the frontend, the Worker and a local D1 with **no
-credentials to obtain**: the demo compose file wires the dev sign-in route, which
-mints a normal session and refuses to exist outside the local environment.
+`./gradlew noGenie` brings up the frontend, the Worker and a local D1 with **no
+credentials to obtain**: the compose file wires the dev sign-in route, which
+mints a normal session and refuses to exist outside the local environment. Three
+sibling tasks — `up`, `demo`, `demoNoGenie` — add the Article Genie, the seeded
+demo league, or neither.
 
 → [Running FantasyWiki in Docker](../docs/development/docker-local-dev.md) ·
 [Local Development Setup](../docs/development/local-dev-setup.md)

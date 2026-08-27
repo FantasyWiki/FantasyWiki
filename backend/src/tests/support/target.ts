@@ -3,9 +3,11 @@ import {
   MONGO_PERSISTENCE,
   mongoTargetFor,
   repositoriesFor,
+  type PersistenceEnv,
 } from "../../composition";
 import { Repositories } from "../../repositories/repositories";
 import { D1TestStore } from "./d1/d1TestStore";
+import { perFileDatabase } from "./mongo/database";
 import { MongoTestStore } from "./mongo/mongoTestStore";
 import { TestStore } from "./testStore";
 
@@ -33,11 +35,34 @@ import { TestStore } from "./testStore";
 let built: Repositories | undefined;
 let resetter: TestStore | undefined;
 
+/**
+ * The bindings, with this file's own database named on them the first time
+ * anything asks (see {@link perFileDatabase}). That is what lets the files run
+ * in parallel against a single server.
+ *
+ * Written *onto* the bindings rather than passed alongside them, because this
+ * seam is not the only reader. `tests/routes/internal.integration.test.ts`
+ * drives the wired app, whose middleware calls `repositoriesFor(c.env)`, and
+ * the settlement Workflow test calls `repositoriesFor(this.env)` itself. Those
+ * have to reach the same database as the fixtures, and the only thing all three
+ * share is `env`. A binding is also what a deployment would use to say the same
+ * thing, so nothing here asks the code under test to know it is a test.
+ *
+ * Set once per isolate, which is once per test file — a fresh isolate arrives
+ * with it undefined.
+ */
+const persistenceEnv = (): PersistenceEnv => {
+  if (env.PERSISTENCE === MONGO_PERSISTENCE && env.MONGO_DB === undefined) {
+    (env as { MONGO_DB?: string }).MONGO_DB = perFileDatabase();
+  }
+  return env;
+};
+
 export const repositories = (): Repositories =>
-  (built ??= repositoriesFor(env));
+  (built ??= repositoriesFor(persistenceEnv()));
 
 export const store = (): TestStore =>
   (resetter ??=
     env.PERSISTENCE === MONGO_PERSISTENCE
-      ? new MongoTestStore(mongoTargetFor(env))
+      ? new MongoTestStore(mongoTargetFor(persistenceEnv()))
       : new D1TestStore(env.db, env.TEST_MIGRATIONS));

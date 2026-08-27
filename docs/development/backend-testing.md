@@ -166,10 +166,25 @@ in `wrangler dev`
 lifetime has to be exercised against a running server, with more than one
 request.
 
-The Mongo run sets `fileParallelism: false`, because there is one Mongo. The D1 pool hands every
-test file its own database, so the suite is written as if each file owned the store — `reset()`
-before every test, ids that only have to be unique within a file. Parallel files sharing one server
-would have one file's reset wipe another's fixtures mid-test.
+### A database per test file
+
+The suite is written as if each file owned the store: `reset()` empties everything before every
+test, and ids only have to be unique within a file. The D1 pool makes that true for free, handing
+every file its own database. One MongoDB server does not — so the Mongo run names a database after
+the file, `fantasywiki_test_<hash of path>`, and the files run in parallel exactly as D1's do.
+Hashed because a database name may not contain `/` and stops at 63 bytes, and stable across runs so
+a suite leaves the same handful of databases behind rather than a fresh set each time.
+
+The name is written **onto the bindings** (`MONGO_DB`, in `support/target.ts`) rather than passed
+around, because the seam is not the only reader: `tests/routes/internal.integration.test.ts` drives
+the wired app, whose middleware calls `repositoriesFor(c.env)`, and the settlement Workflow test
+calls `repositoriesFor(this.env)` itself. All three have to reach the same database, and `env` is
+the only thing they share. Passing it any other way makes exactly those two files fail while the
+other 43 pass — which is how this was found.
+
+Before this, the run was serialized (`fileParallelism: false`) and 45 files' worth of isolate
+startup could not overlap. Measured on one machine, same commit: **272s serialized, 130s in
+parallel**.
 
 ## Related
 

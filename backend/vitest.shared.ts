@@ -131,13 +131,6 @@ export async function backendTestConfig(
     ],
     test: {
       globals: true,
-      // One file at a time against Mongo, because there is one Mongo. The D1
-      // pool hands every test file its own database, so the suite is written as
-      // if each file owned the store — `reset()` before every test, ids that
-      // only have to be unique within a file. Sharing one server between
-      // parallel files would have one file's reset wipe another's fixtures
-      // mid-test.
-      fileParallelism: !mongo,
       deps: {
         optimizer: {
           ssr: {

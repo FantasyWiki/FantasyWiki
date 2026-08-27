@@ -106,6 +106,12 @@ export async function backendTestConfig(
         },
         miniflare: {
           d1Persist: false,
+          // Only the Mongo run needs Node's sockets, and it is asked for here
+          // rather than in wrangler.jsonc on purpose: `env.test` is a mirror of
+          // `production`, and a compatibility flag is exactly the kind of
+          // difference that would make it stop being one. No Cloudflare
+          // deployment runs on MongoDB, so none of them needs the flag.
+          ...(mongo ? { compatibilityFlags: ["nodejs_compat"] } : {}),
           bindings: {
             JWT_SECRET: "test-jwt-secret",
             GOOGLE_CLIENT_SECRET: "test-google-client-secret",

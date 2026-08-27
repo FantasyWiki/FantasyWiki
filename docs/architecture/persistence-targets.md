@@ -33,9 +33,28 @@ awaiting. So the Mongo repositories are built around a *target* and open their
 connection on the first call that needs one. One client is cached per target per
 isolate, since a `MongoClient` owns a connection pool.
 
-The driver stays out of a D1 deployment: everything `repositories/mongo` names
-from `mongodb` is a type — erased at compile time — except a single
-`await import("mongodb")` inside the function that opens a connection.
+**No Cloudflare deployment runs on MongoDB.** Production and preview are D1, and
+the Mongo target runs locally. Keeping it that way took more than good
+intentions: `composition.ts` names both targets, so the driver is reachable from
+the Worker's entry point, and making the import dynamic is not enough — esbuild
+follows dynamic imports and inlines them. Measured on the production dry-run,
+that shipped 1.5MB of driver (2722 KiB total, 446 KiB gzipped) with a Worker
+that can never use it, and the build *failed* without `nodejs_compat`, because
+the driver imports `net`, `tls` and `child_process`.
+
+So `wrangler.jsonc` aliases `mongodb` to `repositories/mongo/driverAbsent.ts`,
+which brings the production bundle back to 962 KiB / 220 KiB gzipped — 8 KiB
+gzipped above the pre-MongoDB baseline, that being the repository code itself,
+which is small and unreachable. No compatibility flag is needed anywhere in
+`wrangler.jsonc`, so **the D1 deployments are configured exactly as they were**.
+
+Two things make that safe rather than clever:
+
+- `alias` is a top-level wrangler key — it is ignored inside an environment — so
+  it covers every wrangler *build*, which is the right scope when no deployment
+  runs on MongoDB.
+- The Vitest pool resolves modules through Vite, not wrangler's bundler, so it
+  is unaffected and `npm run testmongo` exercises the real driver.
 
 The layering rule is mechanical. `no-restricted-imports` in
 `backend/eslint.config.ts` forbids **both** `repositories/d1/**` and
@@ -44,22 +63,35 @@ The layering rule is mechanical. `no-restricted-imports` in
 
 ## Running the Worker on MongoDB
 
-The Mongo driver runs inside workerd. Two things make that work, and both are
-already in the repo:
+The Mongo driver runs inside workerd — that is how the suite runs it. Two things
+make that work, and both live in `vitest.shared.ts`, deliberately rather than in
+`wrangler.jsonc`:
 
-- `compatibility_flags: ["nodejs_compat"]` in `backend/wrangler.jsonc`. The
-  driver reaches for `node:net`, `node:tls`, `node:crypto` and friends.
-- Vite pre-bundles `mongodb` for the test pool (`vitest.shared.ts`). The driver
-  is CommonJS, and the Workers vitest pool cannot serve a `require("node:x")`
-  from inside a CommonJS module; `deps.optimizer.ssr` converts it to ESM, with
-  the Node builtins in `exclude` so they stay imports the runtime resolves
-  rather than files rolldown tries to read from disk.
+- `compatibilityFlags: ["nodejs_compat"]`, passed to Miniflare for the Mongo run
+  only. The driver reaches for `node:net`, `node:tls`, `node:crypto` and
+  friends. It is not in `wrangler.jsonc` because `env.test` is a mirror of
+  `production`, and a compatibility flag — which changes how dependencies
+  resolve and what globals exist — is exactly the kind of difference that would
+  stop it being one.
+- Vite pre-bundles `mongodb` for the test pool. The driver is CommonJS, and the
+  Workers Vitest pool cannot serve a `require("node:x")` from inside a CommonJS
+  module; `deps.optimizer.ssr` converts it to ESM, with the Node builtins in
+  `exclude` so they stay imports the runtime resolves rather than files rolldown
+  tries to read from disk.
 
 MongoDB must be a **replica set** — Atlas always is, and locally a single-node
 one is a flag. Multi-document transactions need it, and the guarded writes below
 are transactions. The test suite starts one of its own, which is what lets
 `./gradlew check` run against both targets on any machine
 ([Backend Testing](../development/backend-testing.md)).
+
+### One consequence, worth knowing before you hit it
+
+`alias` has no per-environment form, so it applies to `wrangler dev` too: a
+`wrangler dev` session cannot run the MongoDB target, whichever environment it
+loads. The suite can, because it goes through Vite rather than wrangler. If a
+local `wrangler dev` on MongoDB is wanted, it needs a wrangler config of its own
+— one without the alias and with `nodejs_compat` — rather than a change here.
 
 ## What is stored
 

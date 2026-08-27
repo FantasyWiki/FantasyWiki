@@ -40,6 +40,21 @@ function admits(
 }
 
 /**
+ * Lowercase the way Mongo's `$toLower` does — the ASCII letters and nothing
+ * else.
+ *
+ * `String.prototype.toLowerCase` folds the whole Unicode range, and `$toLower`
+ * is documented as well-defined for ASCII only: it turns `CAFÉ` into `cafÉ`,
+ * not `café`. Folding the two sides differently would make a name check
+ * order-dependent — with `café` stored, `CAFÉ` would collide, but with `CAFÉ`
+ * stored, `café` would not. This matches D1's `LOWER()`, which is ASCII-only on
+ * both sides of its comparison.
+ */
+function asciiLower(value: string): string {
+  return value.replace(/[A-Z]/g, (letter) => letter.toLowerCase());
+}
+
+/**
  * Only the fields a `Team` has, with the id where the domain expects it.
  *
  * Run after {@link teamCreditsStages}, so `credits` is the derived balance and
@@ -190,7 +205,7 @@ export class TeamRepositoryMongo implements TeamRepository {
         // they had: their departed team is still here and would collide with
         // itself.
         playerId: { $ne: exceptPlayerId ?? "" },
-        $expr: { $eq: [{ $toLower: "$name" }, name.toLowerCase()] },
+        $expr: { $eq: [{ $toLower: "$name" }, asciiLower(name)] },
       });
       return success(found !== null);
     } catch (error) {

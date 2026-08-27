@@ -30,8 +30,10 @@ implementation, and a binding is what it reads:
 `repositoriesFor(env)` is **synchronous**, and has to stay that way: the request
 middleware, the settlement Workflow and the test seam all call it without
 awaiting. So the Mongo repositories are built around a *target* and open their
-connection on the first call that needs one. One client is cached per target per
-isolate, since a `MongoClient` owns a connection pool.
+connection on the first call that needs one, and hold it for as long as they may
+— which is the request, not the isolate. See
+[One connection per request](#one-connection-per-request-and-why-it-cannot-be-cached)
+below, which is the part of this to read before changing any of it.
 
 **No Cloudflare deployment runs on MongoDB.** Production and preview are D1, and
 the Mongo target runs locally. Keeping it that way took more than good
@@ -191,6 +193,14 @@ left.
 `revision` doubles as join order. The value a joiner bumps it to becomes its
 team's `seq`, which is the seniority `leave` hands a league on by — the same
 thing D1 reads `rowid` for.
+
+The grain is a league, which is coarse: two players buying *different* articles
+in the same league contend, and one of them is retried. Article Availability is
+league-scoped, so a league-scoped guard is the honest one — but the Global
+League holds every player in the game, so in practice that one document is where
+all of it lands. Nothing to do about it while the guard has to cover
+"no team in this league holds the article"; worth knowing before treating the
+Mongo target as something to run at scale.
 
 Single-document guards need none of this and use none of it: settling a sale,
 settling an expiry, renewing, electing and closing are one conditional

@@ -38,10 +38,41 @@ export async function openMongo(target: MongoTarget): Promise<MongoContext> {
   // else this module names from `mongodb` is a type, and types are erased.
   const { MongoClient } = await import("mongodb");
   const client = new MongoClient(target.url);
-  await client.connect();
-  const db = client.db(target.database);
+  try {
+    await client.connect();
+    const db = client.db(target.database);
+    await bootstrapOnce(target, db);
+    return { client, db };
+  } catch (error) {
+    // Nothing else will ever hold this client, and `MongoStore` deliberately
+    // forgets a failed connect so the next call retries — which, without this,
+    // would leave one un-closed client behind per attempt.
+    await client.close().catch(() => {});
+    throw error;
+  }
+}
+
+/**
+ * The indexes and the baseline, once per target per isolate rather than once
+ * per connection.
+ *
+ * A connection is per request (see above), and `ensureSchema` is fourteen round
+ * trips — ten `createIndex` and four upserts. Paying that before every request's
+ * first real query is most of what a request would spend, for work whose whole
+ * point is that it only has to happen once.
+ *
+ * A plain flag, and safe as one: it holds no I/O, so unlike a client it may
+ * outlive the request that set it. Two first requests racing both run the
+ * bootstrap, which is idempotent, and a failure leaves the flag clear so the
+ * next request tries again.
+ */
+const bootstrapped = new Set<string>();
+
+async function bootstrapOnce(target: MongoTarget, db: Db): Promise<void> {
+  const key = `${target.url} ${target.database ?? ""}`;
+  if (bootstrapped.has(key)) return;
   await ensureSchema(db);
-  return { client, db };
+  bootstrapped.add(key);
 }
 
 /**

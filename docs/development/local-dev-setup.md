@@ -189,12 +189,12 @@ The MongoDB config carries only what a local session uses, which is less than
 
 - **No D1**, and **no settlement Workflow or cron** — that is started by a daily
   trigger, which does not fire locally.
-- **No `AI`**, which is why this run needs no Cloudflare account at all. Workers
-  AI has no local simulator, so binding it makes wrangler open a *remote* proxy
-  session and demand a live token; `npm run dev` does bind it, and stops working
-  the moment that token expires. The cost is that the Article Genie's routes 500
-  here — they could not have run offline anyway, the model being remote either
-  way.
+- **`AI`, bound**, so the Article Genie is the real thing here, against the
+  model ADR 0006 measured. Workers AI has no local simulator, so a Genie call
+  leaves the machine and spends the account's neuron allocation even in dev —
+  which is why the binding is marked `remote: true`. The server itself starts
+  without Cloudflare credentials; only a Genie *call* needs them, and without
+  them it fails as `GENIE_ERRORS.ASLEEP` rather than stopping the run.
 - **The three rate limiters, kept** — not to limit anything, but because the
   routes behind joining by invitation code and the problem-report form call
   `.limit(...)` unconditionally and would fail with a TypeError without them.
@@ -355,6 +355,8 @@ so those requests reach the real Wrangler backend. Everything else is mocked.
 | Wrangler asks you to log in to Cloudflare | You started the `local-genie` env (or added an `ai` binding to `local`) | Use `npm run dev` — the Genie is optional, see above |
 | No Genie button in the market | Expected on `npm run dev` | Nothing to fix; `npm run devgenie` if you need it |
 | `MongoServerSelectionError` on `npm run devmongo` | No MongoDB listening, or it is a standalone rather than a replica set | Run the two `docker` lines above; transactions need a replica set |
+| `Failed to start the remote proxy session` / `auth token has expired` | Some bindings are proxied to the real Cloudflare — `npm run dev` binds Workflows, which needs a live token to start at all | `npx wrangler login`. `npm run devmongo` binds no Workflow and starts without it |
+| The Genie answers `ASLEEP` | The Workers AI call failed — usually no valid Cloudflare token | `npx wrangler login`; everything else works without one |
 
 ## Related
 

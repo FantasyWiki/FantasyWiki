@@ -102,12 +102,14 @@ deploys should not carry a configuration that can never be deployed. And it
 could not be an environment anyway: the alias it needs switched off is
 top-level-only.
 
-It binds less than `env.local` does, on purpose: no D1, no settlement Workflow
-or cron (started by a daily trigger that does not fire locally), and no `AI` —
-Workers AI has no local simulator, so binding it would make wrangler open a
-remote proxy session and demand a live Cloudflare token, turning a local-only
-run into one that cannot start without an account. It keeps the rate limiters,
-which the join and report routes call unconditionally.
+It binds less than `env.local` does, on purpose: no D1, and no settlement
+Workflow or cron, that one being started by a daily trigger which does not fire
+locally. It keeps the rate limiters, which the join and report routes call
+unconditionally, and it keeps `AI`, so the Article Genie is the real thing here.
+Workers AI has no local simulator, so that binding is marked `remote: true` —
+a Genie call leaves the machine and spends the account's allocation even in dev.
+The server starts without Cloudflare credentials all the same; only a Genie call
+needs them, and it fails as `ASLEEP` rather than stopping the run.
 
 ### One connection per request, and why it cannot be cached
 

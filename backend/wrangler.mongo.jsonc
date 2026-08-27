@@ -25,18 +25,11 @@
   // ever started by the daily cron, which does not fire in a local session, so
   // binding it here would be deployment machinery this run never touches.
   //
-  // No `ai` either, and that one is load-bearing: Workers AI has no local
-  // simulator, so binding it makes wrangler open a *remote* proxy session and
-  // demand a live Cloudflare token — which turns a local-only run into one that
-  // cannot start without an account, and fails outright once a token expires.
-  // The cost is that the Article Genie's routes 500 here; they could not have
-  // worked offline anyway, since the model is remote either way.
-  //
-  // The rate limiters below are a different case, and are *not* here to limit
-  // anything: `routes/leagues.ts`, `routes/me.ts` and `routes/reports.ts` call
+  // The rate limiters below are *not* here to limit anything:
+  // `routes/leagues.ts`, `routes/me.ts` and `routes/reports.ts` call
   // `c.env.*_RATE_LIMITER.limit(...)` unconditionally, so without the bindings
-  // joining by invitation code and the problem-report form would fail with a
-  // TypeError rather than work unlimited.
+  // joining by invitation code, the Article Genie and the problem-report form
+  // would each fail with a TypeError rather than run unlimited.
   "unsafe": {
     "bindings": [
       {
@@ -58,6 +51,21 @@
         "simple": { "limit": 5, "period": 60 },
       },
     ],
+  },
+  // Workers AI, so the Article Genie is the real thing here — the same model
+  // ADR 0006 measured, there being no local one to measure against.
+  //
+  // `remote` says out loud what is true of every AI binding and cannot be
+  // otherwise: there is no local simulator, so a call leaves the machine and
+  // spends the account's neuron allocation even in dev. Stating it also settles
+  // the warning wrangler prints when it is left implicit.
+  //
+  // The server still starts without Cloudflare credentials — only a Genie
+  // *call* needs them, and it fails as `GENIE_ERRORS.ASLEEP` rather than
+  // stopping the run.
+  "ai": {
+    "binding": "AI",
+    "remote": true,
   },
   "vars": {
     // What makes this the MongoDB run. `MONGO_URL` names a **replica set** —

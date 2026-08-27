@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "wrangler dev --env local",
     "devgenie": "wrangler dev --env local-genie",
+    "devmongo": "wrangler dev --config wrangler.mongo.jsonc",
     "deploy": "npm run deploy:production",
     "deploy:production": "wrangler deploy --minify",
     "deploy:preview": "wrangler deploy --env preview --minify",

@@ -85,13 +85,29 @@ are transactions. The test suite starts one of its own, which is what lets
 `./gradlew check` run against both targets on any machine
 ([Backend Testing](../development/backend-testing.md)).
 
-### One consequence, worth knowing before you hit it
+### Running it locally
 
-`alias` has no per-environment form, so it applies to `wrangler dev` too: a
-`wrangler dev` session cannot run the MongoDB target, whichever environment it
-loads. The suite can, because it goes through Vite rather than wrangler. If a
-local `wrangler dev` on MongoDB is wanted, it needs a wrangler config of its own
-— one without the alias and with `nodejs_compat` — rather than a change here.
+`alias` has no per-environment form, so it applies to `wrangler dev` on
+`wrangler.jsonc` too. That is why the MongoDB run has a config file of its own,
+`backend/wrangler.mongo.jsonc` — no alias, `nodejs_compat` on, `PERSISTENCE` and
+`MONGO_URL` set, and no D1 binding at all:
+
+```bash
+npm run devmongo         # or ./gradlew devMongo, with the frontend beside it
+```
+
+A file rather than a fifth environment in `wrangler.jsonc`, for two reasons. It
+is not a deployment — nothing on Cloudflare runs on MongoDB — and the file that
+deploys should not carry a configuration that can never be deployed. And it
+could not be an environment anyway: the alias it needs switched off is
+top-level-only.
+
+It binds less than `env.local` does, on purpose: no D1, no settlement Workflow
+or cron (started by a daily trigger that does not fire locally), and no `AI` —
+Workers AI has no local simulator, so binding it would make wrangler open a
+remote proxy session and demand a live Cloudflare token, turning a local-only
+run into one that cannot start without an account. It keeps the rate limiters,
+which the join and report routes call unconditionally.
 
 ## What is stored
 

@@ -24,8 +24,9 @@ FantasyWiki/
 
 ```bash
 ./gradlew check      # npm_ci + frontend:check + backend:check (format, lint, test on both persistence targets, audit)
-./gradlew dev        # frontend devNoMock + backend wrangler dev, Article Genie on
+./gradlew dev        # frontend devNoMock + backend wrangler dev (D1), Article Genie on
 ./gradlew devNoGenie # the same, Genie off - the one needing no Cloudflare account
+./gradlew devMongo   # the same, with the backend persisting to MongoDB, Genie off
 ./gradlew devMock    # frontend devMock (MSW) + backend wrangler dev, Genie off
 ./gradlew fix        # frontend/backend formatfix + lintfix
 ```
@@ -63,6 +64,7 @@ npx vitest run src/tests/auth/LoginPage.spec.ts
 
 ```bash
 npm run dev              # wrangler dev --env local (runs D1 migrations first via Gradle)
+npm run devmongo         # wrangler dev on MongoDB (wrangler.mongo.jsonc; needs a local replica set)
 npm run test             # vitest run (Cloudflare Workers pool, D1) — what Gradle check runs
 npm run testmongo        # the same suite against MongoDB (starts its own replica set)
 npm run test:integration # vitest run --config vitest.config.ts (single run)
@@ -88,7 +90,7 @@ Layered structure, each layer only talks to the one below it:
 2. **Services** (`services/`) — business logic/orchestration. Depend on repository *interfaces*, return typed `Result` values consumed by routes.
 3. **Repositories** (`repositories/`) — define contracts (e.g. `playerRepository.ts`) with one implementation per store under `repositories/d1/` and `repositories/mongo/` (e.g. `playerRepositoryD1.ts`, `playerRepositoryMongo.ts`). Queries and persistence error handling live here, and a store's own error wording never leaves the layer.
 
-Runtime is a Cloudflare Worker using Hono (`backend/src/index.ts`). A deployment persists to **either** Cloudflare D1 (the `db` binding, the default) **or** MongoDB (`PERSISTENCE=mongo` plus `MONGO_URL`); `composition.ts` is the only module that picks, and it is synchronous because the request middleware, the settlement Workflow and the test seam all call it without awaiting. No Cloudflare deployment runs on MongoDB: `wrangler.jsonc` aliases the driver away so a D1 deploy neither carries it nor needs a compatibility flag, and the Mongo run gets `nodejs_compat` from `vitest.shared.ts` instead. See `docs/architecture/persistence-targets.md`. When instantiating Hono, pass `CloudflareBindings` as the generic: `new Hono<{ Bindings: CloudflareBindings }>()`.
+Runtime is a Cloudflare Worker using Hono (`backend/src/index.ts`). A deployment persists to **either** Cloudflare D1 (the `db` binding, the default) **or** MongoDB (`PERSISTENCE=mongo` plus `MONGO_URL`); `composition.ts` is the only module that picks, and it is synchronous because the request middleware, the settlement Workflow and the test seam all call it without awaiting. No Cloudflare deployment runs on MongoDB: `wrangler.jsonc` aliases the driver away so a D1 deploy neither carries it nor needs a compatibility flag. The MongoDB target runs locally, through `backend/wrangler.mongo.jsonc` — its own file because `alias` has no per-environment form and because a config that can never be deployed does not belong in the one that deploys. See `docs/architecture/persistence-targets.md`. When instantiating Hono, pass `CloudflareBindings` as the generic: `new Hono<{ Bindings: CloudflareBindings }>()`.
 
 ### Frontend (`frontend/src`)
 

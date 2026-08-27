@@ -151,6 +151,54 @@ Or from the project root using Gradle:
 
 Wait for both "Ready" messages before opening the browser.
 
+### Running on MongoDB instead of D1
+
+The backend persists to either Cloudflare D1 or MongoDB
+([Persistence Targets](../architecture/persistence-targets.md)), and the local
+run can be either. MongoDB needs a **replica set** to talk to — the guarded
+writes are transactions, and a standalone `mongod` has none. One node is enough:
+
+```bash
+docker run -d --name fw-mongo -p 27017:27017 mongo:8 --replSet rs0 --bind_ip_all
+docker exec fw-mongo mongosh --quiet --eval 'rs.initiate()'
+```
+
+Then start the backend against it, from `backend/`:
+
+```bash
+npm run devmongo    # wrangler dev --config wrangler.mongo.jsonc
+```
+
+Or, with the frontend beside it, from the project root:
+
+```bash
+./gradlew devMongo
+```
+
+There is nothing to migrate first: `npm run dev` applies the D1 migrations
+before starting, and the MongoDB run writes its indexes and its baseline — the
+Global League, the `system` player, the `en` scale factor — on its first
+connection. The database is `fantasywiki` on `127.0.0.1:27017`; change
+`MONGO_URL` in `backend/wrangler.mongo.jsonc` to point somewhere else.
+
+Both runs share `.dev.vars`, so the same secrets and the same Google sign-in
+work either way, and neither can see the other's data.
+
+The MongoDB config carries only what a local session uses, which is less than
+`env.local` binds:
+
+- **No D1**, and **no settlement Workflow or cron** — that is started by a daily
+  trigger, which does not fire locally.
+- **No `AI`**, which is why this run needs no Cloudflare account at all. Workers
+  AI has no local simulator, so binding it makes wrangler open a *remote* proxy
+  session and demand a live token; `npm run dev` does bind it, and stops working
+  the moment that token expires. The cost is that the Article Genie's routes 500
+  here — they could not have run offline anyway, the model being remote either
+  way.
+- **The three rate limiters, kept** — not to limit anything, but because the
+  routes behind joining by invitation code and the problem-report form call
+  `.limit(...)` unconditionally and would fail with a TypeError without them.
+
 ---
 
 ## Running Without a Cloudflare Account
@@ -306,10 +354,12 @@ so those requests reach the real Wrangler backend. Everything else is mocked.
 | Cookie not sent | Browser privacy settings blocking cookies | Use Chrome/Firefox, disable aggressive privacy extensions during dev |
 | Wrangler asks you to log in to Cloudflare | You started the `local-genie` env (or added an `ai` binding to `local`) | Use `npm run dev` — the Genie is optional, see above |
 | No Genie button in the market | Expected on `npm run dev` | Nothing to fix; `npm run devgenie` if you need it |
+| `MongoServerSelectionError` on `npm run devmongo` | No MongoDB listening, or it is a standalone rather than a replica set | Run the two `docker` lines above; transactions need a replica set |
 
 ## Related
 
 - [Deploy Strategy & Branch Policy](../deployment/deploy-strategy.md)
+- [Persistence Targets](../architecture/persistence-targets.md)
 - [NPM Script Naming Convention](./npm-script-naming.md)
 - [Article Genie LLM Integration](../architecture/article-genie-llm.md)
 - [Running FantasyWiki in Docker](./docker-local-dev.md)

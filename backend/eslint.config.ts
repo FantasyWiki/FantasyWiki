@@ -27,25 +27,41 @@ export default defineConfig([
      * implementation. Everything above it — services, routes, and the tests of
      * both — sees the `Repositories` interfaces and nothing under them.
      *
-     * Two test folders are exempt because naming D1 is their purpose:
-     * `tests/repositories/d1` is where D1's own behaviour is pinned, and
-     * `tests/support/d1` is the target seam the rest of the suite goes through.
+     * Both targets are named, so neither can leak upwards: a service that
+     * reached for `repositories/mongo` would be as wrong as one reaching for
+     * `repositories/d1`, and the rule that keeps the seam honest is the same
+     * rule.
+     *
+     * The exempt test folders are the ones where naming a target is the
+     * purpose: `tests/repositories/<target>` is where that store's own
+     * behaviour is pinned, and `tests/support/<target>` is the seam the rest of
+     * the suite goes through.
      *
      * SQL itself cannot be linted for, so it is not covered here. What keeps it
      * out of the tests is that `env.db` is the only way to reach it, and nothing
-     * outside those two folders imports it any more.
+     * outside those folders imports it any more.
      */
     files: ["src/services/**/*.ts", "src/routes/**/*.ts", "src/tests/**/*.ts"],
-    ignores: ["src/tests/repositories/d1/**", "src/tests/support/d1/**"],
+    ignores: [
+      "src/tests/repositories/d1/**",
+      "src/tests/support/d1/**",
+      "src/tests/repositories/mongo/**",
+      "src/tests/support/mongo/**",
+    ],
     rules: {
       "no-restricted-imports": [
         "error",
         {
           patterns: [
             {
-              group: ["**/repositories/d1/**", "**/repositories/d1"],
+              group: [
+                "**/repositories/d1/**",
+                "**/repositories/d1",
+                "**/repositories/mongo/**",
+                "**/repositories/mongo",
+              ],
               message:
-                "Only composition.ts chooses an implementation. Services and routes take `Repositories`; tests reach it through `repositories()` in tests/support/target. D1-specific tests belong in tests/repositories/d1.",
+                "Only composition.ts chooses an implementation. Services and routes take `Repositories`; tests reach it through `repositories()` in tests/support/target. Target-specific tests belong in tests/repositories/<target>.",
             },
           ],
         },

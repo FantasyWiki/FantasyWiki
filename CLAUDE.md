@@ -23,9 +23,10 @@ FantasyWiki/
 ### Root (Gradle, runs both subprojects)
 
 ```bash
-./gradlew check      # npm_ci + frontend:check + backend:check (format, lint, test, audit)
-./gradlew dev        # frontend devNoMock + backend wrangler dev, Article Genie on
+./gradlew check      # npm_ci + frontend:check + backend:check (format, lint, test on both persistence targets, audit)
+./gradlew dev        # frontend devNoMock + backend wrangler dev (D1), Article Genie on
 ./gradlew devNoGenie # the same, Genie off - the one needing no Cloudflare account
+./gradlew devMongo   # the same, with the backend persisting to MongoDB, Genie off
 ./gradlew devMock    # frontend devMock (MSW) + backend wrangler dev, Genie off
 ./gradlew fix        # frontend/backend formatfix + lintfix
 ```
@@ -63,7 +64,9 @@ npx vitest run src/tests/auth/LoginPage.spec.ts
 
 ```bash
 npm run dev              # wrangler dev --env local (runs D1 migrations first via Gradle)
-npm run test             # vitest run (Cloudflare Workers pool) — what Gradle check runs
+npm run devmongo         # wrangler dev on MongoDB (wrangler.mongo.jsonc; needs a local replica set)
+npm run test             # vitest run (Cloudflare Workers pool, D1) — what Gradle check runs
+npm run testmongo        # the same suite against MongoDB (starts its own replica set)
 npm run test:integration # vitest run --config vitest.config.ts (single run)
 npm run test-coverage    # coverage report (uploaded to Codecov in CI)
 npm run lint / lintfix
@@ -73,9 +76,9 @@ npm run db:init:local     # apply D1 migrations locally
 npm run db:migrate:remote  # apply D1 migrations to remote D1
 ```
 
-Backend tests use `@cloudflare/vitest-pool-workers`, load config from `wrangler.jsonc`, and reset the database before each test by dropping the schema and replaying `backend/migrations/`.
+Backend tests use `@cloudflare/vitest-pool-workers`, load config from `wrangler.jsonc`, and reset the database before each test — D1 by dropping the schema and replaying `backend/migrations/`, MongoDB by emptying every collection and re-seeding `repositories/mongo/bootstrap.ts`.
 
-Which layer a test may name is a rule, enforced by `no-restricted-imports`: nothing under `src/services`, `src/routes` or `src/tests` may import `repositories/d1/**` — `composition.ts` is the only module that chooses an implementation. Tests reach persistence through `repositories()` from `src/tests/support/target.ts`, seed through `src/tests/support/subjects.ts` (never SQL, and never with defaulted fixture values), and put D1-specific facts under `src/tests/repositories/d1`. Repository promises a second implementation must also keep go in `src/tests/repositories/conformance`. See `docs/development/backend-testing.md`.
+Which layer a test may name is a rule, enforced by `no-restricted-imports`: nothing under `src/services`, `src/routes` or `src/tests` may import `repositories/d1/**` or `repositories/mongo/**` — `composition.ts` is the only module that chooses an implementation. Tests reach persistence through `repositories()` from `src/tests/support/target.ts`, seed through `src/tests/support/subjects.ts` (never SQL, and never with defaulted fixture values), and put target-specific facts under `src/tests/repositories/<target>`. Repository promises every implementation must keep go in `src/tests/repositories/conformance`. See `docs/development/backend-testing.md`.
 
 ## Architecture
 
@@ -85,9 +88,9 @@ Layered structure, each layer only talks to the one below it:
 
 1. **Routes** (`routes/`) — parse input, enforce auth/HTTP constraints, call services, map results to HTTP responses. Currently `auth.ts`, `leagues.ts`, `session.ts`.
 2. **Services** (`services/`) — business logic/orchestration. Depend on repository *interfaces*, return typed `Result` values consumed by routes.
-3. **Repositories** (`repositories/`) — define contracts (e.g. `playerRepository.ts`) with D1 implementations under `repositories/d1/` (e.g. `playerRepositoryD1.ts`). SQL and persistence error handling live here.
+3. **Repositories** (`repositories/`) — define contracts (e.g. `playerRepository.ts`) with one implementation per store under `repositories/d1/` and `repositories/mongo/` (e.g. `playerRepositoryD1.ts`, `playerRepositoryMongo.ts`). Queries and persistence error handling live here, and a store's own error wording never leaves the layer.
 
-Runtime is a Cloudflare Worker using Hono (`backend/src/index.ts`), with Cloudflare D1 as primary persistence via the `db` binding. When instantiating Hono, pass `CloudflareBindings` as the generic: `new Hono<{ Bindings: CloudflareBindings }>()`.
+Runtime is a Cloudflare Worker using Hono (`backend/src/index.ts`). A deployment persists to **either** Cloudflare D1 (the `db` binding, the default) **or** MongoDB (`PERSISTENCE=mongo` plus `MONGO_URL`); `composition.ts` is the only module that picks, and it is synchronous because the request middleware, the settlement Workflow and the test seam all call it without awaiting. No Cloudflare deployment runs on MongoDB: `wrangler.jsonc` aliases the driver away so a D1 deploy neither carries it nor needs a compatibility flag. The MongoDB target runs locally, through `backend/wrangler.mongo.jsonc` — its own file because `alias` has no per-environment form and because a config that can never be deployed does not belong in the one that deploys. See `docs/architecture/persistence-targets.md`. When instantiating Hono, pass `CloudflareBindings` as the generic: `new Hono<{ Bindings: CloudflareBindings }>()`.
 
 ### Frontend (`frontend/src`)
 

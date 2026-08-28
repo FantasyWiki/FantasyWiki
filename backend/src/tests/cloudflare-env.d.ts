@@ -9,5 +9,13 @@ declare namespace Cloudflare {
      * that left it in place would spend the day's neuron allocation.
      */
     AI: Ai;
+    /**
+     * How the suite says which store it is running against, read by
+     * `repositoriesFor` exactly as a deployment's binding would be. Only
+     * `vitest.mongo.config.ts` binds them; the D1 run leaves them undefined.
+     */
+    PERSISTENCE?: string;
+    MONGO_URL?: string;
+    MONGO_DB?: string;
   }
 }

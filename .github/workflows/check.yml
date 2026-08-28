@@ -19,8 +19,34 @@ jobs:
             dry = keywords.any? { |kw| branch.include?(kw) } ? '' : '--dry-run'
             puts "dry_run=#{dry}"
           RUBY
+      # The backend suite runs against both persistence targets
+      # (docs/architecture/persistence-targets.md). It starts a MongoDB replica
+      # set of its own when `MONGO_URL` is unset, which is what makes a local
+      # `./gradlew check` need nothing installed — but on a runner that means
+      # downloading a ~220MB `mongod` on every build, so CI hands it a container
+      # instead. A single node is enough; a replica set is required because the
+      # guarded writes are transactions.
+      - name: Start MongoDB
+        run: |
+          set -euo pipefail
+          docker run -d --name mongo -p 27017:27017 mongo:8 --replSet rs0 --bind_ip_all
+          # Bounded: `docker run -d` returns as soon as the container exists, so
+          # one that starts and then dies would otherwise spin here until the
+          # job's six-hour timeout instead of failing with its own logs.
+          for _ in $(seq 60); do
+            if docker exec mongo mongosh --quiet --eval 'db.adminCommand({ ping: 1 })' >/dev/null 2>&1; then
+              docker exec mongo mongosh --quiet --eval 'rs.initiate()'
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "MongoDB did not become ready within 60s" >&2
+          docker logs mongo >&2
+          exit 1
       - name: Check
         run: ./gradlew check
+        env:
+          MONGO_URL: mongodb://127.0.0.1:27017/fantasywiki_test?directConnection=true
 
       # `check` already depends on koverXmlReport, so this costs nothing but the
       # upload. The documentation build reads it to draw the collector's bar.

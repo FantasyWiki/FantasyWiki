@@ -1,20 +1,31 @@
 ---
 title: Backend Testing
 type: development
-tags: [testing, conventions, repositories, d1]
+tags: [testing, conventions, repositories, d1, mongodb]
 related:
   - "[[backend-architecture]]"
+  - "[[persistence-targets]]"
   - "[[0007-derived-team-credits]]"
 ---
 
 ## Backend Testing
 
-Every backend test runs in the Workers pool, against a real D1 database. What separates the tiers
-is not how much of the stack they exercise — it is **which layer they are allowed to name**.
+Every backend test runs in the Workers pool, against a real database. What separates the tiers is
+not how much of the stack they exercise — it is **which layer they are allowed to name**.
 
 The rule, and the reason for all of it: the persistence target must be replaceable. A second
 implementation of the repository interfaces should be able to run this suite unchanged and have it
 mean the same thing. So a test may name D1 only where D1 is the subject.
+
+That second implementation exists — MongoDB, see
+[Persistence Targets](../architecture/persistence-targets.md) — so this is no longer a promise the
+suite makes about a hypothetical target. Both runs are the same files, and `./gradlew check` runs
+both:
+
+```bash
+npm run test        # D1
+npm run testmongo   # MongoDB, minus the D1 tier
+```
 
 ### The tiers
 
@@ -25,12 +36,17 @@ mean the same thing. So a test may name D1 only where D1 is the subject.
 | `src/tests/routes/` | routers, `Repositories` | The HTTP shell: statuses, payload shapes, what never leaves. |
 | `src/tests/repositories/conformance/` | `Repositories`, nothing below | What a repository owes its callers. **The quality gate a second implementation must pass.** |
 | `src/tests/repositories/d1/` | `*RepositoryD1`, SQL, `env.db` | Facts that are true of D1 and would not be asked of another target. |
-| `src/tests/support/` | `Repositories` (and D1, under `support/d1/`) | The seam and the fixtures. |
+| `src/tests/support/` | `Repositories` (and a target, under `support/<target>/`) | The seam and the fixtures. |
 
 `no-restricted-imports` in `backend/eslint.config.ts` enforces the middle rows: nothing under
-`src/services`, `src/routes` or `src/tests` may import `repositories/d1/**`, with
-`tests/repositories/d1` and `tests/support/d1` exempt because naming D1 is their purpose.
-`composition.ts` is the only module in the codebase that chooses an implementation.
+`src/services`, `src/routes` or `src/tests` may import `repositories/d1/**` or
+`repositories/mongo/**`, with `tests/repositories/<target>` and `tests/support/<target>` exempt
+because naming a target is their purpose. `composition.ts` is the only module in the codebase that
+chooses an implementation.
+
+The D1 tier is the only target-specific one today. The Mongo run skips it — those tests ask about
+an inlined literal in a view, a `NOT NULL` that provokes a rollback, an empty `IN ()` and a driver
+that throws, and none of those are questions to put to another store.
 
 ### The seam
 
@@ -38,11 +54,16 @@ mean the same thing. So a test may name D1 only where D1 is the subject.
 
 ```ts
 export const repositories = (): Repositories => repositoriesFor(env);
-export const store = (): TestStore => new D1TestStore(env.db, env.TEST_MIGRATIONS);
+
+export const store = (): TestStore =>
+  env.PERSISTENCE === MONGO_PERSISTENCE
+    ? new MongoTestStore(mongoTargetFor(env))
+    : new D1TestStore(env.db, env.TEST_MIGRATIONS);
 ```
 
-Everything above it takes `Repositories` and `TestStore`, so pointing the suite at a second
-implementation is a change to this file alone.
+Everything above it takes `Repositories` and `TestStore`. Which target it is comes from the same
+`PERSISTENCE` binding production reads, through the same `repositoriesFor` — so the suite cannot be
+pointed at a combination a deployment could not also be.
 
 `TestStore` is the test-only residue — what the repository interfaces cannot express. It has exactly
 one method, `reset()`, and it should stay that way: anything a production repository can already do
@@ -104,8 +125,70 @@ baseline every test starts from is the migrations' own — including the Global 
 `0002_seed_global_league` — so it cannot drift from production's. It costs ~13ms per test, which was
 measured rather than assumed.
 
+`MongoTestStore.reset()` empties every collection and re-seeds, rather than dropping the database.
+Mongo has no migrations to replay: the indexes and the baseline are `repositories/mongo/bootstrap.ts`,
+which a production deployment runs too, so it cannot drift from production's for the same reason.
+Dropping the database would take the indexes with it, and the uniqueness they carry is part of what
+the suite is judging.
+
+### Running the Mongo suite
+
+`npm run testmongo` needs nothing installed. It starts its own single-node **replica set** —
+`mongodb-memory-server-core`, from `vitest.shared.ts` — and `vitest.globalSetup.ts` stops it when the
+run ends. A replica set rather than a plain `mongod` because the guarded writes are transactions
+([Persistence Targets](../architecture/persistence-targets.md)).
+
+That is why `./gradlew check` can depend on it, and why it does: a check that only passes on
+machines where someone remembered to `docker run` first is a check that will quietly stop being run.
+
+The first such run downloads a ~220MB `mongod` into `backend/.cache/mongodb` (gitignored). The
+`-core` package is deliberate — the default one downloads it in a `postinstall`, whether or not
+anything will use it — and the directory is outside `node_modules` so `npm ci` does not throw it
+away.
+
+`MONGO_URL` points the suite at a server you already have, and skips starting one:
+
+```bash
+docker run -d --name fw-mongo -p 27017:27017 mongo:8 --replSet rs0 --bind_ip_all
+docker exec fw-mongo mongosh --quiet --eval 'rs.initiate()'
+MONGO_URL='mongodb://127.0.0.1:27017/fantasywiki_test?directConnection=true' npm run testmongo
+```
+
+That is what CI does (`.github/workflows/check.yml`): a container is cheaper on a runner than a
+220MB download per build. The consequence is that the self-starting path is only ever exercised
+locally.
+
+One thing this suite is structurally unable to check: Cloudflare's rule that an
+I/O object belongs to the request that created it. Tests run outside any request
+context, so a MongoDB connection shared across "requests" is fine here and hangs
+in `wrangler dev`
+([Persistence Targets](../architecture/persistence-targets.md)). Connection
+lifetime has to be exercised against a running server, with more than one
+request.
+
+### A database per test file
+
+The suite is written as if each file owned the store: `reset()` empties everything before every
+test, and ids only have to be unique within a file. The D1 pool makes that true for free, handing
+every file its own database. One MongoDB server does not — so the Mongo run names a database after
+the file, `fantasywiki_test_<hash of path>`, and the files run in parallel exactly as D1's do.
+Hashed because a database name may not contain `/` and stops at 63 bytes, and stable across runs so
+a suite leaves the same handful of databases behind rather than a fresh set each time.
+
+The name is written **onto the bindings** (`MONGO_DB`, in `support/target.ts`) rather than passed
+around, because the seam is not the only reader: `tests/routes/internal.integration.test.ts` drives
+the wired app, whose middleware calls `repositoriesFor(c.env)`, and the settlement Workflow test
+calls `repositoriesFor(this.env)` itself. All three have to reach the same database, and `env` is
+the only thing they share. Passing it any other way makes exactly those two files fail while the
+other 43 pass — which is how this was found.
+
+Before this, the run was serialized (`fileParallelism: false`) and 45 files' worth of isolate
+startup could not overlap. Measured on one machine, same commit: **272s serialized, 130s in
+parallel**.
+
 ## Related
 
 - [Backend Architecture](../architecture/backend-architecture.md)
 - [OpenAPI Spec](../agents/openapi-spec.md)
+- [Persistence Targets](../architecture/persistence-targets.md)
 - [ADR 0007: Derived Team Credits](../adr/0007-derived-team-credits.md)

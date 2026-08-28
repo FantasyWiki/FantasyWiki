@@ -36,6 +36,7 @@ Seams, layers, and modules. The rules they implement live in `domain/`.
 | Doc | What it answers |
 |---|---|
 | [Backend Architecture](./architecture/backend-architecture.md) | Routes → Services → Repositories layering |
+| [Persistence Targets](./architecture/persistence-targets.md) | D1 or MongoDB, how one is chosen, and what replaces SQL atomicity |
 | [Nightly Scoring Pipeline](./architecture/scoring-pipeline.md) | How the nightly batch scores every team, end to end |
 | [Backend Error Constants](./architecture/backend-error-constants.md) | Typed errors instead of string matching |
 | [Frontend Query Keys](./architecture/frontend-query-keys.md) | One module owns every TanStack Query key |

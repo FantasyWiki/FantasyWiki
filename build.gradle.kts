@@ -54,6 +54,19 @@ tasks.register("devNoGenie") {
     )
 }
 
+// The same app, persisting to MongoDB instead of D1
+// (docs/architecture/persistence-targets.md). No `db:init:local` in front of
+// it, unlike `dev`: Mongo has no migrations to apply, and the indexes and
+// baseline are written on the first connection.
+tasks.register("devMongo") {
+    group = "development"
+    description = "Run the app on this machine with the backend persisting to MongoDB"
+    dependsOn(
+        ":frontend:devNoMock",
+        ":backend:npm_run_devmongo",
+    )
+}
+
 // No Genie here on purpose, unlike `dev`. MSW fakes the market the Genie
 // searches, so pairing mocked game data with a live model bills real neurons to
 // interrogate fixtures — and this is the task a first run is pointed at, which

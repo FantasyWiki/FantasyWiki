@@ -3,6 +3,19 @@
   "name": "backend",
   "main": "src/index.ts",
   "compatibility_date": "2026-03-17",
+  // Cloudflare deploys run on D1 and only D1, but `composition.ts` names both
+  // targets — choosing is its whole job — so the MongoDB driver is reachable
+  // from this Worker's entry point through the dynamic import that opens a
+  // connection. esbuild follows those, so without this every D1 deploy would
+  // carry ~1.5MB of driver it can never use, and would need `nodejs_compat` to
+  // build at all, since the driver imports `net`, `tls` and `child_process`.
+  //
+  // `alias` is a top-level key — wrangler ignores it inside an environment — so
+  // it applies to every wrangler *build*. That is the right scope: no
+  // Cloudflare deployment runs on MongoDB. The Vitest pool resolves modules
+  // through Vite instead and is unaffected, which is what lets `npm run
+  // testmongo` exercise the real driver.
+  "alias": { "mongodb": "./src/repositories/mongo/driverAbsent.ts" },
   "env": {
     // What the integration tests load (see vitest.config.ts). It mirrors
     // `production` except for the `ai` binding, which is deliberately absent:

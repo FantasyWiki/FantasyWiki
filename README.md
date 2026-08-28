@@ -15,6 +15,15 @@
 
 **🚧 Work in progress — the game is still being built, and this README grows with it.**
 
+<br>
+
+[![Technical documentation](https://img.shields.io/badge/Technical%20documentation-Read%20it-1e7e50?style=for-the-badge&logo=readthedocs&logoColor=white&labelColor=14603c)](https://fantasywiki.github.io/FantasyWiki/)
+[![Exam report](https://img.shields.io/badge/Exam%20report-Single%20page-6b7280?style=for-the-badge&logo=markdown&logoColor=white&labelColor=374151)](https://fantasywiki.github.io/FantasyWiki/report.html)
+
+**[fantasywiki.github.io/FantasyWiki](https://fantasywiki.github.io/FantasyWiki/)** — architecture,
+data flow, the domain glossary and a live coverage board, built from this
+repository on every push.
+
 </div>
 
 ---
@@ -300,6 +309,10 @@ technical documentation site: architecture and data-flow diagrams, a live
 coverage board, and an interactive **Docs Atlas** that draws every link between
 these documents. It is built from this repository on every push to `master`, so
 it cannot drift from what is written here.
+
+**[Read it as one page](https://fantasywiki.github.io/FantasyWiki/report.html)** —
+every page of the site assembled into a single document, for reading straight
+through rather than navigating.
 
 **Start at [`docs/README.md`](./docs/README.md)** — the same map of content, in
 the repository.

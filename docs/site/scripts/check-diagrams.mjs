@@ -72,6 +72,11 @@ async function installDom() {
   globalThis.DocumentFragment ??= dom.window.DocumentFragment;
   globalThis.NodeFilter ??= dom.window.NodeFilter;
   globalThis.getComputedStyle ??= dom.window.getComputedStyle;
+  // Mermaid 11.16 builds its stylesheet as a constructable `CSSStyleSheet`
+  // rather than a `<style>` element. jsdom implements the constructor but only
+  // hangs it off the window, and mermaid reaches for the bare global, so
+  // without this every diagram fails before it is drawn.
+  globalThis.CSSStyleSheet ??= dom.window.CSSStyleSheet;
 
   // jsdom has no layout engine, so every measurement mermaid takes comes back
   // undefined and the renderer does arithmetic on it. Stubbing them makes the

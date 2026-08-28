@@ -306,25 +306,58 @@ What `prepare.mjs` does, in order:
    fetch the spec at runtime rather than bundle it. A missing file is a warning,
    not a failure: the mirror is also built by `npm run dev` against a tree
    someone may be halfway through.
-2. Copies `docs/site/pages/**` into the mirror.
-3. Copies `docs/**` — excluding `docs/site/` and everything in `UNPUBLISHED`,
+2. Copies `swagger-ui-dist/swagger-ui.css` into that same `public/`. A missing
+   file *is* a failure here — it ships inside a dependency, so its absence means
+   a broken install rather than an unfinished tree. Why it is copied instead of
+   imported is the trap below.
+3. Copies `docs/site/pages/**` into the mirror.
+4. Copies `docs/**` — excluding `docs/site/` and everything in `UNPUBLISHED`,
    which today is `docs/agents/` — into `build/content/docs/`, renaming
    `README.md` to `index.md` and copying `docs/assets/` alongside.
-4. Copies the five repo-root charter files to the mirror root, which is what
+5. Copies the five repo-root charter files to the mirror root, which is what
    makes `../../CONTEXT.md` resolve from a doc that has moved.
-5. Rewrites any link that points somewhere the site does not host — a source
+6. Rewrites any link that points somewhere the site does not host — a source
    file like `../../backend/migrations/0008_league_closure.sql`, or one of the
    unpublished `docs/agents/` files — into a GitHub blob URL. Links inside
    backticks are left alone, so the convention examples in `docs/README.md`
    survive.
-6. Injects `title`, `source`, `section` and `updated` frontmatter. `source` is
+7. Injects `title`, `source`, `section` and `updated` frontmatter. `source` is
    what makes each page's *Edit* link point at the real file rather than the copy.
-7. Builds `graph.json` (nodes, edges, hubs, orphans), `toc.json` (the derived
+8. Builds `graph.json` (nodes, edges, hubs, orphans), `toc.json` (the derived
    sidebar) and `coverage.json`.
 
 Coverage reports are read from `COVERAGE_DIR` if it is set — that is how CI
 hands the artefacts over — and otherwise from wherever each tool writes them
 locally. A package with no report is rendered as unmeasured, never as zero.
+
+## Never import a stylesheet with `?url`
+
+VitePress decides which file is *the* site stylesheet by taking the first CSS
+asset Rollup emits:
+
+```js
+output.find((chunk) => chunk.type === "asset" && chunk.fileName.endsWith(".css"))
+```
+
+**One CSS asset is the assumption, and nothing enforces it.** A CSS import
+written `import sheet from "…/thing.css?url"` makes the build emit a second one,
+and if its name sorts first, every page in the site links *that* file and none
+links the theme. The theme is still built, still uploaded, still reachable —
+just referenced by nothing.
+
+This shipped. The site published with no styling at all and every gate stayed
+green: the markdown was valid, the links resolved, all 61 diagrams drew, and the
+spec matched its routes. Nothing any check looked at was wrong.
+
+So: a stylesheet that should not be folded into the global bundle goes into
+`public/` and is linked by URL at runtime — which is what `mirrorSwaggerStylesheet`
+in `prepare.mjs` does for Swagger UI, and what the long comment in
+`SwaggerUi.vue` exists to defend. A `public/` file is copied outside the bundle,
+so it never reaches that `find`.
+
+`scripts/check-styles.mjs` runs after `vitepress build` and fails if `assets/`
+holds anything other than exactly one stylesheet, or if any built page does not
+link it.
 
 ## Commands
 
@@ -335,7 +368,8 @@ npm run dev       # mirror, then serve with hot reload
 npm run build     # mirror, then build — this is what CI runs
 npm run preview   # serve the built output — restart it after every build
 npm run mirror    # regenerate the mirror only
-npm run diagrams  # parse every mermaid block
+npm run diagrams  # render every mermaid block headlessly
+npm run styles    # assert the built pages link the theme (needs a build first)
 npm run snapshot  # render the Atlas to a standalone SVG
 ```
 

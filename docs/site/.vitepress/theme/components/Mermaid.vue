@@ -122,8 +122,42 @@ function recolourForDark(svg: string): string {
  * stylesheet is scoped to it. */
 let counter = 0;
 
-/** Imported once for the whole page, not once per figure. */
+/**
+ * Imported once for the whole page, not once per figure.
+ *
+ * Mermaid is a megabyte of JavaScript in a chunk of its own, fetched the first
+ * time a figure draws — which is the one part of a diagram that can fail for
+ * reasons that have nothing to do with the diagram. A dropped request, or a
+ * publish that replaced the chunk this page was built against, and every figure
+ * in the tab says the same thing: this diagram failed to render.
+ *
+ * A rejection is deliberately not kept here. It cannot be retried in place —
+ * the browser records a module that failed to load and answers every later
+ * `import()` of that URL from the record, without asking the network again —
+ * but keeping it would make even a fresh document's figures fail from memory.
+ * Recovering is a reload, which `theme/index.ts` does once per tab; what is
+ * kept here is the flag that tells a figure to offer it.
+ */
 let library: Promise<typeof import("mermaid").default> | undefined;
+
+/** Whether it was the library, rather than the diagram, that failed. */
+let libraryUnavailable = false;
+
+function loadLibrary() {
+  library ??= import("mermaid").then(
+    (module) => {
+      libraryUnavailable = false;
+      return module.default;
+    },
+    (cause) => {
+      library = undefined;
+      libraryUnavailable = true;
+      throw cause;
+    },
+  );
+
+  return library;
+}
 
 /**
  * Diagrams render one at a time, whatever order they mounted in. `mermaid`
@@ -160,8 +194,14 @@ function renderDiagram(graph: string, dark: boolean) {
   const id = `fw-diagram-${(counter += 1)}`;
 
   const job = queue.then(async () => {
-    library ??= import("mermaid").then((module) => module.default);
-    const mermaid = await library;
+    const mermaid = await loadLibrary();
+
+    // Mermaid cuts every box to fit the words it measures, so it has to measure
+    // in the font the page will draw them in. Source Sans 3 arrives from a CDN
+    // after the first paint: a diagram drawn before it lands is measured in the
+    // fallback and painted in a face with different metrics, which is how a
+    // label ends up outside the box cut for it.
+    await document.fonts?.ready;
 
     mermaid.initialize({
       startOnLoad: false,
@@ -225,10 +265,25 @@ async function draw() {
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : String(cause);
     rendered.value = "";
+    reloadToRecover.value = libraryUnavailable;
   }
 
   await nextTick();
   measure();
+}
+
+/**
+ * A diagram that could not be drawn because mermaid never arrived is not a
+ * diagram that will draw on a second attempt: the failed module lives in the
+ * browser's record until the document is replaced. So the button says what it
+ * will actually do — draw again when the diagram itself threw, fetch the page
+ * afresh when the library is what is missing.
+ */
+const reloadToRecover = ref(false);
+
+function retry() {
+  if (reloadToRecover.value) window.location.reload();
+  else draw();
 }
 
 /**
@@ -258,8 +313,10 @@ const origin = { x: 0, y: 0, left: 0, top: 0 };
 function startPan(event: PointerEvent) {
   const element = container.value;
   if (!element || !pannable.value || event.pointerType === "touch" || event.button !== 0) return;
-  // A link inside a diagram is still a link.
-  if ((event.target as HTMLElement).closest("a")) return;
+  // A link inside a diagram is still a link, and the button on a figure that
+  // failed is still a button: capturing the pointer here would swallow the
+  // click that the whole affordance exists to receive.
+  if ((event.target as HTMLElement).closest("a, button")) return;
 
   dragging.value = true;
   origin.x = event.clientX;
@@ -308,7 +365,17 @@ watch(isDark, draw);
   >
     <div v-if="rendered" v-html="rendered" />
     <template v-else-if="error">
-      <p><strong>This diagram failed to render.</strong></p>
+      <p>
+        <strong>This diagram failed to render.</strong>
+        <!--
+          The source is printed below whatever went wrong, so the figure still
+          says what it was going to say, and the button offers the one thing
+          that can change the outcome.
+        -->
+        <button type="button" class="fw-mermaid__retry" @click="retry">
+          {{ reloadToRecover ? "Reload the page" : "Try again" }}
+        </button>
+      </p>
       <pre>{{ error }}</pre>
       <pre>{{ source }}</pre>
     </template>
@@ -317,6 +384,23 @@ watch(isDark, draw);
 </template>
 
 <style scoped>
+.fw-mermaid__retry {
+  margin-left: 0.6rem;
+  padding: 0.1rem 0.6rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: var(--fw-radius-sm);
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-2);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.fw-mermaid__retry:hover {
+  border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-1);
+}
+
 .fw-mermaid__pending {
   margin: 0;
   color: var(--vp-c-text-3);

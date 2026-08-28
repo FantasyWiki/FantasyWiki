@@ -14,6 +14,40 @@ import SwaggerUi from "./components/SwaggerUi.vue";
 
 import "./style.css";
 
+/**
+ * A publish replaces every hashed chunk on the site at once, and a tab opened
+ * before it — or served stale HTML by a cache that has not caught up — goes on
+ * asking for chunks that are no longer there. Nothing on the page says so: the
+ * prose is already in the HTML, so only what is fetched on demand fails, and
+ * every figure turns into "this diagram failed to render" while the article
+ * around it looks perfectly healthy.
+ *
+ * Vite announces that as `vite:preloadError`. Reloading gets the current HTML,
+ * which names chunks that exist. Once per tab, because a reload that does not
+ * fix it must not become a loop — after that the figures report the failure
+ * themselves, with their source and a way to ask again.
+ */
+const RELOADED = "fw-reloaded-for-a-stale-deployment";
+
+function healStaleDeployments() {
+  if (typeof window === "undefined") return;
+
+  window.addEventListener("vite:preloadError", () => {
+    try {
+      if (sessionStorage.getItem(RELOADED)) return;
+      sessionStorage.setItem(RELOADED, "1");
+    } catch {
+      // A window that refuses the write is a window that cannot remember
+      // having reloaded, and a reload it cannot remember is a reload it will
+      // do again on the next failure. The figures report the failure instead.
+      return;
+    }
+    window.location.reload();
+  });
+}
+
+healStaleDeployments();
+
 export default {
   extends: DefaultTheme,
 

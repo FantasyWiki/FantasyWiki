@@ -370,6 +370,24 @@ a.fw-card:hover {
 }
 
 /*
+ * The line-height a label was measured with, restated where it is drawn.
+ *
+ * Mermaid sizes a label in a scratch element it hangs off `<body>`, cuts the
+ * box to what it measured, and hands back an SVG that lands inside `.vp-doc` —
+ * where the theme gives every paragraph a line-height of 1.68 and the label
+ * quietly grows. A box cut for 25.5px then holds 29px of text, and the last
+ * line of every node that has one hangs out of the bottom of it. 1.5 is the
+ * ratio mermaid measured with; saying it again here is what keeps the words
+ * inside the box drawn for them.
+ */
+.fw-mermaid foreignObject div,
+.fw-mermaid foreignObject p,
+.fw-mermaid foreignObject span {
+  margin: 0;
+  line-height: 1.5;
+}
+
+/*
  * A diagram bigger than its frame can be dragged. The cursor is the whole
  * affordance — the box already scrolls, so this only says out loud that it
  * does, for the pointers that cannot discover it by trying.

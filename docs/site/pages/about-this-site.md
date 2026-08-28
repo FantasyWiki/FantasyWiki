@@ -228,6 +228,14 @@ breaks while the mirror is assembled fails the build instead of shipping a 404.
 will, because a diagram with a syntax error renders as an error box on the
 published page and nowhere else.
 
+What no build-time check can see is the fetch. Mermaid is a chunk of its own,
+asked for the first time a figure draws, and a chunk that never arrives — a
+dropped request, or a tab older than the publish that replaced it — takes every
+diagram on the page down with it while the prose around them stays perfectly
+readable. The page answers that itself: the first failed chunk reloads the tab
+once, and a figure that still cannot draw prints the source it was given and
+offers the reload.
+
 ## Related
 
 - [`docs/agents/documentation-site.md`](https://github.com/FantasyWiki/FantasyWiki/blob/master/docs/agents/documentation-site.md) — the working agreement for keeping

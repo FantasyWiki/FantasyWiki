@@ -152,10 +152,16 @@ export async function backendTestConfig(
       include: [
         "src/**/*.integration.test.ts",
         "src/**/*.spec.ts",
-        // What is true of D1 and would not be asked of another target. The
-        // Mongo run has no such tier of its own yet: everything it does is
-        // answering the conformance suite.
+        // What is true of D1 and would not be asked of another target.
         ...(mongo ? [] : ["src/**/*.d1.test.ts"]),
+        // Username/password sign-in, which only `src/indexPassword.ts` mounts.
+        // Named for the feature rather than for the target, unlike the line
+        // above: this is a *build* distinction that happens to coincide with
+        // Mongo, the deployed D1 Worker not containing the code at all
+        // (docs/architecture/auth-modes.md). A file here that were named
+        // `*.spec.ts` or `*.integration.test.ts` would run in the D1 pass too,
+        // and fail there.
+        ...(mongo ? ["src/**/*.password.test.ts"] : []),
       ],
       setupFiles: ["./src/tests/setup.ts"],
       // Only the Mongo run has anything to tear down, and only when it started

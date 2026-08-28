@@ -4,6 +4,7 @@ type: architecture
 tags: [backend, hono, cloudflare, layering]
 related:
   - "[[persistence-targets]]"
+  - "[[auth-modes]]"
   - "[[backend-testing]]"
 ---
 

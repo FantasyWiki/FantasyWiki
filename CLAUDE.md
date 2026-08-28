@@ -92,6 +92,15 @@ Layered structure, each layer only talks to the one below it:
 
 Runtime is a Cloudflare Worker using Hono (`backend/src/index.ts`). A deployment persists to **either** Cloudflare D1 (the `db` binding, the default) **or** MongoDB (`PERSISTENCE=mongo` plus `MONGO_URL`); `composition.ts` is the only module that picks, and it is synchronous because the request middleware, the settlement Workflow and the test seam all call it without awaiting. No Cloudflare deployment runs on MongoDB: `wrangler.jsonc` aliases the driver away so a D1 deploy neither carries it nor needs a compatibility flag. The MongoDB target runs locally, through `backend/wrangler.mongo.jsonc` — its own file because `alias` has no per-environment form and because a config that can never be deployed does not belong in the one that deploys. See `docs/architecture/persistence-targets.md`. When instantiating Hono, pass `CloudflareBindings` as the generic: `new Hono<{ Bindings: CloudflareBindings }>()`.
 
+There are **two entry points**, and which one a build uses is what decides
+whether it has username/password sign-in. `src/app.ts` holds `createApp()` —
+every route both builds serve; `src/index.ts` is what Cloudflare deploys
+(`wrangler.jsonc`) and imports no password code at all; `src/indexPassword.ts`
+(`wrangler.mongo.jsonc`) mounts it. A binding could not do this — bindings are
+runtime values, so the handlers would be bundled either way — and
+`src/tests/routes/openapi.spec.ts` fails if a password route reaches the
+deployed entry. See `docs/architecture/auth-modes.md`.
+
 ### Frontend (`frontend/src`)
 
 Vue 3 + Ionic SPA. Pinia stores (composition-style, `defineStore("id", () => ...)`) hold app/UI state; TanStack Query handles remote server state. Persistent UI state is manually synced to `localStorage` inside store actions.

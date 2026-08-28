@@ -13,7 +13,7 @@
   // deployment, so it does not mirror `env.local` binding for binding. See the
   // notes on each omission below.
   "name": "backend-mongo",
-  "main": "src/index.ts",
+  "main": "src/indexPassword.ts",
   "compatibility_date": "2026-03-17",
   // The MongoDB driver reaches for `net`, `tls` and `crypto`. Needed here and
   // nowhere else — see docs/architecture/persistence-targets.md.

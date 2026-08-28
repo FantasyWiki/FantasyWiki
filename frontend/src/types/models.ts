@@ -100,7 +100,8 @@ export class DashboardData {
 
 export interface Session {
   sub: string;
-  email: string;
+  /** Absent for a username/password account. See `dto/sessionDTO.ts`. */
+  email?: string;
   name: string;
   picture: string;
   /** Which optional features the backend this build talks to actually has. */

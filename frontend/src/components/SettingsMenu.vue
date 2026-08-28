@@ -19,7 +19,11 @@
         </ion-avatar>
         <ion-label>
           <h3 class="account-name">{{ appStore.currentUser?.name }}</h3>
-          <p class="account-email">{{ appStore.currentUser?.email }}</p>
+          <!-- Absent for a username/password account, whose name is the whole
+               identity it has (docs/architecture/auth-modes.md). -->
+          <p v-if="appStore.currentUser?.email" class="account-email">
+            {{ appStore.currentUser.email }}
+          </p>
         </ion-label>
       </ion-item>
 

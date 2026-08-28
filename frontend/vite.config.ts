@@ -19,15 +19,20 @@ const backendOrigin = process.env.BACKEND_ORIGIN ?? "http://127.0.0.1:8787";
  * /auth/dev. /auth/callback is a frontend SPA route — forwarding it sends it to
  * the backend, which 404s, so the SPA never loads to finish login.
  *
- * /auth/dev is the one entry with no counterpart in the deployed proxy, and
- * deliberately so: the backend refuses it outside the `local` environment, so
- * there would be nothing there to forward to.
+ * /auth/dev and /auth/password are the two entries with no counterpart in the
+ * deployed proxy, and deliberately so. The backend refuses /auth/dev outside the
+ * `local` environment, and the deployed Worker does not contain /auth/password
+ * at all — only `src/indexPassword.ts` mounts it, and only
+ * `wrangler.mongo.jsonc` names that entry point. Either way there would be
+ * nothing there to forward to
+ * (docs/architecture/auth-modes.md).
  */
 const backendProxy = {
   "/api": { target: backendOrigin, changeOrigin: true },
   "/internal": { target: backendOrigin, changeOrigin: true },
   "/auth/google": { target: backendOrigin, changeOrigin: true },
   "/auth/dev": { target: backendOrigin, changeOrigin: true },
+  "/auth/password": { target: backendOrigin, changeOrigin: true },
 };
 
 // https://vitejs.dev/config/

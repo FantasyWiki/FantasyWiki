@@ -16,6 +16,7 @@ import { STARTING_CREDITS } from "../../../../model/team";
  */
 export const COLLECTIONS = {
   googleAccounts: "google_accounts",
+  passwordCredentials: "password_credentials",
   players: "players",
   leagues: "leagues",
   teams: "teams",
@@ -30,6 +31,25 @@ export interface GoogleAccountDoc {
   _id: string;
   googleId: string;
   email: string;
+}
+
+/**
+ * A username/password account. Has no D1 counterpart and never will: only the
+ * MongoDB build carries password sign-in, and the deployed Worker does not
+ * contain the code that reads this (docs/architecture/auth-modes.md).
+ *
+ * Named here with the rest of the schema all the same, so the Mongo target has
+ * one description rather than two — and so `MongoTestStore.reset()`, which
+ * empties exactly `COLLECTIONS`, keeps emptying all of it.
+ *
+ * Keyed by the username, which makes the primary key the reservation: the
+ * `players.username` index says the same thing, and the two agree because
+ * `register` writes both in one transaction.
+ */
+export interface PasswordCredentialDoc {
+  _id: string;
+  accountId: string;
+  passwordHash: string;
 }
 
 export interface PlayerDoc {
@@ -132,6 +152,7 @@ export interface LanguageScaleDoc {
 
 export interface MongoCollections {
   googleAccounts: Collection<GoogleAccountDoc>;
+  passwordCredentials: Collection<PasswordCredentialDoc>;
   players: Collection<PlayerDoc>;
   leagues: Collection<LeagueDoc>;
   teams: Collection<TeamDoc>;
@@ -145,6 +166,9 @@ export interface MongoCollections {
 export function collections(db: Db): MongoCollections {
   return {
     googleAccounts: db.collection<GoogleAccountDoc>(COLLECTIONS.googleAccounts),
+    passwordCredentials: db.collection<PasswordCredentialDoc>(
+      COLLECTIONS.passwordCredentials,
+    ),
     players: db.collection<PlayerDoc>(COLLECTIONS.players),
     leagues: db.collection<LeagueDoc>(COLLECTIONS.leagues),
     teams: db.collection<TeamDoc>(COLLECTIONS.teams),

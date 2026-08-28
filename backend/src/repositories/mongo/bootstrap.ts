@@ -32,6 +32,7 @@ export async function ensureSchema(db: Db): Promise<void> {
 export async function ensureIndexes(db: Db): Promise<void> {
   const {
     googleAccounts,
+    passwordCredentials,
     players,
     leagues,
     teams,
@@ -42,6 +43,9 @@ export async function ensureIndexes(db: Db): Promise<void> {
 
   await Promise.all([
     googleAccounts.createIndex({ googleId: 1 }, { unique: true }),
+    // A credential belongs to exactly one account, and the username it is keyed
+    // by is already unique as the primary key.
+    passwordCredentials.createIndex({ accountId: 1 }, { unique: true }),
     players.createIndex({ username: 1 }, { unique: true }),
     players.createIndex({ accountId: 1 }, { unique: true }),
     // Partial, so every league without a code shares the absence of one while

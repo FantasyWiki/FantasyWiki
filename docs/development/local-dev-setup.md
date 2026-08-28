@@ -92,6 +92,7 @@ Create the file at `FantasyWiki/frontend/.env.local` with the following content:
 VITE_BACKEND_URL=http://127.0.0.1:8787
 VITE_MOCK=true
 # VITE_DEV_LOGIN=true
+# VITE_PASSWORD_AUTH=true
 ```
 
 **Notes:**
@@ -107,6 +108,13 @@ VITE_MOCK=true
   answers `/auth/dev` with a 404 unless it is running as `--env local`, so
   neither side relies on the other. It is what the containers use; see
   [Running FantasyWiki in Docker](./docker-local-dev.md).
+- `VITE_PASSWORD_AUTH=true` puts a **username and password form** on the login
+  screen. It works only against a backend started with `npm run devmongo` (or
+  `./gradlew devMongo`): username/password sign-in lives in
+  `src/indexPassword.ts`, which only `wrangler.mongo.jsonc` names, so the D1
+  local run — and every deployment — does not contain those routes at all. Never
+  set it in `.env.preview` or `.env.production`. See
+  [Auth Modes](../architecture/auth-modes.md).
 
 ---
 

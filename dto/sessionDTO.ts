@@ -4,7 +4,13 @@
  */
 export interface SessionDTO {
   sub: string;
-  email: string;
+  /**
+   * Absent for a username/password account, which is registered with neither an
+   * email nor anywhere to send one (docs/architecture/auth-modes.md). Optional
+   * rather than an empty string so the two places that display it can ask, and
+   * leave the line out rather than render a blank one.
+   */
+  email?: string;
   name: string;
   picture: string;
   features: SessionFeaturesDTO;

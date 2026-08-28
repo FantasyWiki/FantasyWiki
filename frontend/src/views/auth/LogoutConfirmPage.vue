@@ -14,7 +14,9 @@
 
     <ion-text color="medium" class="logout-message">
       <p>{{ $t("auth.logout.message", { name: user?.name ?? "" }) }}</p>
-      <p class="logout-email">{{ user?.email }}</p>
+      <!-- A username/password account has no email, so the line goes rather
+           than rendering blank (docs/architecture/auth-modes.md). -->
+      <p v-if="user?.email" class="logout-email">{{ user.email }}</p>
     </ion-text>
 
     <ion-button

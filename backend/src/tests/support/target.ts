@@ -5,6 +5,8 @@ import {
   repositoriesFor,
   type PersistenceEnv,
 } from "../../composition";
+import type { CredentialRepository } from "../../auth/password/credentialRepository";
+import { credentialsFor } from "../../passwordComposition";
 import { Repositories } from "../../repositories/repositories";
 import { D1TestStore } from "./d1/d1TestStore";
 import { perFileDatabase } from "./mongo/database";
@@ -34,6 +36,7 @@ import { TestStore } from "./testStore";
  */
 let built: Repositories | undefined;
 let resetter: TestStore | undefined;
+let credentialStore: CredentialRepository | undefined;
 
 /**
  * The bindings, with this file's own database named on them the first time
@@ -60,6 +63,17 @@ const persistenceEnv = (): PersistenceEnv => {
 
 export const repositories = (): Repositories =>
   (built ??= repositoriesFor(persistenceEnv()));
+
+/**
+ * The credential store, reached through the same bindings and so the same
+ * per-file database as {@link repositories}.
+ *
+ * Only `*.password.test.ts` calls it, and only the Mongo run collects those —
+ * `credentialsFor` throws on any other target, there being no other credential
+ * store (docs/architecture/auth-modes.md).
+ */
+export const credentials = (): CredentialRepository =>
+  (credentialStore ??= credentialsFor(persistenceEnv()));
 
 export const store = (): TestStore =>
   (resetter ??=

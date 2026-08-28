@@ -36,17 +36,25 @@ npm run testmongo   # MongoDB, minus the D1 tier
 | `src/tests/routes/` | routers, `Repositories` | The HTTP shell: statuses, payload shapes, what never leaves. |
 | `src/tests/repositories/conformance/` | `Repositories`, nothing below | What a repository owes its callers. **The quality gate a second implementation must pass.** |
 | `src/tests/repositories/d1/` | `*RepositoryD1`, SQL, `env.db` | Facts that are true of D1 and would not be asked of another target. |
+| `src/**/*.password.test.ts` | `credentials()`, `src/indexPassword.ts` | Username/password sign-in, which only one build has. |
 | `src/tests/support/` | `Repositories` (and a target, under `support/<target>/`) | The seam and the fixtures. |
 
 `no-restricted-imports` in `backend/eslint.config.ts` enforces the middle rows: nothing under
 `src/services`, `src/routes` or `src/tests` may import `repositories/d1/**` or
 `repositories/mongo/**`, with `tests/repositories/<target>` and `tests/support/<target>` exempt
-because naming a target is their purpose. `composition.ts` is the only module in the codebase that
-chooses an implementation.
+because naming a target is their purpose. `composition.ts` is the only module that chooses a
+*domain* repository implementation; `passwordComposition.ts` chooses the credential store, and
+only the build that has one.
 
-The D1 tier is the only target-specific one today. The Mongo run skips it — those tests ask about
-an inlined literal in a view, a `NOT NULL` that provokes a rollback, an empty `IN ()` and a driver
-that throws, and none of those are questions to put to another store.
+Two tiers are collected by one run and not the other, and they are skipped for different reasons.
+The **D1 tier** is about a target: those tests ask about an inlined literal in a view, a `NOT NULL`
+that provokes a rollback, an empty `IN ()` and a driver that throws, and none of those are
+questions to put to another store, so the Mongo run skips them. The **password tier** is about a
+*build*: only `src/indexPassword.ts` mounts username/password sign-in and the deployed Worker does
+not contain it at all, so only the Mongo run has anything to run
+([Auth Modes](../architecture/auth-modes.md)). It is named for the feature rather than the target
+for that reason — and a file of that tier named `*.spec.ts` or `*.integration.test.ts` would be
+collected by the D1 run too, and fail there.
 
 ### The seam
 

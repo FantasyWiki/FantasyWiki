@@ -37,6 +37,10 @@ import {
 } from "../../../model/pricing";
 import { createWikimediaClient } from "@/services/wikimediaClient";
 import type { SessionDTO, SessionFeaturesDTO } from "../../../dto/sessionDTO";
+import type {
+  PasswordCredentialsRequest,
+  PasswordSessionDTO,
+} from "../../../dto/passwordAuthDTO";
 
 const API_BASE_URL = "/api";
 
@@ -413,6 +417,50 @@ export const sessionApi = {
   },
   delete: () =>
     apiRequest<{ success: boolean }>("/session", { method: "DELETE" }),
+};
+
+/**
+ * Username/password sign-in, which only a backend built from
+ * `src/indexPassword.ts` serves — the deployed Worker does not contain these
+ * routes (docs/architecture/auth-modes.md). The form that calls this is gated
+ * on `VITE_PASSWORD_AUTH`.
+ *
+ * Its own fetch rather than `apiRequest`, which prefixes `/api` to everything
+ * it is given: these live under `/auth`, beside the Google entry point. The
+ * session arrives the same way it does from Google — as the `session_token`
+ * cookie — so the caller goes on to `sessionApi.get()` exactly as
+ * `AuthCallbackPage` does.
+ */
+async function passwordAuthRequest(
+  endpoint: string,
+  body: PasswordCredentialsRequest
+): Promise<PasswordSessionDTO> {
+  const response = await fetch(`/auth/password${endpoint}`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Network error" }));
+    throw new ApiError(
+      error.error || `HTTP ${response.status}: ${response.statusText}`,
+      response.status,
+      error.error
+    );
+  }
+
+  return response.json();
+}
+
+export const passwordAuthApi = {
+  register: (credentials: PasswordCredentialsRequest) =>
+    passwordAuthRequest("/register", credentials),
+  login: (credentials: PasswordCredentialsRequest) =>
+    passwordAuthRequest("/login", credentials),
 };
 
 // ── Problem reports ───────────────────────────────────────────────────────────

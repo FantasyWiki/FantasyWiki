@@ -188,6 +188,139 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /auth/password/register:
+    x-build: mongo
+    post:
+      operationId: registerWithPassword
+      tags: [Authentication]
+      summary: Create a username/password account (MongoDB build only)
+      description: |
+        Creates the credential and the player it belongs to as one write, then
+        signs the same seven-day session the Google flow does — same claims,
+        same secret, same `session_token` cookie — so nothing downstream knows
+        this route exists.
+
+        **Absent from the deployed Worker.** Not refused there, not 404 there:
+        the Cloudflare build's entry point (`src/index.ts`) does not import this
+        router, so the handler, the password hashing and the credential store
+        are not in that bundle at all. Only `src/indexPassword.ts`, named by
+        `wrangler.mongo.jsonc`, mounts it. See
+        `docs/architecture/auth-modes.md`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordCredentials"
+      responses:
+        "201":
+          description: The account was created and the session cookie set.
+          headers:
+            Set-Cookie:
+              description: >
+                session_token, HTTP-only, SameSite=Lax, seven days. Secure
+                whenever the frontend URL is HTTPS.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasswordSession"
+        "400":
+          description: >
+            USERNAME_INVALID for a username that is not a legal one, or
+            PASSWORD_TOO_LONG for a password past 200 characters. Named on
+            purpose, unlike the credential failures: neither says anything about
+            who has an account. There is no minimum length and no composition
+            rule — the ceiling is there to bound the key derivation's work, not
+            to judge the password.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: >
+            The request's Origin is not the frontend's, or the body exceeded the
+            size limit.
+        "409":
+          description: >
+            The username is already taken — by another credential or by a Google
+            player, the two sharing one username space.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: The Worker is missing JWT_SECRET, or the credential store failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/password/login:
+    x-build: mongo
+    post:
+      operationId: signInWithPassword
+      tags: [Authentication]
+      summary: Sign in with a username and password (MongoDB build only)
+      description: |
+        Verifies the password against the stored PBKDF2 record and signs the
+        same session the Google flow does.
+
+        An unknown username and a wrong password are the same answer, and cost
+        the same time — telling them apart is how a login form becomes a way to
+        find out who has an account.
+
+        **Absent from the deployed Worker**, in the same sense as
+        `/auth/password/register` above.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordCredentials"
+      responses:
+        "200":
+          description: Signed in, with the session cookie set.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasswordSession"
+        "400":
+          description: >
+            USERNAME_INVALID for a username that is not a legal one, or
+            PASSWORD_TOO_LONG for a password past 200 characters. Named on
+            purpose, unlike the credential failures: neither says anything about
+            who has an account. There is no minimum length and no composition
+            rule — the ceiling is there to bound the key derivation's work, not
+            to judge the password.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: No such username, or the wrong password. Indistinguishable by design.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: >
+            The request's Origin is not the frontend's, or the body exceeded the
+            size limit.
+        "500":
+          description: The Worker is missing JWT_SECRET, or the credential store failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /internal/scoring-inputs:
     get:
       operationId: getScoringInputs
@@ -1483,6 +1616,34 @@ components:
         error:
           type: string
           example: NOT_ENOUGH_CREDITS
+
+    PasswordCredentials:
+      type: object
+      description: >
+        A username/password pair, for the MongoDB build's sign-in. The username
+        is 3–30 characters of `[A-Za-z0-9_-]`. The password has no minimum and no
+        composition rules — any string up to 200 characters is accepted, empty
+        included. That ceiling bounds the work one request can ask of the key
+        derivation, which is fed the whole string.
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: ada_lovelace
+        password:
+          type: string
+          format: password
+
+    PasswordSession:
+      type: object
+      description: >
+        The session itself arrives as the `session_token` cookie, as it does
+        from the Google flow; this only says where to go next.
+      required: [isNew]
+      properties:
+        isNew:
+          type: boolean
+          description: True when the account was just created, so the SPA starts onboarding.
 
     Session:
       type: object

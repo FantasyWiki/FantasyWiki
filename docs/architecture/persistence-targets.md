@@ -4,6 +4,7 @@ type: architecture
 tags: [backend, repositories, d1, mongodb, layering]
 related:
   - "[[backend-architecture]]"
+  - "[[auth-modes]]"
   - "[[backend-testing]]"
   - "[[0007-derived-team-credits]]"
 ---
@@ -17,8 +18,11 @@ runs against either.
 
 ## Choosing one
 
-`backend/src/composition.ts` is the only module in the codebase that names an
-implementation, and a binding is what it reads:
+`backend/src/composition.ts` is the only module that names an implementation of
+the *domain* repositories, and a binding is what it reads. (The credential store
+username/password sign-in uses is composed separately, by
+`src/passwordComposition.ts`, and only in the build that has it — see
+[Auth Modes](./auth-modes.md).)
 
 | Binding | D1 deployment | Mongo deployment |
 |---|---|---|
@@ -97,6 +101,11 @@ are transactions. The test suite starts one of its own, which is what lets
 ```bash
 npm run devmongo         # or ./gradlew devMongo, with the frontend beside it
 ```
+
+It also names a different `main`, `src/indexPassword.ts`, which is what gives
+this run username/password sign-in and the deployed one none of it. `main` being
+per-file is what makes that possible, and the reasoning is the mirror of the
+alias argument above: see [Auth Modes](./auth-modes.md).
 
 A file rather than a fifth environment in `wrangler.jsonc`, for two reasons. It
 is not a deployment — nothing on Cloudflare runs on MongoDB — and the file that

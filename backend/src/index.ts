@@ -1,131 +1,22 @@
-import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { jwt } from "hono/jwt";
-import { Temporal } from "@js-temporal/polyfill";
-import auth, { resolveFrontendUrl } from "./routes/auth";
-import devAuth from "./routes/devAuth";
-import session from "./routes/session";
-import leagues from "./routes/leagues";
-import notifications from "./routes/notifications";
-import player from "./routes/player";
-import me from "./routes/me";
-import reports from "./routes/reports";
-import wikipediaEditionRoutes from "./routes/wikipediaEditions";
-import type { WorkersAiBinding } from "./services/llmClient";
-import internal from "./routes/internal";
-import type { ContractSettlementParams } from "./workflows/contractSettlement";
-import { AppVariables } from "./appEnv";
-import { repositoriesFor } from "./composition";
-import { createWikimediaClient } from "./services/wikimediaClient";
-
-const app = new Hono<{ Bindings: Bindings; Variables: AppVariables }>();
-
-type Bindings = {
-  db: D1Database;
-  GOOGLE_CLIENT_ID: string;
-  GOOGLE_CLIENT_SECRET: string;
-  JWT_SECRET: string;
-  FRONTEND_URL: string;
-  GH_APP_ID: string;
-  GH_APP_INSTALLATION_ID: string;
-  GH_APP_PRIVATE_KEY: string;
-  GITHUB_REPO: string;
-  ENVIRONMENT: string;
-  REPORT_RATE_LIMITER: {
-    limit(o: { key: string }): Promise<{ success: boolean }>;
-  };
-  // Optional: the `local` env leaves Workers AI unbound so a clone with no
-  // Cloudflare credentials can still boot (see `wrangler.jsonc`).
-  AI?: WorkersAiBinding;
-  GENIE_RATE_LIMITER: {
-    limit(o: { key: string }): Promise<{ success: boolean }>;
-  };
-  CONTRACT_SETTLEMENT_WORKFLOW: Workflow<ContractSettlementParams>;
-  SCORING_INGEST_SECRET: string;
-};
-
-app.use(
-  "*",
-  cors({
-    origin: (origin) => origin,
-    credentials: true,
-  }),
-);
-
-// Built once per isolate rather than per request: it carries a transport and a
-// response cache that only pay off when they outlive a single request.
-const wikimedia = createWikimediaClient();
-
-app.use("*", async (c, next) => {
-  c.set("repositories", repositoriesFor(c.env));
-  c.set("wikimedia", wikimedia);
-  return next();
-});
-
-app.get("/", (c) => {
-  return c.json({
-    resolved_url: resolveFrontendUrl(c.env),
-    FRONTEND_URL: c.env.FRONTEND_URL,
-  });
-});
-
-// Mount auth routes
-app.route("/auth", auth);
-
-// Signing in without Google, refused unless ENVIRONMENT is "local". Mounted
-// beside the Google flow because it produces the identical session — see
-// routes/devAuth.ts.
-app.route("/auth", devAuth);
-
-// Internal routes for the scoring engine — service-token auth (not user JWT),
-// so mounted outside the /api/* Google-JWT guard (docs/architecture/scoring-pipeline.md).
-app.route("/internal", internal);
-
-// Protected routes - apply JWT middleware
-app.use("/api/*", async (c, next) => {
-  const handler = jwt({
-    secret: c.env.JWT_SECRET,
-    alg: "HS256",
-    cookie: "session_token",
-  });
-  return handler(c, next);
-});
-
-// Mount session routes
-app.route("/api/session", session);
-
-// Mount leagues routes
-app.route("/api/leagues", leagues);
-
-// Mount notifications routes
-app.route("/api/notifications", notifications);
-
-// Mount player routes
-app.route("/api/player", player);
-
-// Mount self-scoped player routes (/api/me — identity from the JWT)
-app.route("/api/me", me);
-
-// Mount problem report routes
-app.route("/api/reports", reports);
-
-// The Wikipedia editions a league can be founded on (#531)
-app.route("/api/wikipedia-editions", wikipediaEditionRoutes);
+import { createApp, scheduled, type Bindings } from "./app";
 
 /**
- * Daily settlement Cron Trigger (ADR 0003, ~05:00 UTC): kicks off the durable
- * ContractSettlementWorkflow, which settles or renews every contract that has
- * reached the end of its term. The handler stays thin — it only starts the
- * Workflow instance; all the resolution logic lives in the Workflow/service.
+ * What Cloudflare deploys: production, preview, and the D1 local run
+ * (`wrangler.jsonc`, every environment in it).
+ *
+ * **This module's graph must never reach password authentication.** That is the
+ * whole of how the deployed Worker is kept free of a credential store, a
+ * password hasher and public register/login endpoints — not a binding that
+ * turns them off, but their absence from the bundle. A runtime flag could not
+ * do it: bindings are runtime values, so esbuild cannot prove the branch dead
+ * and would ship the handlers anyway. `indexPassword.ts` is the entry that has
+ * them, and `wrangler.mongo.jsonc` is the only config that names it
+ * (docs/architecture/auth-modes.md).
+ *
+ * `tests/routes/openapi.spec.ts` holds that line: it compares this entry's
+ * route table against the other's and fails if a password route appears here.
  */
-const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
-  _controller,
-  env,
-) => {
-  await env.CONTRACT_SETTLEMENT_WORKFLOW.create({
-    params: { today: Temporal.Now.plainDateISO().toString() },
-  });
-};
+const app = createApp();
 
 // Cloudflare requires the WorkflowEntrypoint class to be exported from the
 // Worker's main module (referenced by class_name in wrangler.jsonc).

@@ -38,7 +38,7 @@ flowchart TB
 ## Containers
 
 Five runtimes. Note what does **not** connect: the collector has no database
-credential, and the frontend never talks to D1.
+credential, and the frontend never talks to the database at all.
 
 ```mermaid
 flowchart TB
@@ -48,10 +48,13 @@ flowchart TB
 
   subgraph CF["Cloudflare"]
     BE["<b>Backend</b><br/>Hono on a Worker<br/><small>routes → services → repos</small>"]
-    D1[("<b>D1</b><br/><small>SQLite at the edge</small>")]
     WF["<b>Settlement Workflow</b><br/><small>durable, resumable</small>"]
     AI["<b>Workers AI</b><br/><small>Article Genie</small>"]
     RL["Rate limiters<br/><small>reports · genie</small>"]
+  end
+
+  subgraph ST["Persistence"]
+    DB[("<b>MongoDB</b><br/><small>replica set</small>")]
   end
 
   subgraph GHA["GitHub Actions"]
@@ -63,10 +66,10 @@ flowchart TB
 
   FE -->|"HTTPS · /api/* · session cookie"| BE
   FE -->|"titles, thumbnails, summaries"| WM
-  BE --> D1
+  BE -->|"one connection per request"| DB
   BE --> RL
   BE -->|"schedules settlement"| WF
-  WF --> D1
+  WF --> DB
   BE --> AI
   BE -->|"live views, article metadata"| WM
   BE -->|"sign-in"| GO
@@ -74,14 +77,21 @@ flowchart TB
   COL -->|"daily views · link graph"| WM
 
   classDef store fill:#fdf3d6,stroke:#d8b03a;
-  class D1 store;
+  class DB store;
 ```
+
+The store sits outside the Cloudflare box because it is the one container that
+is not a Cloudflare service. It is also the one container that can be swapped:
+the backend holds repository *interfaces*, and the Cloudflare deployment
+configures the second implementation — D1 — in MongoDB's place. Which one a
+build gets is decided in a single module, below.
 
 | Container | Runtime | Deployed by | Documented in |
 |---|---|---|---|
 | Frontend | Vue 3 + Ionic SPA | Cloudflare Pages, per branch | [Frontend](./frontend.md) |
 | Backend | Hono on a Cloudflare Worker | Wrangler, per branch | [Backend Architecture](../docs/architecture/backend-architecture.md) |
-| D1 | SQLite at the edge | Migrations replayed on deploy | [Data model](./data-model.md) |
+| MongoDB | A replica set, reached over the driver | Indexes and baseline on first connection | [Data model](./data-model.md) |
+| D1 | SQLite at the edge — the second target | Migrations replayed on deploy | [Persistence Targets](../docs/architecture/persistence-targets.md) |
 | Settlement Workflow | Cloudflare Workflows | Bundled with the Worker | [ADR 0003](../docs/adr/0003-closed-trading-economy.md) |
 | Scoring Collector | Kotlin/JVM, `application` plugin | GitHub Actions cron + GHCR image | [Scoring Pipeline](../docs/architecture/scoring-pipeline.md) |
 
@@ -132,12 +142,14 @@ Three layers, each talking only to the one below it.
 flowchart TB
   R["<b>Routes</b> — <code>routes/</code><br/><small>parse · auth · respond</small>"]
   S["<b>Services</b> — <code>services/</code><br/><small>logic · typed Results</small>"]
-  I["<b>Repository interfaces</b> — <code>repositories/*.ts</code><br/><small>contracts, no SQL</small>"]
+  I["<b>Repository interfaces</b> — <code>repositories/*.ts</code><br/><small>contracts, no queries</small>"]
+  M["<b>Mongo implementations</b> — <code>repositories/mongo/</code><br/><small>documents, pipelines, transactions</small>"]
   D["<b>D1 implementations</b> — <code>repositories/d1/</code><br/><small>SQL and its errors</small>"]
   C["<b>composition.ts</b><br/><small>picks the implementation</small>"]
 
   R --> S --> I
   C -.->|"provides"| I
+  M -->|"implements"| I
   D -->|"implements"| I
 
   classDef seam fill:#fdf3d6,stroke:#d8b03a;
@@ -145,11 +157,16 @@ flowchart TB
 ```
 
 The interesting line is the dotted one. `composition.ts` is the single place
-that decides D1 is the database, and the rule is enforced mechanically:
+that decides which store the system is running on — it reads a binding and
+returns one set of implementations — and the rule is enforced mechanically:
 `no-restricted-imports` forbids anything under `services/`, `routes/` or
-`tests/` from naming `repositories/d1/**`. That is what makes the second
-implementation a matter of writing it rather than of finding every place the
-first one leaked to.
+`tests/` from naming `repositories/d1/**` **or** `repositories/mongo/**`.
+
+That the second implementation exists is what makes this more than an
+intention. MongoDB was added without a change above the repository layer, and
+the conformance suite the first target passed became the second's acceptance
+criteria unchanged.
+→ [Persistence Targets](../docs/architecture/persistence-targets.md)
 
 Services may call other services, and are encouraged to: a rule implemented
 twice is a rule that will eventually be two different rules.
@@ -164,7 +181,7 @@ can change without the other noticing.
 
 | Seam | What it separates | Why |
 |---|---|---|
-| `composition.ts` | Business logic from the database | So D1 can be replaced without touching a service ([the layers, above](#the-backend-s-layers)) |
+| `composition.ts` | Business logic from the database | So the store can be replaced without touching a service — and a second one was ([the layers, above](#the-backend-s-layers)) |
 | `/internal/*` | The scoring engine from the game | The collector computes nothing and knows no rules ([pipeline](../docs/architecture/scoring-pipeline.md)) |
 | `DraftLineup` | Editing a formation from saving one | Pure mutations, testable without a server ([lineup editing](../docs/architecture/lineup-editing.md)) |
 | `buildArticleDetail` | Article facts from viewer context | Ownership is resolved once, asynchronously ([ownership resolution](../docs/architecture/article-ownership-resolution.md)) |
@@ -174,7 +191,7 @@ can change without the other noticing.
 ## Where to go next
 
 - [Data flow](./data-flow.md) — sign-in, a request through the layers, a night of scoring
-- [Data model](./data-model.md) — the tables, the derived view, and the invariants
+- [Data model](./data-model.md) — the collections, the derived balance, and the invariants
 - [Frontend](./frontend.md) — state ownership, bootstrapping order, mocking
 - [Deployment](./deployment.md) — branches, environments, and what ships where
 

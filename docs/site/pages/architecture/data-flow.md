@@ -22,7 +22,7 @@ sequenceDiagram
   participant B as Browser
   participant W as Worker (/auth)
   participant G as Google
-  participant D1 as D1
+  participant DB as MongoDB
 
   B->>W: GET /auth/google
   W->>G: OAuth redirect
@@ -30,8 +30,8 @@ sequenceDiagram
   B->>W: GET /auth/google?code=…
   W->>G: exchange code
   G-->>W: profile (googleId, email)
-  W->>D1: find or create google_account + player
-  D1-->>W: player
+  W->>DB: find or create google_account + player<br/>in one transaction
+  DB-->>W: player
   W->>W: sign JWT (HS256)
   W-->>B: Set-Cookie session_token<br/>HttpOnly · Secure · redirect to the app
   B->>W: GET /api/session (cookie)
@@ -42,6 +42,14 @@ Everything under `/api/*` sits behind Hono's JWT middleware reading that cookie.
 Two route groups sit deliberately *outside* it: `/auth/*`, which has no session
 yet, and `/internal/*`, which is authenticated by a bearer service token instead
 because its caller is a batch job, not a person.
+
+The MongoDB build adds a second door, and only that build has it: a username
+and a password, checked against a `password_credentials` document and answered
+with the same signed cookie. Which build a deployment is comes down to which
+entry module it names, so the Worker Cloudflare deploys does not contain the
+handler at all — a route table is the wrong place to enforce that, and a test
+fails if a password route ever reaches the deployed entry.
+→ [Auth Modes](../docs/architecture/auth-modes.md)
 
 The local environment adds one more door. `routes/devAuth.ts` mounts a sign-in
 that produces an identical session with no Google round trip — and refuses to
@@ -64,7 +72,7 @@ sequenceDiagram
   participant RT as Route
   participant SV as Service
   participant RP as Repository (interface)
-  participant D1 as D1
+  participant DB as MongoDB
 
   FE->>MW: GET /api/leagues/:id/my-team<br/><small>credentials: include</small>
   MW->>MW: verify session_token
@@ -72,8 +80,8 @@ sequenceDiagram
   RT->>RT: currentPlayer — identity from the JWT, never the URL
   RT->>SV: teamService.forPlayer(leagueId, playerId)
   SV->>RP: teams.findByPlayerAndLeague(…)
-  RP->>D1: SELECT …
-  D1-->>RP: row
+  RP->>DB: findOne({ playerId, leagueId })
+  DB-->>RP: document
   RP-->>SV: Result of Team or TeamError
   SV-->>RT: Result of TeamDTO or TeamError
   RT-->>FE: 200 · or the status this error maps to
@@ -91,8 +99,9 @@ Hiding an id from a URL is not a security control — resolving it server-side i
 routes map each error constant to a status. Nothing anywhere matches on an error
 message. → [Backend Error Constants](../docs/architecture/backend-error-constants.md)
 
-**The route never sees SQL.** It has repositories, which are interfaces. Which
-implementation it got was decided once, in `composition.ts`.
+**The route never sees a query.** It has repositories, which are interfaces —
+no aggregation pipeline and no SQL reaches it. Which implementation it got was
+decided once, in `composition.ts`.
 
 ### The endpoints, grouped by what they are scoped to
 
@@ -114,19 +123,19 @@ sequenceDiagram
   participant FE as Frontend
   participant BE as Backend
   participant WM as Wikimedia
-  participant D1 as D1
+  participant DB as MongoDB
 
   FE->>BE: GET /api/leagues/:id/market
   BE->>WM: top-read snapshot for the league's edition
   WM-->>BE: ranked articles
-  BE->>D1: contracts already held in this league
+  BE->>DB: contracts already held in this league
   BE-->>FE: each article as Free Agent · Owned by Viewer · Owned by Other
 
   FE->>BE: POST /api/leagues/:id/my-contracts { articleId }
   BE->>WM: 30-day average views
   BE->>BE: price = f(base points, language scale)
-  BE->>D1: is the article free? can the team afford it?
-  BE->>D1: INSERT contract
+  BE->>DB: transaction — is the article free?<br/>can the team afford it?
+  BE->>DB: insert the contract · bump leagues.revision
   BE-->>FE: the signed contract
 ```
 
@@ -135,9 +144,14 @@ Two facts about this flow are load-bearing and are specified elsewhere:
 - **Price comes from a smoothed 30-day average**, not from today's spike, which
   is what makes a breakout cheap and a giant expensive.
   → [ADR 0005](../docs/adr/0005-contract-pricing.md)
-- **Credits are derived, not stored.** A team's balance is a view over its
-  contracts and payouts, so a balance and a portfolio can never disagree.
-  → [ADR 0007](../docs/adr/0007-derived-team-credits.md)
+- **Credits are derived, not stored.** A team's balance is computed from its
+  contracts and payouts on every read, so a balance and a portfolio can never
+  disagree. → [ADR 0007](../docs/adr/0007-derived-team-credits.md)
+- **The two checks and the insert are one write.** The article being free and
+  the team being able to afford it are evaluated inside the transaction that
+  inserts the contract, and that transaction bumps the league's `revision` so a
+  concurrent purchase in the same league is retried rather than interleaved.
+  → [Guarded writes](./data-model.md#guarded-writes-and-what-replaces-single-statement-atomicity)
 
 The three-state availability model, and which actions each state permits, is
 [Article Availability](../docs/domain/article-availability.md).
@@ -154,12 +168,12 @@ sequenceDiagram
   participant CO as Scoring Collector (JVM)
   participant BE as Backend Worker
   participant WM as Wikimedia
-  participant D1 as D1
+  participant DB as MongoDB
 
   CR->>CO: run for date D
   CO->>BE: GET /internal/scoring-inputs?date=D<br/><small>bearer secret</small>
-  BE->>D1: lineups ⋈ contracts active on D
-  D1-->>BE: rows
+  BE->>DB: lineups ⋈ contracts active on D<br/><small>$lookup</small>
+  DB-->>BE: documents
   BE-->>CO: per team: articles, article pairs,<br/>opaque formation snapshot
 
   par throttled fan-out
@@ -171,8 +185,8 @@ sequenceDiagram
 
   CO->>BE: POST /internal/performances (chunks of 100)
   BE->>BE: apply the curve + language scale
-  BE->>D1: UPSERT ON CONFLICT (teamId, date)
-  Note over BE,D1: re-running date D is safe
+  BE->>DB: upsert _id = "teamId:date"
+  Note over BE,DB: re-running date D is safe
 ```
 
 The chunking is not incidental: a Worker has a CPU budget, and ingest is
@@ -194,7 +208,7 @@ flowchart LR
   Q -->|"otherwise"| SET["Settle: pay out at value,<br/>book the gain or loss"]
   REN --> N["Notify the owner"]
   SET --> N
-  N --> D1[("D1")]
+  N --> DB[("MongoDB")]
 
   classDef seam fill:#fdf3d6,stroke:#d8b03a;
   class WF seam;
@@ -237,5 +251,5 @@ rather than of remembering every place it was used.
 ## Related
 
 - [Architecture overview](./index.md) — containers, packages and layers
-- [Data model](./data-model.md) — what the tables above actually hold
+- [Data model](./data-model.md) — what the collections above actually hold
 - [Deployment](./deployment.md) — where each of these processes runs

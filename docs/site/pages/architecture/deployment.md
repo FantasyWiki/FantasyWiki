@@ -87,6 +87,35 @@ The Worker bundles `model/` and `dto/` from the repository root, so the deploy
 installs the root dependencies before running Wrangler — esbuild resolves those
 imports from the root `node_modules`, not the backend's.
 
+## The target that is not deployed here
+
+The backend runs on either of two stores, and this page describes only one of
+them. **No Cloudflare deployment runs on MongoDB**: production and preview are
+D1, and the MongoDB target runs locally, against a replica set.
+
+Keeping it that way took more than intent. `composition.ts` names both targets,
+so the driver is reachable from the Worker's entry point, and making the import
+dynamic does not help — esbuild follows dynamic imports and inlines them. The
+dry run measured it: 1.5MB of driver shipped with a Worker that can never use
+it, and the build *failed* without `nodejs_compat`, because the driver imports
+`net`, `tls` and `child_process`.
+
+So `wrangler.jsonc` aliases the driver to a stub, which brings the production
+bundle back to within 8 KiB gzipped of its pre-MongoDB size and leaves the D1
+deployments configured exactly as they were. The alias is a top-level key with
+no per-environment form, which is why the MongoDB run has a wrangler config of
+its own rather than a fifth environment — and a configuration that can never be
+deployed does not belong in the file that deploys.
+
+```bash
+./gradlew devMongo   # the frontend, and the Worker on MongoDB
+```
+
+That config also names a different entry module, which is what gives the
+MongoDB run username/password sign-in and the deployed Worker none of it.
+→ [Persistence Targets](../docs/architecture/persistence-targets.md) ·
+[Auth Modes](../docs/architecture/auth-modes.md)
+
 ## The nightly scoring run
 
 Scoring is the one scheduled job that lives outside Cloudflare, and it runs the

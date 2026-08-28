@@ -12,10 +12,11 @@
   "scripts": {
     "mirror": "node scripts/prepare.mjs",
     "dev": "npm run mirror && vitepress dev .",
-    "build": "npm run mirror && npm run diagrams && vitepress build .",
+    "build": "npm run mirror && npm run diagrams && vitepress build . && npm run styles",
     "preview": "vitepress preview .",
     "snapshot": "node scripts/snapshot-atlas.mjs",
-    "diagrams": "node scripts/check-diagrams.mjs"
+    "diagrams": "node scripts/check-diagrams.mjs",
+    "styles": "node scripts/check-styles.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

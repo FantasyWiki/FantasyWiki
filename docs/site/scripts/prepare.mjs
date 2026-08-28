@@ -332,6 +332,46 @@ function mirrorApiSpec() {
   fs.copyFileSync(API_SPEC, path.join(MIRROR_DIR, "public", "openapi.yaml"));
 }
 
+/** Swagger UI's stylesheet, shipped inside the package that draws the page. */
+const SWAGGER_STYLESHEET = path.join(
+  SITE_ROOT,
+  "node_modules",
+  "swagger-ui-dist",
+  "swagger-ui.css",
+);
+
+/**
+ * Swagger UI's stylesheet, served from the site root rather than imported.
+ *
+ * This looks like a needless detour around `import "…/swagger-ui.css?url"`, and
+ * it is not. VitePress decides which file is *the* site stylesheet by taking
+ * the first CSS asset Rollup emits:
+ *
+ *     output.find((chunk) => chunk.type === "asset" && chunk.fileName.endsWith(".css"))
+ *
+ * One CSS asset is the assumption, and a `?url` import breaks it — the build
+ * emits two, Swagger's sorts first, and every page in the site links Swagger
+ * UI's stylesheet instead of its own. The site then publishes with no theme at
+ * all, which is what happened, and nothing failed: the pages render, the links
+ * resolve, and the stylesheet nobody references uploads perfectly.
+ *
+ * A file in `public/` is copied outside the bundle, so it never reaches that
+ * `find` and the site keeps its own stylesheet. `SwaggerUi.vue` links it by URL
+ * when it mounts, so the 184 kB still costs only the page that needs it.
+ *
+ * Unlike the spec above, missing is fatal: it ships inside a dependency, so its
+ * absence means the install is broken rather than the working tree unfinished.
+ */
+function mirrorSwaggerStylesheet() {
+  if (!fs.existsSync(SWAGGER_STYLESHEET)) {
+    throw new Error(
+      `swagger-ui-dist/swagger-ui.css is missing at ${SWAGGER_STYLESHEET} — run npm ci`,
+    );
+  }
+  fs.mkdirSync(path.join(MIRROR_DIR, "public"), { recursive: true });
+  fs.copyFileSync(SWAGGER_STYLESHEET, path.join(MIRROR_DIR, "public", "swagger-ui.css"));
+}
+
 function mirrorPages() {
   const entries = [];
 
@@ -496,6 +536,7 @@ function main() {
 
   mirrorPublic();
   mirrorApiSpec();
+  mirrorSwaggerStylesheet();
 
   const modified = lastModifiedByPath();
   const entries = [...mirrorPages(), ...mirrorDocs(modified), ...mirrorCharter(modified)];

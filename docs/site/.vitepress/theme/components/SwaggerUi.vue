@@ -23,16 +23,6 @@
 import { onMounted, ref } from "vue";
 import { withBase } from "vitepress";
 
-/**
- * The stylesheet as a URL, not as an import.
- *
- * VitePress builds one stylesheet for the whole site, so an ordinary
- * `import "…/swagger-ui.css"` would put 150 kB of it in front of every page
- * here to serve the one page that needs it. `?url` emits it as an asset
- * instead, and the link below is added when this component mounts.
- */
-import swaggerStylesheet from "swagger-ui-dist/swagger-ui.css?url";
-
 type Status = "loading" | "ready" | "failed";
 
 const container = ref<HTMLElement | null>(null);
@@ -40,6 +30,29 @@ const status = ref<Status>("loading");
 
 /** Where `prepare.mjs` puts the spec, resolved against the site's base path. */
 const specUrl = withBase("/openapi.yaml");
+
+/**
+ * Swagger UI's stylesheet, fetched from the site root — deliberately not an
+ * import.
+ *
+ * `import "…/swagger-ui.css"` would fold 184 kB into the one stylesheet
+ * VitePress serves in front of every page, and Swagger's rules are global
+ * enough to restyle the whole site from there. The obvious escape, `?url`, is
+ * worse: it makes Rollup emit a *second* CSS asset, and VitePress picks the
+ * site stylesheet with
+ *
+ *     output.find((chunk) => chunk.type === "asset" && chunk.fileName.endsWith(".css"))
+ *
+ * — the first one, which is Swagger's. Every page then links Swagger UI's
+ * stylesheet and none links the theme, and the whole site publishes unstyled
+ * with every check green. It shipped that way once.
+ *
+ * So `prepare.mjs` copies the file into the mirror's `public/` instead, outside
+ * the bundle entirely, and the link below is added when this component mounts.
+ * `scripts/check-styles.mjs` fails the build if a second CSS asset ever comes
+ * back.
+ */
+const swaggerStylesheet = withBase("/swagger-ui.css");
 
 /**
  * Adds the stylesheet and resolves once the browser has it, so the reference

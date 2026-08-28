@@ -12,6 +12,14 @@ import { timingSafeEqual } from "hono/utils/buffer";
 
 const ALGORITHM = "pbkdf2";
 const HASH = "sha256";
+/**
+ * Raising this applies to new passwords only — {@link verifyPassword} reads the
+ * count off each record. Two things then need doing together with it: re-hash a
+ * record on the next successful login so stored passwords actually get the new
+ * cost, and note that until they do, the dummy verify in `routes/passwordAuth.ts`
+ * costs the new count while a real record costs the old one — which is a timing
+ * difference between a username that exists and one that does not.
+ */
 const ITERATIONS = 210_000;
 const SALT_BYTES = 16;
 const KEY_BITS = 256;
@@ -76,7 +84,24 @@ function parse(record: string): ParsedRecord | null {
   if (!Number.isSafeInteger(rounds) || rounds <= 0) return null;
   if (!salt || !key) return null;
 
-  return { iterations: rounds, salt: decode(salt), hash: key };
+  // `atob` throws on anything that is not base64, and this is stored data
+  // rather than a value this module produced — so a record someone wrote by
+  // hand has to fail the match, not the request. Without this the caller,
+  // which has no try/catch, answers 500 instead of 401, and that one account
+  // becomes distinguishable from every other: exactly what the dummy verify
+  // above it exists to prevent.
+  const decoded = decodeOrNull(salt);
+  if (!decoded) return null;
+
+  return { iterations: rounds, salt: decoded, hash: key };
+}
+
+function decodeOrNull(encoded: string): Uint8Array | null {
+  try {
+    return decode(encoded);
+  } catch {
+    return null;
+  }
 }
 
 async function deriveBits(

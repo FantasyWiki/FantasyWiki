@@ -262,20 +262,41 @@ function messageFor(error: unknown): string {
 async function submitPassword() {
   isSubmitting.value = true;
   passwordError.value = "";
-  try {
-    const credentials = { username: username.value, password: password.value };
-    const { isNew } = registering.value
-      ? await passwordAuthApi.register(credentials)
-      : await passwordAuthApi.login(credentials);
 
-    appStore.setUserFromData(await sessionApi.get());
-    await modalController.dismiss();
-    await router.replace(isNew ? "/team-creation" : "/home");
+  const credentials = {
+    username: username.value.trim(),
+    password: password.value,
+  };
+
+  let isNew: boolean;
+  try {
+    ({ isNew } = registering.value
+      ? await passwordAuthApi.register(credentials)
+      : await passwordAuthApi.login(credentials));
   } catch (error) {
+    // Only this call may be reported as a credential problem. Everything after
+    // it happens *after* the account exists and the cookie is set, and saying
+    // "check your username and password" there would be a lie that a retry then
+    // compounds: registering again answers 409, telling someone the name they
+    // just took is taken.
     passwordError.value = messageFor(error);
+    return;
   } finally {
     isSubmitting.value = false;
   }
+
+  // Past this point the account exists and the cookie is set, so a failure is
+  // not a credential problem and must not be dressed as one — nor left to
+  // reject unhandled. The session is already valid; a reload picks it up.
+  try {
+    appStore.setUserFromData(await sessionApi.get());
+  } catch {
+    passwordError.value = t("auth.login.sessionFailed");
+    return;
+  }
+
+  await modalController.dismiss();
+  await router.replace(isNew ? "/team-creation" : "/home");
 }
 </script>
 

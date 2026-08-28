@@ -240,9 +240,16 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "403":
+          description: The request's Origin is not the frontend's.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
           description: >
-            The request's Origin is not the frontend's, or the body exceeded the
-            size limit.
+            The body is past the 4KB limit. Plain text, not the usual error
+            shape — this is the body-limit middleware answering before any
+            handler runs.
         "409":
           description: >
             The username is already taken — by another credential or by a Google
@@ -311,9 +318,16 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "403":
+          description: The request's Origin is not the frontend's.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
           description: >
-            The request's Origin is not the frontend's, or the body exceeded the
-            size limit.
+            The body is past the 4KB limit. Plain text, not the usual error
+            shape — this is the body-limit middleware answering before any
+            handler runs.
         "500":
           description: The Worker is missing JWT_SECRET, or the credential store failed.
           content:

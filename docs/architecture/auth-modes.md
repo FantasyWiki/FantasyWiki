@@ -121,7 +121,7 @@ about persistence:
 | `src/auth/password/credentialRepository.ts` | The contract and `PASSWORD_ERRORS` |
 | `src/auth/password/hash.ts` | PBKDF2 derive/verify, WebCrypto only |
 | `src/repositories/mongo/credentialRepositoryMongo.ts` | The one implementation — **not** re-exported from `repositories/mongo/index.ts`, which the deployed entry does reach |
-| `src/passwordComposition.ts` | `credentialsFor(env)`, imported only by `indexPassword.ts` |
+| `src/passwordComposition.ts` | `credentialsFor(env)` — reached only from `routes/passwordAuth.ts`, and so only from the entry that mounts it |
 | `src/routes/passwordAuth.ts` | The router |
 
 The collection **is** named in `repositories/mongo/schema.ts` with the rest of

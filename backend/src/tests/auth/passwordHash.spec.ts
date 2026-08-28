@@ -67,6 +67,10 @@ describe("password hashing", () => {
       "pbkdf2$sha512$1000$c2FsdA==$aGFzaA==",
       "pbkdf2$sha256$zero$c2FsdA==$aGFzaA==",
       "pbkdf2$sha256$1000$$",
+      // Not base64: `atob` throws on these, and a record is stored data rather
+      // than something this module produced.
+      "pbkdf2$sha256$1000$not!base64$aGFzaA==",
+      "pbkdf2$sha256$1000$a$aGFzaA==",
     ]) {
       await expect(verifyPassword("anything", record)).resolves.toBe(false);
     }

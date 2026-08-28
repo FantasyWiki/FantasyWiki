@@ -354,6 +354,7 @@
       "signInFailed": "Sign-in failed. Check your username and password.",
       "usernameHint": "{min}–{max} letters, digits, hyphens or underscores.",
       "passwordTooLong": "Password must be at most {max} characters.",
+      "sessionFailed": "Signed in, but loading your session failed. Please refresh the page.",
       "termsPrefix": "By signing in you agree to our {terms} and {privacy}.",
       "terms": "Terms of Service",
       "privacy": "Privacy Policy"

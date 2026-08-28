@@ -354,6 +354,7 @@
       "signInFailed": "Accesso non riuscito. Controlla nome utente e password.",
       "usernameHint": "{min}–{max} tra lettere, cifre, trattini o trattini bassi.",
       "passwordTooLong": "La password deve avere al massimo {max} caratteri.",
+      "sessionFailed": "Accesso riuscito, ma il caricamento della sessione non è andato a buon fine. Ricarica la pagina.",
       "termsPrefix": "Accedendo accetti i nostri {terms} e la {privacy}.",
       "terms": "Termini di servizio",
       "privacy": "Informativa sulla privacy"

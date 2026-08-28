@@ -51,6 +51,13 @@ const passwordAuth = new Hono<{
  * Built once per isolate and cached as the promise, so concurrent first
  * requests share one derivation. Safe to hold across requests, unlike a
  * connection: it is a string, not I/O.
+ *
+ * It is derived at today's iteration count while a stored record is verified at
+ * whatever count *it* carries, so the two costs match only while every record
+ * was written with the current one. Raising `ITERATIONS` in `hash.ts` without
+ * re-hashing on login therefore makes an unknown username cost more than a
+ * known one, and this defence quietly stops equalising anything. Re-hash on the
+ * next successful login when the two differ, and they stay matched.
  */
 let dummyRecord: Promise<string> | undefined;
 const unknownUserRecord = (): Promise<string> =>

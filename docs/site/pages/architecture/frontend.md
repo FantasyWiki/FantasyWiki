@@ -140,6 +140,7 @@ label in production.
 
 ## Related
 
+- [Interface design](./interface.md) — the screens these pieces render, and the rules they follow
 - [Architecture overview](./index.md)
 - [Data flow](./data-flow.md) — what the browser sends and caches
 - [Chemistry Links Rendering](../docs/architecture/chemistry-links-rendering.md)

@@ -149,7 +149,8 @@ these docs all use, and each one has an "avoid" list of the synonyms that would
 otherwise creep in.
 
 That glossary is [`CONTEXT.md`](../CONTEXT.md), and it is canonical. A concept
-that does not have a name there does not yet have a name.
+that does not have a name there does not yet have a name. It is rendered, term
+by term, on [the vocabulary](./glossary.md).
 
 ## Where each rule is written down
 
@@ -173,5 +174,8 @@ can contradict the repository. Which is which, and why, is in
 
 - [Architecture overview](../architecture/) — the containers and the layers
 - [Requirements](./requirements.md) — what the system is obliged to do, and how well
+- [Technologies](./technologies.md) — what it is built on, and what each choice was made over
+- [Interface design](../architecture/interface.md) — the screens the loop is played through
+- [What we learned](../quality/conclusions.md) — whether it did what it set out to
 - [The Docs Atlas](../index.md#the-docs-atlas) — the whole documentation tree as a graph
 - [Product vision](../PRODUCT.md) — the audience and the tone

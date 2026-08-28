@@ -147,6 +147,7 @@ tests.
 
 ## Related
 
+- [The playtest](./playtest.md) — the tier no suite can stand in for: real players, on production
 - [About this site](../about-this-site.md) — how the coverage board's numbers are
   produced
 - [Continuous delivery](./ci-cd.md) — where these suites run

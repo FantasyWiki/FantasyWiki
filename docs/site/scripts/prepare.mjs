@@ -17,6 +17,8 @@ import {
 import { extractLinks, firstHeading, mapLinks, summarise, wordCount } from "./lib/markdown.mjs";
 import { collectCoverage } from "./lib/coverage.mjs";
 import { collectApi } from "./lib/api.mjs";
+import { collectGlossary } from "./lib/glossary.mjs";
+import { buildReport, REPORT_SOURCE } from "./lib/report.mjs";
 
 /**
  * Builds the tree VitePress reads.
@@ -35,7 +37,7 @@ import { collectApi } from "./lib/api.mjs";
 
 /** Repo-root documents that are entry points rather than reference material. */
 const CHARTER = [
-  { file: "CONTEXT.md", title: "Domain Glossary", type: "charter" },
+  { file: "CONTEXT.md", title: "Domain Glossary (source)", type: "charter" },
   { file: "PRODUCT.md", title: "Product Vision", type: "charter" },
   { file: "DESIGN.md", title: "Design System", type: "charter" },
   { file: "AGENTS.md", title: "Agent Skills", type: "charter" },
@@ -336,6 +338,11 @@ function mirrorPages() {
   for (const absolute of walk(PAGES_DIR)) {
     const relative = toPosix(path.relative(PAGES_DIR, absolute));
 
+    // Assembled from the others once they are all mirrored, so it is written by
+    // `buildReport` rather than copied here — and kept out of the graph, where
+    // a node linking to everything would say nothing about how the docs connect.
+    if (relative === REPORT_SOURCE) continue;
+
     if (!absolute.endsWith(".md")) {
       fs.mkdirSync(path.dirname(path.join(MIRROR_DIR, relative)), { recursive: true });
       fs.copyFileSync(absolute, path.join(MIRROR_DIR, relative));
@@ -359,6 +366,10 @@ function mirrorPages() {
       title: parsed.data.title ?? firstHeading(parsed.content) ?? relative,
       type: parsed.data.type ?? "guide",
       tags: parsed.data.tags ?? [],
+      // A page whose space is prepared but not yet filled says so in its
+      // frontmatter, so that "what is still unwritten" is a query rather than a
+      // reading exercise.
+      status: parsed.data.status,
       section: relative.includes("/") ? relative.split("/")[0] : "root",
       tier: "site",
       summary: parsed.data.description ?? summarise(parsed.content),
@@ -427,6 +438,7 @@ function buildGraph(entries) {
     title: entry.title,
     type: entry.type,
     tags: entry.tags,
+    status: entry.status,
     section: entry.section,
     tier: entry.tier,
     summary: entry.summary,
@@ -475,12 +487,7 @@ function buildToc(entries) {
     return { key, text: meta.title, items };
   });
 
-  return {
-    sections: sections.filter((section) => section.items.length > 0),
-    charter: entries
-      .filter((entry) => entry.section === "charter")
-      .map((entry) => ({ text: entry.title, link: entry.url })),
-  };
+  return { sections: sections.filter((section) => section.items.length > 0) };
 }
 
 function main() {
@@ -493,15 +500,18 @@ function main() {
   const modified = lastModifiedByPath();
   const entries = [...mirrorPages(), ...mirrorDocs(modified), ...mirrorCharter(modified)];
 
+  const report = buildReport();
   const graph = buildGraph(entries);
   const toc = buildToc(entries);
   const coverage = collectCoverage();
   const api = collectApi();
+  const glossary = collectGlossary();
 
   write(path.join(GENERATED_DIR, "graph.json"), `${JSON.stringify(graph, null, 2)}\n`);
   write(path.join(GENERATED_DIR, "toc.json"), `${JSON.stringify(toc, null, 2)}\n`);
   write(path.join(GENERATED_DIR, "coverage.json"), `${JSON.stringify(coverage, null, 2)}\n`);
   write(path.join(GENERATED_DIR, "api.json"), `${JSON.stringify(api, null, 2)}\n`);
+  write(path.join(GENERATED_DIR, "glossary.json"), `${JSON.stringify(glossary, null, 2)}\n`);
 
   const measured = coverage.packages.filter((pkg) => pkg.measured).map((pkg) => pkg.id);
   console.log(
@@ -510,8 +520,28 @@ function main() {
       `graph    ${graph.stats.documents} nodes, ${graph.stats.edges} edges (${graph.stats.curated} curated)`,
       `coverage ${measured.length ? measured.join(", ") : "no reports found — the board will say so"}`,
       `api      ${api.present ? `${api.operations} operations in ${api.groups.length} groups` : "no spec found — the board will say so"}`,
+      `glossary ${glossary.present ? `${glossary.terms.length} terms, ${glossary.withAvoid} with avoid lists` : "CONTEXT.md not found — the page will say so"}`,
+      `report   ${report.present ? `${report.pages} pages in ${report.sections} sections` : "no report page to assemble"}`,
     ].join("\n"),
   );
+
+  // A term written outside the glossary's own heading is parsed by nothing and
+  // rendered by nothing, so it is reported here rather than silently missing.
+  if (glossary.present && (glossary.stray > 0 || glossary.undefinedTerms.length > 0)) {
+    console.log(
+      `glossary ${glossary.stray} term(s) outside the Language section, ` +
+        `${glossary.undefinedTerms.length} with no definition`,
+    );
+  }
+
+  if (report.present && report.missing.length > 0) {
+    console.log(`report   missing from the mirror: ${report.missing.join(", ")}`);
+  }
+
+  const planned = graph.nodes.filter((node) => node.status === "planned");
+  if (planned.length > 0) {
+    console.log(`planned  ${planned.map((node) => node.id).join(", ")}`);
+  }
 
   if (graph.stats.orphans.length > 0) {
     console.log(`orphans  ${graph.stats.orphans.join(", ")}`);

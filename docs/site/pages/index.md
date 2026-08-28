@@ -14,6 +14,12 @@ A fantasy league played over Wikipedia pageviews. These pages are how it is
 built: the rules the game runs on, the seams the code is cut along, the
 decisions that got it here, and what the test suites reach.
 
+<a class="fw-report-cta" href="./report.html">
+  <span class="fw-report-cta__eyebrow">Start here</span>
+  <span class="fw-report-cta__title">Exam report</span>
+  <span class="fw-report-cta__go">Read it →</span>
+</a>
+
 ## The Docs Atlas
 
 Every document, and every link between them, drawn from the markdown itself.

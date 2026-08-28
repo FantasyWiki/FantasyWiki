@@ -13,7 +13,7 @@ interface TocSection {
 // bundler against a tree that may not exist yet on a clean checkout.
 const toc = JSON.parse(
   readFileSync(new URL("../build/data/toc.json", import.meta.url), "utf8"),
-) as { sections: TocSection[]; charter: { text: string; link: string }[] };
+) as { sections: TocSection[] };
 
 const GITHUB = "https://github.com/FantasyWiki/FantasyWiki";
 
@@ -33,8 +33,11 @@ const sidebar = [
   {
     text: "Orientation",
     items: [
+      { text: "Exam report", link: "/report.html" },
       { text: "What FantasyWiki is", link: "/overview/what-is-fantasywiki.html" },
+      { text: "The vocabulary", link: "/overview/glossary.html" },
       { text: "Requirements", link: "/overview/requirements.html" },
+      { text: "Technologies", link: "/overview/technologies.html" },
       { text: "The Docs Atlas", link: "/#the-docs-atlas" },
       { text: "Coverage", link: "/#coverage" },
     ],
@@ -46,6 +49,7 @@ const sidebar = [
       { text: "Data flow", link: "/architecture/data-flow.html" },
       { text: "Data model", link: "/architecture/data-model.html" },
       { text: "Frontend", link: "/architecture/frontend.html" },
+      { text: "Interface design", link: "/architecture/interface.html" },
       { text: "API reference", link: "/api.html" },
       { text: "Deployment", link: "/architecture/deployment.html" },
     ],
@@ -54,18 +58,15 @@ const sidebar = [
     text: "Quality",
     items: [
       { text: "Test strategy", link: "/quality/testing.html" },
+      { text: "The playtest", link: "/quality/playtest.html" },
       { text: "Continuous delivery", link: "/quality/ci-cd.html" },
+      { text: "What we learned", link: "/quality/conclusions.html" },
       { text: "About this site", link: "/about-this-site.html" },
     ],
   },
   {
     text: "Reference",
     items: [{ text: "Documentation index", link: "/docs/" }, ...referenceGroups],
-  },
-  {
-    text: "Project charter",
-    collapsed: true,
-    items: toc.charter,
   },
 ];
 

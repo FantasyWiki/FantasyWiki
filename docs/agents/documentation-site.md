@@ -145,6 +145,29 @@ Specifics:
   an "avoid" list for each term; honour it.
 - Absolute dates, never "recently" or "last month".
 
+## Space that is prepared and not yet filled
+
+Sometimes a page has to exist before its evidence does — a section of a report
+template that must be covered, or work that was done and not written up. **Never
+fill that space with plausible prose.** A sentence that reads like a result is
+read back later as one, and the whole claim this site makes is that what is on
+it is true.
+
+Mark it instead, in both of the ways below:
+
+- **`<Planned evidence="…">`** wraps the empty section and renders a banner no
+  reader can mistake for content. The `evidence` prop names what the section
+  will be written *from* — a log, a set of records, an issue tracker — so that
+  filling it later is a retrieval task rather than a writing task. Prose inside
+  the banner describes what belongs there, never what it will say.
+- **`status: planned` in the frontmatter**, when the *whole* page is space. The
+  mirror carries it into `graph.json` and `npm run mirror` prints a `planned`
+  line naming those pages, so what is still unwritten is a query and not
+  something to remember.
+
+Drop both the moment the section is written. A `<Planned>` banner above real
+prose is worse than neither.
+
 ## Diagrams
 
 **Mermaid by default**, in a fenced ` ```mermaid ` block. Diagrams-as-code is

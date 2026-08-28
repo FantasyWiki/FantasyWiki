@@ -18,21 +18,47 @@ kept as written and is **partly superseded**: its scoring, economy and
 tournament sections were reconciled against the locked design, and where it
 disagrees with an ADR, the ADR wins.
 
+## Where they came from
+
+The brief was not written in one sitting and then built. The concept was put in
+front of people first — described, argued with, and revised on what came back —
+before any of it became a requirement. That round is why several of the
+obligations below are narrower than the original idea.
+
+<Planned evidence="the pitch as it was presented, and the responses to it">
+
+What was pitched, who it was pitched to, what they said, and which of the
+requirements below changed as a result. The interesting half is the second one:
+an idea that survived feedback unchanged and an idea nobody questioned look
+identical in a finished specification, and only one of them has been tested.
+
+</Planned>
+
+The second round of evidence came much later and from real play rather than
+opinion — a month on production, in [the playtest](../quality/playtest.md).
+
 ## The model, as a wall of notes
 
 Requirements are easier to argue with as a domain model than as a list. Four
 stories, told the way they would be told on a wall: **who** asks for something,
 **what** they ask for, **which thing** is allowed to say yes, **what became
-true** as a result, and the **values** the decision is made of.
+true** as a result, the **values** the decision is made of, and the **policy**
+that answers without being asked.
+
+Each role carries its own outline as well as its own colour: a **circle** acts,
+a **rounded box** is what was asked for, a **bracketed box** is what may say
+yes, a **flag** is what became true, a **hexagon** is a value it is made of, and
+a **slanted box** is a standing rule that answers before anyone asks. The shape
+is the legend; the colour only agrees with it.
 
 ```mermaid
 flowchart LR
-  A["Actor<br/><small>who acts</small>"]
-  C["Action<br/><small>what is asked for</small>"]
-  G["Aggregate<br/><small>what may say yes</small>"]
-  E["Event<br/><small>what became true</small>"]
-  V["Value<br/><small>what it is made of</small>"]
-  P["Policy<br/><small>the automatic reply</small>"]
+  A(("Actor<br/><small>who acts</small>"))
+  C(["Action<br/><small>what is asked for</small>"])
+  G[["Aggregate<br/><small>what may say yes</small>"]]
+  E>"Event<br/><small>what became true</small>"]
+  V{{"Value<br/><small>what it is made of</small>"}}
+  P[/"Policy<br/><small>the automatic reply</small>"/]
 
   A --- C --- G --- E --- V --- P
 
@@ -54,11 +80,11 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  A(("League admin")) --> C["Found a league"] --> G["League"] --> E["League founded"]
-  G --- V1["Project Domain"]
-  G --- V2["Invitation Code"]
-  G --- V3["Language Scale Factor"]
-  P["Calibrate an unplayed edition first,<br/>or refuse it"] -.-> C
+  A(("League admin")) --> C(["Found a league"]) --> G[["League"]] --> E>"League founded"]
+  G --- V1{{"Project Domain"}}
+  G --- V2{{"Invitation Code"}}
+  G --- V3{{"Language Scale Factor"}}
+  P[/"Calibrate an unplayed edition first,<br/>or refuse it"/] -.-> C
 
   classDef actor fill:#eef1ee,stroke:#737f73;
   classDef action fill:#e8f0f7,stroke:#2f6f9e;
@@ -81,10 +107,10 @@ already priced. → [ADR 0002](../docs/adr/0002-language-scale-factor.md)
 
 ```mermaid
 flowchart LR
-  A(("Player")) --> C["Buy a contract"] --> G["Team"] --> E["Contract opened"]
-  G --- V1["Contract Price"]
-  G --- V2["Article Availability"]
-  P["Closed economy:<br/>no stipend, no fee"] -.-> C
+  A(("Player")) --> C(["Buy a contract"]) --> G[["Team"]] --> E>"Contract opened"]
+  G --- V1{{"Contract Price"}}
+  G --- V2{{"Article Availability"}}
+  P[/"The price locks at signing;<br/>the exit is valued live"/] -.-> C
 
   classDef actor fill:#eef1ee,stroke:#737f73;
   classDef action fill:#e8f0f7,stroke:#2f6f9e;
@@ -97,8 +123,11 @@ flowchart LR
 ```
 
 An article is a **Free Agent** or somebody's, never both, and the price comes
-from a smoothed thirty-day average rather than yesterday's spike.
-→ [ADR 0005](../docs/adr/0005-contract-pricing.md)
+from a smoothed thirty-day average rather than yesterday's spike. What is paid
+at signing is fixed there; what the contract is worth on the way out is worked
+out again on the day.
+→ [ADR 0005](../docs/adr/0005-contract-pricing.md) ·
+[ADR 0003](../docs/adr/0003-closed-trading-economy.md)
 
 ### Fielding a formation
 
@@ -107,10 +136,10 @@ from a smoothed thirty-day average rather than yesterday's spike.
 
 ```mermaid
 flowchart LR
-  A(("Player")) --> C["Place a contract"] --> G["Formation"] --> E["Lineup changed"]
-  G --- V1["Position"]
-  G --- V2["Chemistry Link"]
-  P["A contract is never lost<br/>by rearranging"] -.-> C
+  A(("Player")) --> C(["Place a contract"]) --> G[["Formation"]] --> E>"Lineup changed"]
+  G --- V1{{"Position"}}
+  G --- V2{{"Chemistry Link"}}
+  P[/"A contract is never lost<br/>by rearranging"/] -.-> C
 
   classDef actor fill:#eef1ee,stroke:#737f73;
   classDef action fill:#e8f0f7,stroke:#2f6f9e;
@@ -133,11 +162,11 @@ contract sits is worth as much as which contract it is.
 
 ```mermaid
 flowchart LR
-  A(("Nightly trigger")) --> C["Score the previous day"] --> G["Performance"] --> E["Team scored"]
-  G --- V1["Top Read Snapshot"]
-  G --- V2["Normalized Views"]
-  G --- V3["Base Points"]
-  P["Idempotent per team and date"] -.-> C
+  A(("Nightly trigger")) --> C(["Score the previous day"]) --> G[["Performance"]] --> E>"Team scored"]
+  G --- V1{{"Top Read Snapshot"}}
+  G --- V2{{"Normalized Views"}}
+  G --- V3{{"Base Points"}}
+  P[/"A night scored twice<br/>is scored once"/] -.-> C
 
   classDef actor fill:#eef1ee,stroke:#737f73;
   classDef action fill:#e8f0f7,stroke:#2f6f9e;
@@ -217,15 +246,26 @@ TypeScript Worker, so the temptation to compute points on both sides is real and
 permanent. It is closed off by contract: the collector posts raw facts only, and
 `model/scoring.ts` is the sole implementation of the curve.
 
-### Cost
+### Cost that scales with use
 
-**The obligation.** The whole system runs on free tiers.
+**The obligation.** A handful of players must cost nothing at all, and a great
+many must cost something that rises with them rather than ahead of them.
 
-**The mechanism.** A Worker rather than a server, D1 rather than a managed
-database, GitHub Actions rather than a scheduler, and a nightly fan-out
-throttled to stay inside Wikimedia's etiquette limits. The costs that would grow
-with league count are analysed in the pipeline document rather than assumed
-away.
+**The mechanism.** Nothing is always-on and nothing is bought by capacity: a
+Worker rather than a server, D1 rather than a database instance sized in
+advance, GitHub Actions rather than a scheduler that has to be running in order
+to schedule. At the numbers the game is played at today that lands inside the
+free tiers with room to spare. Past them, every line of the bill is per request
+and per row, so it follows the league count up a slope rather than a staircase
+— there is no size at which the architecture has to be bought again.
+
+The one quantity that does not grow with players is the nightly fan-out to
+Wikimedia, which grows with distinct articles instead. It is throttled, and it
+is deduplicated by article across every team in every league, so a thousand
+squads holding the same article cost one request. That number is costed
+explicitly rather than assumed away.
+
+→ [Nightly Scoring Pipeline](../docs/architecture/scoring-pipeline.md)
 
 ### Testability
 
@@ -260,21 +300,10 @@ only the two tasks that name it.
 | SQLite via D1 | `ALTER TABLE` cannot add a `NOT NULL UNIQUE` column, which is visible in more than one migration |
 | AGPL-3.0 | The deployed service must carry its source link |
 
-## What is deliberately not built
-
-Naming these is part of the specification. Each was considered and put down on
-purpose, not forgotten.
-
-- **Weekly and monthly tournaments** — deferred until after playtesting; the
-  daily league is the loop that has to work first.
-- **Dynamic pricing that reacts to demand** — the price curve is already the most
-  load-bearing number in the game, and a second feedback loop on top of it is
-  untestable without players.
-- **A global season** — private leagues among friends are the product, and a
-  global ladder pulls design effort away from that.
-
 ## Related
 
 - [What FantasyWiki is](./what-is-fantasywiki.md) — the game and its four systems
 - [Architecture overview](../architecture/) — how the obligations above are arranged in code
+- [Technologies](./technologies.md) — what the quality attributes above were satisfied with
+- [The playtest](../quality/playtest.md) — a month of real play against these obligations
 - [FantaWiki Requirements v5.5](../docs/domain/fantawiki-requirements.md) — the original brief

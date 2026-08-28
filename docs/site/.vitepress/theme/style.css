@@ -278,6 +278,73 @@ a.fw-card:hover {
   background: color-mix(in srgb, var(--fw-chip-color, var(--fw-muted)) 14%, transparent);
 }
 
+/* ── The report, offered before anything else on the landing page ─────── */
+
+.fw-report-cta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.15rem 1.4rem;
+  margin: 1.8rem 0;
+  padding: 1.1rem 1.3rem;
+  border: 1px solid var(--vp-c-brand-1);
+  border-radius: var(--fw-radius-md);
+  background: var(--vp-c-bg-alt);
+  text-decoration: none;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.fw-report-cta:hover {
+  background: var(--vp-c-bg-elv);
+  border-color: var(--vp-c-brand-2);
+}
+
+.fw-report-cta__eyebrow {
+  grid-column: 1;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--vp-c-brand-1);
+}
+
+.fw-report-cta__title {
+  grid-column: 1;
+  font-family: "Libre Baskerville", Georgia, serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--vp-c-text-1);
+}
+
+.fw-report-cta__go {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  flex: none;
+  padding: 0.5rem 0.95rem;
+  border-radius: var(--fw-radius-sm);
+  background: var(--vp-c-brand-1);
+  color: var(--vp-c-white);
+  font-size: 0.86rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .fw-report-cta {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fw-report-cta__go {
+    grid-column: 1;
+    grid-row: auto;
+    margin-top: 0.8rem;
+    justify-self: start;
+  }
+}
+
 /* ── Mermaid ───────────────────────────────────────────────────────────── */
 
 .fw-mermaid {
@@ -286,13 +353,38 @@ a.fw-card:hover {
   border: 1px solid var(--vp-c-divider);
   border-radius: var(--fw-radius-md);
   background: var(--vp-c-bg-elv);
-  overflow-x: auto;
+  overflow: auto;
+  /*
+   * No figure is taller than the screen it is read on. A data model with two
+   * dozen entities is otherwise a page and a half of scrolling with no prose
+   * in sight, and nothing to scroll back to when you lose your place.
+   */
+  max-height: 80vh;
   text-align: center;
+  overscroll-behavior: contain;
 }
 
 .fw-mermaid svg {
   max-width: 100%;
   height: auto;
+}
+
+/*
+ * A diagram bigger than its frame can be dragged. The cursor is the whole
+ * affordance — the box already scrolls, so this only says out loud that it
+ * does, for the pointers that cannot discover it by trying.
+ */
+.fw-mermaid--pannable {
+  cursor: grab;
+}
+
+.fw-mermaid--dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.fw-mermaid--dragging svg {
+  pointer-events: none;
 }
 
 /*

@@ -7,6 +7,8 @@ import DocNeighbourhood from "./components/DocNeighbourhood.vue";
 import DocsAtlas from "./components/DocsAtlas.vue";
 import CoverageBoard from "./components/CoverageBoard.vue";
 import ApiBoard from "./components/ApiBoard.vue";
+import Glossary from "./components/Glossary.vue";
+import Planned from "./components/Planned.vue";
 import Figure from "./components/Figure.vue";
 import SwaggerUi from "./components/SwaggerUi.vue";
 
@@ -26,6 +28,8 @@ export default {
     app.component("DocsAtlas", DocsAtlas);
     app.component("CoverageBoard", CoverageBoard);
     app.component("ApiBoard", ApiBoard);
+    app.component("Glossary", Glossary);
+    app.component("Planned", Planned);
     app.component("Figure", Figure);
     app.component("SwaggerUi", SwaggerUi);
   },

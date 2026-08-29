@@ -31,6 +31,87 @@
       <ion-text>{{ $t("auth.login.signInGoogle") }}</ion-text>
     </ion-button>
 
+    <!-- Gated twice, like the demo button below: this build has to have been
+         started with VITE_PASSWORD_AUTH=true, and the backend only serves
+         /auth/password when it was built from `src/indexPassword.ts` — the
+         deployed Worker does not contain those routes at all. Neither side
+         trusts the other. See docs/architecture/auth-modes.md. -->
+    <form
+      v-if="isPasswordAuthEnabled"
+      class="password-form"
+      @submit.prevent="submitPassword"
+    >
+      <label class="form-label" for="password-username">
+        {{ t("auth.login.passwordUsername") }}
+      </label>
+      <ion-item lines="none" :color="passwordError ? 'danger' : ''">
+        <ion-input
+          id="password-username"
+          v-model="username"
+          autocomplete="username"
+          :placeholder="t('auth.login.passwordUsername')"
+          @ionInput="passwordError = ''"
+        />
+      </ion-item>
+      <!-- Only when registering: on the way in, the rule is not news, and the
+           401 deliberately will not say which field was wrong anyway. There is
+           no password hint beside it because there are no password rules. -->
+      <ion-text v-if="registering" color="medium">
+        <p class="field-hint">
+          {{
+            t("auth.login.usernameHint", {
+              min: PASSWORD_RULES.USERNAME_MIN,
+              max: PASSWORD_RULES.USERNAME_MAX,
+            })
+          }}
+        </p>
+      </ion-text>
+
+      <label class="form-label" for="password-password">
+        {{ t("auth.login.passwordPassword") }}
+      </label>
+      <ion-item lines="none" :color="passwordError ? 'danger' : ''">
+        <ion-input
+          id="password-password"
+          v-model="password"
+          type="password"
+          :maxlength="PASSWORD_RULES.PASSWORD_MAX"
+          :autocomplete="registering ? 'new-password' : 'current-password'"
+          :placeholder="t('auth.login.passwordPassword')"
+          @ionInput="passwordError = ''"
+        >
+          <!-- Ionic's own show/hide control, which matters more on a password
+               field than the typing it saves elsewhere: it is the only field
+               here a typo in is invisible. -->
+          <ion-input-password-toggle slot="end" />
+        </ion-input>
+      </ion-item>
+
+      <ion-text v-if="passwordError" color="danger">
+        <p class="field-hint">{{ passwordError }}</p>
+      </ion-text>
+
+      <ion-button
+        expand="block"
+        type="submit"
+        :disabled="isSubmitting || !username.trim()"
+      >
+        {{
+          registering
+            ? t("auth.login.registerPassword")
+            : t("auth.login.signInPassword")
+        }}
+      </ion-button>
+
+      <ion-button fill="clear" size="small" @click="toggleMode">
+        {{
+          registering
+            ? t("auth.login.switchToLogin")
+            : t("auth.login.switchToRegister")
+        }}
+      </ion-button>
+    </form>
+
     <!-- Local development only, and gated twice: this build has to have been
          started with VITE_DEV_LOGIN=true, and the backend refuses /auth/dev
          unless it is running on the `local` environment. Neither side trusts
@@ -65,8 +146,16 @@
 </template>
 
 <script setup lang="ts">
-import { IonButton, IonText, IonIcon, modalController } from "@ionic/vue";
-import { useRoute } from "vue-router";
+import {
+  IonButton,
+  IonInput,
+  IonInputPasswordToggle,
+  IonItem,
+  IonText,
+  IonIcon,
+  modalController,
+} from "@ionic/vue";
+import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import {
   alertCircleOutline,
@@ -75,11 +164,17 @@ import {
   logoGoogle,
   terminalOutline,
 } from "ionicons/icons";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import AppLogo from "@/components/AppLogo.vue";
 import { useAppStore } from "@/stores/app";
+import { ApiError, passwordAuthApi, sessionApi } from "@/services/api";
+import {
+  PASSWORD_REQUEST_ERRORS,
+  PASSWORD_RULES,
+} from "../../../../dto/passwordAuthDTO";
 
 const route = useRoute();
+const router = useRouter();
 const { t } = useI18n();
 const appStore = useAppStore();
 
@@ -104,6 +199,104 @@ const isDevLoginEnabled = import.meta.env.VITE_DEV_LOGIN === "true";
 
 function signInAsDemoPlayer() {
   window.location.href = "/auth/dev";
+}
+
+/**
+ * Only ever true in a build served by a backend that has the routes. The
+ * deployed Worker does not contain them, and there is no Pages Function
+ * forwarding `/auth/password` either, so a build that set this by mistake would
+ * find nothing there (docs/architecture/auth-modes.md).
+ */
+const isPasswordAuthEnabled = import.meta.env.VITE_PASSWORD_AUTH === "true";
+
+const registering = ref(false);
+const username = ref("");
+const password = ref("");
+const passwordError = ref("");
+const isSubmitting = ref(false);
+
+function toggleMode() {
+  registering.value = !registering.value;
+  passwordError.value = "";
+}
+
+/**
+ * The backend's refusal, in this reader's language and pointed at the field
+ * that caused it.
+ *
+ * It branches on the error *constant*, never on the message text, which is
+ * display only and free to be reworded
+ * (docs/architecture/backend-error-constants.md). The bounds come from the same
+ * shared `PASSWORD_RULES` the backend validates against, so this cannot promise
+ * a limit the server does not honour.
+ */
+function messageFor(error: unknown): string {
+  const code = error instanceof ApiError ? error.code : undefined;
+
+  switch (code) {
+    case PASSWORD_REQUEST_ERRORS.USERNAME_INVALID:
+      return t("auth.login.usernameInvalid", {
+        min: PASSWORD_RULES.USERNAME_MIN,
+        max: PASSWORD_RULES.USERNAME_MAX,
+      });
+    case PASSWORD_REQUEST_ERRORS.PASSWORD_TOO_LONG:
+      return t("auth.login.passwordTooLong", {
+        max: PASSWORD_RULES.PASSWORD_MAX,
+      });
+  }
+
+  // 409 on register is the one remaining failure the user can act on; a 401 is
+  // deliberately unspecific about which half was wrong.
+  if (error instanceof ApiError && error.status === 409) {
+    return t("auth.login.usernameTaken");
+  }
+  return t("auth.login.signInFailed");
+}
+
+/**
+ * Unlike the two buttons above this is a POST, not a navigation, so there is no
+ * redirect through `/auth/callback` to land on. The session cookie is set by
+ * the response, so this does what that page does: read the session, put it in
+ * the store, and route on — new accounts into onboarding, the rest home.
+ */
+async function submitPassword() {
+  isSubmitting.value = true;
+  passwordError.value = "";
+
+  const credentials = {
+    username: username.value.trim(),
+    password: password.value,
+  };
+
+  let isNew: boolean;
+  try {
+    ({ isNew } = registering.value
+      ? await passwordAuthApi.register(credentials)
+      : await passwordAuthApi.login(credentials));
+  } catch (error) {
+    // Only this call may be reported as a credential problem. Everything after
+    // it happens *after* the account exists and the cookie is set, and saying
+    // "check your username and password" there would be a lie that a retry then
+    // compounds: registering again answers 409, telling someone the name they
+    // just took is taken.
+    passwordError.value = messageFor(error);
+    return;
+  } finally {
+    isSubmitting.value = false;
+  }
+
+  // Past this point the account exists and the cookie is set, so a failure is
+  // not a credential problem and must not be dressed as one — nor left to
+  // reject unhandled. The session is already valid; a reload picks it up.
+  try {
+    appStore.setUserFromData(await sessionApi.get());
+  } catch {
+    passwordError.value = t("auth.login.sessionFailed");
+    return;
+  }
+
+  await modalController.dismiss();
+  await router.replace(isNew ? "/team-creation" : "/home");
 }
 </script>
 
@@ -174,6 +367,26 @@ function signInAsDemoPlayer() {
   --padding-start: 1rem;
   --padding-end: 1rem;
   height: 48px;
+}
+
+.password-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-top: 1px solid var(--ion-color-step-150, #e0e0e0);
+  padding-top: 1rem;
+}
+
+.form-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ion-color-medium);
+}
+
+.field-hint {
+  margin: 0;
+  font-size: 0.75rem;
 }
 
 /* Deliberately quiet: a development affordance, not a second front door. */

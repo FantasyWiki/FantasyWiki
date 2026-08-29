@@ -22,9 +22,10 @@ flowchart TB
 
   subgraph edge["At the edge"]
     BE(["Hono on Cloudflare Workers"])
-    DB[("Cloudflare D1<br/><small>SQLite</small>")]
     WF(["Workflows + Cron"])
   end
+
+  DB[("MongoDB<br/><small>documents, one per entity</small>")]
 
   subgraph nightly["Once a night"]
     CO(["Kotlin collector<br/><small>Cloud Run Job</small>"])
@@ -59,13 +60,43 @@ writing routing and middleware. Hono is built for the runtime and its JWT and
 OAuth middleware are the two pieces of infrastructure this project would
 otherwise have written itself.
 
-**Cloudflare D1**, over a managed Postgres. D1 is SQLite billed by rows read and
-written rather than by an instance sized in advance, which is the same
-always-on argument as the Worker. The price is also real and visible in the
-migrations: SQLite cannot add a `NOT NULL UNIQUE` column to an existing table.
-The system is written so that this is reversible — every persistence contract is
-an interface, and one module chooses the implementation.
-→ [Backend Architecture](../docs/architecture/backend-architecture.md)
+## The database
+
+**MongoDB**, over a relational store, and over keeping only the edge-native one
+the project started with. Three properties decided it.
+
+The first is that it runs anywhere — a managed cluster, or a single-node replica
+set on a laptop — where the edge-native store exists only inside one vendor's
+platform, and a
+database that can only be reached from a Worker is a database the test suite,
+the local run and any future host all have to work around. The second is that
+the model changes without a deployment step: a field added to a league is
+written by the repository that writes it, and there is no migration to replay
+before the code that needs it can ship. The third is that the aggregation
+pipeline is where the one derivation this system has belongs — a team's balance
+is a `$lookup` over its contracts, computed on read, so no document holds a
+number that could disagree with the ledger it came from.
+
+The price is paid in the two places a relational store would have charged
+nothing. Transactions are snapshot-isolated rather than serializable, so every
+guarded write has to also write the league document it is guarding against, and
+the loser of the race is retried. And the cascade a foreign key would have
+given for free is spelled out by hand when a league is deleted. Both are
+written down, with the failure each one prevents.
+→ [Data model](../architecture/data-model.md)
+
+**Cloudflare D1** is kept as the second implementation, and it is what the
+Cloudflare deployment runs on: SQLite billed by rows read and written rather
+than by an instance sized in advance, which is the same always-on argument as
+the Worker. Its own price is visible in the migrations — SQLite cannot add a
+`NOT NULL UNIQUE` column to an existing table.
+
+Two targets rather than one is not hedging. It is the evidence for the claim the
+architecture makes everywhere else: every persistence contract is an interface,
+one module chooses the implementation, and the same conformance suite is run
+against both on every `./gradlew check`.
+→ [Persistence Targets](../docs/architecture/persistence-targets.md) ·
+[Backend Architecture](../docs/architecture/backend-architecture.md)
 
 ## The client
 
@@ -117,6 +148,7 @@ documented — is checked by a test instead.
 
 | What | Used for | Chosen over |
 |---|---|---|
+| A MongoDB replica set | Persistence, and the multi-document transactions the guarded writes are | A single node, which cannot run a transaction at all |
 | Cloudflare Pages | Frontend hosting, per-branch previews | A static bucket with a CDN in front |
 | Cloudflare Workflows | The settlement sweep, which outlives a request | A long-running request, which the CPU budget refuses |
 | Cloudflare Cron Triggers | Starting the nightly sweep | An external scheduler that has to be running to schedule |

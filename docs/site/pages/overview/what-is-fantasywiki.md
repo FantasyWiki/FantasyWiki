@@ -64,10 +64,11 @@ flowchart LR
 
   subgraph Edge["At the edge"]
     BE["Backend<br/><small>Hono · Cloudflare Worker</small>"]
-    D1[("D1<br/><small>SQLite</small>")]
     WF["Settlement Workflow"]
     AI["Workers AI<br/><small>Article Genie</small>"]
   end
+
+  DB[("MongoDB<br/><small>the game's store</small>")]
 
   subgraph Batch["Once a night"]
     COL["Scoring Collector<br/><small>Kotlin · GitHub Actions</small>"]
@@ -77,16 +78,18 @@ flowchart LR
 
   FE -->|"/api/* · JWT cookie"| BE
   FE -->|"titles, thumbnails"| WM
-  BE --> D1
+  BE --> DB
   BE --> WF
-  WF --> D1
+  WF --> DB
   BE --> AI
   BE -->|"live pageviews"| WM
   COL -->|"/internal/* · bearer"| BE
   COL -->|"daily views, link graph"| WM
 
   classDef edge fill:#e8f2ec,stroke:#1e7e50;
-  class BE,D1,WF,AI edge;
+  classDef store fill:#fdf3d6,stroke:#d8b03a;
+  class BE,WF,AI edge;
+  class DB store;
 ```
 
 The layers inside each of those, and the seams between them, are in the
@@ -109,20 +112,20 @@ sequenceDiagram
   participant COL as Scoring Collector
   participant BE as Backend Worker
   participant WM as Wikimedia
-  participant D1 as D1
+  participant DB as MongoDB
 
   CRON->>COL: run for date D
   COL->>BE: GET /internal/scoring-inputs?date=D
-  BE->>D1: lineups ⋈ active contracts
-  D1-->>BE: teams, articles, article pairs
+  BE->>DB: lineups ⋈ active contracts
+  DB-->>BE: teams, articles, article pairs
   BE-->>COL: one row per team
   COL->>WM: daily views per article
   COL->>WM: link graph among the paired articles
   WM-->>COL: raw facts
   COL->>BE: POST /internal/performances (chunked)
   BE->>BE: points = f(views, chemistry, language scale)
-  BE->>D1: upsert performances (teamId, date)
-  Note over BE,D1: idempotent — re-running a day is safe
+  BE->>DB: upsert performances (_id = teamId:date)
+  Note over BE,DB: idempotent — re-running a day is safe
 ```
 
 Two properties keep this honest, and both are architectural rather than

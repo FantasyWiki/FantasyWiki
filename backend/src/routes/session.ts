@@ -29,7 +29,9 @@ session.get("/", async (c) => {
   const payload: JWTPayload = c.get("jwtPayload") as JWTPayload;
   return c.json<SessionDTO>({
     sub: payload.sub as string,
-    email: payload.email as string,
+    // Undefined for a username/password account, which has no email — hence
+    // the optional field on SessionDTO rather than an empty string on the wire.
+    email: payload.email as string | undefined,
     name: payload.name as string,
     picture: payload.picture as string,
     features: featuresFor(c.env),

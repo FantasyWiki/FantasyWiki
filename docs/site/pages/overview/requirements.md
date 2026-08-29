@@ -190,6 +190,7 @@ it is already built, at what satisfies it.
 | # | The system must… | Specified in | Built in |
 |---|---|---|---|
 | F1 | Authenticate a person through Google and hold the session in an HTTP-only cookie | [Data flow](../architecture/data-flow.md) | `backend/src/routes/auth.ts` |
+| F1b | Also admit a username and password, in the build that has a credential store to check them against | [Auth Modes](../docs/architecture/auth-modes.md) | `routes/passwordAuth.ts` · `indexPassword.ts` |
 | F2 | Let a player found a league on any Wikipedia edition that passes the calibration floor | [Wikipedia Language Editions](../docs/domain/language-editions.md) | `services/wikipediaEditions.ts` |
 | F3 | Keep a league private unless its founder says otherwise, and admit by code | [League Visibility](../docs/domain/league-visibility.md) · [ADR 0008](../docs/adr/0008-league-invitation-codes.md) | `services/invitationCode.ts` |
 | F4 | Bound a season between two weeks and six months | [League Season](../docs/domain/league-season.md) | `services/league.ts` |
@@ -211,20 +212,33 @@ an aspiration.
 
 ### Portability of persistence
 
-**The obligation.** The system must be able to move off Cloudflare D1 without
+**The obligation.** The system must be able to change database without
 rewriting its business logic.
 
 **The mechanism.** Every persistence contract is an interface under
-`repositories/`, D1 is one implementation under `repositories/d1/`, and
-`composition.ts` is the only module allowed to choose one. The rule is enforced
-by ESLint — nothing under `services/`, `routes/` or `tests/` may import
-`repositories/d1/**` — so the seam cannot erode by accident.
+`repositories/`, each store is one implementation beneath it —
+`repositories/mongo/` and `repositories/d1/` — and `composition.ts` is the only
+module allowed to choose one, from a binding. The rule is enforced by ESLint:
+nothing under `services/`, `routes/` or `tests/` may import either
+implementation directory, so the seam cannot erode by accident.
 
-**The evidence.** The conformance suite in `tests/repositories/conformance` runs
-against whatever implementation the composition root returns, which means the
-existing tests are the second implementation's acceptance criteria.
+**The evidence.** This is the one quality attribute here that has been
+discharged rather than argued. MongoDB was added as a second target with no
+change above the repository layer, and the conformance suite in
+`tests/repositories/conformance` — written against the interfaces and nothing
+below them — became its acceptance criteria unchanged. Both targets run the
+same suite on every `./gradlew check`, so the second implementation cannot rot
+while the first one is the one being used.
 
-→ [Backend Architecture](../docs/architecture/backend-architecture.md)
+What the exercise cost is worth recording, because it is what a portability
+claim usually hides: the interfaces held, and everything that had to be
+re-derived was a guarantee the relational store had been giving away for free
+— single-statement atomicity, a cascade on delete, a view. Each one is now
+stated explicitly on the document side, and named in
+[the data model](../architecture/data-model.md).
+
+→ [Persistence Targets](../docs/architecture/persistence-targets.md) ·
+[Backend Architecture](../docs/architecture/backend-architecture.md)
 
 ### Determinism of scoring
 
@@ -251,13 +265,23 @@ permanent. It is closed off by contract: the collector posts raw facts only, and
 **The obligation.** A handful of players must cost nothing at all, and a great
 many must cost something that rises with them rather than ahead of them.
 
-**The mechanism.** Nothing is always-on and nothing is bought by capacity: a
-Worker rather than a server, D1 rather than a database instance sized in
-advance, GitHub Actions rather than a scheduler that has to be running in order
-to schedule. At the numbers the game is played at today that lands inside the
-free tiers with room to spare. Past them, every line of the bill is per request
-and per row, so it follows the league count up a slope rather than a staircase
-— there is no size at which the architecture has to be bought again.
+**The mechanism.** Almost nothing is always-on and almost nothing is bought by
+capacity: a Worker rather than a server, GitHub Actions rather than a scheduler
+that has to be running in order to schedule.
+
+The database is the one place that argument is split, and it is worth stating
+plainly rather than smoothing over. D1, which the Cloudflare deployment runs
+on, is billed by rows read and written — the same shape as the Worker. A
+MongoDB cluster is capacity bought in advance: free at the size the game is
+played at, and the first line of the bill that would become a decision if it
+grew. The repository seam is what keeps that a deployment choice rather than an
+architectural one.
+
+At the numbers the game is played at today the whole system lands inside the
+free tiers with room to spare. Past them, every line of the bill but the
+cluster is per request and per row, so it follows the league count up a slope
+rather than a staircase — there is no size at which the architecture has to be
+bought again.
 
 The one quantity that does not grow with players is the nightly fan-out to
 Wikimedia, which grows with distinct articles instead. It is throttled, and it
@@ -273,8 +297,10 @@ explicitly rather than assumed away.
 network.
 
 **The mechanism.** Tiers with an explicit rule about which layer each may name,
-a seeding helper instead of raw SQL, and a database dropped and re-migrated
-before every backend test.
+a seeding helper that goes through the production write path instead of raw
+queries, and a real database reset before every backend test — every collection
+emptied and re-seeded on MongoDB, the schema dropped and the migrations
+replayed on D1.
 
 → [Test strategy](../quality/testing.md)
 
@@ -297,6 +323,10 @@ only the two tasks that name it.
 | Wikimedia's API etiquette | The nightly fan-out is throttled and identifies itself with a user agent; the collector holds no persistent state |
 | Pageviews are published in arrears | Scoring can only ever be a batch over a completed UTC day |
 | Cloudflare Workers CPU budget | Ingest is chunked, and heavy work is pushed into a Workflow rather than a request |
+| A Worker owns its sockets per request | The MongoDB client is built per request and never cached in a module — a cached one breaks every request after the first, and does it silently |
+| Mongo transactions are snapshot-isolated, not serializable | A guarded write also writes the league it is guarding against, so the losing transaction is retried rather than committed against a stale snapshot |
+| Multi-document transactions need a replica set | Even a local run is a single-node replica set, and the test suite starts one of its own |
+| The MongoDB driver reaches for `node:net` and `node:tls` | No Cloudflare deployment runs on MongoDB: the driver is aliased out of the Worker bundle, and the Mongo target has a wrangler config of its own |
 | SQLite via D1 | `ALTER TABLE` cannot add a `NOT NULL UNIQUE` column, which is visible in more than one migration |
 | AGPL-3.0 | The deployed service must carry its source link |
 

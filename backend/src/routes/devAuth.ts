@@ -1,11 +1,9 @@
 import { Hono } from "hono";
-import { sign } from "hono/jwt";
-import { JWTPayload } from "hono/utils/jwt/types";
-import { setCookie } from "hono/cookie";
 import { LoginService } from "../services/login";
 import { PlayerService } from "../services/player";
 import { AppVariables } from "../appEnv";
 import { resolveFrontendUrl } from "./auth";
+import { issueSession } from "./issueSession";
 
 type Bindings = {
   JWT_SECRET: string;
@@ -39,8 +37,6 @@ const DEV_ACCOUNT_ID = "dev-local-player";
 const DEV_EMAIL = "demo@localhost";
 const DEV_NAME = "Demo Player";
 
-const SESSION_DAYS = 7;
-
 devAuth.get("/dev", async (c) => {
   // 404, not 403: outside local development this route does not exist at all,
   // and saying "forbidden" would advertise that it exists somewhere. The
@@ -69,23 +65,11 @@ devAuth.get("/dev", async (c) => {
     return c.redirect(`${frontendUrl}/home?error=player_creation_failed`);
   }
 
-  const jwtPayload: JWTPayload = {
+  await issueSession(c, {
     sub: DEV_ACCOUNT_ID,
     email: DEV_EMAIL,
     name: DEV_NAME,
     picture: "",
-    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * SESSION_DAYS,
-  };
-
-  const token = await sign(jwtPayload, c.env.JWT_SECRET, "HS256");
-
-  const secure = frontendUrl.startsWith("https://");
-  setCookie(c, "session_token", token, {
-    httpOnly: true,
-    secure,
-    sameSite: "Lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * SESSION_DAYS,
   });
 
   const callbackUrl = playerResult.value.isNew

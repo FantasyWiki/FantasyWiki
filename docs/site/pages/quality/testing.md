@@ -1,6 +1,6 @@
 ---
 title: Test strategy
-description: Three suites, five tiers, and one rule about which layer a test may name.
+description: Three suites, six tiers, two persistence targets, and one rule about which layer a test may name.
 type: guide
 ---
 
@@ -13,7 +13,11 @@ the stack they exercise — it is which layer they are allowed to name.**
 That rule exists to protect one property. The persistence target must be
 replaceable, so a second implementation of the repository interfaces should be
 able to run this suite unchanged and have it mean the same thing. A test that
-reaches for SQL because it is convenient has quietly made that impossible.
+reaches for a query because it is convenient has quietly made that impossible.
+
+This is no longer a promise the suite makes about a hypothetical target. There
+are two — MongoDB and D1 — and `./gradlew check` runs the same files against
+both.
 
 ## Three suites, three purposes
 
@@ -25,7 +29,8 @@ flowchart TB
     B2["Integration<br/><small>through Repositories</small>"]
     B3["Routes<br/><small>statuses and payloads</small>"]
     B4["Conformance<br/><small>what a repository owes</small>"]
-    B5["D1<br/><small>facts true only of D1</small>"]
+    B5["Target-specific<br/><small>facts true of one store only</small>"]
+    B6["Password<br/><small>the build that has sign-in</small>"]
   end
 
   subgraph FE["frontend — vitest + MSW"]
@@ -40,10 +45,23 @@ flowchart TB
   class B4 gate;
 ```
 
-Every backend test runs in the Workers pool against a **real D1 database**,
-which is dropped and re-migrated before each test. There is no in-memory
-substitute and no mocked query builder: the thing under test talks to the thing
-that ships.
+Every backend test runs in the Workers pool against a **real database**, reset
+before each test — every collection emptied and the baseline re-seeded on
+MongoDB, the schema dropped and the migrations replayed on D1. There is no
+in-memory substitute and no mocked query builder: the thing under test talks to
+the thing that ships.
+
+The two runs are the same files. `npm test` runs them against D1 and
+`npm run testmongo` against MongoDB, and the seam between them is a single test
+module — `tests/support/target.ts` — which reads the same `PERSISTENCE` binding
+production reads, through the same composition root. The suite therefore cannot
+be pointed at a combination a deployment could not also be.
+
+The Mongo run starts a **single-node replica set** of its own, because the
+guarded writes are multi-document transactions and a standalone server refuses
+them. Starting it rather than requiring one is what lets `./gradlew check` run
+both targets on any machine, with nothing installed and no service to remember
+to start.
 
 ## The backend tiers
 
@@ -54,7 +72,8 @@ that ships.
 | `tests/routes/` | routers, `Repositories` | Statuses, payload shapes, and what never leaves |
 | `tests/repositories/conformance/` | `Repositories`, nothing below | **The gate a second implementation must pass** |
 | `tests/repositories/d1/` | `*RepositoryD1`, SQL, `env.db` | Facts that are true of D1 alone |
-| `tests/support/` | `Repositories` (D1 only under `support/d1/`) | The seam and the fixtures |
+| `*.password.test.ts` | `credentials()`, `src/indexPassword.ts` | Username/password sign-in, which only one build has |
+| `tests/support/` | `Repositories` (a target only under `support/<target>/`) | The seam and the fixtures |
 
 The conformance tier is the interesting one. It is written against the
 interfaces and nothing below them, which makes it a portable specification: point
@@ -62,18 +81,30 @@ interfaces and nothing below them, which makes it a portable specification: poin
 that implementation's acceptance criteria.
 
 **The rule is enforced, not trusted.** `no-restricted-imports` forbids anything
-under `services/`, `routes/` or `tests/` from importing `repositories/d1/**`,
-with the two directories whose purpose *is* naming D1 exempted by name. Lint
-catches the erosion that code review eventually stops catching.
+under `services/`, `routes/` or `tests/` from importing `repositories/d1/**` or
+`repositories/mongo/**`, with the directories whose purpose *is* naming a target
+exempted by name. Lint catches the erosion that code review eventually stops
+catching.
 
-→ [Backend Testing](../docs/development/backend-testing.md) — the canonical rules
+Two tiers are collected by one run and not the other, and for different
+reasons. The **target-specific** tier is about a store: an inlined literal in a
+view, a `NOT NULL` that provokes a rollback, an empty `IN ()` — none of them
+questions to put to a document database, so the Mongo run skips them. The
+**password** tier is about a *build*: only the MongoDB entry module mounts
+username/password sign-in, and the deployed Worker does not contain that code
+at all, so only the Mongo run has anything to run.
+
+→ [Backend Testing](../docs/development/backend-testing.md) — the canonical
+rules · [Auth Modes](../docs/architecture/auth-modes.md) — why one build has a
+route the other does not
 
 ## Seeding
 
-Through the interfaces, never with SQL, and never with defaulted fixture values.
-`tests/support/subjects.ts` holds the helpers — `aPlayer()`, `aTeamIn(leagueId)`,
-`aLeague(league, foundingTeamName)` — and the last one takes a whole `NewLeague`
-so that a test says everything a production caller says.
+Through the interfaces, never with a query, and never with defaulted fixture
+values. `tests/support/subjects.ts` holds the helpers — `aPlayer()`,
+`aTeamIn(leagueId)`, `aLeague(league, foundingTeamName)` — and the last one
+takes a whole `NewLeague` so that a test says everything a production caller
+says.
 
 The reason to ban defaults is specific: a fixture that quietly fills in a field
 is a test that passes for a reason the test does not state, and it keeps passing
@@ -131,9 +162,10 @@ its risk.
 ## Running them
 
 ```bash
-./gradlew check            # everything: format, lint, test, audit, both packages
+./gradlew check            # everything: format, lint, test, audit, both targets
 
-cd backend && npm test     # the Workers-pool suite
+cd backend && npm test         # the Workers-pool suite, against D1
+cd backend && npm run testmongo # the same files, against MongoDB
 cd backend && npm run test-coverage
 cd frontend && npm test
 cd frontend && npm run hot-test

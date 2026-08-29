@@ -4,9 +4,10 @@ plugins {
 }
 
 gitHooks {
-    preCommit {
-        tasks("ktlintCheck")
-    }
+    // No `preCommit` block on purpose. It ran `ktlintCheck`, which `./gradlew
+    // check` already runs in CI — so it enforced nothing that was not enforced
+    // anyway, at the price of starting a Gradle daemon on every commit. The
+    // commit message hook stays: nothing in CI checks that.
     commitMsg { conventionalCommits() }
     createHooks()
 }

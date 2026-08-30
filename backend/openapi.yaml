@@ -879,32 +879,6 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/leagues/{id}/market:
-    get:
-      operationId: getMarket
-      tags: [Market]
-      summary: The league's Article Availability
-      description: >
-        The league's Top Read Snapshot priced for its Language Scale Factor,
-        with the Owner Team named where an article is already under contract. An
-        owned article stays on the shelf rather than disappearing from it, so a
-        player can see who took it.
-      parameters:
-        - $ref: "#/components/parameters/LeagueId"
-      responses:
-        "200":
-          description: The shelf.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/MarketArticle"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NoSuchLeague"
-
   /api/leagues/{id}/contracts:
     get:
       operationId: getLeagueContracts
@@ -1908,55 +1882,6 @@ components:
             Places gained since the previous scored day, or null on the first
             one — there is no earlier position to have moved from, and zero
             would claim there was.
-
-    MarketArticle:
-      type: object
-      required:
-        [
-          id,
-          title,
-          slug,
-          yesterdayViews,
-          weekViews,
-          monthViews,
-          yearViews,
-          averageViews30d,
-          price,
-          owner,
-        ]
-      properties:
-        id:
-          type: string
-          example: Cristiano_Ronaldo
-        title:
-          type: string
-          example: Cristiano Ronaldo
-        slug:
-          type: string
-          description: The path segment on Wikipedia.
-        yesterdayViews:
-          type: integer
-        weekViews:
-          type: integer
-        monthViews:
-          type: integer
-        yearViews:
-          type: integer
-        averageViews30d:
-          type: number
-          description: The thirty-day average the article's Base Points are taken from.
-        price:
-          type: number
-          description: What a contract on it costs in this league, at this league's Language Scale Factor.
-        owner:
-          type: [object, "null"]
-          description: The Owner Team, or null while the article is a Free Agent.
-          required: [name, teamName]
-          properties:
-            name:
-              type: string
-            teamName:
-              type: string
 
     Schema:
       type: string

@@ -16,7 +16,6 @@ import { LeaderboardService } from "../services/leaderboard";
 import { PerformanceService } from "../services/performance";
 import { TeamService } from "../services/team";
 import { PlayerService } from "../services/player";
-import { ArticleMarketService } from "../services/articleMarket";
 import {
   ContractService,
   CONTRACT_ERRORS,
@@ -481,19 +480,6 @@ leagues.post("/:id/my-team", currentPlayer, async (c) => {
     },
   };
   return c.json(teamDTO, 201);
-});
-
-leagues.get("/:id/market", async (c) => {
-  const leagueId = c.req.param("id");
-  const service = new ArticleMarketService({
-    ...c.var.repositories,
-    wikimedia: c.var.wikimedia,
-  });
-  const result = await service.getMarket(leagueId);
-  if (!result.ok) {
-    return c.json({ error: result.error }, 404);
-  }
-  return c.json(result.value);
 });
 
 leagues.get("/:id/my-contracts", currentPlayer, async (c) => {

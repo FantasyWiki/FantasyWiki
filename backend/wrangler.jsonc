@@ -66,8 +66,9 @@
           },
         ],
       },
+      // 07:00 UTC, after the scoring collector — see the production env.
       "triggers": {
-        "crons": ["0 5 * * *"],
+        "crons": ["0 7 * * *"],
       },
       "vars": {
         "GITHUB_REPO": "FantasyWiki/FantasyWiki",
@@ -138,8 +139,15 @@
       "ai": {
         "binding": "AI",
       },
+      // Settlement runs at 07:00 UTC, two hours after the scoring collector's
+      // 05:00 GitHub Actions cron, and the gap is load-bearing. A contract whose
+      // expireDate is today is due for settlement today *and* still scorable for
+      // yesterday, and `getActiveContracts` selects only contracts with
+      // `settled = 0` — so settling first drops the article from its team's last
+      // scored day. Moving this earlier, or the collector later, silently costs
+      // teams their final day (docs/architecture/contract-settlement.md).
       "triggers": {
-        "crons": ["0 5 * * *"],
+        "crons": ["0 7 * * *"],
       },
       "vars": {
         "GITHUB_REPO": "FantasyWiki/FantasyWiki",
@@ -193,8 +201,9 @@
       "ai": {
         "binding": "AI",
       },
+      // 07:00 UTC, after the scoring collector — see the production env.
       "triggers": {
-        "crons": ["0 5 * * *"],
+        "crons": ["0 7 * * *"],
       },
       "vars": {
         // QA files real issues on the real tracker, but labelled `preview` so
@@ -251,6 +260,7 @@
       // has none, so the whole backend would refuse to start over one optional
       // feature. Without the binding the Article Genie reports itself asleep
       // and the frontend hides its entry point (`GET /api/session` -> features).
+      // 07:00 UTC, after the scoring collector — see the production env.
       "triggers": {
         "crons": ["0 7 * * *"],
       },
@@ -319,6 +329,7 @@
       "ai": {
         "binding": "AI",
       },
+      // 07:00 UTC, after the scoring collector — see the production env.
       "triggers": {
         "crons": ["0 7 * * *"],
       },

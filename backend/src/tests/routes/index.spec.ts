@@ -106,7 +106,7 @@ describe("backend app", () => {
     };
 
     await app.scheduled(
-      { cron: "0 5 * * *" } as ScheduledController,
+      { cron: "0 7 * * *" } as ScheduledController,
       env as never,
       {} as ExecutionContext,
     );

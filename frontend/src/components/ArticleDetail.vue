@@ -12,6 +12,7 @@
         <ion-buttons slot="end">
           <ion-button fill="clear" @click="emit('close')">
             <ion-icon
+              aria-hidden="true"
               :icon="closeOutline"
               slot="icon-only"
               class="close-icon"

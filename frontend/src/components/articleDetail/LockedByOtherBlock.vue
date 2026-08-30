@@ -2,7 +2,7 @@
   <section class="section-panel locked-section">
     <div class="section-head">
       <h3 class="section-title">
-        <ion-icon :icon="lockClosedOutline" />
+        <ion-icon aria-hidden="true" :icon="lockClosedOutline" />
         {{ $t("articleDetail.locked.title") }}
       </h3>
     </div>

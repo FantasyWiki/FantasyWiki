@@ -54,7 +54,11 @@
           class="step-trend"
           :class="step.trend.cssClass"
         >
-          <ion-icon v-if="step.trend.icon" :icon="step.trend.icon" />
+          <ion-icon
+            aria-hidden="true"
+            v-if="step.trend.icon"
+            :icon="step.trend.icon"
+          />
           <span>{{ step.trend.label }}</span>
         </p>
       </li>

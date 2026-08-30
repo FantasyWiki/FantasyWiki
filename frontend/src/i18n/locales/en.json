@@ -7,7 +7,8 @@
     "leagues": "Leagues",
     "market": "Market",
     "signIn": "Sign In with Google",
-    "signOut": "Sign Out"
+    "signOut": "Sign Out",
+    "home": "FantasyWiki home"
   },
   "menu": {
     "open": "Open menu",
@@ -259,7 +260,9 @@
         "good": "good",
         "weak": "weak",
         "empty": "empty"
-      }
+      },
+      "gridLabel": "Formation grid",
+      "emptyPosition": "Empty position {position}"
     }
   },
   "articleDetail": {
@@ -402,7 +405,8 @@
       "unsavedChanges": "Unsaved changes",
       "saveSuccess": "Lineup saved!",
       "saveFailed": "Couldn't save your lineup. Please try again.",
-      "retry": "Retry"
+      "retry": "Retry",
+      "back": "Back"
     },
     "rivalTeamPage": {
       "back": "Back to the league",
@@ -471,7 +475,10 @@
       "newGuess": "New guess",
       "asleep": "The genie is asleep. Try the search bar.",
       "imageAlt": "The A(k)Inator genie"
-    }
+    },
+    "back": "Back to dashboard",
+    "previousPage": "Previous page",
+    "nextPage": "Next page"
   },
   "league": {
     "back": "Back to dashboard",
@@ -509,7 +516,8 @@
     "notStartedNote": "The league hasn't started yet — these are the teams lining up for it.",
     "inviteLabel": "Invitation code",
     "inviteHint": "Share it with the friends you want in this league.",
-    "inviteCopy": "Copy invitation code"
+    "inviteCopy": "Copy invitation code",
+    "runProgressLabel": "Season progress"
   },
   "leagueLifecycle": {
     "leaveAction": "Leave this league",

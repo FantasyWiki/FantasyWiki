@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import TeamFormation from "@/components/formation/TeamFormation.vue";
+import i18n from "@/i18n";
 import { mockFullFormation433 } from "@/mocks/formationMocks";
 import {
   createChemistryLinks,
@@ -85,5 +86,73 @@ describe("TeamFormation.vue chemistry rendering", () => {
 
     expect(wrapper.findAll(".chem-line--good")).toHaveLength(0);
     expect(wrapper.findAll(".chem-line--empty")).toHaveLength(chemistry.length);
+  });
+});
+
+describe("TeamFormation.vue keyboard reachability", () => {
+  /**
+   * An empty position is half of the only keyboard path through this editor:
+   * select a placed contract, then activate the slot to move it into. It used
+   * to be a <div> with a click handler — droppable by mouse, unreachable by tab
+   * — which left a keyboard player able to pick a contract up and nowhere to
+   * put it (WCAG 2.1.1). This asserts the element type rather than the
+   * behaviour because the type *is* the affordance.
+   */
+  it("renders every empty position as a focusable button with a translated label", async () => {
+    const formation: Partial<typeof mockFullFormation433.formation> = {
+      ...mockFullFormation433.formation,
+    };
+    delete formation.ST;
+    const draft = {
+      date: mockFullFormation433.date,
+      schema: "4-3-3" as const,
+      formation,
+      chemistry: createChemistryLinks("4-3-3"),
+    } as DraftFormationDTO<"4-3-3">;
+
+    const wrapper = mount(TeamFormation, {
+      props: { formation: draft, editable: true },
+      global: { stubs },
+    });
+    await nextTick();
+
+    const slots = wrapper.findAll(".pitch-slot-empty");
+    expect(slots).toHaveLength(1);
+    expect(slots[0].element.tagName).toBe("BUTTON");
+    // From the catalogue, not a literal: the label used to be a hardcoded
+    // English string, which is the one place i18n had been bypassed.
+    expect(slots[0].attributes("aria-label")).toBe(
+      i18n.global.t("formation.pitch.emptyPosition", { position: "ST" })
+    );
+  });
+
+  it("moves a selected contract into an empty position on activation", async () => {
+    const formation: Partial<typeof mockFullFormation433.formation> = {
+      ...mockFullFormation433.formation,
+    };
+    delete formation.ST;
+    const draft = {
+      date: mockFullFormation433.date,
+      schema: "4-3-3" as const,
+      formation,
+      chemistry: createChemistryLinks("4-3-3"),
+    } as DraftFormationDTO<"4-3-3">;
+
+    const wrapper = mount(TeamFormation, {
+      props: {
+        formation: draft,
+        editable: true,
+        swapMode: true,
+        swapSource: mockFullFormation433.formation.LW,
+      },
+      global: { stubs },
+    });
+    await nextTick();
+
+    await wrapper.find(".pitch-slot-empty").trigger("click");
+
+    const moved = wrapper.emitted("moveToEmpty");
+    expect(moved).toBeTruthy();
+    expect(moved![0][1]).toBe("ST");
   });
 });

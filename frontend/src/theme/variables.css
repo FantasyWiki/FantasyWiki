@@ -58,13 +58,21 @@ http://ionicframework.com/docs/theming/ */
   --ion-color-dark-shade: #141b18;
   --ion-color-dark-tint: #2e3532;
 
-  /* Medium Color - Muted */
-  --ion-color-medium: #737f73;
-  --ion-color-medium-rgb: 115, 127, 115;
+  /* Medium Color - Muted.
+     Darkened from #737f73, which read 4.03:1 on the paper background and 4.19:1
+     on white — under WCAG 1.4.3's 4.5:1 for body text, and this is the colour
+     every muted label in the app is written in. #6b776b is the same hue at
+     4.52:1 on paper, 4.69:1 on white, and 4.69:1 the other way round when it is
+     used as a background under white text. Then darkened again to #647064,
+     because muted text is also written on the tinted panels (#f0f0ec, #f2f6f0,
+     #f7f9f7, the mint row) where 4.52:1 on paper fell back under 4.5:1. It
+     clears every surface the app puts it on. */
+  --ion-color-medium: #647064;
+  --ion-color-medium-rgb: 100, 112, 100;
   --ion-color-medium-contrast: #ffffff;
   --ion-color-medium-contrast-rgb: 255, 255, 255;
-  --ion-color-medium-shade: #657065;
-  --ion-color-medium-tint: #818c81;
+  --ion-color-medium-shade: #586258;
+  --ion-color-medium-tint: #737e73;
 
   /* Light Color */
   --ion-color-light: #f7f9f7;
@@ -163,7 +171,7 @@ http://ionicframework.com/docs/theming/ */
     --ion-tab-bar-background: #fbfbf7;
     --ion-tab-bar-background-focused: #f7f9f7;
     --ion-tab-bar-border-color: #cdd8cd;
-    --ion-tab-bar-color: #737f73;
+    --ion-tab-bar-color: #647064;
     --ion-tab-bar-color-selected: #1e7e50;
   }
 
@@ -190,7 +198,7 @@ http://ionicframework.com/docs/theming/ */
   }
 
   /* Placeholder */
-  --ion-placeholder-color: #737f73;
+  --ion-placeholder-color: #647064;
 
   --ion-background-color: #fbfbf7;
   --ion-background-color-rgb: 251, 251, 247;
@@ -478,4 +486,36 @@ ion-chip:not(.chip-clickable) {
 ion-badge {
   --padding-top: 4px;
   --padding-bottom: 4px;
+}
+
+/*
+ * Ionic's own muted text defaults, routed through the audited token.
+ *
+ * `ion-card-subtitle` and an unchecked `ion-segment-button` each fall back to a
+ * step on Ionic's neutral ramp — #949894 and #727773 — which read 2.82:1 and
+ * 4.39:1 on this app's backgrounds, both under WCAG 1.4.3. They are the same
+ * thing on screen as every other muted label, so they take the one colour that
+ * has been measured against every surface the app paints.
+ *
+ * A *checked* segment button is excluded deliberately: it sits on the primary
+ * green, where the muted colour would read 1.02:1 — it keeps Ionic's contrast
+ * colour.
+ */
+ion-card-subtitle,
+ion-segment-button:not(.segment-button-checked) {
+  color: var(--ion-color-medium);
+}
+
+/*
+ * Placeholders are text, and 1.4.3 does not exempt them. Ionic fades its own to
+ * 60% of the current colour, which lands a placeholder at 2.4:1 however dark the
+ * colour underneath it is — so the fade goes and the audited muted colour is
+ * named outright.
+ */
+ion-select,
+ion-input,
+ion-textarea,
+ion-searchbar {
+  --placeholder-color: var(--ion-color-medium);
+  --placeholder-opacity: 1;
 }

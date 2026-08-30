@@ -14,7 +14,11 @@
         :aria-label="t('views.rivalTeamPage.back')"
         @click="goBack()"
       >
-        <ion-icon slot="icon-only" :icon="arrowBackOutline" />
+        <ion-icon
+          aria-hidden="true"
+          slot="icon-only"
+          :icon="arrowBackOutline"
+        />
       </ion-button>
       <h2 class="page-title">
         {{ entry?.team.name ?? t("views.rivalTeamPage.loadingTitle") }}
@@ -43,7 +47,7 @@
     <ion-card v-else-if="isError" color="danger" class="state-card">
       <ion-card-content>
         <div class="error-row">
-          <ion-icon :icon="alertCircleOutline" />
+          <ion-icon aria-hidden="true" :icon="alertCircleOutline" />
           <div>
             <p class="ion-no-margin state-title">
               {{ t("views.rivalTeamPage.failedToLoad") }}
@@ -55,7 +59,11 @@
               size="small"
               @click="refetch()"
             >
-              <ion-icon slot="start" :icon="refreshOutline" />
+              <ion-icon
+                aria-hidden="true"
+                slot="start"
+                :icon="refreshOutline"
+              />
               {{ t("views.rivalTeamPage.retry") }}
             </ion-button>
           </div>
@@ -74,6 +82,7 @@
            spectator there is no gap to state, and a zero would claim one. -->
       <div v-if="pointsGap !== null" class="head-to-head">
         <ion-icon
+          aria-hidden="true"
           :icon="pointsGap > 0 ? trendingUpOutline : trendingDownOutline"
           :class="pointsGap > 0 ? 'gap-icon--behind' : 'gap-icon--ahead'"
         />

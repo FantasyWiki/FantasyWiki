@@ -27,7 +27,11 @@
           @click="startPlaying"
         >
           <ion-text>{{ $t("home.hero.getStarted") }}</ion-text>
-          <ion-icon slot="end" :icon="arrowForwardOutline"></ion-icon>
+          <ion-icon
+            aria-hidden="true"
+            slot="end"
+            :icon="arrowForwardOutline"
+          ></ion-icon>
         </ion-button>
         <p class="ion-text-center">
           {{ $t("home.hero.creditsNote") }}

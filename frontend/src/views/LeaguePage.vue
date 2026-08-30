@@ -14,7 +14,11 @@
           :aria-label="t('league.back')"
           @click="router.push({ name: 'Dashboard' })"
         >
-          <ion-icon slot="icon-only" :icon="arrowBackOutline" />
+          <ion-icon
+            aria-hidden="true"
+            slot="icon-only"
+            :icon="arrowBackOutline"
+          />
         </ion-button>
         <span v-if="league" class="league-icon">{{ league.icon }}</span>
         <h2 class="page-title">
@@ -26,7 +30,7 @@
       <ion-card v-if="isError" color="danger" class="state-card">
         <ion-card-content>
           <div class="error-row">
-            <ion-icon :icon="alertCircleOutline" />
+            <ion-icon aria-hidden="true" :icon="alertCircleOutline" />
             <div>
               <p class="ion-no-margin error-title">
                 {{ t("league.errorTitle") }}
@@ -40,7 +44,11 @@
                 size="small"
                 @click="refetch()"
               >
-                <ion-icon slot="start" :icon="refreshOutline" />
+                <ion-icon
+                  aria-hidden="true"
+                  slot="start"
+                  :icon="refreshOutline"
+                />
                 {{ t("league.retry") }}
               </ion-button>
             </div>

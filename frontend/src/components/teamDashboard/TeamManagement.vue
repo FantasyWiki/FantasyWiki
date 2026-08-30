@@ -4,7 +4,11 @@
       <div class="dashboard-header td-header">
         <div class="header-left td-header-left">
           <div class="icon-wrapper td-header-icon td-header-icon--secondary">
-            <ion-icon :icon="layersOutline" color="primary" />
+            <ion-icon
+              aria-hidden="true"
+              :icon="layersOutline"
+              color="primary"
+            />
           </div>
           <div>
             <ion-card-title class="td-card-title">{{
@@ -26,7 +30,7 @@
           router-link="/team"
         >
           {{ $t("dashboard.teamManagement.manage") }}
-          <ion-icon slot="end" :icon="arrowForwardOutline" />
+          <ion-icon aria-hidden="true" slot="end" :icon="arrowForwardOutline" />
         </ion-button>
       </div>
     </ion-card-header>

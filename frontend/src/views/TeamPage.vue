@@ -16,7 +16,7 @@
     <ion-card v-else-if="isError" color="danger" class="error-card">
       <ion-card-content>
         <div class="error-row">
-          <ion-icon :icon="alertCircleOutline" />
+          <ion-icon aria-hidden="true" :icon="alertCircleOutline" />
           <div>
             <p class="error-title">{{ t("views.teamPage.failedToLoad") }}</p>
             <p class="error-detail">{{ error?.message }}</p>
@@ -26,7 +26,11 @@
               size="small"
               @click="refetch()"
             >
-              <ion-icon slot="start" :icon="refreshOutline" />
+              <ion-icon
+                aria-hidden="true"
+                slot="start"
+                :icon="refreshOutline"
+              />
               {{ t("views.teamPage.retry") }}
             </ion-button>
           </div>
@@ -43,9 +47,14 @@
             fill="clear"
             size="small"
             class="back-btn"
+            :aria-label="t('views.teamPage.back')"
             @click="router.back()"
           >
-            <ion-icon slot="icon-only" :icon="arrowBackOutline" />
+            <ion-icon
+              aria-hidden="true"
+              slot="icon-only"
+              :icon="arrowBackOutline"
+            />
           </ion-button>
           <h2 class="page-title">{{ t("views.teamPage.title") }}</h2>
           <ion-badge v-if="currentLeague" color="primary" class="league-badge">

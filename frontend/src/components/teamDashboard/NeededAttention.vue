@@ -4,7 +4,11 @@
       <div class="attention-header td-header">
         <div class="header-left td-header-left">
           <div class="icon-wrapper td-header-icon td-header-icon--warning">
-            <ion-icon :icon="alertCircleOutline" color="warning" />
+            <ion-icon
+              aria-hidden="true"
+              :icon="alertCircleOutline"
+              color="warning"
+            />
           </div>
           <div>
             <ion-card-title class="td-card-title">{{
@@ -34,7 +38,7 @@
           color="primary"
           @click="props.onBuyArticles"
         >
-          <ion-icon slot="start" :icon="addOutline" />
+          <ion-icon aria-hidden="true" slot="start" :icon="addOutline" />
           {{ $t("dashboard.neededAttention.buyMore") }}
         </ion-button>
       </div>
@@ -44,6 +48,7 @@
       <!-- Empty state -->
       <div v-if="props.urgentContract.length === 0" class="empty-state">
         <ion-icon
+          aria-hidden="true"
           :icon="checkmarkCircleOutline"
           color="success"
           class="empty-icon"
@@ -67,7 +72,7 @@
         >
           <ion-item-options side="start">
             <ion-item-option color="primary" @click="onRenew(contract)">
-              <ion-icon slot="top" :icon="refreshOutline" />
+              <ion-icon aria-hidden="true" slot="top" :icon="refreshOutline" />
               {{ $t("dashboard.neededAttention.renew") }}
             </ion-item-option>
           </ion-item-options>
@@ -82,7 +87,11 @@
             @click="openDetail(contract)"
           >
             <div class="attention-row">
-              <ion-icon :icon="alertCircleOutline" class="item-icon" />
+              <ion-icon
+                aria-hidden="true"
+                :icon="alertCircleOutline"
+                class="item-icon"
+              />
 
               <ion-chip
                 class="expiry-chip"
@@ -93,7 +102,11 @@
                 :disabled="true"
                 style="opacity: 1"
               >
-                <ion-icon :icon="timeOutline" color="ligth" />
+                <ion-icon
+                  aria-hidden="true"
+                  :icon="timeOutline"
+                  color="ligth"
+                />
                 <ion-label>
                   {{
                     $t("dashboard.neededAttention.left", {
@@ -125,7 +138,7 @@
 
           <ion-item-options side="end">
             <ion-item-option color="danger" @click="onDismiss(/*contract*/)">
-              <ion-icon slot="top" :icon="closeOutline" />
+              <ion-icon aria-hidden="true" slot="top" :icon="closeOutline" />
               {{ $t("dashboard.neededAttention.dismiss") }}
             </ion-item-option>
           </ion-item-options>

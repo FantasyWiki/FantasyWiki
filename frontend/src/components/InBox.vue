@@ -13,7 +13,11 @@
           :aria-label="$t('inbox.tradeInbox', { count: badgeCount })"
           @click="openInbox"
         >
-          <ion-icon :icon="notificationsOutline" slot="icon-only" />
+          <ion-icon
+            aria-hidden="true"
+            :icon="notificationsOutline"
+            slot="icon-only"
+          />
         </ion-button>
         <ion-badge v-if="badgeCount > 0" color="danger" class="bell-badge">
           {{ badgeCount > 9 ? "9+" : badgeCount }}
@@ -67,7 +71,11 @@
               color="medium"
               @click="closeInbox"
             >
-              <ion-icon :icon="closeOutline" slot="icon-only" />
+              <ion-icon
+                aria-hidden="true"
+                :icon="closeOutline"
+                slot="icon-only"
+              />
             </ion-button>
           </div>
         </ion-toolbar>
@@ -90,7 +98,12 @@
           "
           class="ion-padding ion-text-center empty-state"
         >
-          <ion-icon :icon="mailOpenOutline" color="medium" class="state-icon" />
+          <ion-icon
+            aria-hidden="true"
+            :icon="mailOpenOutline"
+            color="medium"
+            class="state-icon"
+          />
           <ion-text color="medium">
             <p class="ion-no-margin">{{ $t("inbox.empty") }}</p>
           </ion-text>
@@ -129,7 +142,11 @@
                   :disabled="actioning"
                   @click="handleAccept(notification.id)"
                 >
-                  <ion-icon :icon="checkmarkOutline" slot="icon-only" />
+                  <ion-icon
+                    aria-hidden="true"
+                    :icon="checkmarkOutline"
+                    slot="icon-only"
+                  />
                 </ion-button>
               </div>
             </div>

@@ -17,7 +17,7 @@
       <ion-card v-else-if="isError" color="danger" class="state-card">
         <ion-card-content>
           <div class="error-row">
-            <ion-icon :icon="alertCircleOutline" />
+            <ion-icon aria-hidden="true" :icon="alertCircleOutline" />
             <div>
               <p class="ion-no-margin error-title">
                 {{ t("market.errorTitle") }}
@@ -29,7 +29,11 @@
                 size="small"
                 @click="refetch()"
               >
-                <ion-icon slot="start" :icon="refreshOutline" />
+                <ion-icon
+                  aria-hidden="true"
+                  slot="start"
+                  :icon="refreshOutline"
+                />
                 {{ t("market.retry") }}
               </ion-button>
             </div>
@@ -46,9 +50,14 @@
               fill="clear"
               size="small"
               class="back-btn"
+              :aria-label="t('market.back')"
               @click="router.push({ name: 'Dashboard' })"
             >
-              <ion-icon slot="icon-only" :icon="arrowBackOutline" />
+              <ion-icon
+                aria-hidden="true"
+                slot="icon-only"
+                :icon="arrowBackOutline"
+              />
             </ion-button>
             <h2 class="page-title">{{ t("market.title") }}</h2>
             <ion-badge
@@ -90,7 +99,11 @@
               class="genie-trigger"
               @click="openGenie"
             >
-              <ion-icon slot="start" :icon="sparklesOutline" />
+              <ion-icon
+                aria-hidden="true"
+                slot="start"
+                :icon="sparklesOutline"
+              />
               {{ t("market.genie.trigger") }}
             </ion-button>
           </div>
@@ -117,7 +130,11 @@
 
         <!-- Search fallback note -->
         <div v-if="isSearchFallback" class="fallback-note">
-          <ion-icon :icon="searchOutline" class="fallback-icon" />
+          <ion-icon
+            aria-hidden="true"
+            :icon="searchOutline"
+            class="fallback-icon"
+          />
           <span>{{
             t("market.searchFallbackNote", { query: searchQuery })
           }}</span>
@@ -146,11 +163,19 @@
               <tr>
                 <th class="col-sortable" @click="toggleSort('title')">
                   {{ t("market.colArticle") }}
-                  <ion-icon :icon="sortIcon('title')" class="sort-icon" />
+                  <ion-icon
+                    aria-hidden="true"
+                    :icon="sortIcon('title')"
+                    class="sort-icon"
+                  />
                 </th>
                 <th class="col-sortable" @click="toggleSort('status')">
                   {{ t("market.colStatus") }}
-                  <ion-icon :icon="sortIcon('status')" class="sort-icon" />
+                  <ion-icon
+                    aria-hidden="true"
+                    :icon="sortIcon('status')"
+                    class="sort-icon"
+                  />
                 </th>
                 <th
                   class="col-sortable col-num"
@@ -158,6 +183,7 @@
                 >
                   {{ t("market.colYesterday") }}
                   <ion-icon
+                    aria-hidden="true"
                     :icon="sortIcon('yesterdayViews')"
                     class="sort-icon"
                   />
@@ -167,25 +193,41 @@
                   @click="toggleSort('weekViews')"
                 >
                   {{ t("market.colWeek") }}
-                  <ion-icon :icon="sortIcon('weekViews')" class="sort-icon" />
+                  <ion-icon
+                    aria-hidden="true"
+                    :icon="sortIcon('weekViews')"
+                    class="sort-icon"
+                  />
                 </th>
                 <th
                   class="col-sortable col-num"
                   @click="toggleSort('monthViews')"
                 >
                   {{ t("market.colMonth") }}
-                  <ion-icon :icon="sortIcon('monthViews')" class="sort-icon" />
+                  <ion-icon
+                    aria-hidden="true"
+                    :icon="sortIcon('monthViews')"
+                    class="sort-icon"
+                  />
                 </th>
                 <th
                   class="col-sortable col-num"
                   @click="toggleSort('yearViews')"
                 >
                   {{ t("market.colYear") }}
-                  <ion-icon :icon="sortIcon('yearViews')" class="sort-icon" />
+                  <ion-icon
+                    aria-hidden="true"
+                    :icon="sortIcon('yearViews')"
+                    class="sort-icon"
+                  />
                 </th>
                 <th class="col-sortable col-num" @click="toggleSort('price')">
                   {{ t("market.colPrice") }}
-                  <ion-icon :icon="sortIcon('price')" class="sort-icon" />
+                  <ion-icon
+                    aria-hidden="true"
+                    :icon="sortIcon('price')"
+                    class="sort-icon"
+                  />
                 </th>
               </tr>
             </thead>
@@ -206,7 +248,11 @@
                     @click.stop
                   >
                     wikipedia.org
-                    <ion-icon :icon="openOutline" class="ext-icon" />
+                    <ion-icon
+                      aria-hidden="true"
+                      :icon="openOutline"
+                      class="ext-icon"
+                    />
                   </a>
                 </td>
                 <td>
@@ -265,6 +311,7 @@
             >
               {{ col.label }}
               <ion-icon
+                aria-hidden="true"
                 v-if="sortKey === col.key"
                 :icon="sortDir === 'asc' ? arrowUpOutline : arrowDownOutline"
                 class="sort-dir-icon"
@@ -290,7 +337,11 @@
                       @click.stop
                     >
                       wikipedia.org
-                      <ion-icon :icon="openOutline" class="ext-icon" />
+                      <ion-icon
+                        aria-hidden="true"
+                        :icon="openOutline"
+                        class="ext-icon"
+                      />
                     </a>
                   </div>
                   <div class="card-right">
@@ -367,10 +418,15 @@
             <ion-button
               fill="outline"
               size="small"
+              :aria-label="t('market.previousPage')"
               :disabled="safePage <= 1"
               @click="currentPage = Math.max(1, currentPage - 1)"
             >
-              <ion-icon :icon="chevronBackOutline" slot="icon-only" />
+              <ion-icon
+                aria-hidden="true"
+                :icon="chevronBackOutline"
+                slot="icon-only"
+              />
             </ion-button>
 
             <template v-for="(item, idx) in pageItems" :key="idx">
@@ -389,10 +445,15 @@
             <ion-button
               fill="outline"
               size="small"
+              :aria-label="t('market.nextPage')"
               :disabled="safePage >= totalPages"
               @click="currentPage = Math.min(totalPages, currentPage + 1)"
             >
-              <ion-icon :icon="chevronForwardOutline" slot="icon-only" />
+              <ion-icon
+                aria-hidden="true"
+                :icon="chevronForwardOutline"
+                slot="icon-only"
+              />
             </ion-button>
           </div>
         </div>

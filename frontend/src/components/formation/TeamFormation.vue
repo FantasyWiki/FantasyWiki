@@ -73,7 +73,7 @@
       <!-- ── Swap-mode banner ───────────────────────────────────────────── -->
       <transition name="fade">
         <div v-if="swapMode && swapSource" class="swap-banner fm-center-row">
-          <ion-icon :icon="swapHorizontalOutline" />
+          <ion-icon aria-hidden="true" :icon="swapHorizontalOutline" />
           <span>
             {{ $t("formation.pitch.swapInstruction") }}
             <strong>{{ swapSource.article.title }}</strong>
@@ -85,7 +85,11 @@
             aria-label="Cancel swap"
             @click="$emit('cancelSwap')"
           >
-            <ion-icon class="swap-cancel-icon" :icon="closeOutline" />
+            <ion-icon
+              aria-hidden="true"
+              class="swap-cancel-icon"
+              :icon="closeOutline"
+            />
           </ion-button>
         </div>
       </transition>
@@ -111,7 +115,14 @@
       </svg>
 
       <!-- ── Main grid ──────────────────────────────────────────────────── -->
-      <div class="pitch-grid" role="grid" aria-label="Formation grid">
+      <!-- `role="group"`, not `role="grid"`: a grid must contain rows and
+           gridcells, and these are positioned nodes on a pitch. The label was
+           also the one untranslated string in the app. -->
+      <div
+        class="pitch-grid"
+        role="group"
+        :aria-label="t('formation.pitch.gridLabel')"
+      >
         <template v-for="posKey in activePositions" :key="posKey">
           <!-- Filled slot -->
           <ArticleNode
@@ -132,16 +143,28 @@
           />
 
           <!-- Empty / unfilled slot -->
-          <div
+          <!--
+            A <button>, like a filled slot, and for the same reason: selecting a
+            contract and placing it into an empty position is the whole keyboard
+            path through this editor. As a <div> it could be dropped onto but
+            never reached by tab, so a player who does not use a pointer could
+            pick a contract up and have nowhere to put it (WCAG 2.1.1). The
+            label was also hardcoded English.
+          -->
+          <button
             v-else
+            type="button"
             class="pitch-slot-empty fm-center-col"
             :style="gridStyle(posKey)"
             :class="{
               'pitch-slot-empty--swap': swapMode,
               'pitch-slot-empty--dragover': dragOverPos === posKey,
             }"
-            :aria-label="`Empty position ${posKey}`"
+            :aria-label="
+              t('formation.pitch.emptyPosition', { position: posKey })
+            "
             :data-position="posKey"
+            :disabled="!editable"
             @click="onEmptySlotClick(posKey)"
             @dragover.prevent="dragOverPos = posKey"
             @dragleave="dragOverPos = null"
@@ -149,11 +172,12 @@
           >
             <span class="slot-pos-label">{{ posKey }}</span>
             <ion-icon
+              aria-hidden="true"
               v-if="swapMode && swapSource"
               :icon="addCircleOutline"
               class="slot-add-icon"
             />
-          </div>
+          </button>
         </template>
       </div>
     </div>
@@ -585,6 +609,12 @@ const chemistryLines = computed<RenderedChemistryLine[]>(() => {
 /* ── Empty slot placeholder ───────────────────────────────────────────────── */
 .pitch-slot-empty {
   gap: 4px;
+  /* It is a <button> for the keyboard; none of the UA chrome that comes with
+     one belongs on a dashed placeholder. */
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
   border: 1.5px dashed rgba(var(--ion-color-medium-rgb), 0.35);
   border-radius: 8px;
   width: min(100%, var(--node-size-mobile));

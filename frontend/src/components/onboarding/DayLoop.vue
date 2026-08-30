@@ -7,7 +7,7 @@
     <ol class="loop-track">
       <li class="loop-beat">
         <span class="beat-glyph" aria-hidden="true">
-          <ion-icon :icon="documentTextOutline" />
+          <ion-icon aria-hidden="true" :icon="documentTextOutline" />
         </span>
         <span class="beat-value">{{ t("onboarding.loop.holdValue") }}</span>
         <span class="beat-label">{{ t("onboarding.loop.hold") }}</span>
@@ -15,7 +15,7 @@
 
       <li class="loop-beat">
         <span class="beat-glyph" aria-hidden="true">
-          <ion-icon :icon="eyeOutline" />
+          <ion-icon aria-hidden="true" :icon="eyeOutline" />
         </span>
         <span class="beat-value">{{ readers }}</span>
         <span class="beat-label">{{ t("onboarding.loop.read") }}</span>
@@ -23,7 +23,7 @@
 
       <li class="loop-beat loop-beat--score">
         <span class="beat-glyph" aria-hidden="true">
-          <ion-icon :icon="starOutline" />
+          <ion-icon aria-hidden="true" :icon="starOutline" />
         </span>
         <span class="beat-value">
           {{ t("onboarding.loop.scoreValue", { points: scored }) }}

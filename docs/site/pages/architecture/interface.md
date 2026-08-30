@@ -89,18 +89,68 @@ Two rules the codebase actually holds itself to:
 
 ## Accessibility
 
-No formal target has been set. The interface follows inclusive defaults —
-semantic controls from Ionic, visible focus, and both a light and a dark theme
-carried by tokens rather than by overrides — and the stated intention is to
-align progressively with WCAG AA as the design system settles.
+**The target is WCAG 2.2 AA.** It was set on 2026-08-30, when the interface was
+first measured against it — before that the page recorded no target, because
+naming one that nothing had been checked against would have claimed more than
+was known.
 
-<Planned evidence="the accessibility pass, once a target is agreed">
+### How it was measured
 
-An audit against a chosen level, and the list of what fails it, belongs here.
-Recording "no target has been set" is honest; recording a target that nothing
-has been measured against would not be.
+`axe-core` against the running application, on twelve screens — the landing
+page, guide, legal, dashboard, league list, a league, league creation, joining,
+the market, the team page, the problem report and the not-found page — in
+**both themes**, under the `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa` and
+`wcag22aa` rulesets. Signed in, with data on screen: an empty state fails
+nothing.
 
-</Planned>
+The first run returned **eight rule types across 370 failing nodes in light and
+163 in dark**. After the changes below it returns **none**, in either theme.
+
+### What it found, and what changed
+
+| What failed | Where it came from | What was done |
+|---|---|---|
+| Card text at **1.03:1** in dark mode — invisible | `--ion-card-color: var(--ion-text-color)` declared on `:root`, where the dark override does not reach, so cards kept the light text colour on a dark card | The declaration repeated inside the dark palette, with the substitution rule that caused it written down |
+| Muted body text at 4.03:1, everywhere | The muted colour was one notch under AA on paper, and further under it on the tinted panels | Darkened to `#647064`, chosen against every surface the app paints |
+| 120 icons announced as unlabelled images | `ion-icon` renders `role="img"`; none carried `aria-hidden` | Every decorative icon marked `aria-hidden`; the icon-only buttons carry the name instead |
+| Pinch-zoom disabled on every page | `user-scalable=no, maximum-scale=1` in the viewport meta — Ionic's starter default | Both removed (1.4.4) |
+| The logo unreachable by keyboard | A `<div>` with a click handler | A `<button>` with an accessible name, styled back to a logo |
+| Buttons with no name; a progress bar with no name | Icon-only controls on the market and team pages | Labelled, through the message catalogue |
+| A row that was not in a table, a grid whose children were not cells | Half-applied ARIA on the standings and the pitch | The claims removed rather than propped up — see below |
+| Ionic's own muted defaults at 2.45:1 and 2.82:1 | Label paragraphs and card subtitles fall back to a step on Ionic's neutral ramp | Routed through the audited muted colour |
+| Placeholders at 2.4:1 | Ionic fades placeholder text to 60% of the current colour | The fade removed and the colour named |
+
+### What automation cannot see, and what was done about it
+
+An automated pass covers roughly a third of WCAG, and none of the part that
+matters most here: whether the game can be *played* without a pointer.
+
+The formation editor is drag-and-drop. A placed contract and a bench contract
+were already `<button>`s, so both could be focused and selected — but an **empty
+position was a `<div>`**, droppable by mouse and unreachable by tab. A player
+using a keyboard could pick a contract up and have nowhere to put it, which is
+2.1.1 Keyboard, a level-A failure that no contrast tool would ever report. Empty
+positions are now buttons, and the path — select a contract, move to a position,
+activate — is covered by a test so it cannot quietly regress.
+
+### What is still open
+
+Recorded rather than claimed, because none of it has been measured:
+
+- **No screen-reader pass.** Nothing here has been driven with NVDA, JAWS or
+  VoiceOver, and reading order and announcement quality are exactly what a rule
+  engine cannot judge.
+- **The standings are not a table.** They carried `role="row"` with no table
+  around it, which promises a structure the markup does not keep; the claim was
+  removed, and the board reads as a list of buttons. Real table semantics —
+  `table` / `row` / `cell` around interactive rows — is the improvement that was
+  not made.
+- **Reflow and text spacing** (1.4.10, 1.4.12) are untested: the app is
+  responsive by construction, but nobody has held it at 400% zoom.
+- **Target sizes** (2.5.8) have not been measured.
+- **The audit is a point in time, not a gate.** It runs against a running app
+  with a browser driving it, which the unit suite cannot do — so nothing in CI
+  currently fails when a new page reintroduces one of the rows above.
 
 ## Related
 

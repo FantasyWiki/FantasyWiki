@@ -34,7 +34,7 @@
             rel="noopener"
           >
             {{ $t("report.success.openIssue") }}
-            <ion-icon slot="end" :icon="openOutline" />
+            <ion-icon aria-hidden="true" slot="end" :icon="openOutline" />
           </ion-button>
         </ion-card-content>
       </ion-card>

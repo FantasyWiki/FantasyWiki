@@ -33,7 +33,11 @@
                   step.colorClass,
                 ]"
               >
-                <ion-icon :icon="step.icon" size="large"></ion-icon>
+                <ion-icon
+                  aria-hidden="true"
+                  :icon="step.icon"
+                  size="large"
+                ></ion-icon>
               </div>
 
               <h3 class="step-title ion-margin-bottom">{{ step.title }}</h3>

@@ -221,6 +221,15 @@ h3 {
   line-height: 1.25rem;
 }
 
+/* Ionic paints a paragraph inside a label at `--ion-text-color-step-400`, which
+   is 2.45:1 on this background — the worst contrast in the app. Overridden here
+   rather than globally because Ionic's own rule carries a class and would
+   outrank `ion-label p`; scoped, this selector carries Vue's data attribute and
+   wins. */
+ion-label p {
+  color: var(--ion-color-medium);
+}
+
 .article-link {
   color: inherit;
   text-decoration: none;
@@ -238,7 +247,10 @@ h3 {
   background: var(--ion-background-color-step-150);
   font-size: 0.875rem;
   font-weight: 700;
-  color: var(--ion-color-medium);
+  /* The text ramp rather than the muted colour: this number sits on a raised
+     grey disc, where the muted colour reads 3.69:1. The ramp flips with the
+     theme, so one token clears 4.5:1 on the disc in both. */
+  color: var(--ion-text-color-step-700);
 }
 
 .rank-badge.medal {

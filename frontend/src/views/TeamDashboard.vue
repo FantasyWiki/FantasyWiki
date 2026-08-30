@@ -19,7 +19,7 @@
     <ion-card v-else-if="isError" color="danger" class="state-card">
       <ion-card-content>
         <div class="error-row">
-          <ion-icon :icon="alertCircleOutline" />
+          <ion-icon aria-hidden="true" :icon="alertCircleOutline" />
           <div>
             <h3 class="ion-no-margin">
               {{ t("views.teamDashboard.errorTitle") }}
@@ -31,7 +31,11 @@
               size="small"
               @click="refetch"
             >
-              <ion-icon slot="start" :icon="refreshOutline" />
+              <ion-icon
+                aria-hidden="true"
+                slot="start"
+                :icon="refreshOutline"
+              />
               {{ t("views.teamDashboard.retry") }}
             </ion-button>
           </div>
@@ -43,7 +47,7 @@
     <ion-card v-else-if="!currentLeague" class="state-card">
       <ion-card-content>
         <div class="empty-state">
-          <ion-icon :icon="trophyOutline" color="medium" />
+          <ion-icon aria-hidden="true" :icon="trophyOutline" color="medium" />
           <h2>{{ t("views.teamDashboard.noLeagueTitle") }}</h2>
           <p>{{ t("views.teamDashboard.noLeagueHint") }}</p>
         </div>

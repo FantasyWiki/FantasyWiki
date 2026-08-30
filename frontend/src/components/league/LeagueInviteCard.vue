@@ -17,6 +17,7 @@
         @click="copy('code')"
       >
         <ion-icon
+          aria-hidden="true"
           slot="icon-only"
           :icon="copied === 'code' ? checkmarkOutline : copyOutline"
         />
@@ -31,6 +32,7 @@
         @click="copy('link')"
       >
         <ion-icon
+          aria-hidden="true"
           slot="icon-only"
           :icon="copied === 'link' ? checkmarkOutline : linkOutline"
         />

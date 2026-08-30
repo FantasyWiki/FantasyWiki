@@ -45,7 +45,7 @@
             />
           </svg>
           <ion-chip color="danger" outline class="nf-trend-chip">
-            <ion-icon :icon="trendingDownOutline" />
+            <ion-icon aria-hidden="true" :icon="trendingDownOutline" />
             <ion-label>100%</ion-label>
           </ion-chip>
         </div>
@@ -71,7 +71,7 @@
 
       <div class="nf-actions">
         <ion-button color="primary" fill="solid" @click="router.push('/home')">
-          <ion-icon slot="start" :icon="homeOutline" />
+          <ion-icon aria-hidden="true" slot="start" :icon="homeOutline" />
           {{ $t("notFound.ctaHome") }}
         </ion-button>
         <ion-button
@@ -79,7 +79,7 @@
           fill="outline"
           @click="router.push('/market')"
         >
-          <ion-icon slot="start" :icon="storefrontOutline" />
+          <ion-icon aria-hidden="true" slot="start" :icon="storefrontOutline" />
           {{ $t("notFound.ctaMarket") }}
         </ion-button>
       </div>

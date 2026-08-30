@@ -19,7 +19,12 @@
         :disabled="isSubmitting"
         @click="emit('renew', contract)"
       >
-        <ion-icon slot="start" :icon="refreshOutline" class="action-icon" />
+        <ion-icon
+          aria-hidden="true"
+          slot="start"
+          :icon="refreshOutline"
+          class="action-icon"
+        />
         {{
           $t("articleDetail.actions.renewFor", { price: model.renewalPrice })
         }}
@@ -34,7 +39,12 @@
         :disabled="isSubmitting"
         @click="emit('cancelRenewal', contract)"
       >
-        <ion-icon slot="start" :icon="closeCircleOutline" class="action-icon" />
+        <ion-icon
+          aria-hidden="true"
+          slot="start"
+          :icon="closeCircleOutline"
+          class="action-icon"
+        />
         {{ $t("articleDetail.actions.cancelRenewal") }}
       </ion-button>
 
@@ -47,6 +57,7 @@
         @click="emit('swap', contract)"
       >
         <ion-icon
+          aria-hidden="true"
           slot="start"
           :icon="swapHorizontalOutline"
           class="action-icon"
@@ -62,7 +73,12 @@
         :disabled="isSubmitting"
         @click="emit('sell', model.contractId)"
       >
-        <ion-icon slot="start" :icon="cashOutline" class="action-icon" />
+        <ion-icon
+          aria-hidden="true"
+          slot="start"
+          :icon="cashOutline"
+          class="action-icon"
+        />
         {{ $t("articleDetail.actions.sell") }}
       </ion-button>
     </template>
@@ -75,6 +91,7 @@
       @click="emit('requestTrade', model.contractId)"
     >
       <ion-icon
+        aria-hidden="true"
         slot="start"
         :icon="swapHorizontalOutline"
         class="action-icon"

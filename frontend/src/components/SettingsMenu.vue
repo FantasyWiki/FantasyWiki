@@ -15,7 +15,7 @@
             alt=""
             referrerpolicy="no-referrer"
           />
-          <ion-icon v-else :icon="personCircleOutline" />
+          <ion-icon aria-hidden="true" v-else :icon="personCircleOutline" />
         </ion-avatar>
         <ion-label>
           <h3 class="account-name">{{ appStore.currentUser?.name }}</h3>

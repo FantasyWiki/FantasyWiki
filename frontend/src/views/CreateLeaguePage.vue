@@ -216,6 +216,7 @@
                 @click="copyCode"
               >
                 <ion-icon
+                  aria-hidden="true"
                   slot="icon-only"
                   :icon="copied ? checkmarkOutline : copyOutline"
                 />
@@ -637,8 +638,10 @@ function goToLeague() {
   font-size: 0.75rem;
 }
 
+/* No `opacity` here: the suffix is already written in the muted colour, and
+   fading an already-muted colour is what took it under WCAG 1.4.3 (3.74:1). */
 .edition-domain-suffix {
-  opacity: 0.7;
+  color: var(--ion-color-medium);
 }
 
 .edition-change {

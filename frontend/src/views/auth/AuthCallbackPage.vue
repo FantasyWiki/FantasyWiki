@@ -3,7 +3,11 @@
     <ion-content class="ion-padding callback-content">
       <div class="callback-container">
         <template v-if="error">
-          <ion-icon :icon="alertCircleOutline" class="callback-icon error" />
+          <ion-icon
+            aria-hidden="true"
+            :icon="alertCircleOutline"
+            class="callback-icon error"
+          />
           <ion-text color="danger">
             <h2>{{ $t("auth.callback.signInFailed") }}</h2>
             <p>{{ error }}</p>

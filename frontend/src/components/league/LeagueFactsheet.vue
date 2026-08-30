@@ -46,6 +46,7 @@
         v-if="phase !== 'ended'"
         class="run-track"
         role="progressbar"
+        :aria-label="t('league.runProgressLabel')"
         aria-valuemin="0"
         aria-valuemax="100"
         :aria-valuenow="Math.round(progress * 100)"

@@ -25,7 +25,7 @@
             class="genie-restart"
             @click="reset()"
           >
-            <ion-icon slot="start" :icon="refreshOutline" />
+            <ion-icon aria-hidden="true" slot="start" :icon="refreshOutline" />
             {{ t("market.genie.newGuess") }}
           </ion-button>
         </ion-buttons>
@@ -39,7 +39,11 @@
         </ion-title>
         <ion-buttons slot="end">
           <ion-button fill="clear" @click="emit('close')">
-            <ion-icon :icon="closeOutline" slot="icon-only" />
+            <ion-icon
+              aria-hidden="true"
+              :icon="closeOutline"
+              slot="icon-only"
+            />
           </ion-button>
         </ion-buttons>
       </ion-toolbar>

@@ -28,8 +28,10 @@
     --ion-color-light-shade: #1b2620;
     --ion-color-light-tint: #35403a;
 
-    --ion-color-medium: #8f9f8f;
-    --ion-color-medium-rgb: 143, 159, 143;
+    /* Lightened from #8f9f8f, which held up on the page background but read
+       4.09:1 on the raised panels (#323c36). */
+    --ion-color-medium: #97a797;
+    --ion-color-medium-rgb: 151, 167, 151;
     --ion-color-medium-contrast: #000000;
     --ion-color-medium-contrast-rgb: 0, 0, 0;
     --ion-color-medium-shade: #7e8c7e;
@@ -75,8 +77,12 @@
     --ion-text-color-step-250: #49514c;
     --ion-text-color-step-300: #545c57;
     --ion-text-color-step-350: #5f6661;
-    --ion-text-color-step-400: #6a716c;
-    --ion-text-color-step-450: #757b77;
+    /* Lightened from #6a716c / #757b77. These two steps are what muted body
+       text resolves to in dark mode, and they read 3.25:1 and 3.87:1 on the
+       card and item background — under WCAG 1.4.3. The values below clear
+       4.5:1 there and stay in ramp order. */
+    --ion-text-color-step-400: #828984;
+    --ion-text-color-step-450: #8b918d;
     --ion-text-color-step-500: #818682;
     --ion-text-color-step-550: #8c918c;
     --ion-text-color-step-600: #979b97;

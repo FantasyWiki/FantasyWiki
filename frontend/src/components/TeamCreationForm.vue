@@ -46,7 +46,12 @@
       :disabled="isSubmitting || !teamName.trim()"
       class="submit-button"
     >
-      <ion-icon v-if="!isSubmitting" :icon="sparklesOutline" slot="start" />
+      <ion-icon
+        aria-hidden="true"
+        v-if="!isSubmitting"
+        :icon="sparklesOutline"
+        slot="start"
+      />
       {{
         isSubmitting
           ? t("views.teamCreation.creating")

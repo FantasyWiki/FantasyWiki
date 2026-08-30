@@ -20,7 +20,11 @@
     :keyboard-close="false"
   >
     <div class="team-required-card">
-      <ion-icon :icon="trophyOutline" class="team-required-icon" />
+      <ion-icon
+        aria-hidden="true"
+        :icon="trophyOutline"
+        class="team-required-icon"
+      />
       <h2 class="team-required-title">
         {{ t("onboarding.teamRequired.title") }}
       </h2>

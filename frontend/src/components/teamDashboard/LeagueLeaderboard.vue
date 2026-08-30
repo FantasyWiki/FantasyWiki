@@ -4,7 +4,7 @@
     <ion-card-header>
       <div class="leaderboard-header td-header-left">
         <div class="header-icon-wrapper td-header-icon td-header-icon--warning">
-          <ion-icon :icon="trophyOutline" color="warning" />
+          <ion-icon aria-hidden="true" :icon="trophyOutline" color="warning" />
         </div>
         <div class="header-text">
           <ion-card-title class="td-card-title">{{
@@ -148,6 +148,7 @@
                 :class="getRankChange(row.entry).cssClass"
               >
                 <ion-icon
+                  aria-hidden="true"
                   class="player-change-icon"
                   :icon="getRankChange(row.entry).icon"
                 />
@@ -168,7 +169,11 @@
           @click="openLeaguePage()"
         >
           {{ $t("dashboard.leaderboard.viewDetails") }}
-          <ion-icon slot="end" :icon="chevronForwardOutline" />
+          <ion-icon
+            aria-hidden="true"
+            slot="end"
+            :icon="chevronForwardOutline"
+          />
         </ion-button>
       </div>
     </ion-card-content>

@@ -48,4 +48,16 @@
 
 :root {
   --ion-card-color: var(--ion-text-color);
+
+  /*
+   * And again inside the dark palette. `var()` is resolved where the custom
+   * property is *declared*, not where it is used: the dark theme redefines
+   * `--ion-text-color` on `.ion-palette-dark`, which is a descendant of the
+   * `:root` this declaration sits on — so the line above keeps substituting the
+   * light value, and every card renders #171f1b text on a #1a221d card. That is
+   * a contrast ratio of 1.03:1, which is text nobody can read at all.
+   */
+  .ion-palette-dark {
+    --ion-card-color: var(--ion-text-color);
+  }
 }

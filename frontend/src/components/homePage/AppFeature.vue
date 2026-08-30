@@ -24,7 +24,11 @@
                 ]"
                 :style="{ animationDelay: `${index * 50}ms` }"
               >
-                <ion-icon :icon="feature.icon" size="large"></ion-icon>
+                <ion-icon
+                  aria-hidden="true"
+                  :icon="feature.icon"
+                  size="large"
+                ></ion-icon>
               </div>
 
               <h3 class="feature-title ion-margin-bottom">

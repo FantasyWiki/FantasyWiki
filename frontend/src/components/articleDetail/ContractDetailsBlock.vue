@@ -2,7 +2,7 @@
   <section class="section-panel contract-section">
     <div class="section-head">
       <h3 class="section-title">
-        <ion-icon :icon="timeOutline" />
+        <ion-icon aria-hidden="true" :icon="timeOutline" />
         {{ $t("articleDetail.contract.title") }}
       </h3>
       <ion-chip
@@ -50,7 +50,7 @@
          electing renewal would leave no trace anywhere in the modal. -->
     <template v-if="renewalElected">
       <p class="renewal-elected ion-no-margin">
-        <ion-icon :icon="checkmarkCircleOutline" />
+        <ion-icon aria-hidden="true" :icon="checkmarkCircleOutline" />
         {{ $t("articleDetail.contract.renewalElected") }}
       </p>
       <ion-text color="medium">

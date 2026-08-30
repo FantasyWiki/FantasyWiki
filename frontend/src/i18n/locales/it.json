@@ -7,7 +7,8 @@
     "leagues": "Leghe",
     "market": "Mercato",
     "signIn": "Accedi con Google",
-    "signOut": "Esci"
+    "signOut": "Esci",
+    "home": "Home di FantasyWiki"
   },
   "menu": {
     "open": "Apri il menu",
@@ -259,7 +260,9 @@
         "good": "buono",
         "weak": "debole",
         "empty": "vuoto"
-      }
+      },
+      "gridLabel": "Griglia della formazione",
+      "emptyPosition": "Posizione vuota {position}"
     }
   },
   "articleDetail": {
@@ -402,7 +405,8 @@
       "unsavedChanges": "Modifiche non salvate",
       "saveSuccess": "Formazione salvata!",
       "saveFailed": "Impossibile salvare la formazione. Riprova.",
-      "retry": "Riprova"
+      "retry": "Riprova",
+      "back": "Indietro"
     },
     "rivalTeamPage": {
       "back": "Torna alla lega",
@@ -471,7 +475,10 @@
       "newGuess": "Nuova ricerca",
       "asleep": "Il genio dorme. Prova con la barra di ricerca.",
       "imageAlt": "Il genio A(k)Inator"
-    }
+    },
+    "back": "Torna alla dashboard",
+    "previousPage": "Pagina precedente",
+    "nextPage": "Pagina successiva"
   },
   "league": {
     "back": "Torna alla dashboard",
@@ -509,7 +516,8 @@
     "notStartedNote": "La lega non è ancora iniziata — queste sono le squadre iscritte.",
     "inviteLabel": "Codice d'invito",
     "inviteHint": "Condividilo con gli amici che vuoi in questa lega.",
-    "inviteCopy": "Copia il codice d'invito"
+    "inviteCopy": "Copia il codice d'invito",
+    "runProgressLabel": "Avanzamento della stagione"
   },
   "leagueLifecycle": {
     "leaveAction": "Abbandona questa lega",

@@ -1,7 +1,7 @@
 <template>
   <div class="login-card">
     <button class="dismiss-btn" @click="dismiss">
-      <ion-icon :icon="closeOutline" />
+      <ion-icon aria-hidden="true" :icon="closeOutline" />
     </button>
 
     <app-logo />
@@ -11,7 +11,7 @@
     </ion-text>
 
     <div v-if="errorMessage" class="error-banner">
-      <ion-icon :icon="alertCircleOutline" />
+      <ion-icon aria-hidden="true" :icon="alertCircleOutline" />
       {{ errorMessage }}
     </div>
 
@@ -22,12 +22,12 @@
       v-else-if="appStore.loginReason === 'auth-required'"
       class="notice-banner"
     >
-      <ion-icon :icon="lockClosedOutline" />
+      <ion-icon aria-hidden="true" :icon="lockClosedOutline" />
       {{ $t("auth.login.authRequired") }}
     </div>
 
     <ion-button expand="block" class="google-btn" @click="signInWithGoogle">
-      <ion-icon :icon="logoGoogle" slot="start" />
+      <ion-icon aria-hidden="true" :icon="logoGoogle" slot="start" />
       <ion-text>{{ $t("auth.login.signInGoogle") }}</ion-text>
     </ion-button>
 
@@ -118,7 +118,7 @@
          the other. See docs/development/docker-local-dev.md. -->
     <div v-if="isDevLoginEnabled" class="dev-login">
       <ion-button fill="clear" size="small" @click="signInAsDemoPlayer">
-        <ion-icon :icon="terminalOutline" slot="start" />
+        <ion-icon aria-hidden="true" :icon="terminalOutline" slot="start" />
         {{ $t("auth.login.signInDemo") }}
       </ion-button>
       <ion-text color="medium">

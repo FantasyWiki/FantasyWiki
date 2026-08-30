@@ -7,7 +7,7 @@
 
         <div class="cta-content ion-text-center">
           <ion-chip color="light">
-            <ion-icon :icon="sparklesOutline" />
+            <ion-icon aria-hidden="true" :icon="sparklesOutline" />
             <ion-label>{{ $t("home.cta.badge") }}</ion-label>
           </ion-chip>
 
@@ -24,7 +24,7 @@
           <div class="ion-margin-bottom">
             <ion-button size="large" color="light" @click="startPlaying">
               {{ $t("home.cta.createAccount") }}
-              <ion-icon slot="end" :icon="arrowForward" />
+              <ion-icon aria-hidden="true" slot="end" :icon="arrowForward" />
             </ion-button>
           </div>
 

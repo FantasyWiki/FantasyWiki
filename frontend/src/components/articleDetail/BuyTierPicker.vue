@@ -2,7 +2,7 @@
   <section class="section-panel buy-section">
     <div class="section-head">
       <h3 class="section-title">
-        <ion-icon :icon="cartOutline" />
+        <ion-icon aria-hidden="true" :icon="cartOutline" />
         {{ $t("articleDetail.buy.title") }}
       </h3>
     </div>

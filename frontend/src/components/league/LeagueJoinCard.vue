@@ -9,7 +9,11 @@
     </div>
 
     <ion-button size="small" :router-link="target" class="join-button">
-      <ion-icon slot="start" :icon="isPrivate ? keyOutline : enterOutline" />
+      <ion-icon
+        aria-hidden="true"
+        slot="start"
+        :icon="isPrivate ? keyOutline : enterOutline"
+      />
       {{ isPrivate ? t("joinLeague.ctaPrivate") : t("joinLeague.ctaPublic") }}
     </ion-button>
   </section>

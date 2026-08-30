@@ -2,7 +2,7 @@
   <section class="section-panel stats-section">
     <div class="section-head">
       <h3 class="section-title">
-        <ion-icon :icon="statsChartOutline" />
+        <ion-icon aria-hidden="true" :icon="statsChartOutline" />
         {{ $t("articleDetail.stats.title") }}
       </h3>
     </div>
@@ -62,6 +62,7 @@
               <p class="info-label ion-no-margin">
                 {{ $t("articleDetail.stats.trend") }}
                 <ion-icon
+                  aria-hidden="true"
                   v-if="trendPercent !== null"
                   :icon="
                     trendPercent >= 0 ? trendingUpOutline : trendingDownOutline
@@ -109,6 +110,7 @@
               <p class="info-label ion-no-margin">
                 {{ $t("articleDetail.stats.valueTracking") }}
                 <ion-icon
+                  aria-hidden="true"
                   :icon="
                     valueDelta >= 0 ? trendingUpOutline : trendingDownOutline
                   "

@@ -36,7 +36,12 @@
       </p>
 
       <div class="standings-table">
-        <div class="standings-head" role="row">
+        <!-- No `role="row"`: a row outside a table role is a claim the rest
+             of this markup does not keep, and a screen reader announces the
+             structure it was promised. The board is a list of buttons, and
+             reads as one. Real table semantics would mean role=table/row/cell
+             around interactive rows — recorded, not faked. -->
+        <div class="standings-head">
           <span class="col-rank">{{ t("league.colRank") }}</span>
           <span class="col-team">{{ t("league.colTeam") }}</span>
           <span class="col-points">{{ t("league.colPoints") }}</span>
@@ -83,7 +88,11 @@
           </div>
 
           <div class="col-trend" :class="trend(entry).cssClass">
-            <ion-icon :icon="trend(entry).icon" class="trend-icon" />
+            <ion-icon
+              aria-hidden="true"
+              :icon="trend(entry).icon"
+              class="trend-icon"
+            />
             <span class="trend-label">{{ trend(entry).label }}</span>
           </div>
         </component>
@@ -386,8 +395,10 @@ function trend(entry: LeaderboardEntryDTO): {
   text-overflow: ellipsis;
 }
 
+/* The shade, not the base green: this row's background is that same green at
+   8%, and the base against it reads 4.38:1 — just under WCAG 1.4.3. */
 .standings-row--me .team-name {
-  color: var(--ion-color-primary);
+  color: var(--ion-color-primary-shade);
 }
 
 .you-badge {

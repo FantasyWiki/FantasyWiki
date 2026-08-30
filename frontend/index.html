@@ -7,9 +7,13 @@
     <base href="/" />
 
     <meta name="color-scheme" content="light dark" />
+    <!-- No `maximum-scale` and no `user-scalable=no`: both block pinch-zoom,
+         which WCAG 1.4.4 requires a player to have. Ionic's starter ships them
+         to stop iOS zooming a focused input; the app sizes its inputs at 16px
+         instead, which is what actually prevents that. -->
     <meta
       name="viewport"
-      content="viewport-fit=cover, width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"
+      content="viewport-fit=cover, width=device-width, initial-scale=1.0"
     />
     <meta name="format-detection" content="telephone=no" />
     <meta name="msapplication-tap-highlight" content="no" />

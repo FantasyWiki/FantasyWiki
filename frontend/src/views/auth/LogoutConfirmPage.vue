@@ -1,7 +1,7 @@
 <template>
   <div class="logout-card">
     <button class="dismiss-btn" @click="dismiss">
-      <ion-icon :icon="closeOutline" />
+      <ion-icon aria-hidden="true" :icon="closeOutline" />
     </button>
 
     <ion-avatar v-if="user?.picture" class="logout-avatar">

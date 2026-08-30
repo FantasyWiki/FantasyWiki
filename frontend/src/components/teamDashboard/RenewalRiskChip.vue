@@ -1,6 +1,6 @@
 <template>
   <ion-chip v-if="shortfall !== null" class="risk-chip" :disabled="true">
-    <ion-icon :icon="walletOutline" />
+    <ion-icon aria-hidden="true" :icon="walletOutline" />
     <ion-label>
       {{ $t("dashboard.neededAttention.renewalAtRisk") }} ·
       {{

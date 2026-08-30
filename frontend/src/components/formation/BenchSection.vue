@@ -22,7 +22,11 @@
     <ion-card-content class="bench-content">
       <!-- Empty state -->
       <div v-if="articles.length === 0" class="bench-empty fm-center-col">
-        <ion-icon :icon="bookOutline" class="bench-empty-icon" />
+        <ion-icon
+          aria-hidden="true"
+          :icon="bookOutline"
+          class="bench-empty-icon"
+        />
         <p class="bench-empty-title">{{ $t("formation.bench.empty") }}</p>
         <p class="bench-empty-hint">
           {{ $t("formation.bench.emptyHint") }}

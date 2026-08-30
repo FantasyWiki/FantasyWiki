@@ -7,6 +7,7 @@
           <div class="ion-margin-bottom">
             <ion-chip color="primary">
               <ion-icon
+                aria-hidden="true"
                 :icon="trophyOutline"
                 class="ion-padding-end ion-no-margin"
               ></ion-icon>
@@ -56,7 +57,11 @@
             class="ion-text-capitalize ion-padding-horizontal"
           >
             {{ $t("home.leaderboardPreview.joinCompetition") }}
-            <ion-icon :icon="trophyOutline" slot="end"></ion-icon>
+            <ion-icon
+              aria-hidden="true"
+              :icon="trophyOutline"
+              slot="end"
+            ></ion-icon>
           </ion-button>
         </ion-col>
 
@@ -105,6 +110,7 @@
                     </div>
                     <div class="trend" :class="`trend-${player.trend}`">
                       <ion-icon
+                        aria-hidden="true"
                         :icon="getTrendIcon(player.trend)"
                         class="trend-icon"
                       ></ion-icon>

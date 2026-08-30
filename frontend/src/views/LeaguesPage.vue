@@ -25,11 +25,11 @@
            the shelf below rather than up here. -->
       <div class="actions">
         <ion-button fill="outline" router-link="/leagues/join">
-          <ion-icon slot="start" :icon="keyOutline" />
+          <ion-icon aria-hidden="true" slot="start" :icon="keyOutline" />
           {{ t("leagues.joinPrivate") }}
         </ion-button>
         <ion-button router-link="/leagues/new">
-          <ion-icon slot="start" :icon="addOutline" />
+          <ion-icon aria-hidden="true" slot="start" :icon="addOutline" />
           {{ t("leagues.createNew") }}
         </ion-button>
       </div>
@@ -49,7 +49,7 @@
       <ion-card v-else-if="error" color="danger" class="state-card">
         <ion-card-content>
           <div class="error-row">
-            <ion-icon :icon="alertCircleOutline" />
+            <ion-icon aria-hidden="true" :icon="alertCircleOutline" />
             <div>
               <p class="ion-no-margin error-title">
                 {{ t("leagues.errorTitle") }}
@@ -61,7 +61,11 @@
                 size="small"
                 @click="leagueStore.fetchLeagues()"
               >
-                <ion-icon slot="start" :icon="refreshOutline" />
+                <ion-icon
+                  aria-hidden="true"
+                  slot="start"
+                  :icon="refreshOutline"
+                />
                 {{ t("leagues.retry") }}
               </ion-button>
             </div>
@@ -78,7 +82,11 @@
              playing". -->
         <template v-if="activeLeagues.length">
           <div class="section-head">
-            <ion-icon :icon="flagOutline" class="section-icon mine" />
+            <ion-icon
+              aria-hidden="true"
+              :icon="flagOutline"
+              class="section-icon mine"
+            />
             <h2 class="section-title">{{ t("leagues.mineTitle") }}</h2>
           </div>
           <!-- `mine-grid` marks this as the enrolled set: the featured shelf
@@ -103,7 +111,11 @@
         <!-- Featured public leagues ────────────────── -->
         <section class="featured">
           <div class="section-head">
-            <ion-icon :icon="starOutline" class="section-icon" />
+            <ion-icon
+              aria-hidden="true"
+              :icon="starOutline"
+              class="section-icon"
+            />
             <h2 class="section-title">{{ t("leagues.featuredTitle") }}</h2>
           </div>
           <!-- Leagues the player already plays are dropped here rather than by
@@ -126,7 +138,7 @@
           >
             <ion-card-content>
               <div class="error-row">
-                <ion-icon :icon="alertCircleOutline" />
+                <ion-icon aria-hidden="true" :icon="alertCircleOutline" />
                 <div>
                   <p class="ion-no-margin error-title">
                     {{ t("leagues.featuredErrorTitle") }}
@@ -137,7 +149,11 @@
                     size="small"
                     @click="refetchPublicLeagues()"
                   >
-                    <ion-icon slot="start" :icon="refreshOutline" />
+                    <ion-icon
+                      aria-hidden="true"
+                      slot="start"
+                      :icon="refreshOutline"
+                    />
                     {{ t("leagues.retry") }}
                   </ion-button>
                 </div>
@@ -164,7 +180,11 @@
              succeeded. -->
         <section v-if="endedLeagues.length" class="ended">
           <div class="section-head">
-            <ion-icon :icon="archiveOutline" class="section-icon ended" />
+            <ion-icon
+              aria-hidden="true"
+              :icon="archiveOutline"
+              class="section-icon ended"
+            />
             <h2 class="section-title">{{ t("leagues.endedTitle") }}</h2>
           </div>
           <div class="league-grid">

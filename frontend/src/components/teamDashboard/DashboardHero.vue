@@ -51,7 +51,7 @@
             fill="solid"
             @click="router.push('/market')"
           >
-            <ion-icon slot="start" :icon="cartOutline" />
+            <ion-icon aria-hidden="true" slot="start" :icon="cartOutline" />
             {{ $t("dashboard.hero.buyArticles") }}
           </ion-button>
 
@@ -68,7 +68,7 @@
               class="stat-row__icon"
               :style="{ background: stat.iconBg, color: stat.iconColor }"
             >
-              <ion-icon :icon="stat.icon" />
+              <ion-icon aria-hidden="true" :icon="stat.icon" />
             </div>
             <div class="stat-row__labels">
               <ion-text color="medium">
@@ -91,6 +91,7 @@
               outline
             >
               <ion-icon
+                aria-hidden="true"
                 :icon="
                   stat.trend >= 0 ? trendingUpOutline : trendingDownOutline
                 "

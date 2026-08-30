@@ -21,7 +21,12 @@
             class="nav-link"
             :class="{ active: isActive(link.href) }"
           >
-            <ion-icon v-if="link.icon" :icon="link.icon" slot="start" />
+            <ion-icon
+              aria-hidden="true"
+              v-if="link.icon"
+              :icon="link.icon"
+              slot="start"
+            />
             {{ link.name }}
           </ion-button>
         </div>
@@ -124,9 +129,13 @@
                 alt=""
                 referrerpolicy="no-referrer"
               />
-              <ion-icon v-else :icon="personCircleOutline" />
+              <ion-icon aria-hidden="true" v-else :icon="personCircleOutline" />
             </ion-avatar>
-            <ion-icon :icon="chevronDownOutline" class="trigger-chevron" />
+            <ion-icon
+              aria-hidden="true"
+              :icon="chevronDownOutline"
+              class="trigger-chevron"
+            />
           </ion-button>
 
           <ion-popover
@@ -198,7 +207,7 @@
             :data-tour="link.tour"
             @click="router.push(link.href)"
           >
-            <ion-icon :icon="link.icon" />
+            <ion-icon aria-hidden="true" :icon="link.icon" />
           </ion-button>
           <!-- Was an auth toggle; now the entry point to the same settings menu
                the desktop avatar opens. Sign in/out is a row inside it. -->
@@ -214,7 +223,7 @@
             >
               <img :src="profilePicture" alt="" referrerpolicy="no-referrer" />
             </ion-avatar>
-            <ion-icon v-else :icon="personCircleOutline" />
+            <ion-icon aria-hidden="true" v-else :icon="personCircleOutline" />
           </ion-button>
         </div>
       </ion-toolbar>

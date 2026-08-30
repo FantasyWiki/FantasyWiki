@@ -1,22 +1,37 @@
 <template>
-  <div class="logo-container" @click="router.push('/')">
+  <!-- A button, not a div with a click handler: this is the app's home link,
+       and a div is unreachable by keyboard and announced as nothing. -->
+  <button
+    type="button"
+    class="logo-container"
+    :aria-label="t('nav.home')"
+    @click="router.push('/')"
+  >
     <div class="logo-icon-wrapper">
-      <ion-icon :icon="bookOutline" color="primary" class="ion-hide" />
-      <ion-img src="/logo.png" style="width: 40px; height: 40px" />
+      <ion-icon
+        aria-hidden="true"
+        :icon="bookOutline"
+        color="primary"
+        class="ion-hide"
+      />
+      <!-- Decorative: the button beside it already carries the name. -->
+      <ion-img src="/logo.png" alt="" style="width: 40px; height: 40px" />
       <div class="logo-badge"></div>
     </div>
     <ion-text class="logo-text">
       Fantasy<span class="logo-accent">Wiki</span>
     </ion-text>
-  </div>
+  </button>
 </template>
 
 <script setup lang="ts">
 import { IonIcon, IonText, IonImg } from "@ionic/vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { bookOutline } from "ionicons/icons";
 
 const router = useRouter();
+const { t } = useI18n();
 </script>
 
 <style scoped>
@@ -26,6 +41,12 @@ const router = useRouter();
   gap: 8px;
   cursor: pointer;
   transition: transform 0.2s ease;
+  /* It is a <button> for the keyboard, and must not look like one. */
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
 }
 
 .logo-icon-wrapper:hover {

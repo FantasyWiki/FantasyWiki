@@ -6,8 +6,12 @@ tags: [economy, pricing, decision]
 
 # Contract pricing: from linear-in-views, through convex-in-views, to convex-in-points
 
-> **Status:** current formula decided in design discussion, not yet implemented in code.
-> `model/pricing.ts` still has the linear-in-views formula as of this writing.
+> **Status:** decided and implemented (#397, #409). `model/pricing.ts` carries the
+> points-based formula below — `PRICE_EXPONENT = 1.7`, the coefficient derived in the file from
+> the same 11-giant-team target stated here, and `TIER_DAYS` at 3 / 7 / 14. It imports
+> `basePoints` from `model/scoring.ts` rather than restating the curve, so a change to the
+> scoring shape reaches price with nothing to keep in step. Both the browser and the Worker
+> price from that one module.
 
 `ContractPrice` has gone through three iterations. This ADR is the single canonical record —
 superseding revisions are folded in here rather than left as a chain of separate ADRs, so there's

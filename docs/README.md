@@ -26,6 +26,7 @@ What the game *is*: rules, entities, and vocabulary. No code structure here.
 | [Wikipedia Language Editions](./domain/language-editions.md) | Which editions can host a league, and the measured Language Scale Factor |
 | [League Season](./domain/league-season.md) | When a season starts, how long it may run, and why |
 | [Article Availability](./domain/article-availability.md) | Free Agent / Owned by Viewer / Owned by Other, and action eligibility |
+| [Standings and Podium](./domain/standings-and-podium.md) | How a league is ranked, what rank movement means, and when a podium is shown |
 | [What Are Model Entities](./domain/what-are-model-entities.md) | Why `model/` holds normalized, framework-free entities |
 | [Shared DTO Package](./domain/shared-dto-package.md) | Why `dto/` aggregates and nests for the wire |
 | [FantaWiki Requirements](./domain/fantawiki-requirements.md) | Original GDD v5.5 — **partly superseded**, see the ADRs |
@@ -38,15 +39,20 @@ Seams, layers, and modules. The rules they implement live in `domain/`.
 | [Backend Architecture](./architecture/backend-architecture.md) | Routes → Services → Repositories layering |
 | [Persistence Targets](./architecture/persistence-targets.md) | D1 or MongoDB, how one is chosen, and what replaces SQL atomicity |
 | [Auth Modes](./architecture/auth-modes.md) | Why username/password exists in one build and is absent from the deployed one |
+| [Sessions and Sign-in Doors](./architecture/sessions.md) | One session cookie, three doors that mint it, and the guards that read it |
 | [Nightly Scoring Pipeline](./architecture/scoring-pipeline.md) | How the nightly batch scores every team, end to end |
+| [Contract Settlement](./architecture/contract-settlement.md) | The nightly Workflow that renews or settles every contract that came due |
 | [Backend Error Constants](./architecture/backend-error-constants.md) | Typed errors instead of string matching |
 | [Frontend Query Keys](./architecture/frontend-query-keys.md) | One module owns every TanStack Query key |
 | [DTO Dressing Pattern](./architecture/dto-dressing-pattern.md) | How FE/BE each "dress" domain data |
 | [Chemistry Links Rendering](./architecture/chemistry-links-rendering.md) | `computeChemistryLinks` + the SVG overlay |
 | [Lineup Editing](./architecture/lineup-editing.md) | The `DraftLineup` seam and its pure mutations |
 | [Article Ownership Resolution](./architecture/article-ownership-resolution.md) | `buildArticleDetail` + the async team-context seam |
+| [Market List](./architecture/market-list.md) | How a Top Read Snapshot becomes a priced, owner-annotated shelf |
+| [Notifications](./architecture/notifications.md) | What writes an in-box message, and what it never does |
 | [Problem Reports](./architecture/problem-reports.md) | How `/report` files a GitHub issue, and what it never publishes |
 | [Article Genie LLM Integration](./architecture/article-genie-llm.md) | The Workers AI seam, turn protocol, and quota handling |
+| [Frontend Localisation](./architecture/frontend-localisation.md) | Two catalogues, one schema, and what is deliberately untranslated |
 | [Wikimedia Client Architecture](./architecture/wikimedia-client-architecture.md) | Composition root and capability modules |
 | [Wikimedia Client Behavior Extension](./architecture/wikimedia-client-behavior-extension.md) | How to add a capability |
 | [Wikimedia Client Terminology](./architecture/wikimedia-client-terminology-hierarchy.md) | Naming and hierarchy rules |
@@ -57,6 +63,7 @@ Seams, layers, and modules. The rules they implement live in `domain/`.
 | [Local Development Setup](./development/local-dev-setup.md) | Env files, MSW, Wrangler |
 | [Running FantasyWiki in Docker](./development/docker-local-dev.md) | `./gradlew noGenie` with no credentials to obtain, and the three other combinations |
 | [Backend Testing](./development/backend-testing.md) | The test tiers, which layer each may name, and how to seed |
+| [Frontend Testing](./development/frontend-testing.md) | What the browser suite is for, and the two constraints that bite |
 | [API Naming Rules](./development/api-naming-rules.md) | URL, identity, and request-body conventions |
 | [NPM Script Naming](./development/npm-script-naming.md) | Why `formatfix`, not `format:fix` |
 

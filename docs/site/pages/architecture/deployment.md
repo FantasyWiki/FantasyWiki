@@ -45,7 +45,7 @@ flowchart TB
   subgraph CFW["Cloudflare Workers"]
     BE["backend / backend-preview"]
     WFL["ContractSettlementWorkflow"]
-    CRON["Cron trigger ~05:00 UTC"]
+    CRON["Cron trigger 07:00 UTC"]
   end
 
   subgraph CFD["Cloudflare data"]

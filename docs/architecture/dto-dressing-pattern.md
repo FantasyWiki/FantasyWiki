@@ -27,3 +27,4 @@ string→Temporal conversion lives in exactly one place.
 
 - [Shared DTO Package](../domain/shared-dto-package.md)
 - [What Are Model Entities](../domain/what-are-model-entities.md)
+- [Notifications](./notifications.md) — a DTO that carries a dressed contract rather than an id

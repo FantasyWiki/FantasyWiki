@@ -1,12 +1,26 @@
 ---
 title: "ADR 0004: Scoring Engine Platform"
 type: adr
-tags: [scoring, platform, gcp, decision]
+tags: [scoring, platform, kotlin, gcp, github-actions, decision]
 ---
 
 # Daily scoring as a separate Kotlin/JVM batch service on Cloud Run Jobs
 
-**Decision.** The daily scoring engine is a **standalone Kotlin/JVM service** packaged as a container and run as a scheduled **GCP Cloud Run Job** (triggered by **Cloud Scheduler**). It reads contracts and writes scores/standings to **D1 via the REST API**, sources pageviews from the **per-article Wikimedia Analytics API**, resolves chemistry links through a **D1-backed cache**, and computes base points + chemistry + the weekly tournament once per day. It is autonomous from the Cloudflare backend, and it is the SPE **second target platform** (a JVM runtime distinct from the all-V8/JS frontend + backend).
+> **Status (2026-08-30):** the *platform choice* recorded here — a separate Kotlin/JVM batch,
+> autonomous from the Worker, as the second target platform — holds and is what runs. Two
+> mechanisms in it were replaced during implementation and are **superseded**: the batch is
+> scheduled by **GitHub Actions**, not Cloud Run Jobs and Cloud Scheduler, and it delivers
+> **raw facts to the backend over `/internal/*`** rather than writing D1 directly over the REST
+> API. It also computes no points: the backend turns the facts into scores through the one
+> `model/scoring.ts`. What runs, and why each substitution was made, is
+> [Nightly Scoring Pipeline](../architecture/scoring-pipeline.md).
+>
+> Everything below is the decision as it was taken, kept whole — the Worker-limits analysis and
+> the Wikimedia rate budget are what justified moving the batch off Cloudflare at all, and both
+> still hold.
+
+**Decision (superseded in the two respects named above).** The daily scoring engine is a
+**standalone Kotlin/JVM service** packaged as a container and run as a scheduled **GCP Cloud Run Job** (triggered by **Cloud Scheduler**). It reads contracts and writes scores/standings to **D1 via the REST API**, sources pageviews from the **per-article Wikimedia Analytics API**, resolves chemistry links through a **D1-backed cache**, and computes base points + chemistry + the weekly tournament once per day. It is autonomous from the Cloudflare backend, and it is the SPE **second target platform** (a JVM runtime distinct from the all-V8/JS frontend + backend).
 
 ## Why this batch cannot stay on Cloudflare
 

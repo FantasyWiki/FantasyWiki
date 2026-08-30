@@ -103,3 +103,5 @@ the MSW handler as the refetch target.
 ## Related
 
 - [Article Ownership Resolution](./article-ownership-resolution.md)
+- [Market List](./market-list.md) — the key partial results are written into
+- [Notifications](./notifications.md) — one unscoped list, filtered per league in the client

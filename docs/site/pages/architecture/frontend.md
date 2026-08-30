@@ -138,6 +138,8 @@ The interface is translated (`en`, `it`) through `vue-i18n`, with the locale
 files typed by a schema so a missing key is a build error rather than a blank
 label in production.
 
+→ [Frontend Localisation](../docs/architecture/frontend-localisation.md)
+
 ## Related
 
 - [Interface design](./interface.md) — the screens these pieces render, and the rules they follow
@@ -145,4 +147,6 @@ label in production.
 - [Data flow](./data-flow.md) — what the browser sends and caches
 - [Chemistry Links Rendering](../docs/architecture/chemistry-links-rendering.md)
 - [Lineup Editing](../docs/architecture/lineup-editing.md)
+- [Sessions and Sign-in Doors](../docs/architecture/sessions.md) — the cookie behind `credentials: include`
+- [Market List](../docs/architecture/market-list.md) — the one screen the browser assembles itself
 - [Design system](../DESIGN.md)

@@ -86,7 +86,7 @@ Which layer a test may name is a rule, enforced by `no-restricted-imports`: noth
 
 Layered structure, each layer only talks to the one below it:
 
-1. **Routes** (`routes/`) — parse input, enforce auth/HTTP constraints, call services, map results to HTTP responses. Currently `auth.ts`, `leagues.ts`, `session.ts`.
+1. **Routes** (`routes/`) — parse input, enforce auth/HTTP constraints, call services, map results to HTTP responses. One file per resource or concern — `auth.ts`, `leagues.ts`, `me.ts`, `session.ts`, `notifications.ts` and the rest — plus `internal.ts`, which is the scoring collector's service-token surface and sits outside the `/api/*` JWT guard.
 2. **Services** (`services/`) — business logic/orchestration. Depend on repository *interfaces*, return typed `Result` values consumed by routes.
 3. **Repositories** (`repositories/`) — define contracts (e.g. `playerRepository.ts`) with one implementation per store under `repositories/d1/` and `repositories/mongo/` (e.g. `playerRepositoryD1.ts`, `playerRepositoryMongo.ts`). Queries and persistence error handling live here, and a store's own error wording never leaves the layer.
 

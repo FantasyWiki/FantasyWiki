@@ -53,3 +53,4 @@ one player and `Owned by Other Team` for their opponent, from the same contract.
 
 - [Article Ownership Resolution](../architecture/article-ownership-resolution.md)
 - [Scoring & Economy System](./scoring-system.md)
+- [Market List](../architecture/market-list.md) — where these states are shown for fifty articles at once

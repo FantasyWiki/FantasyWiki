@@ -373,3 +373,4 @@ so those requests reach the real Wrangler backend. Everything else is mocked.
 - [NPM Script Naming Convention](./npm-script-naming.md)
 - [Article Genie LLM Integration](../architecture/article-genie-llm.md)
 - [Running FantasyWiki in Docker](./docker-local-dev.md)
+- [Frontend Testing](./frontend-testing.md) — the same MSW handlers, driven by vitest

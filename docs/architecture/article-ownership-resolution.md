@@ -51,3 +51,5 @@ Vue in `frontend/src/tests/articleDetail/useArticleOwnership.spec.ts`.
 
 - [Article Availability (domain)](../domain/article-availability.md) — the states
   and action eligibility rules.
+- [Market List](./market-list.md) — the same question answered for the whole
+  shelf, and merged rather than fetched per row.

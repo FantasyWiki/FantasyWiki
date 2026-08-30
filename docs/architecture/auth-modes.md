@@ -230,3 +230,9 @@ run in the D1 pass too, and fail there.
 
 The hashing itself is a `.spec.ts` — pure WebCrypto, nothing to seed, and the one
 part of this that both builds can compile.
+
+## Related
+
+- [Sessions and Sign-in Doors](./sessions.md) — the session every door mints, and the guards that read it
+- [Backend Architecture](./backend-architecture.md) — the layering both entries share
+- [Persistence Targets](./persistence-targets.md) — why the password build is the MongoDB one

@@ -56,3 +56,5 @@ number of hours means.
   reaches this end date, and the other way a league can stop before it.
 - [Scoring & Economy System](./scoring-system.md) — contract tiers, and the
   settlement the floor above exists to protect.
+- [Standings and Podium](./standings-and-podium.md) — which phase shows a live
+  podium, and which shows a final one.

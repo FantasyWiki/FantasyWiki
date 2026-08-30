@@ -107,7 +107,7 @@ decided once, in `composition.ts`.
 
 | Scope | Examples |
 |---|---|
-| Public reads | `GET /api/leagues/public`, `/api/leagues/:id`, `/:id/leaderboard`, `/:id/market` |
+| Public reads | `GET /api/leagues/public`, `/api/leagues/:id`, `/:id/leaderboard`, `/:id/contracts` |
 | Self-scoped | `/:id/my-team`, `/:id/my-contracts`, `/:id/my-performances`, `/:id/my-notifications`, `/:id/my-role`, `/:id/my-departure` |
 | Admin-scoped | `/:id/invite-code`, `/:id/closure` |
 | Session | `/api/session`, `/api/me/genie-seeds`, `/api/me/genie-turns` |
@@ -125,11 +125,12 @@ sequenceDiagram
   participant WM as Wikimedia
   participant DB as MongoDB
 
-  FE->>BE: GET /api/leagues/:id/market
-  BE->>WM: top-read snapshot for the league's edition
-  WM-->>BE: ranked articles
+  FE->>WM: top-read snapshot for the league's edition
+  WM-->>FE: ranked articles, priced as they hydrate
+  FE->>BE: GET /api/leagues/:id/contracts
   BE->>DB: contracts already held in this league
-  BE-->>FE: each article as Free Agent · Owned by Viewer · Owned by Other
+  BE-->>FE: who owns what
+  Note over FE: Free Agent · Owned by Viewer · Owned by Other
 
   FE->>BE: POST /api/leagues/:id/my-contracts { articleId }
   BE->>WM: 30-day average views
@@ -138,6 +139,11 @@ sequenceDiagram
   BE->>DB: insert the contract · bump leagues.revision
   BE-->>FE: the signed contract
 ```
+
+**The shelf is built in the browser, and only ownership comes from the backend.**
+Fifty articles cost a request each, which is more subrequests than a Worker
+invocation is allowed on the free plan — and the browser already holds the cache.
+→ [Market List](../docs/architecture/market-list.md)
 
 Two facts about this flow are load-bearing and are specified elsewhere:
 
@@ -202,7 +208,7 @@ A separate nightly job, and the only place money changes hands.
 
 ```mermaid
 flowchart LR
-  CRON["Cron trigger<br/><small>~05:00 UTC</small>"] --> WF["ContractSettlementWorkflow<br/><small>durable · resumable</small>"]
+  CRON["Cron trigger<br/><small>07:00 UTC</small>"] --> WF["ContractSettlementWorkflow<br/><small>durable · resumable</small>"]
   WF --> Q{"Contract reached<br/>the end of its term?"}
   Q -->|"renewal elected"| REN["Renew at the current price"]
   Q -->|"otherwise"| SET["Settle: pay out at value,<br/>book the gain or loss"]
@@ -221,7 +227,9 @@ and nothing else.
 
 The economics — why there is no stipend, no transaction fee, and why an early
 sale is prorated while an expiry settles in full — are
-[ADR 0003](../docs/adr/0003-closed-trading-economy.md).
+[ADR 0003](../docs/adr/0003-closed-trading-economy.md); how the sweep is built,
+step by step, is
+[Contract Settlement](../docs/architecture/contract-settlement.md).
 
 ## What the frontend caches, and where
 
@@ -253,3 +261,6 @@ rather than of remembering every place it was used.
 - [Architecture overview](./index.md) — containers, packages and layers
 - [Data model](./data-model.md) — what the collections above actually hold
 - [Deployment](./deployment.md) — where each of these processes runs
+- [Contract Settlement](../docs/architecture/contract-settlement.md) — the nightly sweep in detail
+- [Market List](../docs/architecture/market-list.md) — the shelf the buy flow starts from
+- [Sessions and Sign-in Doors](../docs/architecture/sessions.md) — the cookie the first journey mints

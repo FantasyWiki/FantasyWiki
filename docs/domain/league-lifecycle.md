@@ -153,3 +153,5 @@ Split deliberately, and not arbitrarily:
   that names a refusal.
 - [ADR 0007: Derived Team Credits](../adr/0007-derived-team-credits.md) — the
   same "derive it, don't store it" reasoning applied to a balance.
+- [Standings and Podium](./standings-and-podium.md) — the table and podium an
+  inactive league keeps.

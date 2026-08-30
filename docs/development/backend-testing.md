@@ -200,3 +200,4 @@ parallel**.
 - [OpenAPI Spec](../agents/openapi-spec.md)
 - [Persistence Targets](../architecture/persistence-targets.md)
 - [ADR 0007: Derived Team Credits](../adr/0007-derived-team-credits.md)
+- [Frontend Testing](./frontend-testing.md) — the looser suite, and why it is looser

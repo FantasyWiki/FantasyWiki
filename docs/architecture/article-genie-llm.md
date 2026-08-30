@@ -36,8 +36,9 @@ WORKER   (two routes, one model call each)
   one subrequest · no D1 · no migration
 ```
 
-**Why parsing is its own call.** A turn is defined over a candidate list, and there is no candidate
-list until the query has been read — so the parse cannot ride along with the first turn. Seeding on
+**Why parsing is its own call.** A turn is defined over the **Candidate Set** — the bounded list of
+real titles the Genie narrows, seeded from search and, where the player named anchors, from
+articles linked with them — and there is no Candidate Set until the query has been read — so the parse cannot ride along with the first turn. Seeding on
 keywords alone instead would have the Genie open with a question about articles *describing* OpenAI
 rather than ones relating it to Portugal.
 
@@ -60,8 +61,8 @@ already holds the cache.
 ## The `llmClient` seam
 
 The AI binding is wrapped in a service under `backend/src/services/`, alongside `wikimediaClient`
-and `githubClient`, and is **constructor-injected** — matching
-`ArticleMarketService(db, wikimedia?, leagueRepo?)`:
+and `githubClient`, and is **constructor-injected**, the way every service here takes its
+dependencies:
 
 ```ts
 export class ArticleGenieService {

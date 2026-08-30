@@ -80,9 +80,12 @@ the previous UTC day, a buffer wide enough to absorb GitHub's cron jitter. It
 runs the collector image from GHCR against production only, keyed for
 concurrency on the date so two runs never score the same day at once.
 
-**Contract settlement**, also ~05:00 UTC — a Cloudflare Cron Trigger inside the
+**Contract settlement**, 07:00 UTC — a Cloudflare Cron Trigger inside the
 Worker, which starts a durable Workflow. It is not a GitHub job: it has to
-survive interruption and resume, which is what Workflows are for.
+survive interruption and resume, which is what Workflows are for. The two-hour
+gap after scoring is deliberate and neither job may be moved alone — a contract
+expiring today is still scorable for yesterday, and settling it first would cost
+that team its last day ([Contract Settlement](../docs/architecture/contract-settlement.md)).
 
 ## The one job that is conditional
 

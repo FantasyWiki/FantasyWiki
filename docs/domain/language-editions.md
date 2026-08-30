@@ -176,3 +176,4 @@ across months.
 - [ADR 0002: Language Scale Factor](../adr/0002-language-scale-factor.md) — the rules
 - [Scoring & Economy System](./scoring-system.md) §2 — where `L` enters scoring
 - [ADR 0005: Contract Pricing](../adr/0005-contract-pricing.md) — `L` enters price superlinearly
+- [Market List](../architecture/market-list.md) — where the frozen factor prices a shelf

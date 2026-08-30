@@ -140,6 +140,9 @@ Two specifics that repeatedly cost time:
 MSW backs every test with `onUnhandledRequest: "error"`, so a request no handler
 expects fails the test rather than escaping to the network.
 
+→ [Frontend Testing](../docs/development/frontend-testing.md) — what every mount
+already has, how to stub one response, and where a test goes
+
 ## What the coverage figures do and do not say
 
 [The coverage board](../index.md#coverage) reports line coverage for all three
@@ -184,4 +187,5 @@ tests.
   produced
 - [Continuous delivery](./ci-cd.md) — where these suites run
 - [Backend Testing](../docs/development/backend-testing.md)
+- [Frontend Testing](../docs/development/frontend-testing.md)
 - [Architecture overview](../architecture/) — the seams the tiers are drawn around

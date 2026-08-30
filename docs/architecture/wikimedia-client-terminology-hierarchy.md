@@ -19,11 +19,17 @@ A single file under `external-apis/wikimedia/client/` that implements one client
 **Capability Namespace**  
 A top-level section in the returned client object (`client.<namespace>.<operation>`), used to group related operations.
 
-**Public API Types**  
-`external-apis/wikimedia/client/public-api.ts`, containing stable caller-facing type contracts for the shared client.
+**Client Types**  
+`external-apis/wikimedia/client.ts`, declaring what a caller binds to: `WikimediaClient`,
+`WikimediaHttp`, `CacheLike`.
 
-**Wire Types**  
-`external-apis/wikimedia/client/wikimedia-wire.ts`, containing raw Wikimedia response shapes before normalization.
+**Data Types**  
+`external-apis/wikimedia/wikimedia.ts`, holding the normalized shapes a caller receives, the raw
+upstream shapes they are mapped from, and the normalizers between them.
+
+**Shared Internals**  
+`external-apis/wikimedia/client/internal.ts`, holding the policies every capability applies
+identically — retry, concurrency, UTC dates, cache access.
 
 ## Hierarchy for new functionality
 
@@ -34,7 +40,8 @@ When adding new functionality, follow this hierarchy:
 2. **Implement capability module**  
    Add one file under `external-apis/wikimedia/client/` that exports a factory for the new operation.
 3. **Reuse shared policies**  
-   Inject shared helpers/dependencies from `client.ts`; do not duplicate retry/date/cache logic inside modules.
+   Import the helpers from `client/internal.ts` and take the cache and transport from the
+   composition root; never re-implement retry, concurrency, date or cache logic in a capability.
 4. **Expose via composition root**  
    Wire the new factory into `createWikimediaClient` under the chosen namespace.
 5. **Keep wrappers thin**  

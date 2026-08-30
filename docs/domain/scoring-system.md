@@ -215,7 +215,7 @@ flat stipend, 8% transaction fee, and an expiry with no defined payout are all r
 | Early sell | `currentPrice(liveViews, tierDays) × (remainingDays / tierDays)` credited | pays only for the *unused* time at today's rate — proration is the sole anti-exploit guard (no minimum hold): holding 3 of 14 days recovers only 11/14, so a partial hold can never return the full price |
 | Expiry settlement ("sold to system") | credit **`currentPrice(liveViews, tierDays)`** — i.e. `purchasePrice + (currentPrice − purchasePrice)` | full-term mark-to-market: the buy already **debited** `purchasePrice`, so expiry returns the whole stake **plus** the P&L (`currentPrice − purchasePrice`). Net gain if views rose, net loss if they fell. Only reachable by holding the *entire* committed term |
 | Renewal decision | owner elects **Renew / let expire** during the **final 24h** of the term; the choice **locks** for expiry (**default = let expire**) | right-of-first-refusal without midnight sniping or a permanent lock; a renewal rolls the window forward (`purchaseDate ← old expireDate`, `expireDate += tierDays`) at `currentPrice + renewal premium` |
-| Settlement trigger | daily **Cloudflare Cron** sweep on the backend Worker (~06:00 UTC); 30-day-average views fetched via the Wikimedia client | backend stays the single money-writer (ADR 0004); idempotent on a contract `status` guard |
+| Settlement trigger | daily **Cloudflare Cron** on the backend Worker (07:00 UTC, two hours after the scoring collector), which starts the durable `ContractSettlementWorkflow`; 30-day-average views fetched per contract via the Wikimedia client | backend stays the single money-writer (ADR 0004); one retryable step per contract, made idempotent by guarded writes rather than by not retrying — [Contract Settlement](../architecture/contract-settlement.md) |
 | Broke-player recovery | free (0-credit) sub-2,000-view articles always available | skill-based comeback (scout undervalued content), not a guaranteed stipend |
 
 **Removed vs. the original model:**
@@ -318,3 +318,5 @@ when they are picked back up:
 - [ADR 0002: Language Scale Factor](../adr/0002-language-scale-factor.md)
 - [ADR 0003: Closed Trading Economy](../adr/0003-closed-trading-economy.md)
 - [ADR 0005: Contract Pricing](../adr/0005-contract-pricing.md)
+- [Standings and Podium](./standings-and-podium.md) — what the cumulative total becomes on screen
+- [Contract Settlement](../architecture/contract-settlement.md) — how §6.3 is carried out each night

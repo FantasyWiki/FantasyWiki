@@ -116,3 +116,5 @@ A deployment runs on exactly one store, and `composition.ts` is the only module 
 - [API Naming Rules](../development/api-naming-rules.md)
 - [OpenAPI Spec](../agents/openapi-spec.md)
 - [Wikimedia Client Architecture](./wikimedia-client-architecture.md)
+- [Sessions and Sign-in Doors](./sessions.md)
+- [Contract Settlement](./contract-settlement.md) — the one caller that is a Cron, not a request

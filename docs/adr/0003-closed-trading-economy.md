@@ -6,9 +6,18 @@ tags: [economy, contracts, settlement, decision]
 
 # Closed trading economy: mark-to-market settlement, no income floor, no transaction fee
 
-> **Status:** decided in design discussion, not yet implemented in code. Backend has no
-> renewal/expiry/settlement logic yet (`rawContract.ts` is pure DTO mapping); `team.ts`'s stipend
-> logic and any fee logic, if present, need to be removed as part of implementing this ADR.
+> **Status:** decided and implemented (#442, issue #407).
+> `model/contract.ts` holds the term arithmetic this ADR fixes — Early Sell proration, the
+> settlement delta, the Renewal Premium and the final-24h renewal window — and `ContractService`
+> is the single money-writer that spends and credits against it. The daily sweep runs as the
+> `ContractSettlementWorkflow`, described in
+> [Contract Settlement](../architecture/contract-settlement.md).
+> The stipend and the transaction fee this ADR removes are absent from the code: there is no
+> stipend left in `team.ts` to delete.
+>
+> Two things it decided are still unbuilt, and are marked as such where they are stated: the
+> **Wealth Ceiling** has not been re-derived for mark-to-market, and the economy's flow figures
+> have not been re-simulated (`docs/domain/scoring-system.md` §6.2, §6.3).
 
 Like ADR 0005, this is a single consolidated ADR — later revisions are folded in here rather than
 left as a chain of separate superseding documents.

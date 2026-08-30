@@ -293,3 +293,4 @@ platform is revisited.
 - [Wikimedia Client Architecture](./wikimedia-client-architecture.md) — the *frontend/backend* Wikimedia client, separate from the collector's
 - [Running FantasyWiki in Docker](../development/docker-local-dev.md) — the workflow that publishes the collector image
 - [Deploy Strategy](../deployment/deploy-strategy.md) — which backend the workflow targets
+- [Contract Settlement](./contract-settlement.md) — the other nightly job, and the row the two share

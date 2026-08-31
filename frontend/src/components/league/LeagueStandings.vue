@@ -403,9 +403,15 @@ function trend(entry: LeaderboardEntryDTO): {
 
 .you-badge {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.6rem;
   height: 1.1rem;
-  padding: 0 6px;
+  /* Same optical correction as the dashboard's leaderboard badge: the labels
+     have no descender, so centring the font box leaves the text visibly high. */
+  padding: 0.25em 6px 0;
+  line-height: 1;
 }
 
 .trend-icon {

@@ -507,7 +507,13 @@ function getRankChange(entry: LeaderboardEntryDTO): {
   justify-content: center;
   font-size: 0.6rem;
   height: 1.1rem;
-  padding: 0 6px;
+  /* Optical centring, not geometric. `align-items` centres the *font box*, and
+     Source Sans 3 reserves descent there that "You"/"Tu" never use — no glyph
+     in either label drops below the baseline. Centring the box therefore hangs
+     the visible text ~2.6px high in a 17.6px pill. The top padding is roughly
+     half that unused descent, in `em` so it tracks font-size. */
+  padding: 0.25em 6px 0;
+  line-height: 1;
 }
 
 .player-points {

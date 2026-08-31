@@ -282,7 +282,7 @@ This ensures variety and prevents players from gaming a single event type.
 
 ### 3.1 Portfolio Constraints
 
-- **Maximum 11 active contracts** per team: one per formation position (resolved in `CONTEXT.md`; the earlier "10" contradicted the 11-slot formation)
+- **Maximum active contracts** per team: **22** (canonical: [Lineup Rules](./lineup-rules.md#how-many-contracts-a-team-may-hold), a starting eleven plus a bench of the same size). This §3.1's "10" and the "11, one per formation position" that replaced it are both superseded; 11 is now the number of contracts that can be *placed*, not the number a team may hold
 - **Budget**: Players start with 1,000 credits
 - **Duration**: locked tiers **SHORT = 3 days, MEDIUM = 7 days, LONG = 14 days** (ADR 0005); the earlier "1 week–24 months" range is superseded
 - **Economy (canonical: ADR 0003, pricing formula superseded by ADR 0005):** 15 credits/day **base stipend** · **8%** transaction fee on sales · **+10%** renewal premium per consecutive renewal · **3-day minimum hold** · soft **wealth ceiling** (pending re-simulation under the new pricing formula)

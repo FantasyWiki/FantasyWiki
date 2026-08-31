@@ -146,7 +146,12 @@ Specifics:
 - Wrap prose at roughly 80 columns.
 - Use the vocabulary in [`CONTEXT.md`](../../CONTEXT.md) exactly: *Top Read
   Snapshot*, *Free Agent*, *Chemistry Link*, *Owner Team*. The glossary carries
-  an "avoid" list for each term; honour it.
+  an "avoid" list for each term; honour it. A new term is added there and
+  nowhere else, and gets a `_Core_.` line only if nothing else in the vocabulary
+  can be read without it: the core terms are the ones the exam report's glossary
+  is cut down to, and everything else is on
+  [the vocabulary page](https://fantasywiki.github.io/FantasyWiki/overview/glossary.html)
+  alone.
 - Absolute dates, never "recently" or "last month".
 
 ## Space that is prepared and not yet filled

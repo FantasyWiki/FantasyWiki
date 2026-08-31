@@ -196,8 +196,10 @@ without the price curve diverging from the value it buys the way a views-based e
   duration; this is the forward (tier → days) mapping the buy flow uses.
 
 ### 6.2 Budget, slots, and the wealth ceiling
-- **Starting budget:** 1,000 credits. **Max 11 contracts** (one per formation position;
-  overrides §3.1's "10").
+- **Starting budget:** 1,000 credits. The squad cap is stated once, in
+  [Lineup Rules](./lineup-rules.md#how-many-contracts-a-team-may-hold): 22 active
+  contracts, of which 11 can be placed. Both §3.1's "10" and the "11 contracts"
+  this section used to state are superseded.
 - **Wealth ceiling**: previously ~2,400 credits (cost of the top-11 team for one week) under the
   old income-floor economy. **Stale, pending re-derivation (ADR 0003):** under mark-to-market
   settlement, wealth isn't just credits spent so far, it includes unrealized settlement

@@ -735,7 +735,7 @@
       "sell": "You are paid for the days you did not use, at today's price. The days you did use are spent.",
       "renewTitle": "Renew or let it go",
       "renew": "On the last day you choose. Doing nothing lets it go. Renewing the same article again costs 10% more each time you do it in a row.",
-      "budget": "You start each league with {credits} credits and room for 11 articles.",
+      "budget": "You start each league with {credits} credits and room for {contracts} articles.",
       "free": "Articles nobody is reading are free to sign, so running out of credits is never the end of your league."
     },
     "replay": "Replay the tour",

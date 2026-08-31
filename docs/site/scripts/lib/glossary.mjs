@@ -28,6 +28,16 @@ const TERM = /^\*\*(.+?)\*\*:\s*$/;
 const AVOID = /^_Avoid_:\s*(.+?)\.?\s*$/;
 const ALLOWED = /^Allowed values:\s*(.+?)\.?\s*$/;
 
+/**
+ * The marker that says a term is one the rest of the documentation cannot be
+ * read without. It is what the exam report's glossary is cut down to, so that a
+ * document read straight through carries the vocabulary it is written in rather
+ * than the whole ingestion pipeline. A flag on the term, not a second list of
+ * names, because a list somewhere else is a list that goes stale on the next
+ * term anyone adds.
+ */
+const CORE = /^_Core_\.?\s*$/;
+
 /** The vocabulary lives under one heading; everything after it is commentary. */
 function languageSection(markdown) {
   const lines = markdown.split(/\r?\n/);
@@ -75,7 +85,14 @@ function parseTerms(lines) {
   for (const line of lines) {
     const heading = TERM.exec(line);
     if (heading) {
-      current = { term: heading[1].trim(), id: slug(heading[1]), definition: [], avoid: [], allowed: [] };
+      current = {
+        term: heading[1].trim(),
+        id: slug(heading[1]),
+        definition: [],
+        avoid: [],
+        allowed: [],
+        core: false,
+      };
       terms.push(current);
       continue;
     }
@@ -90,6 +107,11 @@ function parseTerms(lines) {
     const allowed = ALLOWED.exec(line);
     if (allowed) {
       current.allowed = splitList(allowed[1]);
+      continue;
+    }
+
+    if (CORE.test(line)) {
+      current.core = true;
       continue;
     }
 
@@ -163,13 +185,24 @@ export function collectGlossary() {
   const parsed = parseTerms(lines);
   const index = buildIndex(parsed);
 
+  /*
+   * A second rendering of every core definition, resolved against the core
+   * terms alone. The report shows that subset on a page of its own, and a
+   * cross-reference to a term the page does not carry would be an anchor
+   * pointing at nothing — so in this pass those references stay bold and stop
+   * claiming to be links.
+   */
+  const coreIndex = buildIndex(parsed.filter((term) => term.core));
+
   const terms = parsed.map((term) => ({
     id: term.id,
     term: term.term,
     definition: inline(term.definition.join(" "), index),
+    definitionCore: term.core ? inline(term.definition.join(" "), coreIndex) : "",
     plain: [term.term, term.definition.join(" "), ...term.avoid].join(" ").toLowerCase(),
     allowed: term.allowed,
     avoid: term.avoid,
+    core: term.core,
   }));
 
   return {
@@ -181,5 +214,6 @@ export function collectGlossary() {
     stray: rest.filter((line) => TERM.test(line)).length,
     undefinedTerms: terms.filter((term) => !term.definition).map((term) => term.term),
     withAvoid: terms.filter((term) => term.avoid.length > 0).length,
+    core: terms.filter((term) => term.core).length,
   };
 }

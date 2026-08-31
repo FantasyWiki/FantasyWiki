@@ -735,7 +735,7 @@
       "sell": "Ti vengono pagati i giorni che non hai usato, al prezzo di oggi. I giorni usati restano spesi.",
       "renewTitle": "Rinnova o lascialo andare",
       "renew": "L'ultimo giorno scegli tu. Se non fai nulla, il contratto si chiude. Rinnovare lo stesso articolo di fila costa il 10% in più ogni volta.",
-      "budget": "Inizi ogni lega con {credits} crediti e spazio per 11 articoli.",
+      "budget": "Inizi ogni lega con {credits} crediti e spazio per {contracts} articoli.",
       "free": "Gli articoli che non legge nessuno si firmano gratis, quindi restare senza crediti non è mai la fine della tua lega."
     },
     "replay": "Rivedi il tour",

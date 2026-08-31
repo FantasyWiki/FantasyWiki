@@ -77,13 +77,39 @@ export function setTtl(
  * The Wikimedia client consumes a transport-neutral `WikimediaHttp` contract;
  * this adapter converts fetch responses to that shape.
  *
- * @param fetchFn - Fetch implementation to use (native or injected).
+ * `fetchFn` is resolved per request, not captured: callers build a client once
+ * at module scope (`const client = createWikimediaClient()`), so binding the
+ * global here would freeze whichever `fetch` existed at import time and ignore
+ * any later replacement — which is exactly what a test's HTTP interception is.
+ *
+ * @param fetchFn - Fetch implementation to use; the global one when omitted.
+ * @param headers - Request headers every call carries, e.g. a User-Agent.
  * @returns Transport adapter exposing `get(url) -> { status, data }`.
  */
-function createFetchHttp(fetchFn: typeof fetch): WikimediaHttp {
+export function createFetchHttp(
+    fetchFn?: typeof fetch,
+    headers?: Record<string, string>,
+): WikimediaHttp {
+    // Reads `globalThis.fetch` when called, not when the client is built.
+    const send: typeof fetch =
+        fetchFn ?? ((...args) => globalThis.fetch(...args));
+
     return {
         async get<T>(url: string): Promise<{ status: number; data: T }> {
-            const response = await fetchFn(url);
+            // Called with one argument when there are no headers: `fetch(url)`
+            // and `fetch(url, undefined)` behave alike, but the injected
+            // `fetchFn` in tests is asserted on by call signature.
+            const response = headers
+                ? await send(url, { headers })
+                : await send(url);
+            // Only a 2xx body is ever read — `fetchJsonWithRetry` turns anything
+            // else into `HTTP <status>`, which is what decides whether the call
+            // is retried. Parsing an error body first would throw a SyntaxError
+            // on Wikimedia's HTML 403 page and lose that status, retrying a
+            // response the policy says never to retry.
+            if (response.status < 200 || response.status >= 300) {
+                return { status: response.status, data: undefined as T };
+            }
             const data = (await response.json()) as T;
             return { status: response.status, data };
         },
@@ -209,7 +235,7 @@ export type WikimediaClient = {
  */
 export function createWikimediaClient(options: WikimediaClientOptions = {}): WikimediaClient {
     const {
-        fetchFn = fetch,
+        fetchFn,
         cache = getDefaultCache(),
         maxFallbackDays = 2,
         retryCount = 2,

@@ -1,6 +1,6 @@
-import axios from "axios";
 import {
   createWikimediaClient as createSharedWikimediaClient,
+  createFetchHttp,
   type WikimediaClientOptions,
 } from "../../../external-apis/wikimedia/client";
 
@@ -15,25 +15,21 @@ import {
 const USER_AGENT =
   "FantasyWiki/1.0 (https://github.com/FantasyWiki/FantasyWiki)";
 
-function createAxiosHttp() {
-  return {
-    async get<T>(url: string): Promise<{ status: number; data: T }> {
-      const response = await axios.get<T>(url, {
-        validateStatus: () => true,
-        headers: {
-          "User-Agent": USER_AGENT,
-          "Api-User-Agent": USER_AGENT,
-        },
-      });
-      return { status: response.status, data: response.data };
-    },
-  };
-}
-
+// `fetch`, not a client library: the Worker runtime rejects the `cache: "default"`
+// that axios >=1.20 puts on the Request its fetch adapter builds, with
+// `TypeError: Unsupported cache mode: default`. Every pageview lookup threw,
+// and `resolveArticleViews` swallows a throw into undefined views, so contracts
+// stopped pricing with no error anywhere but the response.
 export function createWikimediaClient(options: WikimediaClientOptions = {}) {
   if (options.http || options.fetchFn) {
     return createSharedWikimediaClient(options);
   }
 
-  return createSharedWikimediaClient({ ...options, http: createAxiosHttp() });
+  return createSharedWikimediaClient({
+    ...options,
+    http: createFetchHttp(fetch, {
+      "User-Agent": USER_AGENT,
+      "Api-User-Agent": USER_AGENT,
+    }),
+  });
 }

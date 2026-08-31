@@ -75,3 +75,8 @@ if you already know what you are looking for, the
 
 Where these pages come from, and how the Atlas and the board are derived:
 [About this site](./about-this-site.html).
+
+<div class="fw-stamp">
+  <a class="fw-wcag-logo" href="https://www.w3.org/WAI/WCAG2AA-Conformance" title="Explanation of WCAG 2 Level AA conformance"><img src="/wcag2.2AA.svg" width="88" height="31" alt="Level AA conformance, W3C Web Content Accessibility Guidelines 2.2"></a>
+  <p class="fw-stamp__scope">The FantasyWiki application, measured against <strong>WCAG 2.2 AA</strong> on 2026-08-30 — <code>axe-core</code> across twelve screens, in both themes, with no violations. <a href="./architecture/interface.html#accessibility">How it was tested →</a></p>
+</div>

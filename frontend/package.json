@@ -42,7 +42,7 @@
     "@eslint/compat": "^2.0.3",
     "@eslint/js": "^10.0.1",
     "@intlify/eslint-plugin-vue-i18n": "^4.5.1",
-    "@pinia/testing": "^1.0.3",
+    "@pinia/testing": "^2.0.0",
     "@vitejs/plugin-legacy": "^7.2.1",
     "@vitejs/plugin-vue": "^6.0.3",
     "@vitest/coverage-v8": "^4.1.11",

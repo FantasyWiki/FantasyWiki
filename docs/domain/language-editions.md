@@ -15,7 +15,7 @@ assumptions:
 
 1. **May an edition host a league at all?** Only if its readership is spread
    thickly enough that a single scale factor is a fair way to compare its
-   articles — ADR 0002's *acceptance floor*.
+   articles, ADR 0002's *acceptance floor*.
 2. **What is that edition's Language Scale Factor?** The number that lifts its raw
    pageviews onto the `en` reference of 1.0, so one scoring curve and one synergy
    table serve every language.
@@ -28,8 +28,8 @@ measured, when, and which design choices the numbers forced.
 ## How the views are gathered, and why the aggregate is trustworthy
 
 `L` needs each edition's 30-day-average views for ranks 1..500. It reads **30
-daily `/top` lists and aggregates them per title** — about 31 requests per
-edition — because each daily response already carries view counts for up to
+daily `/top` lists and aggregates them per title**, about 31 requests per
+edition, because each daily response already carries view counts for up to
 1,000 titles. Nothing is fetched per article.
 
 Aggregating a list is not the same measurement as asking for a title's own
@@ -50,8 +50,8 @@ shortcut.
 ### Why the truncation does not bite
 
 A daily top list stops at ~1,000 titles, so a title that fell off it on some days
-contributes nothing for those days. The daily cutoff is not small — a median of
-**7,883 views/day** for `en` and **704** for `it` — and only 200 of `en`'s top 500
+contributes nothing for those days. The daily cutoff is not small, a median of
+**7,883 views/day** for `en` and **704** for `it`, and only 200 of `en`'s top 500
 window-ranked titles appear on all 30 days. So the undercount is real:
 
 | | median aggregated/true mean, top 500 |
@@ -64,16 +64,16 @@ formula is a **ratio at matched ranks**, so a ~3–5% undercount on each side le
 the median ratio within 0.1%. This is why `rankByAverageViews` divides by the
 window length rather than by the days a title appeared in: dividing by appearances
 would inflate the intermittent titles, and inflate them *more* on the edition whose
-list churns faster — turning a bias that cancels into one that does not.
+list churns faster, turning a bias that cancels into one that does not.
 
 ## The acceptance floor is counted per day, not over the window
 
 ADR 0002 states the floor as "≥300 ranks with ≥50 daily views". There are two ways
 to count that, and they disagree sharply:
 
-- **per-day** — on each day, how many titles in that day's list cleared 50 views;
+- **per-day**: on each day, how many titles in that day's list cleared 50 views;
   take the median across the window;
-- **window-mean** — rank every title by its 30-day mean, then count those ≥50.
+- **window-mean**: rank every title by its 30-day mean, then count those ≥50.
 
 The per-day basis is correct, and is also what the ADR itself measured (its `en`
 figure of 985 came from a single day's top-1000 list). Measured 2026-08-15 over 30
@@ -96,21 +96,21 @@ because that is where truncation bites hardest:
 | `la` Latin | 56k | 3 | 3 | fail |
 
 ADR 0002's four sampled failures (`ka`, `eu`, `gl`, `la`) still fail, and its two
-passes still pass — the floor has not changed meaning.
+passes still pass, the floor has not changed meaning.
 
 ### Why the picker is not pre-filtered
 
 The edition picker offers **every** live edition, and the floor is applied at
 league creation instead. Pre-filtering the list would mean measuring all ~348
-editions on a schedule — a scheduled job, a table of counts, and a staleness rule
-— to save a player from choosing one of the few dozen that will be refused
+editions on a schedule, a scheduled job, a table of counts, and a staleness rule,
+to save a player from choosing one of the few dozen that will be refused
 anyway. The refusal is cheap to make good (it names what the edition was short
 of) and the machinery is not, so the floor lives in exactly one place: the
 calibration that runs when a league is founded.
 
 The measurements below are what a pre-filter would need if the trade ever stops
 being worth it. A single day's top-read list is a good enough sample of the same
-metric to screen on — one request per edition rather than thirty — and the
+metric to screen on, one request per edition rather than thirty, and the
 verdicts it produces match the 30-day ones everywhere except right at the
 boundary (`ca` passes the single-day check on 5 of 29 days and fails the 30-day
 median).
@@ -120,7 +120,7 @@ median).
 `ca` is the case that settles it. Catalan Wikipedia serves **617k views/day, more
 than twice Bengali's 296k**, and it fails the floor while Bengali passes
 comfortably: its readership is spread so thin that only ~231 articles clear 50
-views/day (median daily cutoff: 22 views). Volume is not the test — distribution
+views/day (median daily cutoff: 22 views). Volume is not the test, distribution
 *shape* is, which is precisely the assumption ADR 0002's floor exists to check.
 
 So no aggregate-pageview threshold can separate acceptable editions from
@@ -131,7 +131,7 @@ misclassifies at least one.
 ## `L` drifts faster than "recalibrate annually" suggests
 
 ADR 0002 recorded `it = 13.9` from a rank-matched 2026-07-06 snapshot. Re-measured
-over the 30 days ending 2026-08-15 — by **both** routes, which agree to 0.1% — it
+over the 30 days ending 2026-08-15, by **both** routes, which agree to 0.1%, it
 is **≈11.5**. That is roughly **17% in six weeks**, about 0.4% a day, and it is
 drift in the ratio itself rather than a measurement disagreement.
 
@@ -162,7 +162,7 @@ not changed.
 
 Calibrating a never-played edition costs ~61 Wikimedia requests: its own 30-day
 window and the reference's. The reference series is deliberately **not** cached
-between calibrations, though ADR 0002 suggests it — a cache only pays off when two
+between calibrations, though ADR 0002 suggests it, a cache only pays off when two
 new editions are founded within days of each other, which is not how a game of
 private leagues among friends is used, and it costs a second table with its own
 staleness rule.
@@ -173,7 +173,7 @@ across months.
 
 ## Related
 
-- [ADR 0002: Language Scale Factor](../adr/0002-language-scale-factor.md) — the rules
-- [Scoring & Economy System](./scoring-system.md) §2 — where `L` enters scoring
-- [ADR 0005: Contract Pricing](../adr/0005-contract-pricing.md) — `L` enters price superlinearly
-- [Market List](../architecture/market-list.md) — where the frozen factor prices a shelf
+- [ADR 0002: Language Scale Factor](../adr/0002-language-scale-factor.md): the rules
+- [Scoring & Economy System](./scoring-system.md) §2: where `L` enters scoring
+- [ADR 0005: Contract Pricing](../adr/0005-contract-pricing.md): `L` enters price superlinearly
+- [Market List](../architecture/market-list.md): where the frozen factor prices a shelf

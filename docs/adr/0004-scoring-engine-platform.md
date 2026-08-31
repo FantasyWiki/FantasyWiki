@@ -6,8 +6,8 @@ tags: [scoring, platform, kotlin, gcp, github-actions, decision]
 
 # Daily scoring as a separate Kotlin/JVM batch service on Cloud Run Jobs
 
-> **Status (2026-08-30):** the *platform choice* recorded here — a separate Kotlin/JVM batch,
-> autonomous from the Worker, as the second target platform — holds and is what runs. Two
+> **Status (2026-08-30):** the *platform choice* recorded here, a separate Kotlin/JVM batch,
+> autonomous from the Worker, as the second target platform, holds and is what runs. Two
 > mechanisms in it were replaced during implementation and are **superseded**: the batch is
 > scheduled by **GitHub Actions**, not Cloud Run Jobs and Cloud Scheduler, and it delivers
 > **raw facts to the backend over `/internal/*`** rather than writing D1 directly over the REST
@@ -15,7 +15,7 @@ tags: [scoring, platform, kotlin, gcp, github-actions, decision]
 > `model/scoring.ts`. What runs, and why each substitution was made, is
 > [Nightly Scoring Pipeline](../architecture/scoring-pipeline.md).
 >
-> Everything below is the decision as it was taken, kept whole — the Worker-limits analysis and
+> Everything below is the decision as it was taken, kept whole, the Worker-limits analysis and
 > the Wikimedia rate budget are what justified moving the batch off Cloudflare at all, and both
 > still hold.
 
@@ -33,16 +33,16 @@ tags: [scoring, platform, kotlin, gcp, github-actions, decision]
 | Subrequests | **50** | raised, not unlimited | per-article fetch + D1 writes | [2] |
 | Requests/day | 100,000 | 10M/mo | **1** | [1] |
 
-→ Free tier is impossible (**10 ms CPU**); paid lifts CPU/subrequests but **not the 128 MB ceiling**, costs money, and a Worker is still V8 — the same platform as the frontend/backend, so it would add **no** second runtime. No Workers tier fixes it.
+→ Free tier is impossible (**10 ms CPU**); paid lifts CPU/subrequests but **not the 128 MB ceiling**, costs money, and a Worker is still V8, the same platform as the frontend/backend, so it would add **no** second runtime. No Workers tier fixes it.
 
 ## The chosen stack
 
 | Layer | Choice | Why | Source |
 |---|---|---|---|
-| **Runtime** | **Kotlin / JVM** | **First real compiled Gradle module** in the repo (today Gradle only shells out to `npm`); build is *already* `.kts`, so one language spans build script + module. First-class `kotlin-jvm` plugin; coroutines give the throttled per-article fan-out. | — |
+| **Runtime** | **Kotlin / JVM** | **First real compiled Gradle module** in the repo (today Gradle only shells out to `npm`); build is *already* `.kts`, so one language spans build script + module. First-class `kotlin-jvm` plugin; coroutines give the throttled per-article fan-out. |, |
 | **Hosting** | **Cloud Run Jobs + Cloud Scheduler** | Managed run-to-completion containers on managed scheduling (no cluster); zero-ops; free. JVM boot per run is in-quota and irrelevant for a non-latency-sensitive daily batch. | [5][6] |
-| **Pageviews** | **Per-article Analytics (AQS) API**, one range-request/article | A single request returns the whole 30-day daily history per article, so the **≤ ~6k** distinct contracted articles cost **~6k requests/day** — well inside a daily batch (see rate budget). Targeted, clean JSON, no bzip2/title-matching. **Pageview Complete dumps kept as the scale-out fallback** if the catalogue ever exceeds tens of thousands. | [3][4][8] |
-| **Chemistry links** | **D1-backed cache** (lazy + TTL) | Links are a tiny, slow-changing subgraph among contracted articles. Cache stores **both positive and negative** results with `checked_at`; populated lazily and refreshed when stale — no separate storage system. | — |
+| **Pageviews** | **Per-article Analytics (AQS) API**, one range-request/article | A single request returns the whole 30-day daily history per article, so the **≤ ~6k** distinct contracted articles cost **~6k requests/day**, well inside a daily batch (see rate budget). Targeted, clean JSON, no bzip2/title-matching. **Pageview Complete dumps kept as the scale-out fallback** if the catalogue ever exceeds tens of thousands. | [3][4][8] |
+| **Chemistry links** | **D1-backed cache** (lazy + TTL) | Links are a tiny, slow-changing subgraph among contracted articles. Cache stores **both positive and negative** results with `checked_at`; populated lazily and refreshed when stale, no separate storage system. |, |
 | **Shared state** | **D1 via REST API** | Single store the whole system reads/writes: contracts in; pageview history, link cache, scores, standings out. No dependency on the backend Worker's uptime. | [7] |
 
 ### Data sourcing & rate budget
@@ -54,18 +54,18 @@ Pageviews and links are fetched per-article, so the **Wikimedia rate limits**, n
 | Unauth, bare IP | 10 req/min | ~10 h ✗ | [3] |
 | **UA-compliant** | **200 req/min** | **~30 min ✓** | [3] |
 | Authenticated (token) | 2,000 req/min | ~3 min ✓ | [3] |
-| Concurrency (recommended) | ≤ 3 concurrent | — | [3] |
+| Concurrency (recommended) | ≤ 3 concurrent |, | [3] |
 
 → Run as an **authenticated, UA-compliant client at ≤3 concurrent**; ~6k requests is ~3–30 min of a batch that has all night. Realistic friends-scale sets are far smaller. Links follow the same budget but are cached, so steady-state fetches are only the new/stale subgraph.
 
 ### Authentication
 
-Authentication is **optional headroom, not a hard requirement** — a UA-compliant *unauthenticated* client already gets 200 req/min, enough for ~6k articles. Authenticating raises the ceiling to **2,000 req/min** and gives Wikimedia a contactable identity. The mechanics:
+Authentication is **optional headroom, not a hard requirement**, a UA-compliant *unauthenticated* client already gets 200 req/min, enough for ~6k articles. Authenticating raises the ceiling to **2,000 req/min** and gives Wikimedia a contactable identity. The mechanics:
 
-- **Flow — OAuth 2.0 *client credentials*** (non-interactive, server-to-server). Register at `Special:OAuthConsumerRegistration/propose/oauth2` on Meta-Wiki → obtain **client ID + secret** [9].
-- **Per run** — POST `grant_type=client_credentials` to `meta.wikimedia.org/w/rest.php/oauth2/access_token` for an access token (valid **4 h**, ≫ a run), then send `Authorization: Bearer <token>` + the mandatory contact-info `User-Agent` on every request [9].
-- **Secrets** — client ID + secret live in **GCP Secret Manager**, injected into the Job; never in the repo (same posture as the OIDC keyless CI).
-- **Caveat** — the 2,000/min tier requires an **established** account (≈ autoconfirmed: a few days old, ~10+ edits) [3]; a fresh authenticated account still gets only 200/min. Auth most clearly benefits the Action/REST **links** calls; whether it lifts the Analytics **pageviews** endpoint's own tier is unconfirmed (harmless either way).
+- **Flow: OAuth 2.0 *client credentials*** (non-interactive, server-to-server). Register at `Special:OAuthConsumerRegistration/propose/oauth2` on Meta-Wiki → obtain **client ID + secret** [9].
+- **Per run**: POST `grant_type=client_credentials` to `meta.wikimedia.org/w/rest.php/oauth2/access_token` for an access token (valid **4 h**, ≫ a run), then send `Authorization: Bearer <token>` + the mandatory contact-info `User-Agent` on every request [9].
+- **Secrets**: client ID + secret live in **GCP Secret Manager**, injected into the Job; never in the repo (same posture as the OIDC keyless CI).
+- **Caveat**: the 2,000/min tier requires an **established** account (≈ autoconfirmed: a few days old, ~10+ edits) [3]; a fresh authenticated account still gets only 200/min. Auth most clearly benefits the Action/REST **links** calls; whether it lifts the Analytics **pageviews** endpoint's own tier is unconfirmed (harmless either way).
 
 ## Free-tier headroom (why it stays free)
 
@@ -85,30 +85,30 @@ Workload sits at **<1%** of every relevant quota, and storage is one system (D1)
 - **Responsibilities:** scoring + standings only. Economy (credits/stipend/pricing/expiry) stays in the backend = single money writer. The engine only *produces* the Normalized-Views history the backend prices from.
 - **Scope:** per-league daily standings for **every** league (public play-immediately + private, scored identically) **plus the weekly tournament** (Mon snapshot, Sun settle). Monthly Power Tournament deferred.
 - **Interaction:** autonomous + stateless; D1 over REST.
-- **Storage — D1 only.** New engine tables: `article_pageviews` (raw + Normalized Views history), `article_links` (link cache incl. negatives, `checked_at`), `scores`, `standings`, and the weekly-tournament snapshot/standings tables. The container is stateless compute in between.
+- **Storage: D1 only.** New engine tables: `article_pageviews` (raw + Normalized Views history), `article_links` (link cache incl. negatives, `checked_at`), `scores`, `standings`, and the weekly-tournament snapshot/standings tables. The container is stateless compute in between.
 
 ## Consequences
 
-- **Two targets, unambiguously** — Kotlin/JVM differs from V8 on runtime *and* is the first compiled Gradle module; R4 met without a borderline reading, and the build-process story is strengthened.
+- **Two targets, unambiguously**: Kotlin/JVM differs from V8 on runtime *and* is the first compiled Gradle module; R4 met without a borderline reading, and the build-process story is strengthened.
 - **One storage system.** Folding the link cache and pageview history into D1 removes the separate object store an ephemeral-container design would otherwise need.
 - **Free** and effectively hard-cappable (killswitch); keyless CI via OIDC.
-- **Accepted cost:** no type-sharing with the TS DTOs — the engine re-declares the handful of D1 row shapes it touches as Kotlin data classes.
+- **Accepted cost:** no type-sharing with the TS DTOs: the engine re-declares the handful of D1 row shapes it touches as Kotlin data classes.
 - **Supersedes** the Requirements doc's §2/§4 daily-at-00:00 and global-tournament framing (see ADR 0001/0002, `docs/domain/scoring-system.md`); `docs/domain/fantawiki-requirements.md` is reconciled to match.
 
 ## Sources
 
-1. Cloudflare Workers — Pricing: https://developers.cloudflare.com/workers/platform/pricing/
-2. Cloudflare Workers — Limits: https://developers.cloudflare.com/workers/platform/limits/
-3. Wikimedia APIs — Rate limits: https://www.mediawiki.org/wiki/Wikimedia_APIs/Rate_limits
-4. Wikimedia — Pageview Complete dumps: https://dumps.wikimedia.org/other/pageview_complete/
-5. Google Cloud — Always Free features (Cloud Run, Cloud Storage): https://cloud.google.com/free/docs/free-cloud-features
-6. Google Cloud — Cloud Scheduler pricing: https://cloud.google.com/scheduler/pricing
-7. Cloudflare D1 — Limits: https://developers.cloudflare.com/d1/platform/limits/
-8. Wikimedia — Analytics (AQS) pageviews API: https://doc.wikimedia.org/analytics-api/
-9. Wikimedia APIs — Authentication (OAuth 2.0 client credentials): https://www.mediawiki.org/wiki/Wikimedia_APIs/Authentication
+1. Cloudflare Workers, Pricing: https://developers.cloudflare.com/workers/platform/pricing/
+2. Cloudflare Workers, Limits: https://developers.cloudflare.com/workers/platform/limits/
+3. Wikimedia APIs, Rate limits: https://www.mediawiki.org/wiki/Wikimedia_APIs/Rate_limits
+4. Wikimedia, Pageview Complete dumps: https://dumps.wikimedia.org/other/pageview_complete/
+5. Google Cloud, Always Free features (Cloud Run, Cloud Storage): https://cloud.google.com/free/docs/free-cloud-features
+6. Google Cloud, Cloud Scheduler pricing: https://cloud.google.com/scheduler/pricing
+7. Cloudflare D1, Limits: https://developers.cloudflare.com/d1/platform/limits/
+8. Wikimedia, Analytics (AQS) pageviews API: https://doc.wikimedia.org/analytics-api/
+9. Wikimedia APIs, Authentication (OAuth 2.0 client credentials): https://www.mediawiki.org/wiki/Wikimedia_APIs/Authentication
 
 ## Related
 
-- [Nightly Scoring Pipeline](../architecture/scoring-pipeline.md) — what was actually built; the **host** (GitHub Actions, not Cloud Run) and **delivery** (POST-through-backend, not direct D1 writes) decisions here were superseded, with the rationale recorded there
+- [Nightly Scoring Pipeline](../architecture/scoring-pipeline.md): what was actually built; the **host** (GitHub Actions, not Cloud Run) and **delivery** (POST-through-backend, not direct D1 writes) decisions here were superseded, with the rationale recorded there
 - [Scoring & Economy System](../domain/scoring-system.md)
 - [Deploy Strategy & Branch Policy](../deployment/deploy-strategy.md)

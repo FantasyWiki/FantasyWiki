@@ -26,18 +26,18 @@ Every document, and every link between them, drawn from the markdown itself.
 
 <DocsAtlas />
 
-- **A dot is a document** — coloured by its section, sized by how many links
+- **A dot is a document**: coloured by its section, sized by how many links
   touch it, so the hubs are visibly the hubs.
 - **A solid line is a curated edge**, taken from a document's closing
   `## Related` list. A dashed one is a reference made in passing, mid-sentence.
   Both count; they do not mean the same thing.
-- **A dot with no lines is a finding** — a rule that was written down and then
+- **A dot with no lines is a finding**: a rule that was written down and then
   orphaned, which is the failure a folder of markdown cannot show you.
 
 ## Coverage
 
 Three packages, three test runners, three report formats, read from the reports
-the runs on `master` actually wrote — not from a badge, and not from a number
+the runs on `master` actually wrote, not from a badge, and not from a number
 typed into a page.
 
 <CoverageBoard />
@@ -54,7 +54,7 @@ Wikimedia response parsing that carries most of its risk.
 ## The API
 
 Every endpoint the Worker serves, counted out of the specification that
-describes it — not from a list anybody maintains.
+describes it, not from a list anybody maintains.
 
 <ApiBoard />
 
@@ -78,5 +78,5 @@ Where these pages come from, and how the Atlas and the board are derived:
 
 <div class="fw-stamp">
   <a class="fw-wcag-logo" href="https://www.w3.org/WAI/WCAG2AA-Conformance" title="Explanation of WCAG 2 Level AA conformance"><img src="/wcag2.2AA.svg" width="88" height="31" alt="Level AA conformance, W3C Web Content Accessibility Guidelines 2.2"></a>
-  <p class="fw-stamp__scope">The FantasyWiki application, measured against <strong>WCAG 2.2 AA</strong> on 2026-08-30 — <code>axe-core</code> across twelve screens, in both themes, with no violations. <a href="./architecture/interface.html#accessibility">How it was tested →</a></p>
+  <p class="fw-stamp__scope">The FantasyWiki application, measured against <strong>WCAG 2.2 AA</strong> on 2026-08-30, <code>axe-core</code> across twelve screens, in both themes, with no violations. <a href="./architecture/interface.html#accessibility">How it was tested →</a></p>
 </div>

@@ -12,7 +12,7 @@ tags: [llm, market, discovery, chemistry, cloudflare, decision]
 > *What implementation changed* below.
 
 The **Article Genie** is the LLM-assisted discovery feature on the market page. This ADR records
-what it is, the two player intents it serves, and — most importantly — the alternatives that were
+what it is, the two player intents it serves, and, most importantly, the alternatives that were
 tried and rejected with measurements rather than argument. The measurements are real: the model,
 the narrowing loop, the seeding queries, and the trending-article case were all probed live before
 this decision was locked (see *Provider and model*).
@@ -30,7 +30,7 @@ It serves two player intents through **one input box and one pipeline**:
 | **Chemistry scouting** | *"find me a relation between OpenAI and Portugal"* | `linksto:` search + outbound-link intersection |
 | **Tip-of-the-tongue recall** | *"the female mathematician who worked at NASA"* | plain keyword search |
 
-Both searches always run and their results are merged — see *Union seeding* below.
+Both searches always run and their results are merged, see *Union seeding* below.
 
 ## Why narrowing beats generating
 
@@ -56,7 +56,7 @@ The parse call always emits a keyword query, and *additionally* emits anchors wh
 Routing to a single mode was rejected because a misparse is silent and unrecoverable: *"the
 Portuguese explorer who reached India"* misread as an anchor query would drop Vasco da Gama from
 the candidate list entirely, and the player would see only a Genie that failed. With union
-seeding a misparse can only *add* surplus candidates — which the narrowing loop already exists to
+seeding a misparse can only *add* surplus candidates, which the narrowing loop already exists to
 strip.
 
 ## Both link directions are candidates
@@ -65,13 +65,13 @@ A **Chemistry Link** is GOOD when a link exists in *either* direction (see
 [Chemistry Links](../domain/chemistry-links.md)), so the candidate space for anchors A and B is
 `(linksto:A ∪ outbound(A)) ∩ (linksto:B ∪ outbound(B))`. In practice two cheap sets:
 
-- **S1** — `linksto:A linksto:B`, one search call, ≤100 results
-- **S2** — `outbound(A) ∩ outbound(B)`, from link sets the client already caches
+- **S1**: `linksto:A linksto:B`, one search call, ≤100 results
+- **S2**: `outbound(A) ∩ outbound(B)`, from link sets the client already caches
 
 **Outbound-only intersection was tried first and is insufficient alone.** Measured on the
 flagship query, `outbound(Portugal) ∩ outbound(OpenAI)` returns 9 items, 7 of which are
 citation-identifier redirects (ArXiv, Bibcode, Doi, ISSN, OCLC, PMID) plus Austria and
-Switzerland — nothing a player would want. The interesting relations run the other way: articles
+Switzerland, nothing a player would want. The interesting relations run the other way: articles
 that link *to* both anchors. CirrusSearch's `linksto:` operator [1] supplies exactly that in a
 single call, and the REST endpoint the Wikimedia Client already uses accepts it (verified
 identical to the Action API).
@@ -93,7 +93,7 @@ ordered by **(mutual links desc, price asc)** and let to compete. Measured for P
 | **Artificial intelligence arms race** | GOOD | **EXCELLENT** | **126** |
 
 *Artificial intelligence arms race* carries the same chemistry as *Google* at 1/200th the
-traffic — and therefore a small fraction of the [Contract Price](../domain/scoring-system.md).
+traffic, and therefore a small fraction of the [Contract Price](../domain/scoring-system.md).
 Ranking surfaces it without any hand-tuned notion of "interesting".
 
 Note that **no candidate achieves EXCELLENT with both anchors.** Mutual links with two unrelated
@@ -105,16 +105,16 @@ optimum, and the UI should not promise otherwise.
 | Option | Verdict |
 |---|---|
 | **Cloudflare Workers AI** | **Chosen.** Native binding, no API keys, no CI/preview secrets, first-party free tier |
-| Workers AI + Groq/Gemini fallback | Rejected — doubles capacity but adds secrets to two environments and a second set of rate-limit semantics |
-| `freellmapi` self-hosted proxy | Rejected — a separate service to host, up to 28 upstream accounts to hold, and its own README scopes it to "personal experimentation only" |
+| Workers AI + Groq/Gemini fallback | Rejected, doubles capacity but adds secrets to two environments and a second set of rate-limit semantics |
+| `freellmapi` self-hosted proxy | Rejected, a separate service to host, up to 28 upstream accounts to hold, and its own README scopes it to "personal experimentation only" |
 
 On the **Workers Free** plan the 10,000 neurons/day allocation is a hard ceiling: further calls
-fail with an error [2][3]. That is a feature, not a limitation — it makes overspend structurally
+fail with an error [2][3]. That is a feature, not a limitation, it makes overspend structurally
 impossible and turns quota exhaustion into a single `catch`, surfaced to the player as *"the genie
 is asleep"*. On Workers Paid the same allocation would silently bill at $0.011/1,000 neurons, so
 the Free plan is the safer host for this feature.
 
-### Model choice — measured, not assumed
+### Model choice, measured, not assumed
 
 Model: **`@cf/mistralai/mistral-small-3.1-24b-instruct`**, with the candidate list capped at ~40.
 This was chosen by running the actual multi-turn interrogation against three model sizes on the
@@ -123,21 +123,21 @@ surviving subset forward each turn, tracking whether the correct answer survives
 
 | Model | Correct answer survived all 5 turns | neurons/session | sessions/day (free 10k) |
 |---|---|---|---|
-| `llama-3.1-8b-instruct-fp8-fast` | 2/3 — **loses the answer** | ~22 | ~450 |
+| `llama-3.1-8b-instruct-fp8-fast` | 2/3, **loses the answer** | ~22 | ~450 |
 | **`mistral-small-3.1-24b-instruct`** | **40/40** | **~77** | **~130** |
 | `llama-3.3-70b-instruct-fp8-fast` | 8/8 | ~102 | ~98 |
 
-The 8B model — the obvious "cheap" pick — cannot hold the loop: per-turn recall of ~92% compounds
+The 8B model, the obvious "cheap" pick, cannot hold the loop: per-turn recall of ~92% compounds
 to losing the correct article in roughly a third of sessions over five turns. 24B is both more
 reliable *and* cheaper than 70B, so it is the sweet spot; there is no reason to pay for 70B. JSON
 output is reliable by prompting alone (Workers AI pre-parses the response when the content is pure
-JSON), so JSON-mode-capable models — which cost 3.3x more input for a guarantee Cloudflare declines
-to make [4] — are not needed. Gemini's free tier was considered as a stronger host but rejected for
+JSON), so JSON-mode-capable models, which cost 3.3x more input for a guarantee Cloudflare declines
+to make [4], are not needed. Gemini's free tier was considered as a stronger host but rejected for
 now: it reintroduces an API key as a secret in production *and* preview/CI and a second provider's
 rate-limit semantics. The `llmClient` seam (see the architecture doc) leaves it as a drop-in future
 fallback.
 
-### Descriptions are mandatory — this is what makes the game's trending articles work
+### Descriptions are mandatory, this is what makes the game's trending articles work
 
 The game trades on Wikipedia top-read, which is dominated by articles that **postdate the model's
 training cutoff** (a 2026 prime minister, a 2026 film, a footballer who debuted last season). The
@@ -160,7 +160,7 @@ Two points this ADR stated at the level of intent turned out to need a decision 
 preserve the properties the ADR was protecting; neither changes what the player sees.
 
 **Reading the query is its own call, so there are two routes, not one.** Seeding needs the anchors
-a query names, and a turn is defined over a candidate list — so the parse cannot be part of the
+a query names, and a turn is defined over a candidate list, so the parse cannot be part of the
 first turn, because there is no list until the parse has happened. Folding it in anyway would mean
 seeding a chemistry query on keywords alone, which for *"find me a relation between OpenAI and
 Portugal"* returns articles *about* OpenAI and has the Genie open with a question about the wrong
@@ -171,16 +171,16 @@ mattered is intact: each call is one model call, one subrequest, no D1, no migra
 ranks by `(mutual links desc, price asc)`, which reads as if price is known during the loop. It is
 not affordable there: pricing costs one 365-day pageview request per article and the Wikimedia
 client caches those only as part of a whole search result, so pricing ~40 candidates would mean ~40
-requests before the Genie's first word — for figures all but five of them never show. The loop
+requests before the Genie's first word, for figures all but five of them never show. The loop
 therefore ranks on mutual links, and the specified `(mutual links, price)` ordering is applied to
-the survivors, where price exists and there are at most five of them. What the player sees — the
-cheap, well-connected find above the expensive obvious one — is unchanged.
+the survivors, where price exists and there are at most five of them. What the player sees, the
+cheap, well-connected find above the expensive obvious one, is unchanged.
 
 **Anchors are not limited to two.** The measurements here concern a pair, but nothing in the
 pipeline is written for one: `linksto:` terms are conjoined and the outbound sets intersected over
 however many anchors a query names, and a candidate is ranked by how many of them it links mutually
-with. A cap of three exists only so a pathological query cannot fan out without bound — each anchor
-costs one paginated link fetch — and hitting it narrows the seed rather than emptying it, because
+with. A cap of three exists only so a pathological query cannot fan out without bound, each anchor
+costs one paginated link fetch, and hitting it narrows the seed rather than emptying it, because
 the keyword search always runs alongside. Yield does collapse past two, as the measurements below
 predict.
 
@@ -189,20 +189,20 @@ predict.
 - **The Genie is additive.** Its output is a title handed to the existing market search path, so
   pricing, ownership badges, and the buy flow are untouched.
 - **Two thin routes, no schema change.** `POST /api/me/genie-seeds` and `POST /api/me/genie-turns`
-  each call the AI binding and nothing else — one subrequest, no D1, no migration (see *What
+  each call the AI binding and nothing else, one subrequest, no D1, no migration (see *What
   implementation changed* for why reading the query is its own call). All Wikimedia work stays in
   the browser, where the client's 7-day cache lives and neither the 50-subrequest nor the 10 ms CPU
   limit applies [3].
 - **The AI binding cannot be tested locally.** Workers AI has no local simulator, so declaring it
   makes `@cloudflare/vitest-pool-workers` open a remote proxy session and require a
   `CLOUDFLARE_API_TOKEN`. CI runs `./gradlew check` with no Cloudflare credentials, so the binding
-  is omitted from the `test` environment in `wrangler.jsonc` and the tests supply their own stub —
+  is omitted from the `test` environment in `wrangler.jsonc` and the tests supply their own stub,
   which they must do regardless, or they would spend real neurons.
 - **Classification error replaces hallucination as the failure mode.** The model wrongly deciding
   a surviving title does not match an answer silently deletes the right article. This is why model
   choice was settled empirically rather than by cost: 8B fails here, 24B does not. Further
   mitigations are specified in [Article Genie LLM Integration](../architecture/article-genie-llm.md).
-- **Capacity is bounded and modest** — ~130 sessions/day across all players on the free tier
+- **Capacity is bounded and modest**: ~130 sessions/day across all players on the free tier
   (~77 neurons each). Ample at friends-scale; the "genie is asleep" popup absorbs any overflow,
   and Gemini behind the `llmClient` seam is the escape hatch if a larger player base ever needs it.
 - **Surfaced an existing bug.** Link lists contain redirect titles (`"ArXiv (identifier)"`) while
@@ -211,10 +211,10 @@ predict.
 
 ## Sources
 
-1. MediaWiki — CirrusSearch `linksto:` and other search keywords: https://www.mediawiki.org/wiki/Help:CirrusSearch
-2. Cloudflare Workers AI — Pricing and free allocation: https://developers.cloudflare.com/workers-ai/platform/pricing/
-3. Cloudflare Workers — Limits (subrequests, CPU, per plan): https://developers.cloudflare.com/workers/platform/limits/
-4. Cloudflare Workers AI — JSON Mode: https://developers.cloudflare.com/workers-ai/features/json-mode/
+1. MediaWiki, CirrusSearch `linksto:` and other search keywords: https://www.mediawiki.org/wiki/Help:CirrusSearch
+2. Cloudflare Workers AI, Pricing and free allocation: https://developers.cloudflare.com/workers-ai/platform/pricing/
+3. Cloudflare Workers, Limits (subrequests, CPU, per plan): https://developers.cloudflare.com/workers/platform/limits/
+4. Cloudflare Workers AI, JSON Mode: https://developers.cloudflare.com/workers-ai/features/json-mode/
 
 ## Related
 

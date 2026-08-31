@@ -20,7 +20,7 @@ link topology, and the same two articles may be linked under one schema and
 unlinked under another.
 
 This is the FUT-style adjacency model. Chemistry is **only** evaluated between
-schema-adjacent positions — never between every pair of owned articles.
+schema-adjacent positions, never between every pair of owned articles.
 
 ## Chemistry Level
 
@@ -34,7 +34,7 @@ Each link carries a **Chemistry Level**, a four-step rating:
 | **Empty** | At least one of the two positions is unfilled |
 
 The level is derived from the **Wikimedia article links** of the two placed
-articles — an article's outbound links are the raw material for chemistry.
+articles, an article's outbound links are the raw material for chemistry.
 
 ## Scoring contribution
 
@@ -56,7 +56,7 @@ These values are canonical in [the scoring system](./scoring-system.md) §4 and
 encoded as `CHEMISTRY_POINTS_BY_LEVEL` in `model/enums.ts`.
 
 The additive form was chosen over a multiplier because it favors low-traffic
-articles proportionally and preserves the formation-placement puzzle — a
+articles proportionally and preserves the formation-placement puzzle, a
 multiplier would scale with an article's own popularity, rewarding the already
 strong. See `CONTEXT.md` "Open questions resolved".
 
@@ -64,8 +64,7 @@ strong. See `CONTEXT.md` "Open questions resolved".
 
 - A **Formation Schema** defines both its **Positions** and its **Chemistry Links**.
 - A **Chemistry Link** connects exactly two **Positions**.
-- A **Formation** carries a **Chemistry Level** for every link in its schema —
-  including `Empty` ones, so the link list is always the full schema topology.
+- A **Formation** carries a **Chemistry Level** for every link in its schema: including `Empty` ones, so the link list is always the full schema topology.
 
 ## Related
 

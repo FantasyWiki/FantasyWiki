@@ -11,14 +11,14 @@ related:
 ## Backend Testing
 
 Every backend test runs in the Workers pool, against a real database. What separates the tiers is
-not how much of the stack they exercise — it is **which layer they are allowed to name**.
+not how much of the stack they exercise, it is **which layer they are allowed to name**.
 
 The rule, and the reason for all of it: the persistence target must be replaceable. A second
 implementation of the repository interfaces should be able to run this suite unchanged and have it
 mean the same thing. So a test may name D1 only where D1 is the subject.
 
-That second implementation exists — MongoDB, see
-[Persistence Targets](../architecture/persistence-targets.md) — so this is no longer a promise the
+That second implementation exists, MongoDB, see
+[Persistence Targets](../architecture/persistence-targets.md): so this is no longer a promise the
 suite makes about a hypothetical target. Both runs are the same files, and `./gradlew check` runs
 both:
 
@@ -53,7 +53,7 @@ questions to put to another store, so the Mongo run skips them. The **password t
 *build*: only `src/indexPassword.ts` mounts username/password sign-in and the deployed Worker does
 not contain it at all, so only the Mongo run has anything to run
 ([Auth Modes](../architecture/auth-modes.md)). It is named for the feature rather than the target
-for that reason — and a file of that tier named `*.spec.ts` or `*.integration.test.ts` would be
+for that reason, and a file of that tier named `*.spec.ts` or `*.integration.test.ts` would be
 collected by the D1 run too, and fail there.
 
 ### The seam
@@ -70,10 +70,10 @@ export const store = (): TestStore =>
 ```
 
 Everything above it takes `Repositories` and `TestStore`. Which target it is comes from the same
-`PERSISTENCE` binding production reads, through the same `repositoriesFor` — so the suite cannot be
+`PERSISTENCE` binding production reads, through the same `repositoriesFor`, so the suite cannot be
 pointed at a combination a deployment could not also be.
 
-`TestStore` is the test-only residue — what the repository interfaces cannot express. It has exactly
+`TestStore` is the test-only residue, what the repository interfaces cannot express. It has exactly
 one method, `reset()`, and it should stay that way: anything a production repository can already do
 belongs there instead. `src/tests/setup.ts` calls it before every test.
 
@@ -82,11 +82,11 @@ belongs there instead. `src/tests/setup.ts` calls it before every test.
 Through the interfaces, never with SQL, and never with defaults. `src/tests/support/subjects.ts`
 holds the helpers:
 
-- `aPlayer()`, `aTeamIn(leagueId)` — subjects whose only relevant property is that they exist and
+- `aPlayer()`, `aTeamIn(leagueId)`: subjects whose only relevant property is that they exist and
   are distinct.
-- `aLeague(league, foundingTeamName)` — takes `NewLeague` whole and calls
+- `aLeague(league, foundingTeamName)`: takes `NewLeague` whole and calls
   `createWithFoundingTeam`, so a test says everything the production caller says.
-- `anotherLeague()` — a league with nothing distinctive about it, for tests whose only requirement
+- `anotherLeague()`: a league with nothing distinctive about it, for tests whose only requirement
   is that it is *not* the league under test. It takes no arguments precisely because such a test has
   no requirements to state.
 - `creditsOf(team)`, `unique(prefix)`.
@@ -94,7 +94,7 @@ holds the helpers:
 Nothing here fills in a name, an edition or a visibility. Those are the things the tests are *about*,
 so a helper that defaulted them would decide the fixture on the test's behalf, and a test could pass
 or fail on a value it never named. Where a file needs several leagues that vary in the same few ways,
-it defines its own local seeder whose parameters are exactly those ways — all required.
+it defines its own local seeder whose parameters are exactly those ways, all required.
 
 Two consequences of going through the production write path:
 
@@ -109,7 +109,7 @@ Ask what would have to change for the test to fail.
 
 - A rule about the answer a caller gets → **conformance**, if a repository alone can be asked for
   it; **integration**, if reaching the answer needs a service.
-- A fact about D1 — an inlined literal in a view, a `NOT NULL` that provokes a rollback, an empty
+- A fact about D1: an inlined literal in a view, a `NOT NULL` that provokes a rollback, an empty
   `IN ()`, a driver that throws → **the D1 tier**. State in the file's docstring why another target
   could not be asked the same question.
 - A state no production write can produce → **neither**. A test that has to fabricate its subject is
@@ -119,7 +119,7 @@ Ask what would have to change for the test to fail.
 ### Wikimedia
 
 Never the real client. `src/tests/support/wikimedia.ts` has `wikimediaWithAvg`,
-`wikimediaWithArticleViews` and `unusedWikimedia()` — the last a proxy that throws on any property
+`wikimediaWithArticleViews` and `unusedWikimedia()`, the last a proxy that throws on any property
 read, so a test that claims not to need the network fails loudly if that stops being true. The client
 is injected through the constructor because `vi.mock` silently no-ops under the Workers pool: a
 client reached through the module graph would be unmockable and every test would hit Wikimedia for
@@ -129,8 +129,8 @@ real.
 
 `D1TestStore.reset()` drops the schema and replays the migrations, rather than deleting from a
 hand-maintained table list. Two reasons: a migration that adds a table needs no change here, and the
-baseline every test starts from is the migrations' own — including the Global League seeded by
-`0002_seed_global_league` — so it cannot drift from production's. It costs ~13ms per test, which was
+baseline every test starts from is the migrations' own, including the Global League seeded by
+`0002_seed_global_league`, so it cannot drift from production's. It costs ~13ms per test, which was
 measured rather than assumed.
 
 `MongoTestStore.reset()` empties every collection and re-seeds, rather than dropping the database.
@@ -141,8 +141,8 @@ the suite is judging.
 
 ### Running the Mongo suite
 
-`npm run testmongo` needs nothing installed. It starts its own single-node **replica set** —
-`mongodb-memory-server-core`, from `vitest.shared.ts` — and `vitest.globalSetup.ts` stops it when the
+`npm run testmongo` needs nothing installed. It starts its own single-node **replica set**,
+`mongodb-memory-server-core`, from `vitest.shared.ts`, and `vitest.globalSetup.ts` stops it when the
 run ends. A replica set rather than a plain `mongod` because the guarded writes are transactions
 ([Persistence Targets](../architecture/persistence-targets.md)).
 
@@ -150,8 +150,8 @@ That is why `./gradlew check` can depend on it, and why it does: a check that on
 machines where someone remembered to `docker run` first is a check that will quietly stop being run.
 
 The first such run downloads a ~220MB `mongod` into `backend/.cache/mongodb` (gitignored). The
-`-core` package is deliberate — the default one downloads it in a `postinstall`, whether or not
-anything will use it — and the directory is outside `node_modules` so `npm ci` does not throw it
+`-core` package is deliberate, the default one downloads it in a `postinstall`, whether or not
+anything will use it, and the directory is outside `node_modules` so `npm ci` does not throw it
 away.
 
 `MONGO_URL` points the suite at a server you already have, and skips starting one:
@@ -178,7 +178,7 @@ request.
 
 The suite is written as if each file owned the store: `reset()` empties everything before every
 test, and ids only have to be unique within a file. The D1 pool makes that true for free, handing
-every file its own database. One MongoDB server does not — so the Mongo run names a database after
+every file its own database. One MongoDB server does not, so the Mongo run names a database after
 the file, `fantasywiki_test_<hash of path>`, and the files run in parallel exactly as D1's do.
 Hashed because a database name may not contain `/` and stops at 63 bytes, and stable across runs so
 a suite leaves the same handful of databases behind rather than a fresh set each time.
@@ -188,7 +188,7 @@ around, because the seam is not the only reader: `tests/routes/internal.integrat
 the wired app, whose middleware calls `repositoriesFor(c.env)`, and the settlement Workflow test
 calls `repositoriesFor(this.env)` itself. All three have to reach the same database, and `env` is
 the only thing they share. Passing it any other way makes exactly those two files fail while the
-other 43 pass — which is how this was found.
+other 43 pass, which is how this was found.
 
 Before this, the run was serialized (`fileParallelism: false`) and 45 files' worth of isolate
 startup could not overlap. Measured on one machine, same commit: **272s serialized, 130s in
@@ -200,4 +200,4 @@ parallel**.
 - [OpenAPI Spec](../agents/openapi-spec.md)
 - [Persistence Targets](../architecture/persistence-targets.md)
 - [ADR 0007: Derived Team Credits](../adr/0007-derived-team-credits.md)
-- [Frontend Testing](./frontend-testing.md) — the looser suite, and why it is looser
+- [Frontend Testing](./frontend-testing.md): the looser suite, and why it is looser

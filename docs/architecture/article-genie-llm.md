@@ -7,8 +7,8 @@ tags: [llm, workers-ai, cloudflare, seam, testing, quota]
 # Article Genie LLM Integration
 
 How the **Article Genie** talks to a language model: the seam, the turn protocol, the prompt
-contract, and what happens when the daily quota runs out. The *decision* behind this feature —
-and the alternatives rejected — lives in [ADR 0006](../adr/0006-article-genie.md); this document
+contract, and what happens when the daily quota runs out. The *decision* behind this feature,
+and the alternatives rejected, lives in [ADR 0006](../adr/0006-article-genie.md); this document
 describes the mechanism.
 
 ## Scope: the Worker does exactly one thing
@@ -23,8 +23,8 @@ BROWSER  (useGenie composable)
   parse   POST /api/me/genie-seeds { query }
           ← { keywords, anchors: [...] }
   seed    S1 = searchTitles("linksto:A linksto:B"), title + description
-          S2 = searchTitles(keywords)              — always, never routed away
-          S3 = outbound(A) ∩ outbound(B)           — from the cached link sets
+          S2 = searchTitles(keywords)             , always, never routed away
+          S3 = outbound(A) ∩ outbound(B)          , from the cached link sets
           merge + dedupe, rank by mutual links, cap 40
   loop    POST /api/me/genie-turns { query, history, candidates, bucket }
           ← { utterance, keep: [ids], options, kind, done }
@@ -36,9 +36,9 @@ WORKER   (two routes, one model call each)
   one subrequest · no D1 · no migration
 ```
 
-**Why parsing is its own call.** A turn is defined over the **Candidate Set** — the bounded list of
+**Why parsing is its own call.** A turn is defined over the **Candidate Set**, the bounded list of
 real titles the Genie narrows, seeded from search and, where the player named anchors, from
-articles linked with them — and there is no Candidate Set until the query has been read — so the parse cannot ride along with the first turn. Seeding on
+articles linked with them, and there is no Candidate Set until the query has been read, so the parse cannot ride along with the first turn. Seeding on
 keywords alone instead would have the Genie open with a question about articles *describing* OpenAI
 rather than ones relating it to Portugal.
 
@@ -49,7 +49,7 @@ would be ~40 requests before the first question, for figures that all but five o
 The loop ranks on link structure; `(mutual links, price)` is applied at `finish`, over at most five
 articles.
 
-The model id and the ~40 cap are not arbitrary — both were fixed by live testing; see
+The model id and the ~40 cap are not arbitrary, both were fixed by live testing; see
 [ADR 0006 → Provider and model](../adr/0006-article-genie.md). The 8B model that a cost-first
 reading would pick **cannot hold the loop** (it loses the correct answer ~1 session in 3); 24B
 survives 40/40 at ~77 neurons.
@@ -71,7 +71,7 @@ export class ArticleGenieService {
 ```
 
 Injection is not stylistic here. Under `@cloudflare/vitest-pool-workers`, **`vi.mock` silently
-no-ops** — a mocked module resolves to the real one without an error, so a test that appears to
+no-ops**, a mocked module resolves to the real one without an error, so a test that appears to
 stub the model would quietly spend real neurons and assert against real output. The constructor
 parameter is the only reliable substitution point.
 
@@ -83,7 +83,7 @@ type LlmClient = { ask(messages: Message[]): Promise<string> };
 
 ## Turn protocol
 
-`POST /api/me/genie-turns` — self-scoped, identity from the JWT, no `playerId` from the client
+`POST /api/me/genie-turns`, self-scoped, identity from the JWT, no `playerId` from the client
 (see [API Naming Rules](../development/api-naming-rules.md)).
 
 **Request**
@@ -91,9 +91,9 @@ type LlmClient = { ask(messages: Message[]): Promise<string> };
 | Field | Notes |
 |---|---|
 | `query` | opening free text, first turn only; clamped to ~200 chars |
-| `history` | prior `{question, answer}` pairs — **questions only, never the flavour text** |
-| `candidates` | `{id, title, description}[]`, ids are small integers assigned by the client. **The description is mandatory** — see *Descriptions carry recency* |
-| `bucket` | a word, not a number — see *Progress without numbers* |
+| `history` | prior `{question, answer}` pairs, **questions only, never the flavour text** |
+| `candidates` | `{id, title, description}[]`, ids are small integers assigned by the client. **The description is mandatory**, see *Descriptions carry recency* |
+| `bucket` | a word, not a number, see *Progress without numbers* |
 
 **Response**
 
@@ -102,7 +102,7 @@ type LlmClient = { ask(messages: Message[]): Promise<string> };
 | `utterance` | one sentence: flavour plus the next question |
 | `keep` | numeric ids that survive; **numbers, not titles** |
 | `options` | the taps offered for this question; the client adds its own "not sure" |
-| `kind` | `filter` or `preference` — a safety boundary, enforced server-side |
+| `kind` | `filter` or `preference`, a safety boundary, enforced server-side |
 | `done` | model signals it is confident enough to stop |
 
 **What the backend enforces rather than asks for.** Everything the model can get wrong is corrected
@@ -112,29 +112,29 @@ against the request it was answering, because a prompt is a request and these ar
 - `kind: "preference"` keeps every id, so such a question can only ever re-rank;
 - an `unsure` answer keeps every id, so a question the player could not answer never costs them the
   article;
-- a turn that would empty the set restores it — one wasted question beats a session ending with
+- a turn that would empty the set restores it: one wasted question beats a session ending with
   nothing;
 - a question already in the history earns one corrective retry, and if the model repeats itself
   again the turn is forced to `done`. A set already split on an answer cannot split on it twice, so
-  a repeat is always a wasted question — and the player, who sees the same sentence twice, reads it
+  a repeat is always a wasted question, and the player, who sees the same sentence twice, reads it
   as the Genie being stuck. Comparison is on the question rather than the utterance, since the
   flavour is display-only and never returns in the history; in practice a repeated question is what
   makes the repeated sentence.
 
-The session is **stateless** — the client carries the history. This is safe because resetting the
+The session is **stateless**, the client carries the history. This is safe because resetting the
 history is equivalent to starting a new game, which is already free; the abuse control is the
 rate limiter, not the protocol.
 
 **Numeric ids are load-bearing for cost.** Output tokens cost far more than input, and the
 survivor list is returned every turn. Returning ids (~2 tokens each) rather than full titles
-(~6 tokens) roughly halves session cost — the difference between the chosen design and one that
+(~6 tokens) roughly halves session cost, the difference between the chosen design and one that
 echoes titles back.
 
 ## Descriptions carry recency
 
 The candidate listing sent to the model **must** include each article's one-line description, not
 just its title. The game trades on trending articles, which are mostly newer than the model's
-training cutoff — it cannot know a 2026 prime minister or a last-season footballer by name. It does
+training cutoff, it cannot know a 2026 prime minister or a last-season footballer by name. It does
 not need to: it classifies from the description. Measured on the real current top-read set, single
 turn "is it a person?": with descriptions the model keeps 100% of the people and drops 100% of the
 non-people; **titles only drops to 84.6% recall**, silently losing people it has never heard of. A
@@ -149,7 +149,7 @@ The model may ask either kind, and the distinction is a safety boundary:
 
 | Kind | Example | Effect | Can lose the answer? |
 |---|---|---|---|
-| **Filter** | *"Is it a person?"* | partitions the list | **Yes** — see Risks |
+| **Filter** | *"Is it a person?"* | partitions the list | **Yes**, see Risks |
 | **Preference** | *"Something niche, or something famous?"* | re-ranks only, drops nothing | No |
 
 Preference questions are strictly safe and map directly onto the price axis players care about,
@@ -172,17 +172,17 @@ keeping per-turn cost and the model's attention load low.
 
 ## Progress without numbers
 
-The player must never see a raw candidate count — it reads as debug output and breaks character.
+The player must never see a raw candidate count, it reads as debug output and breaks character.
 The frontend maps the exact count to a **bucket word** (`vast`, `many`, `a dozen or so`,
 `a handful`, `almost there`) and passes only that word into the prompt; the model weaves it into
 its utterance:
 
-> *"Mhh, interesting — I'm down to a handful. Did she work on spaceflight?"*
+> *"Mhh, interesting, I'm down to a handful. Did she work on spaceflight?"*
 
 The model therefore never sees a number and cannot contradict one. The flavour is **display-only**:
 it is not written back into `history`, so it never re-enters the input on later turns.
 
-## Quota exhaustion — "the genie is asleep"
+## Quota exhaustion, "the genie is asleep"
 
 On the **Workers Free** plan the 10,000 neurons/day allocation is a hard ceiling and further calls
 fail. There is no counter to maintain and no way to be billed:
@@ -195,7 +195,7 @@ try {
 }
 ```
 
-Any model failure — quota, transport, or an unparseable response after one retry — maps to the
+Any model failure, quota, transport, or an unparseable response after one retry, maps to the
 same player-facing state: a brief popup saying the genie is asleep, and the panel dismisses to the
 ordinary search bar. The feature is purely additive, so degrading it never blocks buying an
 article.
@@ -207,8 +207,8 @@ Measured on the chosen 24B model (5-turn interrogation, candidate list capped at
 | Scenario | neurons/session | sessions/day |
 |---|---|---|
 | Recall, ~40 candidates, ~5 turns (24B) | ~77 | ~130 |
-| Same on 8B — but 8B loses the answer 1/3 of the time | ~22 | ~450 |
-| Same on 70B — works, but no better than 24B | ~102 | ~98 |
+| Same on 8B, but 8B loses the answer 1/3 of the time | ~22 | ~450 |
+| Same on 70B, works, but no better than 24B | ~102 | ~98 |
 
 If budget ever needs reclaiming, tighten the candidate cap or the extension, or drop a Gemini
 fallback in behind the seam. The flavour narration is a small fraction of a session and is not
@@ -220,7 +220,7 @@ The opening `query` is the **only** free-text field that reaches the prompt; eve
 a tap. That keeps the injection surface to one clamped field.
 
 - Clamp `query` to ~200 chars, and the candidate list to ~40 entries (also the design cap).
-- **Reject oversized payloads, do not truncate** — silent truncation hides a client bug and makes
+- **Reject oversized payloads, do not truncate**: silent truncation hides a client bug and makes
   the model's answer depend on invisible state.
 - Constrain the model to return ids drawn only from the supplied list; discard any id that is not
   in it rather than trusting the response.
@@ -251,8 +251,8 @@ no trace of it rather than a button that can only fail.
 The `local` environment in `wrangler.jsonc` therefore declares **no `ai` binding**, for the same
 reason `test` doesn't: Workers AI has no local simulator, so the binding's mere presence makes
 Wrangler open a remote proxy session and demand credentials. Declaring it would mean a fresh clone
-cannot start the Worker *at all* — the whole app held hostage by one optional feature. `npm run
-devgenie` (the `local-genie` environment) is the opt-in for whoever is actually working on it —
+cannot start the Worker *at all*, the whole app held hostage by one optional feature. `npm run
+devgenie` (the `local-genie` environment) is the opt-in for whoever is actually working on it,
 `./gradlew up` in Docker, where the credential must be a `CLOUDFLARE_API_TOKEN` rather than a
 `wrangler login` session (see [Running FantasyWiki in Docker](../development/docker-local-dev.md#the-article-genie)).
 
@@ -262,7 +262,7 @@ The absence then propagates in one direction, from the binding outwards:
 |-------|--------------------------------------|
 | `GET /api/session` | `features.articleGenie: false` |
 | `POST /api/me/genie-seeds`, `/genie-turns` | 503 `GENIE_ASLEEP`, checked *before* the rate limiter so a build that never offers the feature cannot spend the player's quota on it |
-| `MarketPage.vue` | No trigger button and no modal — the app store's `isArticleGenieAvailable` gates both |
+| `MarketPage.vue` | No trigger button and no modal, the app store's `isArticleGenieAvailable` gates both |
 
 Two points of design, both deliberate:
 
@@ -270,8 +270,8 @@ Two points of design, both deliberate:
   has no credentials for, so config and reality cannot drift apart.
 - **It rides on the session** rather than on a `/api/features` route of its own, because
   `/api/session` is the one `/api/*` path MSW passes through to the real backend
-  (`frontend/src/mocks/handlers.ts`). In `devMock` — the mode someone running the app for the first
-  time uses — a dedicated route would be answered by a handler that cannot know what the Worker is
+  (`frontend/src/mocks/handlers.ts`). In `devMock`, the mode someone running the app for the first
+  time uses, a dedicated route would be answered by a handler that cannot know what the Worker is
   bound to.
 
 The reuse of `GENIE_ASLEEP` is not laziness: quota exhaustion and an unbound model mean the same
@@ -279,25 +279,25 @@ thing to a player, and the frontend already dismisses that code to the ordinary 
 
 ## Testing
 
-- **Backend** — inject a stub `LlmClient`; never rely on `vi.mock` under the Workers pool.
+- **Backend**: inject a stub `LlmClient`; never rely on `vi.mock` under the Workers pool.
   Cover: valid JSON, malformed JSON then a successful retry, malformed twice → asleep, ids outside
   the candidate list discarded, oversized payload rejected.
 - **The AI binding is absent from the `test` environment in `wrangler.jsonc`, on purpose.** Workers
   AI has no local simulator, so declaring it makes the pool open a remote proxy session and demand a
-  `CLOUDFLARE_API_TOKEN` — which CI, running `./gradlew check`, does not have. With the binding
+  `CLOUDFLARE_API_TOKEN`, which CI, running `./gradlew check`, does not have. With the binding
   declared the *entire* backend suite fails to start, not just the Genie's tests. Route tests supply
   `env.AI` themselves, which is what they should do anyway.
 - **A deployment with no binding at all is itself a case to cover.** `test` omits `ai`, so a
-  route test that simply doesn't stub `env.AI` *is* that deployment — see
+  route test that simply doesn't stub `env.AI` *is* that deployment, see
   `genieRoute.integration.test.ts` and `routes/session.spec.ts`.
-- **Frontend** — MSW with `onUnhandledRequest: "error"`, per `frontend/src/tests/setup.ts`.
+- **Frontend**: MSW with `onUnhandledRequest: "error"`, per `frontend/src/tests/setup.ts`.
   Cover: seeding merge and dedupe, ranking order, the asleep popup, and dismissal to the search
   bar.
-- **Model fidelity — already validated against the live binding** (the load-bearing assumption
+- **Model fidelity: already validated against the live binding** (the load-bearing assumption
   behind the whole loop). A scripted 5-turn interrogation over ~40 real candidates, feeding the
   model's own surviving subset forward each turn, keeps the planted correct answer 40/40 on 24B and
   loses it ~1/3 of the time on 8B; recency holds when descriptions are included (see *Descriptions
-  carry recency*). Re-run this probe whenever the model id or the prompt changes — it is the
+  carry recency*). Re-run this probe whenever the model id or the prompt changes, it is the
   cheapest guard against a regression that would silently start deleting correct answers.
 
 ## Related

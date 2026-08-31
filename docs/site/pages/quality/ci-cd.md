@@ -35,7 +35,7 @@ flowchart TB
 
 **`check.yml` is the gate and the only one.** It runs `./gradlew check`, which
 runs format, lint, test and audit across both Node packages and the Kotlin
-module. Everything downstream — deploys, images — is `needs: ci-cd`, so nothing
+module. Everything downstream, deploys, images, is `needs: ci-cd`, so nothing
 ships from a revision that did not pass.
 
 The dispatcher job in front of it exists to decide whether a pull request is
@@ -60,10 +60,10 @@ hard-to-reach branch should not be blocked for lowering a ratio it barely moves.
 
 **Conventional Commits**, enforced by a `commit-msg` git hook installed by
 Gradle, together with a `pre-commit` hook running `ktlintCheck`. The commit type
-is also the branch prefix — `feat/`, `fix/`, `refactor/` — so a branch name says
+is also the branch prefix, `feat/`, `fix/`, `refactor/`, so a branch name says
 what kind of change it carries.
 
-**npm scripts are camelCase with no separators** — `formatfix`, not
+**npm scripts are camelCase with no separators**, `formatfix`, not
 `format:fix`. Gradle's node plugin reads `:` as subproject notation and `_` as a
 space, so the naming is a build constraint rather than a preference.
 → [NPM Script Naming](../docs/development/npm-script-naming.md)
@@ -75,15 +75,15 @@ checked and never deployed. **Mergify** handles the queue.
 
 Two things run without anyone asking.
 
-**Nightly scoring**, ~05:00 UTC — roughly two hours after Wikimedia publishes
+**Nightly scoring**, ~05:00 UTC, roughly two hours after Wikimedia publishes
 the previous UTC day, a buffer wide enough to absorb GitHub's cron jitter. It
 runs the collector image from GHCR against production only, keyed for
 concurrency on the date so two runs never score the same day at once.
 
-**Contract settlement**, 07:00 UTC — a Cloudflare Cron Trigger inside the
+**Contract settlement**, 07:00 UTC, a Cloudflare Cron Trigger inside the
 Worker, which starts a durable Workflow. It is not a GitHub job: it has to
 survive interruption and resume, which is what Workflows are for. The two-hour
-gap after scoring is deliberate and neither job may be moved alone — a contract
+gap after scoring is deliberate and neither job may be moved alone, a contract
 expiring today is still scorable for yesterday, and settling it first would cost
 that team its last day ([Contract Settlement](../docs/architecture/contract-settlement.md)).
 
@@ -91,16 +91,16 @@ that team its last day ([Contract Settlement](../docs/architecture/contract-sett
 
 `docs.yml` publishes the technical documentation, and it is the only job in the
 graph that a push can skip. The dispatcher asks whether the push touched
-anything the site is built from — `docs/`, the charter files, or the two
-workflows that feed it — and the job runs only if the answer is yes, or if the
+anything the site is built from, `docs/`, the charter files, or the two
+workflows that feed it, and the job runs only if the answer is yes, or if the
 question could not be answered. Everything else here runs unconditionally,
 because everything else ships code.
 
-→ [About this site](../about-this-site.md) — what that job actually does
+→ [About this site](../about-this-site.md): what that job actually does
 
 ## Related
 
-- [Deployment](../architecture/deployment.md) — what each of these jobs deploys
-- [Test strategy](./testing.md) — what `check` actually runs
-- [About this site](../about-this-site.md) — the documentation build
+- [Deployment](../architecture/deployment.md): what each of these jobs deploys
+- [Test strategy](./testing.md): what `check` actually runs
+- [About this site](../about-this-site.md): the documentation build
 - [Deploy Strategy](../docs/deployment/deploy-strategy.md)

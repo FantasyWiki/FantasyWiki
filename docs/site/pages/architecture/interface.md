@@ -7,8 +7,8 @@ type: guide
 # Interface design
 
 The interface has one job that the architecture does not: it has to make a
-strategy legible. A player's decision — which article to buy, where to place it,
-whether to sell early — is only a decision if the information behind it is
+strategy legible. A player's decision, which article to buy, where to place it,
+whether to sell early, is only a decision if the information behind it is
 visible at the moment it is taken. Everything below follows from that.
 
 ## The screens, and the path between them
@@ -46,14 +46,14 @@ flowchart LR
 Only the landing page, the guide, the legal page and the auth callback are
 public. Everything else resolves a player from the session cookie before it
 renders, and team creation additionally refuses to open for a player who already
-has a team in that league — a guard on the route rather than a check inside the
+has a team in that league, a guard on the route rather than a check inside the
 page, so the rule cannot be reached by a link.
 → [Frontend](./frontend.md)
 
 ## What the visual system is held to
 
-The tokens themselves — the greens, the gold, the two typefaces, the spacing
-scale — are stated once in
+The tokens themselves, the greens, the gold, the two typefaces, the spacing
+scale, are stated once in
 [`DESIGN.md`](../DESIGN.md) and consumed as Ionic CSS variables. They are not
 repeated here. What is worth saying is the reasoning they encode:
 
@@ -72,7 +72,7 @@ repeated here. What is worth saying is the reasoning they encode:
 
 ## The tone the screens are written in
 
-The product's register is a game, not a dashboard — which is a constraint on
+The product's register is a game, not a dashboard, which is a constraint on
 copy as much as on colour.
 → [`PRODUCT.md`](../PRODUCT.md)
 
@@ -82,7 +82,7 @@ Two rules the codebase actually holds itself to:
   muted; there are no section headings on structural elements that carry no
   content.
 - **Player-facing features stay in character.** Internal counts are turned into
-  language a player would use rather than shown as numbers — a bucket, not a
+  language a player would use rather than shown as numbers, a bucket, not a
   gauge. The Article Genie being *asleep* when its daily model quota is spent is
   the clearest case: the player is told the Genie is asleep, not that a rate
   limit returned 429.
@@ -92,7 +92,7 @@ Two rules the codebase actually holds itself to:
 <p class="fw-wcag-claim"><a class="fw-wcag-logo" href="https://www.w3.org/WAI/WCAG2AA-Conformance" title="Explanation of WCAG 2 Level AA conformance"><img src="/wcag2.2AA.svg" width="88" height="31" alt="Level AA conformance, W3C Web Content Accessibility Guidelines 2.2"></a></p>
 
 **WCAG 2.2 AA.** Measured on 2026-08-30 with `axe-core` driven against the
-running application — twelve screens, in both themes, signed in and with data
+running application, twelve screens, in both themes, signed in and with data
 on screen, under the `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa` and `wcag22aa`
 rulesets. The run returns no violations in either theme.
 
@@ -103,7 +103,7 @@ component test rather than by the audit.
 
 ## Related
 
-- [Frontend](./frontend.md) — how these screens are built and what holds their state
-- [What FantasyWiki is](../overview/what-is-fantasywiki.md) — the loop the screens serve
-- [`DESIGN.md`](../DESIGN.md) — the tokens, stated once
-- [`PRODUCT.md`](../PRODUCT.md) — the audience, the register and the design principles
+- [Frontend](./frontend.md): how these screens are built and what holds their state
+- [What FantasyWiki is](../overview/what-is-fantasywiki.md): the loop the screens serve
+- [`DESIGN.md`](../DESIGN.md): the tokens, stated once
+- [`PRODUCT.md`](../PRODUCT.md): the audience, the register and the design principles

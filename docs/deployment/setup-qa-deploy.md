@@ -52,8 +52,8 @@ Save the `database_id` (example: `12345678-1234-1234-1234-123456789012`).
 
 Make sure these secrets already exist:
 
-- `CLOUDFLARE_API_TOKEN` — da https://dash.cloudflare.com/profile/api-tokens
-- `CLOUDFLARE_ACCOUNT_ID` — da https://dash.cloudflare.com (Account ID)
+- `CLOUDFLARE_API_TOKEN`: da https://dash.cloudflare.com/profile/api-tokens
+- `CLOUDFLARE_ACCOUNT_ID`: da https://dash.cloudflare.com (Account ID)
 
 If any are missing, add them with the same process as Step 2.
 

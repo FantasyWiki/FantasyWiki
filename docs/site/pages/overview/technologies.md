@@ -7,7 +7,7 @@ type: guide
 # Technologies
 
 Nothing here was chosen because it is popular. Each entry names what it was
-picked over and the constraint that settled it — usually one of three: the
+picked over and the constraint that settled it, usually one of three: the
 system must cost nothing to run at the size it is played at, a scoring rule must
 exist in exactly one place, and a new contributor must be able to start it
 without obtaining a credential.
@@ -51,7 +51,7 @@ flowchart TB
 **Cloudflare Workers**, over a container on a rented VM. The deciding property
 is that nothing is always-on: a league nobody opened today costs nothing, and
 there is no instance to keep warm between the nightly run and the morning. The
-price is a real one — a request has a CPU budget, which is why ingest is chunked
+price is a real one, a request has a CPU budget, which is why ingest is chunked
 and the settlement sweep runs as a Workflow rather than inside a request.
 
 **Hono**, over Express or a bare `fetch` handler. Express assumes Node's
@@ -65,15 +65,15 @@ otherwise have written itself.
 **MongoDB**, over a relational store, and over keeping only the edge-native one
 the project started with. Three properties decided it.
 
-The first is that it runs anywhere — a managed cluster, or a single-node replica
-set on a laptop — where the edge-native store exists only inside one vendor's
+The first is that it runs anywhere, a managed cluster, or a single-node replica
+set on a laptop, where the edge-native store exists only inside one vendor's
 platform, and a
 database that can only be reached from a Worker is a database the test suite,
 the local run and any future host all have to work around. The second is that
 the model changes without a deployment step: a field added to a league is
 written by the repository that writes it, and there is no migration to replay
 before the code that needs it can ship. The third is that the aggregation
-pipeline is where the one derivation this system has belongs — a team's balance
+pipeline is where the one derivation this system has belongs, a team's balance
 is a `$lookup` over its contracts, computed on read, so no document holds a
 number that could disagree with the ledger it came from.
 
@@ -88,7 +88,7 @@ written down, with the failure each one prevents.
 **Cloudflare D1** is kept as the second implementation, and it is what the
 Cloudflare deployment runs on: SQLite billed by rows read and written rather
 than by an instance sized in advance, which is the same always-on argument as
-the Worker. Its own price is visible in the migrations — SQLite cannot add a
+the Worker. Its own price is visible in the migrations, SQLite cannot add a
 `NOT NULL UNIQUE` column to an existing table.
 
 Two targets rather than one is not hedging. It is the evidence for the claim the
@@ -102,7 +102,7 @@ against both on every `./gradlew check`.
 
 **Vue 3 with Ionic**, over plain Vue or React Native. The game is played on a
 phone more than a desk, and Ionic supplies the platform-shaped navigation and
-components for a web build that can also be packaged with Capacitor — without
+components for a web build that can also be packaged with Capacitor, without
 the second codebase a native framework would have meant.
 
 **Pinia and TanStack Query**, deliberately as two different things. Pinia holds
@@ -135,13 +135,13 @@ formula.
 **A Gradle-orchestrated monorepo** over three separate repositories or a bare
 npm workspace. `dto/` and `model/` are consumed by both the frontend and the
 backend, so a change to a wire shape has to be able to fail both sides in one
-run — which it does, because one `./gradlew check` builds everything. Gradle
+run, which it does, because one `./gradlew check` builds everything. Gradle
 rather than npm workspaces because one of the four packages is a JVM project.
 
 **TypeScript everywhere it can be**, including the shared packages, so that the
 API's shapes are checked at both ends of the wire rather than agreed by
-convention. What TypeScript cannot check — that the HTTP surface matches what is
-documented — is checked by a test instead.
+convention. What TypeScript cannot check, that the HTTP surface matches what is
+documented, is checked by a test instead.
 → [OpenAPI spec](https://github.com/FantasyWiki/FantasyWiki/blob/master/docs/agents/openapi-spec.md)
 
 ## Everything that runs the project
@@ -160,7 +160,7 @@ documented — is checked by a test instead.
 
 ## Related
 
-- [Architecture overview](../architecture/) — how these pieces are arranged
-- [Deployment](../architecture/deployment.md) — where each one runs
-- [Requirements](./requirements.md) — the obligations that decided them
-- [ADR 0004](../docs/adr/0004-scoring-engine-platform.md) — the platform decision written up in full
+- [Architecture overview](../architecture/): how these pieces are arranged
+- [Deployment](../architecture/deployment.md): where each one runs
+- [Requirements](./requirements.md): the obligations that decided them
+- [ADR 0004](../docs/adr/0004-scoring-engine-platform.md): the platform decision written up in full

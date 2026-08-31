@@ -19,7 +19,7 @@ than a weaker one. They carry `@js-temporal/polyfill` values, and a
 `Temporal.Instant` is a class in the code and an ISO-8601 string on the wire; a
 type-to-schema generator emits the class, which is the one thing the wire never
 contains. Adopting `@hono/zod-openapi` would work, but that is a rewrite of
-every route rather than a documentation decision — it stays open if the routes
+every route rather than a documentation decision, it stays open if the routes
 ever grow a validation layer.
 
 ## What keeps it true
@@ -32,7 +32,7 @@ renders as an empty box rather than as an error.
 
 What no test can check is whether an operation describes its payload
 *correctly*. The surface is what is mechanisable, and it is also the half that
-rots — a body shape is wrong the day it is written or not at all, whereas an
+rots, a body shape is wrong the day it is written or not at all, whereas an
 endpoint list goes stale on its own.
 
 Middleware is excluded from the comparison: Hono registers `app.use(...)` in the
@@ -42,16 +42,16 @@ endpoint. `OPTIONS` is dropped for the same reason.
 ## Writing an operation
 
 The path is decided by
-[API Naming Rules](../development/api-naming-rules.md) — document what exists,
+[API Naming Rules](../development/api-naming-rules.md): document what exists,
 and never invent an id-bearing variant of a self-scoped route.
 
 Worth the effort, because it is what the reader came for: **every status the
 handler can answer**, and what causes it; **which security scheme applies**,
 where the operation departs from the document default; and **the reason**, where
-there was a decision — a 409 rather than a 403 was a choice, and saying which
+there was a decision, a 409 rather than a 403 was a choice, and saying which
 and why is the difference between a reference and a route list.
 
-Schemas are named for the domain — `Contract`, not `ContractDTO`. The wire shape
+Schemas are named for the domain, `Contract`, not `ContractDTO`. The wire shape
 is the contract, not the TypeScript that happens to build it.
 
 Match the voice the rest of the documentation is written in:
@@ -62,7 +62,7 @@ Match the voice the rest of the documentation is written in:
 The published site renders the file with Swagger UI at
 <https://fantasywiki.github.io/FantasyWiki/api.html> and serves it unchanged at
 `/openapi.yaml`; the same build counts it into the API board on the landing
-page. Neither is anything to maintain — both are derived on every publish. The
+page. Neither is anything to maintain, both are derived on every publish. The
 mechanics are in [Documentation Site](./documentation-site.md).
 
 ## Related

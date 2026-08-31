@@ -84,7 +84,7 @@ flowchart LR
 ```
 
 The Worker bundles `model/` and `dto/` from the repository root, so the deploy
-installs the root dependencies before running Wrangler — esbuild resolves those
+installs the root dependencies before running Wrangler, esbuild resolves those
 imports from the root `node_modules`, not the backend's.
 
 ## The target that is not deployed here
@@ -95,7 +95,7 @@ D1, and the MongoDB target runs locally, against a replica set.
 
 Keeping it that way took more than intent. `composition.ts` names both targets,
 so the driver is reachable from the Worker's entry point, and making the import
-dynamic does not help — esbuild follows dynamic imports and inlines them. The
+dynamic does not help, esbuild follows dynamic imports and inlines them. The
 dry run measured it: 1.5MB of driver shipped with a Worker that can never use
 it, and the build *failed* without `nodejs_compat`, because the driver imports
 `net`, `tls` and `child_process`.
@@ -104,7 +104,7 @@ So `wrangler.jsonc` aliases the driver to a stub, which brings the production
 bundle back to within 8 KiB gzipped of its pre-MongoDB size and leaves the D1
 deployments configured exactly as they were. The alias is a top-level key with
 no per-environment form, which is why the MongoDB run has a wrangler config of
-its own rather than a fifth environment — and a configuration that can never be
+its own rather than a fifth environment, and a configuration that can never be
 deployed does not belong in the file that deploys.
 
 ```bash
@@ -123,12 +123,12 @@ Scoring is the one scheduled job that lives outside Cloudflare, and it runs the
 
 - It targets **production only**. QA is not scored.
 - It runs the image `publish-images.yml` pushed to GHCR for `master`, so the
-  night scores exactly the artefact that was published — no checkout, no JDK.
+  night scores exactly the artefact that was published, no checkout, no JDK.
 - Concurrency is keyed on the date, so two runs never score the same day at
   once. Ingest is idempotent anyway, but overlapping runs waste Wikimedia budget.
 - A repository variable, `SCORING_RUNNER=external`, hands the nightly over to
   something else without a code change. A manual dispatch always runs regardless
-  — clicking *Run* is an explicit instruction, and it is how a missed day gets
+ , clicking *Run* is an explicit instruction, and it is how a missed day gets
   backfilled mid-handover.
 - An unrecognised value for that variable runs the job anyway, deliberately:
   scoring twice costs Wikimedia budget, scoring never costs a missing day, so a
@@ -152,8 +152,8 @@ The GitHub App key is optional on purpose: a deploy still succeeds before it is
 set, and the report form answers `502` until it is. A feature that is not
 configured yet should degrade, not block a release.
 
-The collector holds exactly two credentials — the ingest secret and a Wikimedia
-user agent — and no database access at all. It is the least privileged thing in
+The collector holds exactly two credentials, the ingest secret and a Wikimedia
+user agent, and no database access at all. It is the least privileged thing in
 the system despite being the one that runs unattended.
 
 ## Running the whole stack locally
@@ -161,7 +161,7 @@ the system despite being the one that runs unattended.
 `./gradlew noGenie` brings up the frontend, the Worker and a local D1 with **no
 credentials to obtain**: the compose file wires the dev sign-in route, which
 mints a normal session and refuses to exist outside the local environment. Three
-sibling tasks — `up`, `demo`, `demoNoGenie` — add the Article Genie, the seeded
+sibling tasks, `up`, `demo`, `demoNoGenie`, add the Article Genie, the seeded
 demo league, or neither.
 
 → [Running FantasyWiki in Docker](../docs/development/docker-local-dev.md) ·
@@ -169,6 +169,6 @@ demo league, or neither.
 
 ## Related
 
-- [Continuous delivery](../quality/ci-cd.md) — the workflows that drive all of this
+- [Continuous delivery](../quality/ci-cd.md): the workflows that drive all of this
 - [Architecture overview](./index.md)
-- [Setup QA Deploy](../docs/deployment/setup-qa-deploy.md) — the one-time setup
+- [Setup QA Deploy](../docs/deployment/setup-qa-deploy.md): the one-time setup

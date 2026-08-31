@@ -19,7 +19,7 @@ A query key is a contract between two distant call sites:
 
 When both sides spell the key as a literal (`["team-lineup", leagueId]`), the
 compiler cannot tell them apart from any other array. Rename or re-scope the
-key on one side and the other side keeps "working" — it just matches nothing.
+key on one side and the other side keeps "working", it just matches nothing.
 The result is the worst kind of bug: no error anywhere, the cache silently
 serves stale data. (This actually shipped once: the market page invalidated a
 set of hand-copied literals after a purchase, and the credits pill kept the
@@ -49,7 +49,7 @@ await queryClient.invalidateQueries({
 
 Wrap the key in `computed(...)` when any argument is reactive (league
 switches, search text): TanStack Query re-fetches automatically when a
-computed key changes — that is the mechanism that replaces manual "refetch on
+computed key changes, that is the mechanism that replaces manual "refetch on
 league change" code.
 
 ## Adding a new key
@@ -66,25 +66,25 @@ league change" code.
 2. Use it in the owning composable **and** in every mutation that changes the
    underlying data.
 3. Do not export the string from anywhere else, and do not re-declare it in a
-   test — import the factory.
+   test, import the factory.
 
 ## Mutation checklist
 
-When you add a mutation (buy, sell, renew, save lineup, ...), list every
+When you add a mutation (buy, sell, renew, save lineup...), list every
 cached view whose data it changes and invalidate each one. For contract
 mutations the market page already centralizes this in
-`refreshContractViews()` (`MarketPage.vue`) — extend that helper instead of
+`refreshContractViews()` (`MarketPage.vue`), extend that helper instead of
 building a second list. Today a contract mutation touches:
 
-- `queryKeys.leagueContracts(leagueId)` — ownership badges in the market
-- `queryKeys.teamLineup(leagueId)` — bench / formation
-- `queryKeys.dashboard(leagueId)` — credits, portfolio KPIs
-- `queryKeys.myTeam(leagueId)` — the player's team and balance pill
+- `queryKeys.leagueContracts(leagueId)`: ownership badges in the market
+- `queryKeys.teamLineup(leagueId)`: bench / formation
+- `queryKeys.dashboard(leagueId)`: credits, portfolio KPIs
+- `queryKeys.myTeam(leagueId)`: the player's team and balance pill
 
 ## Server state does not live in Pinia
 
 `useMyTeam()` (`frontend/src/composables/useMyTeam.ts`) is the reference
-example: the player's team (id, credits) is remote data, so it is a query —
+example: the player's team (id, credits) is remote data, so it is a query,
 not a store ref that must be manually re-fetched after every mutation. Pinia
 stores hold only shared UI state (selected league, league list; see the
 docstring in `stores/league.ts`). If you find yourself writing
@@ -95,7 +95,7 @@ docstring in `stores/league.ts`). If you find yourself writing
 Component/composable tests that only need "a team exists / is loading /
 errored" should mock the query composable with mutable state (see
 `useArticleOwnership.spec.ts`, `MarketPage.spec.ts`) rather than fetching
-through MSW — the states become deterministic and each test controls them
+through MSW, the states become deterministic and each test controls them
 directly. When a test genuinely exercises the query plumbing, seed the cache
 with `queryClient.setQueryData(queryKeys.myTeam(leagueId), team)` and keep
 the MSW handler as the refetch target.
@@ -103,5 +103,5 @@ the MSW handler as the refetch target.
 ## Related
 
 - [Article Ownership Resolution](./article-ownership-resolution.md)
-- [Market List](./market-list.md) — the key partial results are written into
-- [Notifications](./notifications.md) — one unscoped list, filtered per league in the client
+- [Market List](./market-list.md): the key partial results are written into
+- [Notifications](./notifications.md): one unscoped list, filtered per league in the client

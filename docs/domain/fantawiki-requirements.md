@@ -135,7 +135,7 @@ The main panel shows the graphical formation of the team as a 4-3-3 with a goalk
 
 The line between articles A and B carries a chemistry level.
 
-> **Superseded — canonical: `docs/scoring-system.md` §4, `CONTEXT.md` "Chemistry
+> **Superseded, canonical: `docs/scoring-system.md` §4, `CONTEXT.md` "Chemistry
 > Level", ADR 0001.** Chemistry contributes **additive flat points**, not a
 > percentage multiplier: **Excellent** (mutual link) **+1.5**, **Good** (one-way
 > link) **+0.5**, **Weak** and **Empty** **0**, summed to a team total. The
@@ -157,7 +157,7 @@ When a user press es the theme switch button, the website switches between light
 
 ### 2.1 Base Scoring
 
-> **Superseded — canonical: ADR 0001/0002 + `docs/domain/scoring-system.md`.** Base points are computed from **Normalized Views** (raw pageviews × the per-language **Language Scale Factor**; en.wp = 1.0) via a **continuous geometric (log)** model — `max(0, log₂(views / 2000))` (decimal-valued, crosses zero at 2,000 views; the "+1 per doubling" rule is just the headline at the rungs), with a convex linear tail of **+1 point per 50,000 views** above a 150k kink — validated against real en.wp data. The 5k/20k three-tier model below is historical and retained only for context.
+> **Superseded, canonical: ADR 0001/0002 + `docs/domain/scoring-system.md`.** Base points are computed from **Normalized Views** (raw pageviews × the per-language **Language Scale Factor**; en.wp = 1.0) via a **continuous geometric (log)** model, `max(0, log₂(views / 2000))` (decimal-valued, crosses zero at 2,000 views; the "+1 per doubling" rule is just the headline at the rungs), with a convex linear tail of **+1 point per 50,000 views** above a 150k kink, validated against real en.wp data. The 5k/20k three-tier model below is historical and retained only for context.
 
 Each article earns points based on its Wikipedia pageviews using a tiered model to prevent viral articles from completely dominating and allow synergy to matter strategically.
 
@@ -176,7 +176,7 @@ EXAMPLES:
 └─ 100,000 views = 5.0 + (15,000×0.5/1,000) + (80,000×0.1/1,000) = 20.5 points
 ```
 
-**Rationale**: 
+**Rationale**:
 - **Viral articles still dominate** but with diminishing returns (100k views ≠ 50× more points)
 - **Mid/low traffic becomes viable** when paired with excellent synergy
 - **Chemistry multiplier actually matters**: A team with 3 synergized mid-traffic articles can now compete with 1 viral article without synergy
@@ -184,9 +184,9 @@ EXAMPLES:
 
 ### 2.2 Synergy Bonus (Additive Chemistry)
 
-> **Superseded — canonical: `CONTEXT.md` (Chemistry Link / Chemistry Level) and the "Choose Team Formation" user story.** Chemistry is **not** computed over every owned pair. It is an **additive flat-point** bonus evaluated only between **schema-adjacent formation positions** (FUT-style), graded by the four-step Chemistry Level (Excellent / Good / Weak / Empty). The all-pairs Mutual/One-Way model below is historical.
+> **Superseded, canonical: `CONTEXT.md` (Chemistry Link / Chemistry Level) and the "Choose Team Formation" user story.** Chemistry is **not** computed over every owned pair. It is an **additive flat-point** bonus evaluated only between **schema-adjacent formation positions** (FUT-style), graded by the four-step Chemistry Level (Excellent / Good / Weak / Empty). The all-pairs Mutual/One-Way model below is historical.
 
-Articles in your portfolio earn **additive bonuses** based on direct Wikipedia links to other articles in the same team. Only articles with at least one link earn synergy—isolated articles get zero bonus.
+Articles in your portfolio earn **additive bonuses** based on direct Wikipedia links to other articles in the same team. Only articles with at least one link earn synergy; isolated articles get zero bonus.
 
 **Link Classification**:
 - **Mutual Link** (Green in UI): Article A → B AND B → A (worth 0.75 points)
@@ -282,11 +282,11 @@ This ensures variety and prevents players from gaming a single event type.
 
 ### 3.1 Portfolio Constraints
 
-- **Maximum 11 active contracts** per team — one per formation position (resolved in `CONTEXT.md`; the earlier "10" contradicted the 11-slot formation)
+- **Maximum 11 active contracts** per team: one per formation position (resolved in `CONTEXT.md`; the earlier "10" contradicted the 11-slot formation)
 - **Budget**: Players start with 1,000 credits
 - **Duration**: locked tiers **SHORT = 3 days, MEDIUM = 7 days, LONG = 14 days** (ADR 0005); the earlier "1 week–24 months" range is superseded
 - **Economy (canonical: ADR 0003, pricing formula superseded by ADR 0005):** 15 credits/day **base stipend** · **8%** transaction fee on sales · **+10%** renewal premium per consecutive renewal · **3-day minimum hold** · soft **wealth ceiling** (pending re-simulation under the new pricing formula)
-- **Price formula** (see §6.1 / **ADR 0005** for the canonical, convex Normalized-Views form — this §3.1 form and ADR 0003's earlier linear form are both superseded):
+- **Price formula** (see §6.1 / **ADR 0005** for the canonical, convex Normalized-Views form: this §3.1 form and ADR 0003's earlier linear form are both superseded):
   ```
   CONTRACT_PRICE = Base_Performance_Score × Contract_Duration_Weeks / 4
   ```
@@ -297,7 +297,7 @@ This ensures variety and prevents players from gaming a single event type.
 
 **For each article in your portfolio**:
 
-1. Read the previous day's pageviews from the **Pageview Complete** `-user` bulk dump (not the live API — see ADR 0004)
+1. Read the previous day's pageviews from the **Pageview Complete** `-user` bulk dump (not the live API, see ADR 0004)
 2. Calculate Base Points (log-binned Normalized-Views model, §2.1 / ADR 0001-0002)
 3. Add Synergy Bonus (mutual + one-way links, capped at 3.0)
 4. Check if a weekly event applies → add event bonus
@@ -462,7 +462,7 @@ EXAMPLE:
 └─ You now have +84 more cumulative points in main game leaderboard
 ```
 
-**Rationale**: 
+**Rationale**:
 - Immediate reward for tournament performance (psychological satisfaction)
 - Bonus added once to cumulative score (permanent advantage)
 - Clear, simple prize structure
@@ -470,7 +470,7 @@ EXAMPLE:
 
 ---
 
-### 4.3 Monthly Power Tournament (Elite Prestige) — DEFERRED (post-MVP)
+### 4.3 Monthly Power Tournament (Elite Prestige), DEFERRED (post-MVP)
 
 > **Deferred:** not in the locked scope. To be added only if time permits; retained below as a design sketch.
 
@@ -502,7 +502,7 @@ Rewards (one-time lump sum at month-end):
 └─ Top 100: +7 bonus points + Prestige badge (cosmetic)
 ```
 
-**Rationale**: 
+**Rationale**:
 - Prevents AFK farming of bonus points
 - Creates aspirational content (players want to reach Top 100)
 - Monthly cycle prevents permanent inequality
@@ -535,7 +535,7 @@ The synergy system supports two viable formation archetypes:
 
 **Good Sparse beats Bad Centric**: A balanced mesh with 6+ mutual pairs distributes synergy across the team and outperforms a weak hub.
 
-**Quality > Type**: Both formations are equally viable—execution and article selection matter more than topology choice.
+**Quality > Type**: Both formations are equally viable: execution and article selection matter more than topology choice.
 
 ### 5.2 Dynamic Portfolio Management
 
@@ -560,7 +560,7 @@ Key strategic decisions:
 
 > Priced on the **smoothed 30-day average** of **Normalized Views** (Language Scale Factor applied; en.wp = 1.0). Canonical: **ADR 0005** (supersedes ADR 0003's linear formula) / `CONTEXT.md`.
 
-**Superseded — kept for history.** The linear formula and worked example below used a
+**Superseded, kept for history.** The linear formula and worked example below used a
 weeks-based multiplier and made a top-tier team affordable on day one; ADR 0005
 replaces it with a convex-in-views, days-based formula and locks the SHORT/MEDIUM/LONG
 tiers at 3/7/14 days.
@@ -619,7 +619,7 @@ This creates arbitrage opportunities and prevents hoarding.
 New players learn:
 1. "Your words earn points based on Wikipedia views (tiered scoring)"
 2. "Low-traffic words with strong links earn significant synergy bonuses"
-3. "Build themed portfolios for synergy bonuses—chemistry matters!"
+3. "Build themed portfolios for synergy bonuses, chemistry matters!"
 4. "Compete in weekly tournaments for extra rewards"
 5. "Buy strategically: viral pages are expensive but one high-traffic word can anchor a team"
 
@@ -644,11 +644,11 @@ Each Monday (with tournament start):
 
 ## 10. Summary of Changes
 
-### v5.5 (2026-06-18 — reconciliation with locked design)
+### v5.5 (2026-06-18, reconciliation with locked design)
 ✅ Base scoring reconciled to the **log-binned Normalized-Views** model (ADR 0001/0002), superseding the 5k/20k three-tier model
 ✅ Chemistry reconciled to **additive flat points on schema-adjacent positions** (FUT-style), superseding all-pairs Mutual/One-Way synergy
 ✅ Contract cap corrected **10 → 11** (one per formation position)
-✅ Economy parameters surfaced (stipend / fee / renewal premium / min-hold / wealth ceiling — ADR 0003)
+✅ Economy parameters surfaced (stipend / fee / renewal premium / min-hold / wealth ceiling, ADR 0003)
 ✅ Daily scoring moved to **~05:00 UTC on D+1**, sourced from **Pageview Complete dumps** (ADR 0004), superseding the 00:00-UTC live-API fetch
 ✅ Monthly Power Tournament marked **deferred**; weekly tournament retained
 

@@ -12,7 +12,7 @@ This guide shows how to add a new behavior to the shared Wikimedia client withou
 
 - `external-apis/wikimedia/client.ts`: composition root, transport and cache policy, and the
   types a caller binds to (`WikimediaClient`, `WikimediaHttp`, `CacheLike`).
-- `external-apis/wikimedia/client/internal.ts`: the shared policies — `fetchJsonWithRetry`,
+- `external-apis/wikimedia/client/internal.ts`: the shared policies: `fetchJsonWithRetry`,
   `withCache`, `mapWithLimit`, `MAX_CONCURRENT_REQUESTS`, the UTC date helpers, `wikipediaRestUrl`.
 - `external-apis/wikimedia/wikimedia.ts`: data types more than one module speaks, and the
   normalizers between raw and normalized.
@@ -23,7 +23,7 @@ This guide shows how to add a new behavior to the shared Wikimedia client withou
 
 ### 1) Write the capability module
 
-Create `external-apis/wikimedia/client/searchArticleByPrefix.ts`. Both types stay here — the raw
+Create `external-apis/wikimedia/client/searchArticleByPrefix.ts`. Both types stay here, the raw
 shape because nothing else maps it, the result because nothing else returns it:
 
 ```ts
@@ -45,12 +45,10 @@ export type ArticleSearchResult = {
 export function createSearchArticleByPrefix(
   http: WikimediaHttp,
   cache: CacheLike | null,
-  retryCount: number,
-) {
+  retryCount: number) {
   return async function searchByPrefix(
     domain: Domain,
-    prefix: string,
-  ): Promise<ArticleSearchResult[]> {
+    prefix: string): Promise<ArticleSearchResult[]> {
     const encoded = encodeURIComponent(prefix);
     const url = wikipediaRestUrl(domain, `/search/title?q=${encoded}&limit=10`);
     const cacheKey = `wikimedia:prefix:${domain}.wikipedia:${encoded}`;
@@ -59,8 +57,7 @@ export function createSearchArticleByPrefix(
       const response = await fetchJsonWithRetry<PrefixSearchResponse>(
         http,
         url,
-        retryCount,
-      );
+        retryCount);
       return response.pages.map((page) => ({
         title: page.title,
         description: page.description ?? "",
@@ -91,7 +88,7 @@ import { createSearchArticleByPrefix } from "./client/searchArticleByPrefix";
 ```
 
 The TTL is the composition root's call, not the capability's: it is the one place that can see
-every capability's lifetime next to the others — a day's top-read list is immutable and takes no
+every capability's lifetime next to the others, a day's top-read list is immutable and takes no
 TTL at all, a namespace list gets 30 days, a search gets 7.
 
 ### 3) Extend the client type

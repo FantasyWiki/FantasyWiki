@@ -6,7 +6,7 @@ tags: [formation, lineup, frontend, dto, composables]
 
 # Lineup Editing (architecture)
 
-How a player's lineup is edited in code — placing, removing, swapping, and moving
+How a player's lineup is edited in code, placing, removing, swapping, and moving
 contracts, and switching schema. The **rules** these operations enforce (nothing
 is ever dropped, 11 positions, bench semantics) live in
 [Lineup Rules (domain)](../domain/lineup-rules.md).
@@ -23,20 +23,20 @@ DraftLineup = {
 ```
 
 All editing logic is a set of **pure** functions of the shape
-`(state: DraftLineup, ...args) => DraftLineup`. They never mutate the input; they
+`(state: DraftLineup...args) => DraftLineup`. They never mutate the input; they
 return a new state (or the same reference when nothing changes, e.g. removing
 from an empty position or moving onto an occupied slot):
 
-- `assignToPosition(state, position, contract)` — place a contract, displacing
+- `assignToPosition(state, position, contract)`: place a contract, displacing
   any current occupant to the bench.
-- `removeFromPosition(state, position)` — clear a position, returning its
+- `removeFromPosition(state, position)`: clear a position, returning its
   contract to the bench.
-- `swapSlots(state, fromId, toPos, toId)` — the general move/swap covering every
+- `swapSlots(state, fromId, toPos, toId)`: the general move/swap covering every
   source/target combination: position↔position, position↔bench, bench↔bench, and
   bench→position. `toPos` may be the literal `"bench"`; `toId` is the contract
   currently at the target, if any.
-- `moveToEmpty(state, fromId, targetPos)` — move onto an empty position only.
-- `setSchema(state, nextSchema)` — remap placed contracts to the new schema via
+- `moveToEmpty(state, fromId, targetPos)`: move onto an empty position only.
+- `setSchema(state, nextSchema)`: remap placed contracts to the new schema via
   `changeSchema`. Any contract the remap cannot carry into the new schema is
   appended to the bench rather than silently dropped, so no contract is ever lost
   on a schema change. The bench reference is preserved when nothing is dropped.
@@ -58,10 +58,9 @@ changed.
 `ArticleNode.vue` accepts drops from two input paths that both resolve to the
 same `swap` / `dropOnEmpty` emits:
 
-- **HTML5 drag-and-drop** (mouse/desktop) — unreliable on touch devices, so it
+- **HTML5 drag-and-drop** (mouse/desktop): unreliable on touch devices, so it
   stays mouse-only.
-- **Long-press-and-drag** (`frontend/src/composables/useTouchDragDrop.ts`) —
-  a long press lifts a floating clone that follows the finger; releasing over
+- **Long-press-and-drag** (`frontend/src/composables/useTouchDragDrop.ts`): a long press lifts a floating clone that follows the finger; releasing over
   another article swaps, over an empty pitch slot moves. It autoscrolls the
   nearest `ion-content` near the viewport edges so a bench tile can reach an
   off-screen pitch row without scrolling by hand first. The hit-test that
@@ -77,7 +76,7 @@ disable both paths on read-only hosts (the dashboard preview).
 
 ## Related documentation
 
-- [Lineup Rules (domain)](../domain/lineup-rules.md) — the invariants the
+- [Lineup Rules (domain)](../domain/lineup-rules.md): the invariants the
   mutations exist to uphold.
-- [Chemistry Links Rendering](./chemistry-links-rendering.md) — chemistry
+- [Chemistry Links Rendering](./chemistry-links-rendering.md): chemistry
   composition for the placed formation (`computeChemistryLinks`).

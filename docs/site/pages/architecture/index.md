@@ -83,7 +83,7 @@ flowchart TB
 The store sits outside the Cloudflare box because it is the one container that
 is not a Cloudflare service. It is also the one container that can be swapped:
 the backend holds repository *interfaces*, and the Cloudflare deployment
-configures the second implementation — D1 — in MongoDB's place. Which one a
+configures the second implementation, D1, in MongoDB's place. Which one a
 build gets is decided in a single module, below.
 
 | Container | Runtime | Deployed by | Documented in |
@@ -91,7 +91,7 @@ build gets is decided in a single module, below.
 | Frontend | Vue 3 + Ionic SPA | Cloudflare Pages, per branch | [Frontend](./frontend.md) |
 | Backend | Hono on a Cloudflare Worker | Wrangler, per branch | [Backend Architecture](../docs/architecture/backend-architecture.md) |
 | MongoDB | A replica set, reached over the driver | Indexes and baseline on first connection | [Data model](./data-model.md) |
-| D1 | SQLite at the edge — the second target | Migrations replayed on deploy | [Persistence Targets](../docs/architecture/persistence-targets.md) |
+| D1 | SQLite at the edge, the second target | Migrations replayed on deploy | [Persistence Targets](../docs/architecture/persistence-targets.md) |
 | Settlement Workflow | Cloudflare Workflows | Bundled with the Worker | [ADR 0003](../docs/adr/0003-closed-trading-economy.md) |
 | Scoring Collector | Kotlin/JVM, `application` plugin | GitHub Actions cron + GHCR image | [Scoring Pipeline](../docs/architecture/scoring-pipeline.md) |
 
@@ -119,12 +119,12 @@ flowchart TB
   class MODEL,DTO shared;
 ```
 
-**`model/` holds normalised, framework-free entities** — what a Contract *is*,
+**`model/` holds normalised, framework-free entities**, what a Contract *is*,
 independent of how it is stored or sent. It imports nothing from a framework, so
 both a Worker and a browser can use it.
 → [What Are Model Entities](../docs/domain/what-are-model-entities.md)
 
-**`dto/` holds the wire shapes** — what the API sends, which is deliberately not
+**`dto/` holds the wire shapes**, what the API sends, which is deliberately not
 the same as what the domain contains. DTOs aggregate and nest; entities stay
 normalised. Each side "dresses" the domain for its own purpose.
 → [Shared DTO Package](../docs/domain/shared-dto-package.md) ·
@@ -140,11 +140,11 @@ Three layers, each talking only to the one below it.
 
 ```mermaid
 flowchart TB
-  R["<b>Routes</b> — <code>routes/</code><br/><small>parse · auth · respond</small>"]
-  S["<b>Services</b> — <code>services/</code><br/><small>logic · typed Results</small>"]
-  I["<b>Repository interfaces</b> — <code>repositories/*.ts</code><br/><small>contracts, no queries</small>"]
-  M["<b>Mongo implementations</b> — <code>repositories/mongo/</code><br/><small>documents, pipelines, transactions</small>"]
-  D["<b>D1 implementations</b> — <code>repositories/d1/</code><br/><small>SQL and its errors</small>"]
+  R["<b>Routes</b>, <code>routes/</code><br/><small>parse · auth · respond</small>"]
+  S["<b>Services</b>, <code>services/</code><br/><small>logic · typed Results</small>"]
+  I["<b>Repository interfaces</b>, <code>repositories/*.ts</code><br/><small>contracts, no queries</small>"]
+  M["<b>Mongo implementations</b>, <code>repositories/mongo/</code><br/><small>documents, pipelines, transactions</small>"]
+  D["<b>D1 implementations</b>, <code>repositories/d1/</code><br/><small>SQL and its errors</small>"]
   C["<b>composition.ts</b><br/><small>picks the implementation</small>"]
 
   R --> S --> I
@@ -157,8 +157,8 @@ flowchart TB
 ```
 
 The interesting line is the dotted one. `composition.ts` is the single place
-that decides which store the system is running on — it reads a binding and
-returns one set of implementations — and the rule is enforced mechanically:
+that decides which store the system is running on, it reads a binding and
+returns one set of implementations, and the rule is enforced mechanically:
 `no-restricted-imports` forbids anything under `services/`, `routes/` or
 `tests/` from naming `repositories/d1/**` **or** `repositories/mongo/**`.
 
@@ -181,7 +181,7 @@ can change without the other noticing.
 
 | Seam | What it separates | Why |
 |---|---|---|
-| `composition.ts` | Business logic from the database | So the store can be replaced without touching a service — and a second one was ([the layers, above](#the-backend-s-layers)) |
+| `composition.ts` | Business logic from the database | So the store can be replaced without touching a service, and a second one was ([the layers, above](#the-backend-s-layers)) |
 | `/internal/*` | The scoring engine from the game | The collector computes nothing and knows no rules ([pipeline](../docs/architecture/scoring-pipeline.md)) |
 | `DraftLineup` | Editing a formation from saving one | Pure mutations, testable without a server ([lineup editing](../docs/architecture/lineup-editing.md)) |
 | `buildArticleDetail` | Article facts from viewer context | Ownership is resolved once, asynchronously ([ownership resolution](../docs/architecture/article-ownership-resolution.md)) |
@@ -190,10 +190,10 @@ can change without the other noticing.
 
 ## Where to go next
 
-- [Data flow](./data-flow.md) — sign-in, a request through the layers, a night of scoring
-- [Data model](./data-model.md) — the collections, the derived balance, and the invariants
-- [Frontend](./frontend.md) — state ownership, bootstrapping order, mocking
-- [Deployment](./deployment.md) — branches, environments, and what ships where
+- [Data flow](./data-flow.md): sign-in, a request through the layers, a night of scoring
+- [Data model](./data-model.md): the collections, the derived balance, and the invariants
+- [Frontend](./frontend.md): state ownership, bootstrapping order, mocking
+- [Deployment](./deployment.md): branches, environments, and what ships where
 
 ## Related
 

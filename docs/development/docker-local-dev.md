@@ -11,8 +11,8 @@ related:
 
 # Running FantasyWiki in Docker
 
-For someone who wants to run FantasyWiki without installing Node or npm, and —
-the harder half — **without being handed any of the project's credentials**.
+For someone who wants to run FantasyWiki without installing Node or npm, and,
+the harder half, **without being handed any of the project's credentials**.
 
 ```bash
 git clone https://github.com/FantasyWiki/FantasyWiki.git
@@ -24,7 +24,7 @@ Then open <http://localhost:5173> and sign in with **Continue as demo player**.
 
 There is nothing else to obtain: no Cloudflare account, no Google OAuth client
 secret, no env file to fill in. That gives you an empty database to build in,
-and the Article Genie switched off — which is what `noGenie` names.
+and the Article Genie switched off, which is what `noGenie` names.
 
 ## The four commands
 
@@ -38,16 +38,16 @@ which run, and getting it wrong at the worst moment.
 | **Empty database** | `./gradlew noGenie` | `./gradlew up` |
 | **Seeded database** | `./gradlew demoNoGenie` | `./gradlew demo` |
 
-- **Genie** — the Article Genie, the one feature that needs a Cloudflare
+- **Genie**: the Article Genie, the one feature that needs a Cloudflare
   account. On means the Worker runs wrangler's `local-genie` environment, which
   binds Workers AI; off means `local`, which binds no model. See
   [The Article Genie](#the-article-genie).
-- **Demo** — whether the database arrives with the demo league in it. See
+- **Demo**: whether the database arrives with the demo league in it. See
   [Filling the database](#filling-the-database).
 
 Each task is a wrapper thin enough to read: it sets one environment variable and
 runs `docker compose up`. `./gradlew tasks --group docker` prints all four, and
-the raw form still works if you prefer it —
+the raw form still works if you prefer it,
 
 ```bash
 NPM_CMD=dev docker compose --profile demo up   # == ./gradlew demoNoGenie
@@ -67,7 +67,7 @@ off rather than faked.
 
 | Feature | Needs | Without it |
 |---|---|---|
-| **Article Genie** | A Cloudflare account (Workers AI) | `noGenie` runs the `local` environment, which binds no model, so the backend starts and the market shows no Genie at all — see [Article Genie LLM Integration](../architecture/article-genie-llm.md) |
+| **Article Genie** | A Cloudflare account (Workers AI) | `noGenie` runs the `local` environment, which binds no model, so the backend starts and the market shows no Genie at all, see [Article Genie LLM Integration](../architecture/article-genie-llm.md) |
 | **Google sign-in** | The project's OAuth client secret | `GET /auth/dev` mints the same session without it |
 
 ### `/auth/dev`
@@ -79,11 +79,11 @@ is an **ordinary player**, so nothing downstream knows this route exists.
 
 It is gated twice, and the two gates do not trust each other:
 
-- **Backend** — 404 unless `ENVIRONMENT` is `"local"`. Only the `local` and
+- **Backend**: 404 unless `ENVIRONMENT` is `"local"`. Only the `local` and
   `local-genie` environments in `wrangler.jsonc` carry that value; `production`,
   `preview` and `test` do not. 404 rather than 403 because outside local
   development the route should not appear to exist at all.
-- **Frontend** — the button renders only when the build was started with
+- **Frontend**: the button renders only when the build was started with
   `VITE_DEV_LOGIN=true`.
 
 `JWT_SECRET` is still required, but it is self-generated randomness, not a
@@ -99,14 +99,14 @@ Compose is a **development** convenience, and it cannot become a deployment
 target: the frontend is a Cloudflare Pages project and the backend a Worker,
 both serverless. Nothing in production runs a container of this app, so no
 `compose.yaml` here is ever `up` anywhere but a laptop. The one image the
-project does ship — the Kotlin scoring collector — is not part of this stack;
+project does ship, the Kotlin scoring collector, is not part of this stack;
 it is [below](#publishing-images).
 
 Two things are missing from the image, and they are missing for different
-reasons. It carries Node but no JDK — the bind mount puts `gradlew` right there
-in `/workspace` with nothing behind it — and the only Cloudflare credential it
+reasons. It carries Node but no JDK, the bind mount puts `gradlew` right there
+in `/workspace` with nothing behind it, and the only Cloudflare credential it
 is ever handed is the Genie's API token, which is narrower than the deploy
-credential CI holds but is not read-only — see the note on Workers Scripts ·
+credential CI holds but is not read-only, see the note on Workers Scripts ·
 Edit in [Creating a Cloudflare API token](./local-dev-setup.md#creating-a-cloudflare-api-token).
 `noGenie` hands it none at all, which is what keeps a fresh clone runnable.
 
@@ -117,12 +117,12 @@ Edit in [Creating a Cloudflare API token](./local-dev-setup.md#creating-a-cloudf
 | `npm test` / `lint` / `format`, per subproject | ✅ | ✅ |
 | `wrangler dev`, local D1 migrations, `cf-typegen` | ✅ | ✅ |
 | The Article Genie | ✅ with an API token | ✅ with `wrangler login` |
-| `./gradlew check --parallel` — the PR gate | ❌ no JDK | ✅ |
+| `./gradlew check --parallel`, the PR gate | ❌ no JDK | ✅ |
 | `wrangler deploy`, `db:migrate:remote` | ❌ no Pages or D1 credential | ✅ |
 
 So: **containers to run FantasyWiki, the native toolchain to ship it.** Anyone
 opening a PR needs the second as well, which is what
-[Local Development Setup](./local-dev-setup.md) installs — and that path needs
+[Local Development Setup](./local-dev-setup.md) installs, and that path needs
 no Cloudflare account either, only a JDK.
 
 ---
@@ -138,7 +138,7 @@ That is the whole reason this needs credentials and `noGenie` does not.
 
 Natively, `wrangler login` is the usual answer. It cannot work here: its OAuth
 callback listens on `localhost:8976`, and inside a container that is the
-*container's* localhost — the browser doing the consenting is on the host, and
+*container's* localhost, the browser doing the consenting is on the host, and
 nothing routes back. The flow would sit on a URL nobody can complete.
 
 So use an **API token**, which Wrangler reads straight from the environment and
@@ -176,14 +176,14 @@ Then `./gradlew up`: the backend prints `==> Article Genie on` and the market
 grows its Genie button.
 
 Without a token, `up` and `demo` stop before Wrangler starts, with a message
-naming this section — a clear failure rather than a hang on an OAuth flow that
+naming this section, a clear failure rather than a hang on an OAuth flow that
 cannot finish. `noGenie` and `demoNoGenie` are unaffected: Compose passes both
 variables always, so an undefined one arrives as the *empty string*, and the
-entrypoint unsets it. An empty token is worse than none — Wrangler would see a
+entrypoint unsets it. An empty token is worse than none, Wrangler would see a
 credential, try it, and fail authentication instead of running credential-free.
 
 Nothing else in the stack ever sees these variables. The token is not
-read-only, though — the remote preview session forces Workers Scripts · Edit —
+read-only, though, the remote preview session forces Workers Scripts · Edit,
 so it can publish a Worker, if not a Pages build or a D1 migration.
 
 ---
@@ -200,7 +200,7 @@ built bundle through `vite preview`. It was deleted, because the thing it was
 for is done better elsewhere: every push to `dev` runs `npm run build` and
 `wrangler pages deploy` (`.github/workflows/deploy-target.yml`), so the real
 production bundle is already live at **<https://dev.fantasywiki.pages.dev>**,
-against the real Worker and the real database — and at a URL you can send
+against the real Worker and the real database, and at a URL you can send
 someone, which a container on your laptop is not.
 
 The backend never had a second mode to lose. `wrangler dev` is the only way to
@@ -214,8 +214,8 @@ had a dev/built split at all.
 The two answers differ deliberately.
 
 **`demo` and `demoNoGenie` arrive populated.** You get a public league,
-*Wikipedia Premier*, with three rival teams — full 4-3-3 squads and four scored
-days each — so the market shows owned articles, the standings rank somebody, and
+*Wikipedia Premier*, with three rival teams, full 4-3-3 squads and four scored
+days each, so the market shows owned articles, the standings rank somebody, and
 the podium has a reason to appear. A second command standing between a visitor
 and a working app is one too many.
 
@@ -231,7 +231,7 @@ to found their own league. To fill one anyway, without restarting:
 docker compose exec backend npm run db:seed:demo
 ```
 
-Both paths run the same `backend/seeds/demo.sql` — deliberately **not** a
+Both paths run the same `backend/seeds/demo.sql`, deliberately **not** a
 migration, because no deployed database should ever see it. It deletes its own
 rows before reinserting them, so re-running it replaces the demo league rather
 than stacking copies, and its timestamps are relative to `now`, so the season
@@ -266,7 +266,7 @@ the loopback address it uses when both processes run on one machine. This is the
 single likeliest thing to get wrong.
 
 **Everything binds `0.0.0.0`.** Wrangler and Vite both bind loopback by default,
-which is unreachable through a published port — hence `--ip 0.0.0.0` and
+which is unreachable through a published port, hence `--ip 0.0.0.0` and
 `VITE_HOST`.
 
 **File watching polls.** Bind-mounted filesystems do not deliver inotify events
@@ -280,10 +280,10 @@ developer happens to have in their own `frontend/.env.local`.
 **`wrangler login` does nothing useful in a container.** Its OAuth callback
 listens on `localhost:8976`, which inside a container is the container's own
 loopback; the browser consenting is on the host and nothing routes back. Use a
-`CLOUDFLARE_API_TOKEN` in `.env` — [The Article Genie](#the-article-genie).
+`CLOUDFLARE_API_TOKEN` in `.env`, [The Article Genie](#the-article-genie).
 
 **Sign in with Google fails in a container** unless `GOOGLE_CLIENT_SECRET` is
-filled into `backend/.dev.vars` — the backend answers a raw 500. Use the demo
+filled into `backend/.dev.vars`, the backend answers a raw 500. Use the demo
 button, or supply the secret and both routes work.
 
 ---
@@ -293,7 +293,7 @@ button, or supply the secret and both routes work.
 `.github/workflows/publish-images.yml` pushes to GHCR on `master` and `dev`,
 behind the same gate as the Cloudflare deploys: an image is only worth
 publishing for a revision that passed `check`. `GITHUB_TOKEN` is the whole
-credential — no new secret, unlike the deploys next door.
+credential, no new secret, unlike the deploys next door.
 
 Today it publishes the one service Cloudflare does not host:
 
@@ -304,7 +304,7 @@ Today it publishes the one service Cloudflare does not host:
 `sha-<short>` is the tag a rollback names; the branch aliases are what a human
 or a compose file pulls.
 
-Its Dockerfile is **runtime-only** — the Gradle distribution is built before the
+Its Dockerfile is **runtime-only**, the Gradle distribution is built before the
 image, not inside it. A Gradle stage would have to carry the whole monorepo,
 because `settings.gradle.kts` configures the Node subprojects and installs git
 hooks, all for a build the runner has already done with a warm cache. To build
@@ -332,7 +332,7 @@ hands over between them are in
 
 ## Related
 
-- [Local Development Setup](./local-dev-setup.md) — running it without Docker
-- [Article Genie LLM Integration](../architecture/article-genie-llm.md) — why the Genie is optional
-- [Nightly Scoring Pipeline](../architecture/scoring-pipeline.md) — where the published image is actually run
+- [Local Development Setup](./local-dev-setup.md): running it without Docker
+- [Article Genie LLM Integration](../architecture/article-genie-llm.md): why the Genie is optional
+- [Nightly Scoring Pipeline](../architecture/scoring-pipeline.md): where the published image is actually run
 - [Deploy Strategy & Branch Policy](../deployment/deploy-strategy.md)

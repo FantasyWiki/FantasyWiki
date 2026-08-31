@@ -13,7 +13,7 @@ may do about it. The glossary entries are canonical in
 
 ## The three states
 
-**Article Availability** is an explicit three-state value — deliberately not a
+**Article Availability** is an explicit three-state value, deliberately not a
 generic "unavailable" boolean:
 
 | State | Meaning |
@@ -32,7 +32,7 @@ availability is not Free Agent**, and it is always shown in that case.
 The **Viewer Team Context** is the team id representing the authenticated
 player's active team in the selected league.
 
-Ownership is decided by **comparing team ids** — `Owner Team` against
+Ownership is decided by **comparing team ids**, `Owner Team` against
 `Viewer Team Context`. It is never decided by player id or session subject id:
 both concepts are team-level, and a player may hold a different team per league.
 
@@ -41,10 +41,10 @@ both concepts are team-level, and a player may hold a different team per league.
 Which actions the viewer is offered follows from availability plus the viewer's
 credits:
 
-- **Buy** — eligibility depends on **Article Availability** and viewer credits.
+- **Buy**: eligibility depends on **Article Availability** and viewer credits.
   A Free Agent the viewer cannot afford is shown but not enabled.
-- **Renew** — only meaningful when the article is **Owned by Viewer**.
-- **Swap** — only meaningful when the article is **Owned by Viewer**.
+- **Renew**: only meaningful when the article is **Owned by Viewer**.
+- **Swap**: only meaningful when the article is **Owned by Viewer**.
 
 Availability is resolved per viewer: the same article is `Owned by Viewer` for
 one player and `Owned by Other Team` for their opponent, from the same contract.
@@ -53,4 +53,4 @@ one player and `Owned by Other Team` for their opponent, from the same contract.
 
 - [Article Ownership Resolution](../architecture/article-ownership-resolution.md)
 - [Scoring & Economy System](./scoring-system.md)
-- [Market List](../architecture/market-list.md) — where these states are shown for fifty articles at once
+- [Market List](../architecture/market-list.md): where these states are shown for fifty articles at once

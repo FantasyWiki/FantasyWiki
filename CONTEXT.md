@@ -33,7 +33,7 @@ A per-language constant that multiplies raw pageviews to lift each language onto
 _Avoid_: per-language tier table, per-language synergy table, cross-league multiplier
 
 **Normalized Views**:
-Raw pageviews multiplied by the **Language Scale Factor**. This is the input to the universal tiered base-points model — never raw pageviews directly.
+Raw pageviews multiplied by the **Language Scale Factor**. This is the input to the universal tiered base-points model, never raw pageviews directly.
 _Avoid_: adjusted views, weighted views
 
 **Base Points**:
@@ -98,19 +98,19 @@ A four-step rating (Excellent/Good/Weak/Empty) assigned to a **Chemistry Link** 
 _Avoid_: color tier, synergy multiplier, all-pairs synergy
 
 **Contract Price**:
-The credits required to hold an article, `D × BasePoints(Normalized_30-day-average_Views)^k × contract_days` (ADR 0005 — derived from the scoring curve's own BasePoints shape, not raw views; days-based; supersedes both the original linear `/1000 × weeks` form and an intermediate convex-in-raw-views form). Priced on the **smoothed 30-day average**, never daily views — this is the deliberate decoupling that makes daily spikes cheap-but-fleeting and sustained popularity expensive. The `k` exponent applies convexity to the already-log-compressed points value (not to raw, power-law-skewed views), so giants/top-tier articles cost progressively more per marginal point than mid-tier ones without the price curve diverging from the value it buys.
+The credits required to hold an article, `D × BasePoints(Normalized_30-day-average_Views)^k × contract_days` (ADR 0005, derived from the scoring curve's own BasePoints shape, not raw views; days-based; supersedes both the original linear `/1000 × weeks` form and an intermediate convex-in-raw-views form). Priced on the **smoothed 30-day average**, never daily views, this is the deliberate decoupling that makes daily spikes cheap-but-fleeting and sustained popularity expensive. The `k` exponent applies convexity to the already-log-compressed points value (not to raw, power-law-skewed views), so giants/top-tier articles cost progressively more per marginal point than mid-tier ones without the price curve diverging from the value it buys.
 _Avoid_: daily-view price, spot price, linear-in-views price, convex-in-views price
 
 **Purchase Price / Current Price**:
-**Purchase Price** is the **Contract Price** locked at signing. **Current Price** is the same formula re-evaluated with live 30-day-average views, at the contract's **original tier duration** — a "replacement cost" number (ADR 0003). It's the shared basis for both exit paths: prorated for an **Early Sell**, or a full **Expiry Settlement** against Purchase Price at natural term completion.
+**Purchase Price** is the **Contract Price** locked at signing. **Current Price** is the same formula re-evaluated with live 30-day-average views, at the contract's **original tier duration**, a "replacement cost" number (ADR 0003). It's the shared basis for both exit paths: prorated for an **Early Sell**, or a full **Expiry Settlement** against Purchase Price at natural term completion.
 _Avoid_: fixed price only, single price, resale price (ambiguous about which exit path)
 
 **Early Sell**:
-Voluntarily exiting a contract before its committed term ends: `Current Price × (remaining days / tier days)` credited — pays only for the *unused* portion of the term, at today's rate (ADR 0003). Proration is the sole anti-exploit guard (there is **no minimum hold**): holding 3 of 14 days recovers only 11/14, so a partial hold can never return the full price plus free days of points.
+Voluntarily exiting a contract before its committed term ends: `Current Price × (remaining days / tier days)` credited, pays only for the *unused* portion of the term, at today's rate (ADR 0003). Proration is the sole anti-exploit guard (there is **no minimum hold**): holding 3 of 14 days recovers only 11/14, so a partial hold can never return the full price plus free days of points.
 _Avoid_: resale, cash out (ambiguous with Expiry Settlement)
 
 **Expiry Settlement**:
-The "sold to system" outcome when a contract completes its full committed term without renewal: the team is credited the full **`Current Price`**, i.e. `Purchase Price + (Current Price − Purchase Price)` (ADR 0003). The buy already **debited** `Purchase Price`, so expiry returns the whole stake **plus** the mark-to-market P&L — net profit if views rose over the whole hold, net loss if they fell (crediting only the delta, as an earlier draft did, would wrongly forfeit the stake). Can only trigger by holding the entire term, so it can't be reached via early exit. This is the mechanism that makes buying a viral/trending-spike article at its peak genuinely risky: a spike that fully reverts before the term ends turns into a real loss at settlement, not just "no profit." Runs via a daily **Cloudflare Cron** sweep on the backend (single money-writer, ADR 0004), idempotent on a contract `status` guard.
+The "sold to system" outcome when a contract completes its full committed term without renewal: the team is credited the full **`Current Price`**, i.e. `Purchase Price + (Current Price − Purchase Price)` (ADR 0003). The buy already **debited** `Purchase Price`, so expiry returns the whole stake **plus** the mark-to-market P&L, net profit if views rose over the whole hold, net loss if they fell (crediting only the delta, as an earlier draft did, would wrongly forfeit the stake). Can only trigger by holding the entire term, so it can't be reached via early exit. This is the mechanism that makes buying a viral/trending-spike article at its peak genuinely risky: a spike that fully reverts before the term ends turns into a real loss at settlement, not just "no profit." Runs via a daily **Cloudflare Cron** sweep on the backend (single money-writer, ADR 0004), idempotent on a contract `status` guard.
 _Avoid_: expiry (bare), auto-sell, contract end (without specifying settlement)
 
 **Wealth Ceiling**:
@@ -118,11 +118,11 @@ The point at which extra credits stop buying more daily points. **Stale pending 
 _Avoid_: budget cap, hard cap
 
 **Renewal Premium**:
-A **+10%-per-consecutive-renewal** cost premium on holding the same article, resetting after dropping it for at least one cycle (ADR 0003, retained). The economy's anti-hoard sink — unaffected by the removal of the transaction fee, since it solves a different problem (hoarding one article vs. daily churn).
+A **+10%-per-consecutive-renewal** cost premium on holding the same article, resetting after dropping it for at least one cycle (ADR 0003, retained). The economy's anti-hoard sink, unaffected by the removal of the transaction fee, since it solves a different problem (hoarding one article vs. daily churn).
 _Avoid_: tax, penalty
 
 **Article Genie**:
-The market-page assistant that finds articles a player cannot name exactly (ADR 0006). It serves two intents through one input: **chemistry scouting** ("find me a relation between OpenAI and Portugal") and **tip-of-the-tongue recall** ("the female mathematician who worked at NASA"). It never invents a title — it seeds a bounded list of real articles from search and uses an LLM only to narrow it through questions. When the daily model quota is exhausted the Genie is **asleep** and the market falls back to the ordinary search bar.
+The market-page assistant that finds articles a player cannot name exactly (ADR 0006). It serves two intents through one input: **chemistry scouting** ("find me a relation between OpenAI and Portugal") and **tip-of-the-tongue recall** ("the female mathematician who worked at NASA"). It never invents a title, it seeds a bounded list of real articles from search and uses an LLM only to narrow it through questions. When the daily model quota is exhausted the Genie is **asleep** and the market falls back to the ordinary search bar.
 _Avoid_: Akinator assistant, AI search, chatbot
 
 **Genie Turn**:
@@ -134,11 +134,11 @@ The bounded list of real article titles the **Article Genie** narrows. Seeded fr
 _Avoid_: candidates (bare), search results, shortlist
 
 **League Visibility**:
-Whether a league is **public** (any player may join) or **private** (joining requires its **Invitation Code**, or being the **League Admin**). Visibility governs *joining* only — a private league's page and standings stay readable by anyone with its id. The Global League is public. See docs/domain/league-visibility.md.
+Whether a league is **public** (any player may join) or **private** (joining requires its **Invitation Code**, or being the **League Admin**). Visibility governs *joining* only, a private league's page and standings stay readable by anyone with its id. The Global League is public. See docs/domain/league-visibility.md.
 _Avoid_: league privacy, closed league, locked league
 
 **Invitation Code**:
-The five-character code that opens a **private** league: digits and capitals minus the look-alikes (`0 O 1 I L U`). Only private leagues have one — a public league is joinable by anyone, so there is nothing for a code to guard. It is a credential, so it never travels on a league DTO; only the endpoint that checks the league's **Invite Policy** serves it (ADR 0008).
+The five-character code that opens a **private** league: digits and capitals minus the look-alikes (`0 O 1 I L U`). Only private leagues have one, a public league is joinable by anyone, so there is nothing for a code to guard. It is a credential, so it never travels on a league DTO; only the endpoint that checks the league's **Invite Policy** serves it (ADR 0008).
 _Avoid_: invite token, join key, league password, access code
 
 **Invite Policy**:
@@ -172,20 +172,20 @@ _Avoid_: invite permission, sharing setting
 ## Example dialogue
 
 > **Dev:** "For 'today top article', do we query live data?"
-> **Domain expert:** "No — we use the latest available daily **Top Read Snapshot**, which is usually previous-day data for the selected **Project Domain**."
+> **Domain expert:** "No, we use the latest available daily **Top Read Snapshot**, which is usually previous-day data for the selected **Project Domain**."
 
 ## Flagged ambiguities
 
-- "today's most viewed" was ambiguous — resolved: use the latest available daily snapshot (typically previous day), not real-time values.
-- "article by namespace" was ambiguous — resolved: namespace-only filtering is insufficient; apply hybrid filtering (namespace + denylist rules).
-- "rank" was ambiguous — resolved: UI uses **Filtered Rank** while the service may keep **Source Rank** internally.
-- "day boundary" was ambiguous — resolved: use **Snapshot Date (UTC)**, not client-local dates.
-- "allowed domains" was ambiguous — resolved: `Project Domain` is constrained by app enums and mapped to Wikimedia project IDs.
-- "single top article vs list" was ambiguous — resolved: landing displays a **Top Read List** of 5 entries, each with 30-day average.
-- "service scope naming" was ambiguous — resolved: use **Wikimedia Client** as the generic integration boundary, with feature-specific interactions beneath it.
-- "project id format" was ambiguous — resolved: use `en.wikipedia`/`it.wikipedia` (not `*.org`) in Top Read endpoint paths.
-- "badge total" was ambiguous — resolved: badge uses **Filtered Snapshot Volume** (sum over all filtered snapshot entries), not top-5 only.
-- "today badge wording" was ambiguous — resolved: domain semantics remain latest available **Top Read Snapshot**, but landing marketing copy may say "views today" as a deliberate UI simplification.
+- "today's most viewed" was ambiguous: resolved: use the latest available daily snapshot (typically previous day), not real-time values.
+- "article by namespace" was ambiguous: resolved: namespace-only filtering is insufficient; apply hybrid filtering (namespace + denylist rules).
+- "rank" was ambiguous: resolved: UI uses **Filtered Rank** while the service may keep **Source Rank** internally.
+- "day boundary" was ambiguous: resolved: use **Snapshot Date (UTC)**, not client-local dates.
+- "allowed domains" was ambiguous: resolved: `Project Domain` is constrained by app enums and mapped to Wikimedia project IDs.
+- "single top article vs list" was ambiguous: resolved: landing displays a **Top Read List** of 5 entries, each with 30-day average.
+- "service scope naming" was ambiguous: resolved: use **Wikimedia Client** as the generic integration boundary, with feature-specific interactions beneath it.
+- "project id format" was ambiguous: resolved: use `en.wikipedia`/`it.wikipedia` (not `*.org`) in Top Read endpoint paths.
+- "badge total" was ambiguous: resolved: badge uses **Filtered Snapshot Volume** (sum over all filtered snapshot entries), not top-5 only.
+- "today badge wording" was ambiguous: resolved: domain semantics remain latest available **Top Read Snapshot**, but landing marketing copy may say "views today" as a deliberate UI simplification.
 - "most searched" vs "most viewed" was ambiguous - resolved: this feature uses pageview-based **Top Read** data, so canonical wording is "most viewed."
 - "centralized Wikimedia service" was ambiguous - resolved: centralization means a shared **Wikimedia Client** policy contract, while callers may still be distributed across frontend and backend.
 - "not available" was ambiguous - resolved: use explicit **Article Availability** states instead of a generic unavailable boolean.
@@ -195,4 +195,4 @@ _Avoid_: invite permission, sharing setting
 - "contract duration units" is contradictory (§3.1/§6.1 say weeks–24 months; `contractDTO.tier` buckets in days: SHORT ≤3, MEDIUM ≤7, LONG >7) - leaning to the shorter, code-aligned day/week durations for a fast casual game; exact bounds still open.
 - "base scoring shape" was resolved against real en.wp data (2026-06-07 top-1000): rule-based geometric tiers (log-binned, "+1 point per doubling" from a 4k floor) replace the §2.1 three-tier 5k/20k model, with a convex linear tail above 150k (the volatile daily top ~10) to reward catching breakouts. en.wp is the reference language (factor 1.0).
 - "synergy/chemistry mechanic" was ambiguous (Requirements §2.2 said additive-over-all-pairs; the "Choose Team Formation" user story and shipped code said position-adjacency multiplier) - resolved: chemistry is **additive flat points** evaluated on **schema-adjacency topology** (FUT-style). It is not a multiplier and is not computed over every owned pair. This favors low-traffic articles proportionally and preserves the formation-placement puzzle.
-- "how does a contract pay out at the end" was undefined (only a 24h right-of-first-refusal-then-free-agent-pool was specified, no payout) - resolved (ADR 0003): two distinct exit paths, **Early Sell** (prorated on unused time, exiting before the term ends) and **Expiry Settlement** (credit the full **Current Price** = stake + mark-to-market P&L, only reachable by holding the entire term). The right-of-first-refusal is reworded to a **final-24h renewal election** (owner picks Renew / let-expire during the last 24h of the term; the choice locks for expiry; default = let expire), and settlement runs via a daily **Cloudflare Cron** sweep on the backend (30-day-average views via the Wikimedia client). Also resolved in the same decision: **Base Stipend**, the **8% Transaction Fee**, and the **3-day minimum hold** are all removed — recovery for a broke player comes from the pricing curve's zero floor (free sub-2,000-view articles), not a guaranteed flat income; the fee and the hold were redundant with 30-day-average smoothing plus early-sell proration. See ADR 0003 for the full reasoning and the acknowledged open risk (no-death-spiral is now probabilistic, not guaranteed).
+- "how does a contract pay out at the end" was undefined (only a 24h right-of-first-refusal-then-free-agent-pool was specified, no payout) - resolved (ADR 0003): two distinct exit paths, **Early Sell** (prorated on unused time, exiting before the term ends) and **Expiry Settlement** (credit the full **Current Price** = stake + mark-to-market P&L, only reachable by holding the entire term). The right-of-first-refusal is reworded to a **final-24h renewal election** (owner picks Renew / let-expire during the last 24h of the term; the choice locks for expiry; default = let expire), and settlement runs via a daily **Cloudflare Cron** sweep on the backend (30-day-average views via the Wikimedia client). Also resolved in the same decision: **Base Stipend**, the **8% Transaction Fee**, and the **3-day minimum hold** are all removed: recovery for a broke player comes from the pricing curve's zero floor (free sub-2,000-view articles), not a guaranteed flat income; the fee and the hold were redundant with 30-day-average smoothing plus early-sell proration. See ADR 0003 for the full reasoning and the acknowledged open risk (no-death-spiral is now probabilistic, not guaranteed).

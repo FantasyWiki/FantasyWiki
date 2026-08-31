@@ -21,21 +21,66 @@ disagrees with an ADR, the ADR wins.
 ## Where they came from
 
 The brief was not written in one sitting and then built. The concept was put in
-front of people first — described, argued with, and revised on what came back —
+front of people first: described, argued with, and revised on what came back,
 before any of it became a requirement. That round is why several of the
 obligations below are narrower than the original idea.
 
-<Planned evidence="the pitch as it was presented, and the responses to it">
+### How the idea got to this shape
 
-What was pitched, who it was pitched to, what they said, and which of the
-requirements below changed as a result. The interesting half is the second one:
-an idea that survived feedback unchanged and an idea nobody questioned look
-identical in a finished specification, and only one of them has been tested.
+The starting point was **Polymarket**, a prediction market where people buy and
+sell shares in the outcome of a real-world event, so the share price reads as the
+crowd's estimate of how likely it is.
 
-</Planned>
+The observation this project rests on followed from it: **Wikipedia pageview
+volume tracks the same trends a prediction market prices**, and it is free to
+read.
+
+Two ideas were dropped on the way to the current one:
+
+| Idea | Why it was dropped |
+|---|---|
+| A prediction market of open-ended bets, on anything | No way to settle them. An arbitrary bet needs an oracle the project could not build or afford |
+| Trends sourced from Google search analytics | The analytics API costs hundreds of dollars a month, which a project running on free tiers cannot justify |
+
+Dropping settlement is what turned the concept from a market into a **game**.
+With no bet to adjudicate, scoring had to come from a formula over public
+numbers; once scoring is a formula, the format that fits it is fantasy football.
+The derivation in full: prediction market, minus settlement, plus a squad.
+
+### What the pitch came back with
+
+**Who:** the university friends who would later play it, and other people from
+the university outside that group.
+
+**How:** informally, before anything was built. A conversation, a walkthrough of
+the product, then a short spoken set of questions on what they made of the idea
+and whether they would play it.
+
+**What came back:**
+
+| Response | Effect on the requirements below |
+|---|---|
+| Broadly positive. The appeal was using Wikipedia data as a game about current news and trends | The premise was kept |
+| A preliminary auction for articles was rejected as tedious. A fantasy-football auction works because the players can be listed; Wikipedia articles cannot be enumerated that way | The market is a fixed price against a live valuation, not an auction |
+| Google analytics would be the better data source | Priced out, as above |
+
+### What nobody asked about
+
+**The leaderboard.** Neither group questioned how teams would be ranked against
+each other. Total points across the season went unchallenged, and nobody raised
+head-to-head fixtures, a tournament, or any alternative.
+
+That is the one worth recording, because a requirement nobody questioned and a
+requirement that survived scrutiny look identical once written down.
+[The playtest](../quality/playtest.md) separated them: players reported that
+nothing felt competitive and asked, unprompted, for the head-to-head format
+nobody had thought to raise beforehand.
+
+The auction ran the other way. Rejected at the pitch, then requested by the same
+people after a month of play.
 
 The second round of evidence came much later and from real play rather than
-opinion — a month on production, in [the playtest](../quality/playtest.md).
+opinion. A month on production, in [the playtest](../quality/playtest.md).
 
 ## The model, as a wall of notes
 
@@ -195,7 +240,7 @@ it is already built, at what satisfies it.
 | F3 | Keep a league private unless its founder says otherwise, and admit by code | [League Visibility](../docs/domain/league-visibility.md) · [ADR 0008](../docs/adr/0008-league-invitation-codes.md) | `services/invitationCode.ts` |
 | F4 | Bound a season between two weeks and six months | [League Season](../docs/domain/league-season.md) | `services/league.ts` |
 | F5 | Price a contract from a smoothed 30-day average rather than a spike | [ADR 0005](../docs/adr/0005-contract-pricing.md) | `model/pricing.ts` |
-| F6 | Keep the money supply closed — no stipend, no fee, gains and losses settled at expiry | [ADR 0003](../docs/adr/0003-closed-trading-economy.md) · [ADR 0007](../docs/adr/0007-derived-team-credits.md) | `workflows/contractSettlement.ts` |
+| F6 | Keep the money supply closed: no stipend, no fee, gains and losses settled at expiry | [ADR 0003](../docs/adr/0003-closed-trading-economy.md) · [ADR 0007](../docs/adr/0007-derived-team-credits.md) | `workflows/contractSettlement.ts` |
 | F7 | Score each team on the previous day's pageviews, once, for every league | [Scoring & Economy System](../docs/domain/scoring-system.md) | `scoring-collector/` + `services/scoring.ts` |
 | F8 | Award chemistry for adjacent articles that link to each other on Wikipedia | [Chemistry Links](../docs/domain/chemistry-links.md) | `services/performance.ts` |
 | F9 | Show a player which articles are free, theirs, or another team's | [Article Availability](../docs/domain/article-availability.md) | `services/articleMarket.ts` |
@@ -216,8 +261,8 @@ an aspiration.
 rewriting its business logic.
 
 **The mechanism.** Every persistence contract is an interface under
-`repositories/`, each store is one implementation beneath it —
-`repositories/mongo/` and `repositories/d1/` — and `composition.ts` is the only
+`repositories/`, each store is one implementation beneath it
+(`repositories/mongo/` and `repositories/d1/`), and `composition.ts` is the only
 module allowed to choose one, from a binding. The rule is enforced by ESLint:
 nothing under `services/`, `routes/` or `tests/` may import either
 implementation directory, so the seam cannot erode by accident.
@@ -225,15 +270,15 @@ implementation directory, so the seam cannot erode by accident.
 **The evidence.** This is the one quality attribute here that has been
 discharged rather than argued. MongoDB was added as a second target with no
 change above the repository layer, and the conformance suite in
-`tests/repositories/conformance` — written against the interfaces and nothing
-below them — became its acceptance criteria unchanged. Both targets run the
+`tests/repositories/conformance`, written against the interfaces and nothing
+below them, became its acceptance criteria unchanged. Both targets run the
 same suite on every `./gradlew check`, so the second implementation cannot rot
 while the first one is the one being used.
 
 What the exercise cost is worth recording, because it is what a portability
 claim usually hides: the interfaces held, and everything that had to be
 re-derived was a guarantee the relational store had been giving away for free
-— single-statement atomicity, a cascade on delete, a view. Each one is now
+(single-statement atomicity, a cascade on delete, a view). Each one is now
 stated explicitly on the document side, and named in
 [the data model](../architecture/data-model.md).
 
@@ -271,7 +316,7 @@ that has to be running in order to schedule.
 
 The database is the one place that argument is split, and it is worth stating
 plainly rather than smoothing over. D1, which the Cloudflare deployment runs
-on, is billed by rows read and written — the same shape as the Worker. A
+on, is billed by rows read and written, the same shape as the Worker. A
 MongoDB cluster is capacity bought in advance: free at the size the game is
 played at, and the first line of the bill that would become a decision if it
 grew. The repository seam is what keeps that a deployment choice rather than an
@@ -280,7 +325,7 @@ architectural one.
 At the numbers the game is played at today the whole system lands inside the
 free tiers with room to spare. Past them, every line of the bill but the
 cluster is per request and per row, so it follows the league count up a slope
-rather than a staircase — there is no size at which the architecture has to be
+rather than a staircase: there is no size at which the architecture has to be
 bought again.
 
 The one quantity that does not grow with players is the nightly fan-out to
@@ -298,7 +343,7 @@ network.
 
 **The mechanism.** Tiers with an explicit rule about which layer each may name,
 a seeding helper that goes through the production write path instead of raw
-queries, and a real database reset before every backend test — every collection
+queries, and a real database reset before every backend test: every collection
 emptied and re-seeded on MongoDB, the schema dropped and the migrations
 replayed on D1.
 
@@ -323,7 +368,7 @@ only the two tasks that name it.
 | Wikimedia's API etiquette | The nightly fan-out is throttled and identifies itself with a user agent; the collector holds no persistent state |
 | Pageviews are published in arrears | Scoring can only ever be a batch over a completed UTC day |
 | Cloudflare Workers CPU budget | Ingest is chunked, and heavy work is pushed into a Workflow rather than a request |
-| A Worker owns its sockets per request | The MongoDB client is built per request and never cached in a module — a cached one breaks every request after the first, and does it silently |
+| A Worker owns its sockets per request | The MongoDB client is built per request and never cached in a module. A cached one breaks every request after the first, and does it silently |
 | Mongo transactions are snapshot-isolated, not serializable | A guarded write also writes the league it is guarding against, so the losing transaction is retried rather than committed against a stale snapshot |
 | Multi-document transactions need a replica set | Even a local run is a single-node replica set, and the test suite starts one of its own |
 | The MongoDB driver reaches for `node:net` and `node:tls` | No Cloudflare deployment runs on MongoDB: the driver is aliased out of the Worker bundle, and the Mongo target has a wrangler config of its own |
@@ -332,8 +377,8 @@ only the two tasks that name it.
 
 ## Related
 
-- [What FantasyWiki is](./what-is-fantasywiki.md) — the game and its four systems
-- [Architecture overview](../architecture/) — how the obligations above are arranged in code
-- [Technologies](./technologies.md) — what the quality attributes above were satisfied with
-- [The playtest](../quality/playtest.md) — a month of real play against these obligations
-- [FantaWiki Requirements v5.5](../docs/domain/fantawiki-requirements.md) — the original brief
+- [What FantasyWiki is](./what-is-fantasywiki.md): the game and its four systems
+- [Architecture overview](../architecture/): how the obligations above are arranged in code
+- [Technologies](./technologies.md): what the quality attributes above were satisfied with
+- [The playtest](../quality/playtest.md): a month of real play against these obligations
+- [FantaWiki Requirements v5.5](../docs/domain/fantawiki-requirements.md): the original brief

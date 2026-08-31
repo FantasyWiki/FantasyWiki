@@ -17,7 +17,7 @@ A **Formation** assigns contracts to the **Positions** required by a
 exist and which [Chemistry Links](./chemistry-links.md) connect them.
 
 Every schema has **11 positions**, so a team holds at most **11 active
-contracts** — one per position. (This resolved an earlier contradiction in the
+contracts**, one per position. (This resolved an earlier contradiction in the
 requirements, which said 10; see `CONTEXT.md`.)
 
 ## Bench
@@ -28,7 +28,7 @@ unbounded: it is where contracts go when they are not on the pitch.
 ## Editing rules
 
 - **Placing** a contract on an occupied position displaces the current occupant
-  **to the bench** — it is never dropped.
+  **to the bench**, it is never dropped.
 - **Removing** a contract from a position returns it **to the bench**.
 - **Swapping** is symmetric and covers every source/target combination:
   position↔position, position↔bench, bench↔bench, and bench→position.
@@ -42,7 +42,7 @@ contract is always either on a position or on the bench.
 ## Chemistry follows placement
 
 Because chemistry is evaluated on schema adjacency, any edit that changes which
-articles sit on linked positions — including a schema change — changes the
+articles sit on linked positions, including a schema change, changes the
 **Chemistry Levels** of the formation. Chemistry is a function of the placement,
 never stored independently of it.
 

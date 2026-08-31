@@ -10,7 +10,7 @@ This document describes the internal architecture of the shared Wikimedia module
 
 ## Purpose
 
-`external-apis/wikimedia/client.ts` is the composition root for the Wikimedia integration boundary.  
+`external-apis/wikimedia/client.ts` is the composition root for the Wikimedia integration boundary.
 It centralizes shared runtime policy while allowing feature capabilities to evolve in separate modules.
 
 ## Architectural shape
@@ -28,8 +28,8 @@ The shared client is split into two layers:
    - Capability modules contain feature-specific request/response behavior
    - Existing capabilities remain unchanged when new capabilities are added
 3. **Shared internals (`client/internal.ts`)**
-   - The policies every capability must apply identically — retryable fetch,
-     UTC date formatting, the concurrency cap, the cache read/write wrapper —
+   - The policies every capability must apply identically: retryable fetch,
+     UTC date formatting, the concurrency cap, the cache read/write wrapper,
      imported by the capability modules rather than passed to them
 
 ## Type boundaries
@@ -38,7 +38,7 @@ The shared client is split into two layers:
   `WikimediaClient` (the namespaces), `WikimediaHttp` (the transport seam) and
   `CacheLike`.
 - `external-apis/wikimedia/wikimedia.ts` holds the **data** types either side
-  speaks — the normalized ones a caller receives (`TopReadEntry`,
+  speaks, the normalized ones a caller receives (`TopReadEntry`,
   `ArticleSearchHit`, `WikipediaEdition`, `SiteNamespaces`), the raw upstream
   shapes they are mapped from (`WikimediaTopReadArticle`), and the normalizers
   that cross between them (`normalizeTopReadEntries`, `isContentArticleTitle`,
@@ -48,7 +48,7 @@ The shared client is split into two layers:
   `searchArticles.ts`). It is promoted to `wikimedia.ts` only when a second
   module needs it.
 
-The boundary that matters is therefore not raw-versus-public in separate files —
+The boundary that matters is therefore not raw-versus-public in separate files,
 it is that a raw shape never leaves the module that maps it, and that every
 caller-facing type is normalized.
 
@@ -72,7 +72,7 @@ Split across two files, by who has to decide them:
 | --- | --- | --- |
 | Transport | `client.ts` | default `fetch`, or an injected `http` adapter |
 | Cache lifetime | `client.ts` | `getDefaultCache` + a `setTtl` per capability |
-| Retry | `client/internal.ts` | `fetchJsonWithRetry` — retryable statuses and network failures |
+| Retry | `client/internal.ts` | `fetchJsonWithRetry`, retryable statuses and network failures |
 | Concurrency | `client/internal.ts` | `MAX_CONCURRENT_REQUESTS` = 3, applied through `mapWithLimit` |
 | Dates | `client/internal.ts` | UTC snapshot formatting (`toYmd`, `shiftUtcDays`, `toDateParts`) |
 | Cache read/write | `client/internal.ts` | `withCache`, so a capability never touches the store directly |
@@ -84,12 +84,12 @@ one helper.
 
 ## Runtime adapters and ownership
 
-Runtime-specific wrappers (frontend/backend) provide transport adapters and call the same shared client factory.  
+Runtime-specific wrappers (frontend/backend) provide transport adapters and call the same shared client factory.
 Runtime concerns remain outside the shared module so the capability behavior stays deterministic and reusable.
 
 ## Related
 
-- [Wikimedia Client Terminology & Hierarchy](./wikimedia-client-terminology-hierarchy.md) — domain language and expansion hierarchy conventions.
-- [Wikimedia Client Behavior Extension](./wikimedia-client-behavior-extension.md) — step-by-step, with a concrete example.
-- [Backend Architecture](./backend-architecture.md) — where the client is consumed.
-- [Market List](./market-list.md) — the client's largest consumer, and what it does with a snapshot.
+- [Wikimedia Client Terminology & Hierarchy](./wikimedia-client-terminology-hierarchy.md): domain language and expansion hierarchy conventions.
+- [Wikimedia Client Behavior Extension](./wikimedia-client-behavior-extension.md): step-by-step, with a concrete example.
+- [Backend Architecture](./backend-architecture.md): where the client is consumed.
+- [Market List](./market-list.md): the client's largest consumer, and what it does with a snapshot.

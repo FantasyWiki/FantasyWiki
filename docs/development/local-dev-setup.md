@@ -33,15 +33,15 @@ Then fill in the two blanks in `.dev.vars` (see Step 1). Both files are loaded
 automatically by their respective tools at startup.
 
 **You do not need a Cloudflare account to run FantasyWiki locally.** The one
-feature that needs one — the Article Genie — is switched off by default and the
+feature that needs one, the Article Genie, is switched off by default and the
 app hides it; see [Running without a Cloudflare account](#running-without-a-cloudflare-account).
 
-To skip installing Node and npm as well — and to skip `GOOGLE_CLIENT_SECRET`
-entirely — see [Running FantasyWiki in Docker](./docker-local-dev.md) instead.
+To skip installing Node and npm as well, and to skip `GOOGLE_CLIENT_SECRET`
+entirely, see [Running FantasyWiki in Docker](./docker-local-dev.md) instead.
 
 ---
 
-## Step 1 — Create `backend/.dev.vars`
+## Step 1, Create `backend/.dev.vars`
 
 Create the file at `FantasyWiki/backend/.dev.vars` with the following content:
 
@@ -62,13 +62,13 @@ GH_APP_PRIVATE_KEY=<optional; only needed to exercise the problem report form>
   ```bash
   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
   ```
-- `GOOGLE_CLIENT_SECRET` is sensitive — ask a team member or find it in the
+- `GOOGLE_CLIENT_SECRET` is sensitive: ask a team member or find it in the
   Google Cloud Console under the OAuth 2.0 client for this project. It is the
   only value here you cannot produce yourself, and you can leave it blank: set
   `VITE_DEV_LOGIN=true` in Step 2 and sign in as the demo player instead.
 - `GH_APP_PRIVATE_KEY` backs the in-app problem report form (`/report`), which opens an
   issue on `FantasyWiki/FantasyWiki` as `FantasyWiki[bot]`. **Leave it unset unless you are
-  working on that form** — every submission with a valid key files a **real** issue (labelled
+  working on that form**, every submission with a valid key files a **real** issue (labelled
   `preview` outside production, so it stays filterable and bulk-deletable).
 
   It is the GitHub App's private key, converted to **PKCS#8** (GitHub gives you PKCS#1, which
@@ -78,13 +78,13 @@ GH_APP_PRIVATE_KEY=<optional; only needed to exercise the problem report form>
   vars and already live in `wrangler.jsonc`.
 
   In CI it is a **GitHub Actions secret** of the same name, pushed to the Worker by the deploy
-  workflow — not a `wrangler secret put`.
+  workflow, not a `wrangler secret put`.
 - **Nothing in this file is a Cloudflare credential.** Workers AI is bound to the Worker rather than
   keyed, which is why it is switched off by environment rather than by secret.
 
 ---
 
-## Step 2 — Create `frontend/.env.local`
+## Step 2, Create `frontend/.env.local`
 
 Create the file at `FantasyWiki/frontend/.env.local` with the following content:
 
@@ -102,7 +102,7 @@ VITE_MOCK=true
   calls except `/api/session` and `/auth/*`, which pass through to the real
   local backend.
 - `VITE_DEV_LOGIN=true` puts a **Continue as demo player** button on the login
-  screen, which mints the same session Google would without going near Google —
+  screen, which mints the same session Google would without going near Google,
   so you can leave `GOOGLE_CLIENT_SECRET` blank and skip Step 3 entirely. The
   button only exists in a build started with the variable set, and the backend
   answers `/auth/dev` with a 404 unless it is running as `--env local`, so
@@ -112,13 +112,13 @@ VITE_MOCK=true
   screen. It works only against a backend started with `npm run devmongo` (or
   `./gradlew devMongo`): username/password sign-in lives in
   `src/indexPassword.ts`, which only `wrangler.mongo.jsonc` names, so the D1
-  local run — and every deployment — does not contain those routes at all. Never
+  local run, and every deployment, does not contain those routes at all. Never
   set it in `.env.preview` or `.env.production`. See
   [Auth Modes](../architecture/auth-modes.md).
 
 ---
 
-## Step 3 — Add Yourself to Google OAuth Redirect URIs
+## Step 3, Add Yourself to Google OAuth Redirect URIs
 
 Google blocks logins from unregistered redirect URIs. Each developer must add
 their local redirect URI to the Google Cloud Console once.
@@ -133,19 +133,19 @@ their local redirect URI to the Google Cloud Console once.
 
 ---
 
-## Step 4 — Start the App
+## Step 4, Start the App
 
 Open two terminals:
 
 ```bash
-# Terminal 1 — backend
+# Terminal 1, backend
 cd backend
 npm run dev          # wrangler dev --env local
 # Should print: Ready on http://127.0.0.1:8787
 ```
 
 ```bash
-# Terminal 2 — frontend
+# Terminal 2, frontend
 cd frontend
 npm run dev
 # Should print: Local: http://localhost:5173/
@@ -163,7 +163,7 @@ Wait for both "Ready" messages before opening the browser.
 
 The backend persists to either Cloudflare D1 or MongoDB
 ([Persistence Targets](../architecture/persistence-targets.md)), and the local
-run can be either. MongoDB needs a **replica set** to talk to — the guarded
+run can be either. MongoDB needs a **replica set** to talk to, the guarded
 writes are transactions, and a standalone `mongod` has none. One node is enough:
 
 ```bash
@@ -184,8 +184,8 @@ Or, with the frontend beside it, from the project root:
 ```
 
 There is nothing to migrate first: `npm run dev` applies the D1 migrations
-before starting, and the MongoDB run writes its indexes and its baseline — the
-Global League, the `system` player, the `en` scale factor — on its first
+before starting, and the MongoDB run writes its indexes and its baseline, the
+Global League, the `system` player, the `en` scale factor, on its first
 connection. The database is `fantasywiki` on `127.0.0.1:27017`; change
 `MONGO_URL` in `backend/wrangler.mongo.jsonc` to point somewhere else.
 
@@ -195,15 +195,15 @@ work either way, and neither can see the other's data.
 The MongoDB config carries only what a local session uses, which is less than
 `env.local` binds:
 
-- **No D1**, and **no settlement Workflow or cron** — that is started by a daily
+- **No D1**, and **no settlement Workflow or cron**: that is started by a daily
   trigger, which does not fire locally.
 - **`AI`, bound**, so the Article Genie is the real thing here, against the
   model ADR 0006 measured. Workers AI has no local simulator, so a Genie call
-  leaves the machine and spends the account's neuron allocation even in dev —
+  leaves the machine and spends the account's neuron allocation even in dev,
   which is why the binding is marked `remote: true`. The server itself starts
   without Cloudflare credentials; only a Genie *call* needs them, and without
   them it fails as `GENIE_ERRORS.ASLEEP` rather than stopping the run.
-- **The three rate limiters, kept** — not to limit anything, but because the
+- **The three rate limiters, kept**: not to limit anything, but because the
   routes behind joining by invitation code and the problem-report form call
   `.limit(...)` unconditionally and would fail with a TypeError without them.
 
@@ -216,14 +216,14 @@ The MongoDB config carries only what a local session uses, which is less than
 the one that does not: it runs `local-genie`, and wants the account below. That is deliberate:
 Workers AI has no local simulator, so the binding's mere presence makes Wrangler
 open a remote proxy session and ask you to log in to Cloudflare. With it
-declared, a fresh clone could not start the backend at all — the whole app held
+declared, a fresh clone could not start the backend at all, the whole app held
 up by one optional feature.
 
 The consequence is visible in exactly one place: the **Article Genie** button
 next to the market's search bar is not rendered. The backend reports the feature
 off on `GET /api/session` and the frontend hides both the trigger and the panel,
-so there is no broken button to click. Everything else — leagues, the market,
-formations, scoring — behaves normally.
+so there is no broken button to click. Everything else, leagues, the market,
+formations, scoring, behaves normally.
 
 ### Turning the Genie on
 
@@ -235,7 +235,7 @@ wrangler login          # once
 cd backend && npm run devgenie
 ```
 
-That runs the `local-genie` environment — `local` plus the `ai` binding. It uses
+That runs the `local-genie` environment, `local` plus the `ai` binding. It uses
 the same local D1 data as `local`, so no re-migration is needed when switching
 between them.
 
@@ -256,7 +256,7 @@ interaction anywhere.
 
 **1. Create it.** Go to
 <https://dash.cloudflare.com/profile/api-tokens> → **Create Token** →
-**Create Custom Token** (the bottom option — the templates above it are all
+**Create Custom Token** (the bottom option, the templates above it are all
 far broader than this needs), then add the least that works:
 
 | Section | Group | Resource | Level |
@@ -274,14 +274,14 @@ Workers AI has no local simulator, `wrangler dev` opens a *remote preview
 session* to carry the calls, and that machinery lives under Workers Scripts
 rather than under Workers AI. Without it Wrangler stops with
 `Failed to establish remote session due to an authentication issue` and the
-backend never starts — while `wrangler whoami` still succeeds, because the token
+backend never starts, while `wrangler whoami` still succeeds, because the token
 is perfectly valid and merely unauthorised for that one endpoint
 (`GET /accounts/<id>/workers/subdomain/edge-preview`, error code 10000).
 `WRANGLER_LOG=debug` is what prints the endpoint; the plain error does not.
 
 So **this token is not read-only**: Workers Scripts · Edit can publish a Worker
 to your account, and it will be sitting in a file on your laptop. It is still
-narrower than the deploy token CI uses — no Pages, no D1 — but treat it as a
+narrower than the deploy token CI uses, no Pages, no D1, but treat it as a
 write credential, and if that is not a trade you want, `./gradlew noGenie` and
 `npm run dev` need no Cloudflare account at all.
 
@@ -290,10 +290,10 @@ write credential, and if that is not a trade you want, `./gradlew noGenie` and
 → Overview** in the right-hand sidebar.
 
 **3. Put both where they are read from.** `wrangler.jsonc` declares no
-`account_id`, so Wrangler asks the API — which means `CLOUDFLARE_ACCOUNT_ID` is
+`account_id`, so Wrangler asks the API, which means `CLOUDFLARE_ACCOUNT_ID` is
 **required, not optional**, as soon as your token can see more than one account.
 
-- **Natively** — export them in your shell, or leave `wrangler login` in place
+- **Natively**: export them in your shell, or leave `wrangler login` in place
   and skip the token entirely.
 
   ```bash
@@ -301,7 +301,7 @@ write credential, and if that is not a trade you want, `./gradlew noGenie` and
   export CLOUDFLARE_ACCOUNT_ID=...
   ```
 
-- **In Docker** — put both at the bottom of `backend/.dev.vars`, the same
+- **In Docker**: put both at the bottom of `backend/.dev.vars`, the same
   file the Worker's other secrets live in (`.dev.vars.example` carries the two
   names, commented with how to create the token). Compose passes that whole
   file into the container's environment, so nothing has to be exported there
@@ -311,7 +311,7 @@ write credential, and if that is not a trade you want, `./gradlew noGenie` and
   cp backend/.dev.vars.example backend/.dev.vars   # if you have none yet
   ```
 
-  There is no `.env` in the repository root, on purpose — a third env file for
+  There is no `.env` in the repository root, on purpose, a third env file for
   two values is a worse trade than putting them beside the secrets that were
   already there. Note the direction of the split, though: Wrangler reads
   `.dev.vars` for the **Worker's** vars, never for its own credentials, so
@@ -360,11 +360,11 @@ so those requests reach the real Wrangler backend. Everything else is mocked.
 | `401` on `/api/session` | `FRONTEND_URL` in `.dev.vars` still points to production | Check `.dev.vars` exists inside `backend/` and restart Wrangler |
 | Backend not reachable | Wrangler not running or wrong port | Run `npm run dev` in `backend/` and check the port in the log |
 | Cookie not sent | Browser privacy settings blocking cookies | Use Chrome/Firefox, disable aggressive privacy extensions during dev |
-| Wrangler asks you to log in to Cloudflare | You started the `local-genie` env (or added an `ai` binding to `local`) | Use `npm run dev` — the Genie is optional, see above |
+| Wrangler asks you to log in to Cloudflare | You started the `local-genie` env (or added an `ai` binding to `local`) | Use `npm run dev`, the Genie is optional, see above |
 | No Genie button in the market | Expected on `npm run dev` | Nothing to fix; `npm run devgenie` if you need it |
 | `MongoServerSelectionError` on `npm run devmongo` | No MongoDB listening, or it is a standalone rather than a replica set | Run the two `docker` lines above; transactions need a replica set |
-| `Failed to start the remote proxy session` / `auth token has expired` | Some bindings are proxied to the real Cloudflare — `npm run dev` binds Workflows, which needs a live token to start at all | `npx wrangler login`. `npm run devmongo` binds no Workflow and starts without it |
-| The Genie answers `ASLEEP` | The Workers AI call failed — usually no valid Cloudflare token | `npx wrangler login`; everything else works without one |
+| `Failed to start the remote proxy session` / `auth token has expired` | Some bindings are proxied to the real Cloudflare, `npm run dev` binds Workflows, which needs a live token to start at all | `npx wrangler login`. `npm run devmongo` binds no Workflow and starts without it |
+| The Genie answers `ASLEEP` | The Workers AI call failed, usually no valid Cloudflare token | `npx wrangler login`; everything else works without one |
 
 ## Related
 
@@ -373,4 +373,4 @@ so those requests reach the real Wrangler backend. Everything else is mocked.
 - [NPM Script Naming Convention](./npm-script-naming.md)
 - [Article Genie LLM Integration](../architecture/article-genie-llm.md)
 - [Running FantasyWiki in Docker](./docker-local-dev.md)
-- [Frontend Testing](./frontend-testing.md) — the same MSW handlers, driven by vitest
+- [Frontend Testing](./frontend-testing.md): the same MSW handlers, driven by vitest

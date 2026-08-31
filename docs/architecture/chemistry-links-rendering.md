@@ -7,7 +7,7 @@ tags: [chemistry, formation, frontend, dto, svg]
 # Chemistry Links Rendering (architecture)
 
 How chemistry links are modeled in code and drawn in the formation view. The
-**rules** — what a link is, how a level is earned, what it scores — live in
+**rules**, what a link is, how a level is earned, what it scores, live in
 [Chemistry Links (domain)](../domain/chemistry-links.md).
 
 ## Data model
@@ -31,7 +31,7 @@ topology per schema (4-3-3, 4-4-2, …) compile-time checked:
 - `createChemistryLinks(schema)` which expands `CHEMISTRY_LINKS[schema]` into a
   list of `ChemistryLink` objects with default `level: "empty"`.
 
-The per-level score value is `CHEMISTRY_POINTS_BY_LEVEL` in `model/enums.ts` —
+The per-level score value is `CHEMISTRY_POINTS_BY_LEVEL` in `model/enums.ts`,
 **additive flat points**, not a multiplier.
 
 Both `DraftFormationDTO` and `FormationDTO` carry:
@@ -100,6 +100,6 @@ keep links aligned:
 
 ## Related documentation
 
-- [Chemistry Links (domain)](../domain/chemistry-links.md) — the rules and scoring.
-- [Lineup Editing](./lineup-editing.md) — how contracts are placed, removed,
+- [Chemistry Links (domain)](../domain/chemistry-links.md): the rules and scoring.
+- [Lineup Editing](./lineup-editing.md): how contracts are placed, removed,
   swapped, and moved (the `DraftLineup` seam).

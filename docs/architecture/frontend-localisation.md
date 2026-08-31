@@ -12,7 +12,7 @@ a missing translation a build failure rather than a key printed on screen.
 
 ## English is the schema of record
 
-The catalogues are JSON — `src/i18n/locales/en.json` and `it.json` — because the
+The catalogues are JSON, `src/i18n/locales/en.json` and `it.json`, because the
 i18n lint tooling can read JSON and cannot read a TypeScript module. That trade
 lost the compile-time completeness the old typed catalogue gave, so
 `locales/schema.ts` buys it back in three lines:
@@ -38,7 +38,7 @@ catalogues*. Neither subsumes the other.
 previously chose (persisted under `language`), then the browser's preferred
 language, then English.
 
-It is **exported and used twice** — the `createI18n` instance boots with it, and
+It is **exported and used twice**, the `createI18n` instance boots with it, and
 the app store's `languageCode` initialises from it. Two independent guesses at
 the same question is how the switcher comes to show one flag while the page reads
 in another language.
@@ -60,7 +60,7 @@ it translatable means sending a key and its parameters instead of a sentence, an
 that is a change to the DTO rather than to this layer.
 
 Article titles, team names and player names are not translated either, for the
-obvious reason — they are data.
+obvious reason, they are data.
 
 ## Where each piece lives
 
@@ -74,6 +74,6 @@ obvious reason — they are data.
 
 ## Related
 
-- [Notifications](./notifications.md) — the text this layer does not reach
-- [Frontend Testing](../development/frontend-testing.md) — the i18n plugin every mount gets
-- [`DESIGN.md`](../../DESIGN.md) — the tone the strings are written in
+- [Notifications](./notifications.md): the text this layer does not reach
+- [Frontend Testing](../development/frontend-testing.md): the i18n plugin every mount gets
+- [`DESIGN.md`](../../DESIGN.md): the tone the strings are written in

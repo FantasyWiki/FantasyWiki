@@ -25,7 +25,7 @@ export const CONTRACT_WRITE_ERRORS = {
 
 // A consumer branches on identity with the constant:
 if (createResult.error !== CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT) {
-  return createResult; // a real persistence failure — pass it through
+  return createResult; // a real persistence failure, pass it through
 }
 // ...handle the conflict case
 ```
@@ -43,7 +43,7 @@ Existing constants and their owners:
 | `LINEUP_ERRORS`         | `services/lineup.ts`                     | `routes/leagues.ts`                          |
 | `LEAGUE_CREATION_ERRORS` | `services/league.ts`                    | `routes/leagues.ts`                          |
 | `LEAGUE_CLOSURE_ERRORS` | `services/league.ts`                     | `routes/leagues.ts`                          |
-| `LOGIN_ERRORS`          | `services/login.ts`                      | —                                            |
+| `LOGIN_ERRORS`          | `services/login.ts`                      |,                                            |
 
 Rules for new code:
 
@@ -53,12 +53,12 @@ Rules for new code:
   meaning has one owner: `TEAM_ERRORS.NO_TEAM_IN_LEAGUE` is the single "player
   has no team here" string, which `CONTRACT_ERRORS.NO_TEAM` and
   `LINEUP_ERRORS.NO_TEAM` alias rather than re-spell.
-- **The wording is then free to change** — it is display text, nothing more.
+- **The wording is then free to change**: it is display text, nothing more.
   Tests must compare against the constant too, never against a copy of its text.
 - **Never re-construct another module's message** to compare against it, and
   never branch on raw driver text (`"UNIQUE constraint failed: ..."`). If you
   need to distinguish a persistence failure, classify it _inside the
-  repository_ and surface a constant — `PlayerRepositoryD1.save` recognises
+  repository_ and surface a constant, `PlayerRepositoryD1.save` recognises
   SQLite's uniqueness message and returns `PLAYER_ERRORS.USERNAME_TAKEN`, so
   the login retry loop never sees driver text.
 - **Routes map constants to statuses by identity, and default to 500.** An
@@ -83,12 +83,12 @@ Rules for new code:
 
 D1 has no interactive transactions, so a service-side check followed by a
 write is a race: another request can change the world between the two
-statements. The fix is to evaluate the conditions _inside_ the write — one
+statements. The fix is to evaluate the conditions _inside_ the write, one
 statement is one implicit transaction, and SQLite/D1 serialize writers:
 
 ```sql
 INSERT INTO contracts (...)
-SELECT ?, ?, ...
+SELECT ??...
 WHERE <derived credits cover the price>
   AND NOT EXISTS (<an active contract on this article in this league>)
   AND (<active contracts held by the team>) < ?
@@ -101,8 +101,8 @@ Four more writes follow the same shape: `teamRepositoryD1.create` (the join
 gate), `leagueRepositoryD1.close` and `teamRepositoryD1.leave` (the two
 lifecycle endings, see
 [League Lifecycle](../domain/league-lifecycle.md)). Each returns exactly one
-sentinel — `TEAM_ERRORS.JOIN_CONFLICT`, `LEAGUE_ERRORS.CLOSE_CONFLICT`,
-`TEAM_ERRORS.LEAVE_CONFLICT` — and each has a service-side classifier that
+sentinel, `TEAM_ERRORS.JOIN_CONFLICT`, `LEAGUE_ERRORS.CLOSE_CONFLICT`,
+`TEAM_ERRORS.LEAVE_CONFLICT`, and each has a service-side classifier that
 re-reads to name the cause.
 
 A condition only belongs in the statement if it can **change while the request
@@ -111,18 +111,18 @@ it; `leagues.endDate` cannot, so the "season ran out" half of the same rule is
 checked in the service through `isLeagueInactive`, where it is stated once for
 both frontend and backend instead of being spelled a second time in SQL.
 
-The calling service keeps its pre-checks — they exist to give the user a
-precise error without paying for a write — but they are advisory. The INSERT
+The calling service keeps its pre-checks, they exist to give the user a
+precise error without paying for a write, but they are advisory. The INSERT
 is the arbiter. The protocol on rejection (`meta.changes === 0`):
 
 1. The repository returns the single sentinel
-   `CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT` — at write time it cannot know
+   `CONTRACT_WRITE_ERRORS.PURCHASE_CONFLICT`, at write time it cannot know
    which condition failed, and it should not guess.
 2. The service re-reads and re-runs the _same_ rule set to name the cause
    (`ContractService.purchaseRejection`, shared by the pre-check and the
    post-conflict classification, so the two paths cannot drift). If every
    ownership rule passes on the re-read, the credits guard was the one that
-   rejected — it is the only other condition in the statement.
+   rejected, it is the only other condition in the statement.
 
 When adding a new business invariant to a write (e.g. a per-league roster
 rule), extend all three places together:
@@ -130,13 +130,13 @@ rule), extend all three places together:
 - the SQL guard in the repository implementation,
 - `purchaseRejection` (or the equivalent shared rule helper), and
 - an integration test that violates the invariant _at the repository level_,
-  bypassing the service pre-checks — that simulates exactly the state a
+  bypassing the service pre-checks, that simulates exactly the state a
   concurrent request creates (see `contract.integration.test.ts`,
   `"ContractRepositoryD1.create guarded INSERT"`).
 
 ## What this replaced
 
-For reference, the patterns that used to live here — none of them survive, and
+For reference, the patterns that used to live here, none of them survive, and
 none should come back:
 
 - `error.includes("UNIQUE constraint failed: players.username")` in
@@ -151,8 +151,8 @@ none should come back:
   doing the same for session-player resolution.
 
 **Not every string a route returns belongs in one of these maps.** A rate-limit
-refusal — `REPORT_RATE_LIMITED` in `routes/reports.ts`, `JOIN_RATE_LIMITED` in
-`routes/leagues.ts` — is not a way the operation can fail; it is the operation
+refusal, `REPORT_RATE_LIMITED` in `routes/reports.ts`, `JOIN_RATE_LIMITED` in
+`routes/leagues.ts`, is not a way the operation can fail; it is the operation
 never having been attempted. Neither comes out of a `Result`, so neither can be
 mapped by identity from one, and adding them to `TEAM_ERROR_STATUS` would make
 a total `Record` over the join errors stop meaning "every way joining fails".

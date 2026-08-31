@@ -345,6 +345,76 @@ a.fw-card:hover {
   }
 }
 
+/* ── The conformance stamp ─────────────────────────────────────────────── */
+
+/*
+ * W3C's own conformance logo, served from `public/` rather than hot-linked, so
+ * the site does not fetch an image from w3.org on every view. Its markup is
+ * W3C's: their alt text, their link to the explanation of what Level AA means.
+ * The gold variant, because Wiki Gold is the palette's colour for an outcome.
+ *
+ * The sentence beside it is not decoration. A logo on its own says "Level AA"
+ * and nothing about what was measured or when, and W3C is explicit that the
+ * claim behind it is a judgement rather than a tool's output — so the scope,
+ * the date and the route to the method travel with it.
+ */
+.fw-stamp {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  margin: 2.5rem 0 0;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: var(--fw-radius-md);
+  background: var(--vp-c-bg-alt);
+}
+
+/* The logo carries its own opaque background — white for the W3C mark, gold
+   behind the wording — so it needs no plate of its own in either theme. */
+.fw-wcag-logo {
+  flex: none;
+  display: block;
+  line-height: 0;
+}
+
+.fw-wcag-logo img {
+  display: block;
+  width: 88px;
+  height: 31px;
+}
+
+/* Outranks `.vp-doc p`, which would otherwise space it as body copy. */
+.vp-doc .fw-stamp__scope,
+.vp-doc .fw-wcag-claim {
+  margin: 0;
+}
+
+.vp-doc .fw-wcag-claim {
+  margin-bottom: 1.2rem;
+}
+
+.fw-stamp__scope {
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--vp-c-text-2);
+}
+
+/* The default theme paints inline code as a tinted chip, which is a lot of
+   furniture for two words inside a stamp. */
+.fw-stamp .fw-stamp__scope code {
+  padding: 0;
+  background: none;
+  font-size: 0.95em;
+  color: inherit;
+}
+
+@media (max-width: 640px) {
+  .fw-stamp {
+    flex-wrap: wrap;
+    gap: 0.8rem;
+  }
+}
+
 /* ── Mermaid ───────────────────────────────────────────────────────────── */
 
 .fw-mermaid {

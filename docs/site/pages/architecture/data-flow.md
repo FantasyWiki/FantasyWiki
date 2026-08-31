@@ -14,7 +14,7 @@ rather than restating it.
 
 Identity is Google's; the session is a signed JWT in an HTTP-only cookie. The
 frontend never holds a token in JavaScript, and never sends an `Authorization`
-header — it sends `credentials: "include"` and the browser does the rest.
+header, it sends `credentials: "include"` and the browser does the rest.
 
 ```mermaid
 sequenceDiagram
@@ -47,12 +47,12 @@ The MongoDB build adds a second door, and only that build has it: a username
 and a password, checked against a `password_credentials` document and answered
 with the same signed cookie. Which build a deployment is comes down to which
 entry module it names, so the Worker Cloudflare deploys does not contain the
-handler at all — a route table is the wrong place to enforce that, and a test
+handler at all, a route table is the wrong place to enforce that, and a test
 fails if a password route ever reaches the deployed entry.
 → [Auth Modes](../docs/architecture/auth-modes.md)
 
 The local environment adds one more door. `routes/devAuth.ts` mounts a sign-in
-that produces an identical session with no Google round trip — and refuses to
+that produces an identical session with no Google round trip, and refuses to
 work unless `ENVIRONMENT` is `local`, so a clone can be run by someone who has
 no OAuth credentials to obtain.
 
@@ -77,7 +77,7 @@ sequenceDiagram
   FE->>MW: GET /api/leagues/:id/my-team<br/><small>credentials: include</small>
   MW->>MW: verify session_token
   MW->>RT: context + repositories
-  RT->>RT: currentPlayer — identity from the JWT, never the URL
+  RT->>RT: currentPlayer, identity from the JWT, never the URL
   RT->>SV: teamService.forPlayer(leagueId, playerId)
   SV->>RP: teams.findByPlayerAndLeague(…)
   RP->>DB: findOne({ playerId, leagueId })
@@ -92,14 +92,14 @@ Three conventions are doing real work here.
 **Identity comes from the session, never from the client.** The API has no
 endpoint that accepts a `playerId`; self-scoped data is reached through
 `/api/me` or a `my-` prefix, and the route resolves who is asking from the JWT.
-Hiding an id from a URL is not a security control — resolving it server-side is.
+Hiding an id from a URL is not a security control, resolving it server-side is.
 → [API Naming Rules](../docs/development/api-naming-rules.md)
 
 **Failures are values, not strings.** Services return a typed `Result`, and
 routes map each error constant to a status. Nothing anywhere matches on an error
 message. → [Backend Error Constants](../docs/architecture/backend-error-constants.md)
 
-**The route never sees a query.** It has repositories, which are interfaces —
+**The route never sees a query.** It has repositories, which are interfaces,
 no aggregation pipeline and no SQL reaches it. Which implementation it got was
 decided once, in `composition.ts`.
 
@@ -135,14 +135,14 @@ sequenceDiagram
   FE->>BE: POST /api/leagues/:id/my-contracts { articleId }
   BE->>WM: 30-day average views
   BE->>BE: price = f(base points, language scale)
-  BE->>DB: transaction — is the article free?<br/>can the team afford it?
+  BE->>DB: transaction, is the article free?<br/>can the team afford it?
   BE->>DB: insert the contract · bump leagues.revision
   BE-->>FE: the signed contract
 ```
 
 **The shelf is built in the browser, and only ownership comes from the backend.**
 Fifty articles cost a request each, which is more subrequests than a Worker
-invocation is allowed on the free plan — and the browser already holds the cache.
+invocation is allowed on the free plan, and the browser already holds the cache.
 → [Market List](../docs/architecture/market-list.md)
 
 Two facts about this flow are load-bearing and are specified elsewhere:
@@ -222,11 +222,11 @@ flowchart LR
 
 It is a Cloudflare Workflow rather than a request handler because it must
 survive interruption: a run that dies halfway through must resume, not restart.
-The Worker's `scheduled` handler stays thin — it creates the Workflow instance
+The Worker's `scheduled` handler stays thin, it creates the Workflow instance
 and nothing else.
 
-The economics — why there is no stipend, no transaction fee, and why an early
-sale is prorated while an expiry settles in full — are
+The economics, why there is no stipend, no transaction fee, and why an early
+sale is prorated while an expiry settles in full, are
 [ADR 0003](../docs/adr/0003-closed-trading-economy.md); how the sweep is built,
 step by step, is
 [Contract Settlement](../docs/architecture/contract-settlement.md).
@@ -258,9 +258,9 @@ rather than of remembering every place it was used.
 
 ## Related
 
-- [Architecture overview](./index.md) — containers, packages and layers
-- [Data model](./data-model.md) — what the collections above actually hold
-- [Deployment](./deployment.md) — where each of these processes runs
-- [Contract Settlement](../docs/architecture/contract-settlement.md) — the nightly sweep in detail
-- [Market List](../docs/architecture/market-list.md) — the shelf the buy flow starts from
-- [Sessions and Sign-in Doors](../docs/architecture/sessions.md) — the cookie the first journey mints
+- [Architecture overview](./index.md): containers, packages and layers
+- [Data model](./data-model.md): what the collections above actually hold
+- [Deployment](./deployment.md): where each of these processes runs
+- [Contract Settlement](../docs/architecture/contract-settlement.md): the nightly sweep in detail
+- [Market List](../docs/architecture/market-list.md): the shelf the buy flow starts from
+- [Sessions and Sign-in Doors](../docs/architecture/sessions.md): the cookie the first journey mints

@@ -66,7 +66,7 @@ FantasyWiki/
 
 #### Composing services
 
-A service may — and is encouraged to — call another service when that service
+A service may, and is encouraged to, call another service when that service
 already provides something useful. Reuse beats restating: a rule implemented
 twice is a rule that will eventually be two different rules. Take the
 dependency through the constructor like any repository, so tests can substitute
@@ -76,8 +76,8 @@ than re-wording it.
 The rule is one of preference, and it holds even when all you want is the data:
 when what service A needs is offered both by service B and by repository C,
 reach for B. Go to C only when there is no such B. A service's read is rarely
-only a read — it dresses rows into DTOs, fills in derived fields, applies the
-rules that decide what counts as absent — and calling it means you inherit
+only a read, it dresses rows into DTOs, fills in derived fields, applies the
+rules that decide what counts as absent, and calling it means you inherit
 those, including the ones added after you wrote the call. Reaching past it to
 the repository buys one fewer hop and gives up all of that.
 
@@ -89,7 +89,7 @@ than to be reached for in both directions.
 ### Repositories (`backend/src/repositories`)
 - Define repository contracts (`playerRepository.ts`)
 - Implement each store's access under `repositories/d1/` and `repositories/mongo/`
-- Encapsulate SQL, queries and persistence error handling — a store's own error wording never
+- Encapsulate SQL, queries and persistence error handling: a store's own error wording never
   leaves this layer
 
 A deployment runs on exactly one store, and `composition.ts` is the only module that picks it. See
@@ -105,7 +105,7 @@ A deployment runs on exactly one store, and `composition.ts` is the only module 
 
 - Backend tests run with Vitest, in the Workers pool, against a real database
 - Commands: `cd backend && npm run test` (D1), `npm run testmongo` (MongoDB)
-- Which layer a test may name — and why only `composition.ts` chooses an implementation — is in
+- Which layer a test may name: and why only `composition.ts` chooses an implementation, is in
   [Backend Testing](../development/backend-testing.md)
 
 ## Related
@@ -117,4 +117,4 @@ A deployment runs on exactly one store, and `composition.ts` is the only module 
 - [OpenAPI Spec](../agents/openapi-spec.md)
 - [Wikimedia Client Architecture](./wikimedia-client-architecture.md)
 - [Sessions and Sign-in Doors](./sessions.md)
-- [Contract Settlement](./contract-settlement.md) — the one caller that is a Cron, not a request
+- [Contract Settlement](./contract-settlement.md): the one caller that is a Cron, not a request

@@ -8,7 +8,7 @@ type: guide
 
 Persistence is **MongoDB**, reached only through the repository interfaces
 described in the [architecture overview](./index.md). Ten collections, no
-schema migrations, and one document — the league — that every write which has to
+schema migrations, and one document, the league, that every write which has to
 be serialised passes through.
 
 The backend runs on either of two targets, and MongoDB is the one described
@@ -23,8 +23,8 @@ Nothing above `repositories/` knows which of the two it is talking to.
 
 Ids are `_id`, so every lookup by id is the primary key lookup the store gives
 for free and no document carries the same value twice. Lines below are
-references resolved by the repositories, not a constraint the database enforces
-— see [the indexes](#the-indexes-and-what-each-one-holds-up).
+references resolved by the repositories, not a constraint the database enforces,
+see [the indexes](#the-indexes-and-what-each-one-holds-up).
 
 ```mermaid
 erDiagram
@@ -128,8 +128,8 @@ erDiagram
   }
 ```
 
-Dates are text — ISO-8601 instants for a league's term, `YYYY-MM-DD` for a
-contract's — so a plain comparison is a chronological one and a range query
+Dates are text, ISO-8601 instants for a league's term, `YYYY-MM-DD` for a
+contract's, so a plain comparison is a chronological one and a range query
 needs no conversion.
 
 `password_credentials` is the one collection with no counterpart in the other
@@ -145,7 +145,7 @@ than by a surrogate id beside it.
 `performances._id` is `teamId:date`. The pair is what a night's ingest is
 idempotent on, so making it the key makes the upsert a primary key upsert:
 re-running a date overwrites, and cannot duplicate. `lineups._id` is the team's
-id, which states in the key that a team has at most one lineup — there is no
+id, which states in the key that a team has at most one lineup, there is no
 second document to disagree with the first.
 
 `password_credentials._id` is the username, which makes the primary key the
@@ -172,8 +172,8 @@ the payout of every contract already settled. A stored balance is a second copy
 of a fact the contracts already contain, and two copies of a fact eventually
 disagree.
 
-The rule is stated once per target — `teamCreditsStages` in
-`repositories/mongo/schema.ts`, the `team_credits` view in D1 — and both are
+The rule is stated once per target, `teamCreditsStages` in
+`repositories/mongo/schema.ts`, the `team_credits` view in D1, and both are
 checked against `deriveCredits` in `model/team.ts` by the conformance suite, so
 the three cannot drift apart quietly.
 
@@ -185,7 +185,7 @@ Mongo has no schema to migrate: a new field is written by whichever repository
 writes it, and a document without it reads as absent. So what
 `backend/migrations/` is to the other target, `repositories/mongo/bootstrap.ts`
 is to this one, and it holds only the two things a fresh database genuinely
-cannot start without — the indexes, and the baseline the product assumes exists.
+cannot start without, the indexes, and the baseline the product assumes exists.
 
 The baseline is the Global League, its `system` admin account, and the
 reference edition's measured scale. Every write in it is insert-if-absent, so a
@@ -221,7 +221,7 @@ week.
 `leagues.closedAt` and `teams.leftAt` are timestamps, not deletions. A league
 that has ended is still readable by the people who played it, and a player who
 left is still part of the history of the standings they affected. Documents are
-only ever removed with the league that owns them, and then all together — see
+only ever removed with the league that owns them, and then all together, see
 [the cascade](#guarded-writes-and-what-replaces-single-statement-atomicity).
 
 → [League Lifecycle](../docs/domain/league-lifecycle.md)
@@ -229,7 +229,7 @@ only ever removed with the league that owns them, and then all together — see
 ### The document shapes are not the wire shapes
 
 A repository returns `model/` entities, which stay normalised; the API sends
-`dto/` shapes, which aggregate and nest. A document is neither — it is what this
+`dto/` shapes, which aggregate and nest. A document is neither; it is what this
 target found convenient to store, and it is mapped on the way out. That is why
 the collections above carry no embedded arrays: a team's contracts are a
 collection of their own, because they are queried by expiry across every team in
@@ -249,7 +249,7 @@ indexes, and each one is load-bearing somewhere a caller can see.
 | `players.username` | unique | The failure a sign-up retries on |
 | `players.accountId` | unique | One player per account |
 | `leagues.invitationCode` | unique, **partial** | Two private leagues cannot share a code |
-| `teams.(playerId, leagueId)` | unique | One team per player per league, ever — including after they leave |
+| `teams.(playerId, leagueId)` | unique | One team per player per league, ever, including after they leave |
 | `teams.leagueId` | plain | Listing a league's members |
 | `contracts.teamId` | plain | A team's portfolio, and its derived balance |
 | `contracts.(settled, expireDate)` | plain | The settlement sweep's query, and only that |
@@ -259,7 +259,7 @@ indexes, and each one is load-bearing somewhere a caller can see.
 The partial index is the interesting one. A public league has no invitation
 code, so a plain unique index would let exactly one league be public. The
 `partialFilterExpression` restricts uniqueness to documents where the code is a
-string, which leaves every league without one free to share the absence — the
+string, which leaves every league without one free to share the absence, the
 same arrangement SQLite reaches by treating NULLs in a unique index as distinct.
 
 ## Guarded writes, and what replaces single-statement atomicity
@@ -291,7 +291,7 @@ flowchart LR
 Writing the league puts the two transactions in each other's write set, so the
 loser hits a write conflict and `withTransaction` retries it against the state
 the winner left. The callback must therefore re-read anything it decides on
-rather than close over an earlier read — a retried transaction that trusts a
+rather than close over an earlier read, a retried transaction that trusts a
 stale value is exactly the bug the guard exists to prevent.
 
 `revision` earns its keep twice: the value a joiner bumps it to becomes its
@@ -300,7 +300,7 @@ The other target reads `rowid` for the same purpose.
 
 **The grain is a league, which is coarse.** Two players buying *different*
 articles in the same league contend, and one is retried. A league-scoped guard
-is the honest one, because Article Availability is itself league-scoped — but
+is the honest one, because Article Availability is itself league-scoped, but
 the Global League holds every player in the game, so in practice that one
 document is where all the contention lands. Worth knowing before treating this
 target as something to run at scale.
@@ -320,7 +320,7 @@ inside the same transaction.
 A Worker owns its I/O objects **per request**: a socket opened while handling
 one request may not be touched by the next. The driver's pooled connection is
 such a socket, so a client cached in a module variable serves the request that
-opened it and then breaks every request after — silently, because the driver
+opened it and then breaks every request after, silently, because the driver
 reports no error and the promise simply never settles.
 
 So a client's lifetime is a request's lifetime. `MongoStore` holds one, and the
@@ -328,8 +328,8 @@ composition root builds one store per request, which gives each request a single
 connection shared by all its repository calls. Nothing closes them; sockets are
 reclaimed when the request context ends.
 
-The test suite cannot catch a regression here — it runs outside any request
-context, where the restriction does not apply — so a change to how the
+The test suite cannot catch a regression here, it runs outside any request
+context, where the restriction does not apply, so a change to how the
 connection is held has to be exercised with *two* requests against a running
 Worker.
 
@@ -345,13 +345,13 @@ collector echoes them back untouched.
 
 ## The second target
 
-Cloudflare D1 — SQLite at the edge — is the second implementation of the same
+Cloudflare D1, SQLite at the edge, is the second implementation of the same
 repository interfaces, and it is what the Cloudflare deployment runs on. Nine
 migrations under `backend/migrations/` are replayed in order on deploy.
 
 Collection names, field names and types mirror the D1 columns deliberately. The
 two targets share no code below `Repositories`, so nothing forces the
-correspondence — but it means a reader who knows one schema can read the other,
+correspondence, but it means a reader who knows one schema can read the other,
 and the migrations stay usable as the description of what is stored for either.
 
 | Where they differ | MongoDB | D1 |
@@ -365,7 +365,7 @@ and the migrations stay usable as the description of what is stored for either.
 | Password sign-in | `password_credentials` | Not present in the build at all |
 
 Three separate migrations carry a comment about what `ALTER TABLE` cannot do in
-SQLite — it cannot add a `NOT NULL UNIQUE` column, which is why
+SQLite, it cannot add a `NOT NULL UNIQUE` column, which is why
 `leagues.invitationCode` is nullable at the schema level and made unique by an
 index instead. That constraint is the reason the Mongo index above is partial
 rather than plain: the two targets arrived at the same arrangement from opposite
@@ -387,7 +387,7 @@ directions.
 
 ## Related
 
-- [Persistence Targets](../docs/architecture/persistence-targets.md) — the canonical account of both targets
-- [Architecture overview](./index.md) — where the repositories sit
-- [Data flow](./data-flow.md) — the journeys that touch these collections
-- [Test strategy](../quality/testing.md) — how the suite runs against either target
+- [Persistence Targets](../docs/architecture/persistence-targets.md): the canonical account of both targets
+- [Architecture overview](./index.md): where the repositories sit
+- [Data flow](./data-flow.md): the journeys that touch these collections
+- [Test strategy](../quality/testing.md): how the suite runs against either target

@@ -7,7 +7,7 @@ type: guide
 # What FantasyWiki is
 
 Every day, millions of people read Wikipedia. A footballer scores, a country
-makes the news, a film releases — and the pageviews spike.
+makes the news, a film releases, and the pageviews spike.
 
 FantasyWiki turns that into a fantasy league. A player joins a league, gets a
 budget, buys **article contracts**, arranges them into a **formation**, and
@@ -15,7 +15,7 @@ scores as the world reads. The season runs for weeks; the squad never stops
 needing management.
 
 This page is the orientation layer. It says what the pieces are and where each
-one is specified — it does not restate any of the rules, because every rule in
+one is specified, it does not restate any of the rules, because every rule in
 this system is written down exactly once, under [`domain/`](../docs/).
 
 ## The loop a player is in
@@ -125,14 +125,14 @@ sequenceDiagram
   COL->>BE: POST /internal/performances (chunked)
   BE->>BE: points = f(views, chemistry, language scale)
   BE->>DB: upsert performances (_id = teamId:date)
-  Note over BE,DB: idempotent — re-running a day is safe
+  Note over BE,DB: idempotent, re-running a day is safe
 ```
 
 Two properties keep this honest, and both are architectural rather than
 incidental:
 
-**The collector computes nothing.** It posts raw facts — views per article, the
-resolved level of each chemistry link — and the Worker turns them into points
+**The collector computes nothing.** It posts raw facts, views per article, the
+resolved level of each chemistry link, and the Worker turns them into points
 using the single implementation in `model/scoring.ts`. One scoring formula, in
 one language, so the JVM and the TypeScript runtimes cannot drift apart.
 
@@ -147,7 +147,7 @@ The full pipeline, including the failure modes and the cost analysis, is in
 
 The domain has a vocabulary and it is enforced: *Top Read Snapshot*, *Article
 Availability*, *Chemistry Link*, *Free Agent*, *Owner Team*. These are not
-stylistic preferences — they are the terms the code, the commit messages and
+stylistic preferences, they are the terms the code, the commit messages and
 these docs all use, and each one has an "avoid" list of the synonyms that would
 otherwise creep in.
 
@@ -160,10 +160,10 @@ by term, on [the vocabulary](./glossary.md).
 The documentation under [`docs/`](../docs/) is grouped by what would have to
 change for a document to become wrong:
 
-- `domain/` — a **game rule** changed
-- `architecture/` — a **refactor** changed it
-- `development/` and `deployment/` — a **tool or an environment** changed
-- `adr/` — nothing changes it; a decision record is immutable, and when an ADR
+- `domain/`: a **game rule** changed
+- `architecture/`: a **refactor** changed it
+- `development/` and `deployment/`: a **tool or an environment** changed
+- `adr/`: nothing changes it; a decision record is immutable, and when an ADR
   disagrees with any other document, the ADR wins
 
 Those documents live in the repository, beside the code. Pages like this one, the
@@ -175,10 +175,10 @@ can contradict the repository. Which is which, and why, is in
 
 ## Related
 
-- [Architecture overview](../architecture/) — the containers and the layers
-- [Requirements](./requirements.md) — what the system is obliged to do, and how well
-- [Technologies](./technologies.md) — what it is built on, and what each choice was made over
-- [Interface design](../architecture/interface.md) — the screens the loop is played through
-- [What we learned](../quality/conclusions.md) — whether it did what it set out to
-- [The Docs Atlas](../index.md#the-docs-atlas) — the whole documentation tree as a graph
-- [Product vision](../PRODUCT.md) — the audience and the tone
+- [Architecture overview](../architecture/): the containers and the layers
+- [Requirements](./requirements.md): what the system is obliged to do, and how well
+- [Technologies](./technologies.md): what it is built on, and what each choice was made over
+- [Interface design](../architecture/interface.md): the screens the loop is played through
+- [What we learned](../quality/conclusions.md): whether it did what it set out to
+- [The Docs Atlas](../index.md#the-docs-atlas): the whole documentation tree as a graph
+- [Product vision](../PRODUCT.md): the audience and the tone

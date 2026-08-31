@@ -172,7 +172,8 @@ _Avoid_: formation type, layout only
 
 **Bench**:
 Where a **Team**'s **Contracts** sit when they are not placed on a
-**Position**. It is unbounded and it is where every edit that displaces a
+**Position**. It has no limit of its own, only what is left of the team's
+contract cap after the placed ones, and it is where every edit that displaces a
 contract puts it, so no edit can lose one. A benched contract is still paid for
 and still settles; it scores nothing. See docs/domain/lineup-rules.md.
 _Avoid_: reserves, substitutes, spares
@@ -361,7 +362,7 @@ _Avoid_: invite permission, sharing setting
 - "not available" was ambiguous - resolved: use explicit **Article Availability** states instead of a generic unavailable boolean.
 - "contract owner identity" was ambiguous - resolved: ownership is determined by team id (**Owner Team** vs **Viewer Team Context**), not by player/session ids.
 - "language multiplier" was ambiguous (sounded like cross-league normalization) - resolved: competition is always same-language, so the factor is **not** a cross-league comparison device. It is a single per-language **Language Scale Factor** applied to views before scoring, fixing tier granularity and synergy balance with one universal scoring model. The factor is **static** (rank-matched top-K view ratio, reference language = 1.0), recalibrated rarely (≈annually; there is no formal season). See ADR 0002 (`docs/adr/0002-language-scale-factor.md`).
-- "max contracts per team" was contradictory (§3.1 said 10; every formation has 11 positions) - resolved: **11 contracts**, one per formation position.
+- "max contracts per team" was contradictory (§3.1 said 10; every formation has 11 positions) - resolved twice. First to **11**, one per formation position, which conflated the squad with the starting eleven and left nothing to bench. Then, on 2026-07-10 (PR #433), to **22 unsettled contracts**: a starting eleven plus a bench of the same size, with 11 still the number that can be *placed*. `MAX_TEAM_CONTRACTS` states it and the guarded INSERT enforces it; see docs/domain/lineup-rules.md.
 - "contract duration units" is contradictory (§3.1/§6.1 say weeks–24 months; `contractDTO.tier` buckets in days: SHORT ≤3, MEDIUM ≤7, LONG >7) - leaning to the shorter, code-aligned day/week durations for a fast casual game; exact bounds still open.
 - "base scoring shape" was resolved against real en.wp data (2026-06-07 top-1000): rule-based geometric tiers (log-binned, "+1 point per doubling" from a 4k floor) replace the §2.1 three-tier 5k/20k model, with a convex linear tail above 150k (the volatile daily top ~10) to reward catching breakouts. en.wp is the reference language (factor 1.0).
 - "synergy/chemistry mechanic" was ambiguous (Requirements §2.2 said additive-over-all-pairs; the "Choose Team Formation" user story and shipped code said position-adjacency multiplier) - resolved: chemistry is **additive flat points** evaluated on **schema-adjacency topology** (FUT-style). It is not a multiplier and is not computed over every owned pair. This favors low-traffic articles proportionally and preserves the formation-placement puzzle.

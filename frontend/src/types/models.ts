@@ -4,8 +4,7 @@ import type { LeagueDTO } from "../../../dto/leagueDTO";
 import type { TeamDTO } from "../../../dto/teamDTO";
 import type { NotificationDTO } from "../../../dto/notificationDTO";
 import { Temporal } from "@js-temporal/polyfill";
-
-const MAX_CONTRACTS = 22;
+import { MAX_TEAM_CONTRACTS } from "../../../model/team";
 
 export function formatDuration(duration: Temporal.Duration): string {
   const totalSeconds = Math.floor(duration.total({ unit: "seconds" }));
@@ -80,7 +79,7 @@ export class DashboardData {
     return this._portfolioValue;
   }
   get maxContracts(): number {
-    return MAX_CONTRACTS;
+    return MAX_TEAM_CONTRACTS;
   }
 
   get totalPlayers(): number {

@@ -62,7 +62,12 @@
         </dl>
 
         <p class="section-text">
-          {{ t("guide.contracts.budget", { credits: startingCredits }) }}
+          {{
+            t("guide.contracts.budget", {
+              credits: startingCredits,
+              contracts: MAX_TEAM_CONTRACTS,
+            })
+          }}
         </p>
         <p class="section-text">{{ t("guide.contracts.free") }}</p>
       </section>
@@ -104,7 +109,7 @@ import ChemistryMap from "@/components/guide/ChemistryMap.vue";
 import { useAppStore } from "@/stores/app";
 import { TIER_DAYS } from "../../../model/pricing";
 import { TEAM_SYNERGY_CAP } from "../../../model/scoring";
-import { STARTING_CREDITS } from "../../../model/team";
+import { MAX_TEAM_CONTRACTS, STARTING_CREDITS } from "../../../model/team";
 
 /**
  * The rules, for a player: what happens to you, in the order you meet it.

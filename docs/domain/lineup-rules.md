@@ -16,14 +16,40 @@ A **Formation** assigns contracts to the **Positions** required by a
 **Formation Schema**. A schema (4-3-3, 4-4-2, …) defines both which positions
 exist and which [Chemistry Links](./chemistry-links.md) connect them.
 
-Every schema has **11 positions**, so a team holds at most **11 active
-contracts**, one per position. (This resolved an earlier contradiction in the
-requirements, which said 10; see `CONTEXT.md`.)
+Every schema has **11 positions**, so at most **11 contracts can be placed**.
+That is a property of the schema and not of the team: it bounds the pitch, not
+the squad.
+
+## How many contracts a team may hold
+
+**22 active contracts**, counted as the contracts a team holds that are not yet
+settled. A starting eleven and a bench of the same size, which is where the
+number comes from.
+
+The cap counts *unsettled* contracts, not placed ones, so a contract counts
+against it from the moment it is signed until the settlement sweep closes it.
+A contract that has run past its expire date but has not been swept yet is
+still one of the 22, which is deliberate, the alternative is a team that can
+sign its 23rd article in the hours between expiry and settlement.
+
+It was **11** until 2026-07-10, one contract per position, which conflated the
+squad with the starting eleven and left no bench to manage; PR #433 raised it to
+22 and this doc had not caught up. The requirements' earlier "10" was never
+right at all.
+
+`MAX_TEAM_CONTRACTS` in [`model/team.ts`](../../model/team.ts) is the one
+statement of the number, and it is enforced inside the guarded INSERT that
+writes the contract rather than above it, for the same reason credits are (see
+[ADR 0007](../adr/0007-derived-team-credits.md)): two concurrent buys that both
+read 21 would both commit.
 
 ## Bench
 
-Contracts a player owns but has not placed sit on the **bench**. The bench is
-unbounded: it is where contracts go when they are not on the pitch.
+Contracts a player owns but has not placed sit on the **bench**: it is where
+contracts go when they are not on the pitch. It has no limit of its own, it is
+bounded by what is left of the 22 after the placed contracts, so a team with
+nothing on the pitch may bench all 22 and a team fielding a full eleven may
+bench eleven more.
 
 ## Editing rules
 
@@ -50,3 +76,7 @@ never stored independently of it.
 
 - [Chemistry Links](./chemistry-links.md)
 - [Lineup Editing](../architecture/lineup-editing.md)
+- [Scoring & Economy System](./scoring-system.md): the budget the squad is
+  bought with, and what each placed contract scores
+- [ADR 0007](../adr/0007-derived-team-credits.md): why the cap is checked in the
+  write rather than before it

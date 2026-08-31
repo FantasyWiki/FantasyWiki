@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { withBase } from "vitepress";
 import glossary from "@generated/glossary.json";
 
 /**
@@ -16,9 +17,11 @@ interface Term {
   id: string;
   term: string;
   definition: string;
+  definitionCore: string;
   plain: string;
   allowed: string[];
   avoid: string[];
+  core: boolean;
 }
 
 interface Glossary {
@@ -26,18 +29,33 @@ interface Glossary {
   source?: string;
   terms?: Term[];
   withAvoid?: number;
+  core?: number;
 }
+
+/**
+ * `core` cuts the list to the terms marked `_Core_.` in `CONTEXT.md`. The exam
+ * report renders the vocabulary that way: it is read straight through, once, so
+ * it carries the words the rest of the document is written in and sends the
+ * reader here for the other half. The page itself always carries all of them.
+ */
+const props = defineProps<{ core?: boolean }>();
 
 const data = glossary as Glossary;
 
-const terms = computed(() => data.terms ?? []);
+const all = computed(() => data.terms ?? []);
+const terms = computed(() =>
+  props.core ? all.value.filter((term) => term.core) : all.value,
+);
 const query = ref("");
+
+const definitionOf = (term: Term) =>
+  props.core ? term.definitionCore : term.definition;
 
 /**
  * Filtering keeps the document's own order rather than re-ranking by match:
  * the vocabulary is written in the order the game uses it, from what Wikimedia
  * publishes through to what a league is, and that order is worth more than a
- * relevance score over thirty-five entries.
+ * relevance score over the vocabulary.
  */
 const shown = computed(() => {
   const needle = query.value.trim().toLowerCase();
@@ -49,11 +67,18 @@ const shown = computed(() => {
 <template>
   <div v-if="data.present" class="gloss">
     <div class="gloss__bar">
-      <p class="gloss__count">
+      <p v-if="core" class="gloss__count">
+        The <strong>{{ terms.length }}</strong> terms the rest of this document is written in. The
+        whole vocabulary, <strong>{{ all.length }}</strong> terms, is on
+        <a :href="withBase('/overview/glossary.html')">the vocabulary page</a>.
+      </p>
+      <p v-else class="gloss__count">
         <strong>{{ terms.length }}</strong> terms · <strong>{{ data.withAvoid }}</strong> carry a
-        list of the words they replace
+        list of the words they replace · <strong>{{ data.core }}</strong> are marked core, the
+        vocabulary the report is written in
       </p>
       <input
+        v-if="!core"
         v-model="query"
         class="gloss__filter"
         type="search"
@@ -66,9 +91,10 @@ const shown = computed(() => {
       <template v-for="term in shown" :key="term.id">
         <dt :id="term.id" class="gloss__term">
           <a :href="`#${term.id}`">{{ term.term }}</a>
+          <span v-if="!core && term.core" class="gloss__core">core</span>
         </dt>
         <dd class="gloss__entry">
-          <p class="gloss__definition" v-html="term.definition" />
+          <p class="gloss__definition" v-html="definitionOf(term)" />
 
           <p v-if="term.allowed.length" class="gloss__values">
             <span class="gloss__label">One of</span>
@@ -163,6 +189,17 @@ const shown = computed(() => {
 
 .gloss__term a:hover {
   color: var(--vp-c-brand-1);
+}
+
+/* Only on the page that shows everything: in the report every term is core. */
+.gloss__core {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fw-type-domain);
 }
 
 .gloss__entry {

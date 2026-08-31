@@ -561,7 +561,7 @@ function main() {
       `graph    ${graph.stats.documents} nodes, ${graph.stats.edges} edges (${graph.stats.curated} curated)`,
       `coverage ${measured.length ? measured.join(", ") : "no reports found — the board will say so"}`,
       `api      ${api.present ? `${api.operations} operations in ${api.groups.length} groups` : "no spec found — the board will say so"}`,
-      `glossary ${glossary.present ? `${glossary.terms.length} terms, ${glossary.withAvoid} with avoid lists` : "CONTEXT.md not found — the page will say so"}`,
+      `glossary ${glossary.present ? `${glossary.terms.length} terms, ${glossary.core} core, ${glossary.withAvoid} with avoid lists` : "CONTEXT.md not found — the page will say so"}`,
       `report   ${report.present ? `${report.pages} pages in ${report.sections} sections` : "no report page to assemble"}`,
     ].join("\n"),
   );

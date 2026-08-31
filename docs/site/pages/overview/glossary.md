@@ -16,6 +16,12 @@ A **bold word inside a definition is another term on this page**, so a concept
 can be followed rather than looked up. A concept with no entry here does not yet
 have a name.
 
+A term marked **core** is one nothing else in the vocabulary can be read
+without: the entities the game is played with, the economy they move in, and the
+scoring they feed. Those are the terms the single-document
+[exam report](../report.md) carries, so that a document read straight through
+introduces the words it then uses rather than the whole ingestion pipeline.
+
 <Glossary />
 
 Rendered from [`CONTEXT.md`](../CONTEXT.md), which is where it is edited and

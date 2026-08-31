@@ -99,6 +99,19 @@ function demote(markdown) {
     .join("\n");
 }
 
+/**
+ * The vocabulary, cut to the terms the report is written in.
+ *
+ * The site's page carries all of it, which is right for a page someone opens
+ * to look a word up. The report is read straight through by someone who did
+ * not choose to be here, and fifty entries between the introduction and the
+ * requirements is a wall they will skip — so it carries the terms marked
+ * `_Core_.` in `CONTEXT.md` and points at the page for the rest.
+ */
+function coreVocabulary(markdown) {
+  return markdown.replace(/<Glossary\s*\/>/g, "<Glossary core />");
+}
+
 /** The page's own title heading and its closing `## Related` list both go. */
 function trim(markdown) {
   const withoutTitle = markdown.replace(/^#\s+.*$/m, "").trimStart();
@@ -151,7 +164,9 @@ export function buildReport() {
 
       const parsed = matter(fs.readFileSync(file, "utf8"));
       const title = parsed.data.title ?? page;
-      const body = repoint(demote(trim(parsed.content)), path.posix.dirname(page), included);
+      const body = coreVocabulary(
+        repoint(demote(trim(parsed.content)), path.posix.dirname(page), included),
+      );
 
       parts.push(`### ${title} {#${anchorFor(page)}}\n\n${body}\n`);
       pages += 1;

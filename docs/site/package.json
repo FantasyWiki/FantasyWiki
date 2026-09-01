@@ -19,7 +19,7 @@
     "styles": "node scripts/check-styles.mjs"
   },
   "devDependencies": {
-    "@types/node": "^24.10.1",
+    "@types/node": "^26.0.0",
     "gray-matter": "^4.0.3",
     "jsdom": "^27.1.0",
     "mermaid": "11.16.1",

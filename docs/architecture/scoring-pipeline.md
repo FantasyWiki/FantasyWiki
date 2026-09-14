@@ -127,7 +127,7 @@ Three constraints that shape that code, each a silent-corruption risk if ignored
   are ephemeral, and the collector holds no D1 credential, so a cross-run cache
   would have to become a backend-owned `article_links` table plus an `/internal`
   lookup, real backend work to cache the part that is not the bottleneck.
-  Deferred, per ADR 0004's "D1-backed cache is a later optimization."
+  Deferred, see [below](#why-there-is-no-cross-run-link-cache).
 
 ## Title normalization
 
@@ -243,33 +243,21 @@ Backend auth/5xx or network failure aborts non-zero too. The collector is
 stateless and the backend upserts on `(teamId, date)`, so re-runs and backfills
 are safe.
 
-## Divergence from ADR 0004
+## Why there is no cross-run link cache
 
-[ADR 0004](../adr/0004-scoring-engine-platform.md) locked **Kotlin + GCP Cloud
-Run Jobs + direct D1 writes**. Only the Kotlin part survived; the pipeline as
-built diverges on the other two:
+[ADR 0004](../adr/0004-scoring-engine-platform.md) records the platform decision
+and the two mechanisms — the GitHub Actions schedule and the POST-through-backend
+delivery — with the constraint that decided each; this page is what they look
+like in code.
 
-- **Host: GitHub Actions, not Cloud Run.** Free is a hard constraint, and Actions
-  is already the repo's CI home, the fewest new moving parts. Cloud Run's free
-  tier also works but adds a whole GCP account/IAM/Artifact Registry surface.
-
-  Partly reopened: the collector now *is* a container image, and
-  `SCORING_RUNNER=external` hands the schedule over without touching code, so
-  the host is no longer a property of the code at all, only of where that image
-  is run. That removes the *packaging* obstacle to ADR 0004's host, not the
-  whole objection: Cloud Run pulls only from Artifact Registry or GCR, so
-  targeting it specifically still needs the image mirrored there and the GCP
-  account this divergence was avoiding. Anything that can pull a public OCI
-  image (a VPS, Fly.io, a scheduler on a machine you own) needs no mirror.
-- **Delivery: POST-through-backend, not direct D1.** The backend stays the sole
-  D1 writer and enforces its own invariants, instead of the collector holding a
-  whole-database write token.
-
-ADR 0004's autonomy-from-backend rationale is weakened either way (the collector
-depends on the backend endpoint regardless), and its scheduling-precision
-rationale is neutralized by the ~2h publication buffer. This divergence is
-recorded here rather than in a superseding ADR, worth promoting to one if the
-platform is revisited.
+One thing the ADR leaves open is worth stating here, because it is the obvious
+next optimization and it is deliberately not taken. A link cache surviving
+between runs would have to be a backend-owned `article_links` table plus an
+`/internal` lookup, because GitHub runners are ephemeral and the collector holds
+no database credential by design. That is real backend work to cache the half of
+the pipeline that is not the bottleneck: views dominate and cannot be cached at
+all, since they are the daily signal. It stays deferred until a pool outgrows one
+request per domain.
 
 ## Known gaps
 
@@ -287,7 +275,7 @@ platform is revisited.
 - [Chemistry Links](../domain/chemistry-links.md): what a Chemistry Link is
 - [ADR 0001: Base Scoring Model](../adr/0001-base-scoring-model.md)
 - [ADR 0002: Language Scale Factor](../adr/0002-language-scale-factor.md)
-- [ADR 0004: Scoring Engine Platform](../adr/0004-scoring-engine-platform.md): superseded in part, see Divergence
+- [ADR 0004: Scoring Engine Platform](../adr/0004-scoring-engine-platform.md): the platform decision and the constraints behind it
 - [Backend Architecture](./backend-architecture.md): the layering `/internal` sits in
 - [Wikimedia Client Architecture](./wikimedia-client-architecture.md): the *frontend/backend* Wikimedia client, separate from the collector's
 - [Running FantasyWiki in Docker](../development/docker-local-dev.md): the workflow that publishes the collector image

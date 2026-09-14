@@ -17,8 +17,18 @@ runs:
 
     # Caches `~/.gradle`: the wrapper's own distribution — a 60-second download
     # on a cold runner — plus the collector's Kotlin dependencies.
+    #
+    # `cache-read-only` defaults to true on every branch but the default one,
+    # which means a cache would only ever be written by a push to `master` and
+    # the branch the work actually happens on would never populate it. `dev` is
+    # a long-lived integration branch that deploys, so it writes too. Everything
+    # else still only reads: a feature branch writing a few hundred megabytes
+    # per push would churn the repository's cache budget to evict the entries
+    # that are worth keeping.
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@v5
+      with:
+        cache-read-only: ${{ github.ref_name != 'master' && github.ref_name != 'dev' }}
 
     # What `setup-gradle` does *not* cover. The node plugin is configured with
     # `download = true`, and it puts the distribution under the **project's**

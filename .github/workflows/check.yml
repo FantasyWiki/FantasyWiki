@@ -69,11 +69,18 @@ jobs:
           docker logs mongo >&2
           exit 1
 
+      # `npm_ci` is the root install, and it is not optional. `model/` and `dto/`
+      # are siblings of the subprojects, not children, so a bare `import
+      # "@js-temporal/polyfill"` inside `model/league.ts` resolves by walking up
+      # to the **root** `node_modules` — never into `backend/node_modules`. The
+      # root `check` task has always depended on it; splitting the jobs is what
+      # made that dependency visible.
+      #
       # `-Pcoverage` swaps the D1 suite for the same suite with `--coverage`.
       # The report is a by-product of the run the gate needed anyway, which is
       # what stops `coverage.yml` from executing these tests a second time.
       - name: Check
-        run: ./gradlew :backend:check -Pcoverage
+        run: ./gradlew npm_ci :backend:check -Pcoverage
         env:
           MONGO_URL: mongodb://127.0.0.1:27017/fantasywiki_test?directConnection=true
 
@@ -113,8 +120,14 @@ jobs:
       - name: Set up the build
         uses: ./.github/actions/setup-build
 
+      # `npm_ci` is the root install, and it is not optional. `model/` and `dto/`
+      # are siblings of the subprojects, not children, so a bare `import
+      # "@js-temporal/polyfill"` inside `model/league.ts` resolves by walking up
+      # to the **root** `node_modules` — never into `backend/node_modules`. The
+      # root `check` task has always depended on it; splitting the jobs is what
+      # made that dependency visible.
       - name: Check
-        run: ./gradlew :frontend:check -Pcoverage
+        run: ./gradlew npm_ci :frontend:check -Pcoverage
 
       - name: Publish the frontend's coverage
         if: always()

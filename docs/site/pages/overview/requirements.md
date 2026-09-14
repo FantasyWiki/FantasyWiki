@@ -262,7 +262,7 @@ rewriting its business logic.
 
 **The mechanism.** Every persistence contract is an interface under
 `repositories/`, each store is one implementation beneath it
-(`repositories/mongo/` and `repositories/d1/`), and `composition.ts` is the only
+(`repositories/d1/` and `repositories/mongo/`), and `composition.ts` is the only
 module allowed to choose one, from a binding. The rule is enforced by ESLint:
 nothing under `services/`, `routes/` or `tests/` may import either
 implementation directory, so the seam cannot erode by accident.

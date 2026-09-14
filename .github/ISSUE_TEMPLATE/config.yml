@@ -1,0 +1,13 @@
+# Blank issues stay enabled on purpose: the in-app report form files issues
+# through the API, and a maintainer opening a one-line note should not have to
+# pick a form. The templates below exist to structure the reports that benefit
+# from structure, not to gate every issue.
+blank_issues_enabled: true
+
+contact_links:
+  - name: Documentation
+    url: https://fantasywiki.github.io/FantasyWiki/
+    about: The rules, the architecture and the API reference. Check here before filing a question.
+  - name: Report a problem from inside the game
+    url: https://fantasywiki.pages.dev
+    about: The in-app report form attaches the screen and the league you were on, which a hand-written issue cannot.

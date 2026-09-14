@@ -1,0 +1,90 @@
+name: 🐞 Bug
+description: Something behaves differently from what the documentation says it should
+title: "fix: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A bug report is useful in proportion to how reliably someone else can
+        reproduce it. The fields below are the ones that decide that.
+
+        If you hit this while playing, prefer the in-app report form: it attaches
+        the screen and the league you were on.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you observed, not what you think caused it.
+      placeholder: The market list showed a contract as Free Agent after another team had bought it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should have happened
+      description: >-
+        Where possible, point at the rule. A link to the domain doc or the ADR
+        that states it turns a disagreement about behaviour into a disagreement
+        about one sentence.
+      placeholder: Article Availability should have read Owned by Other (docs/domain/article-availability.md).
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered, from a known starting state. Say so if it is intermittent.
+      placeholder: |
+        1. Sign in as a player with a team in an active league
+        2. Open the market on the it.wikipedia edition
+        3. Have a second player buy the top article
+        4. Reload the market
+    validations:
+      required: true
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - Production (master)
+        - QA / preview (dev)
+        - Local development
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part
+      description: A guess is fine. It only decides who looks first.
+      options:
+        - Frontend (Vue / Ionic)
+        - Backend (Worker / Hono)
+        - Scoring (nightly collector or pipeline)
+        - Contracts, credits or settlement
+        - Leagues, teams or standings
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and device
+      description: Only if the problem is visual or interaction related.
+      placeholder: Firefox 145, Android 15, portrait
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: >-
+        Console errors, a failing request, a screenshot. Paste text rather than a
+        picture of text where you can, so it is searchable.
+      render: text

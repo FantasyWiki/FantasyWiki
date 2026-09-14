@@ -10,15 +10,36 @@ import { mapLinks } from "./markdown.mjs";
  * The site is a set of linked pages because that is how documentation is read.
  * A report is read straight through, once, by someone who did not choose to be
  * here — so it gets a single page, assembled from the same files, in the order
- * the report template asks for.
+ * the exam's assessment criteria ask for.
  *
- * Assembled rather than written: a hand-kept copy of fourteen pages is fourteen
- * chances to disagree with the original, and it would disagree within a week.
+ * Assembled rather than written: a hand-kept copy of these pages is one chance
+ * per page to disagree with the original, and it would disagree within a week.
  * Everything here is read out of the mirror after it is built, which means the
  * canonical pages arrive with their outbound links already rewritten.
  */
 
-/** The template's own running order, and what answers each section. */
+/**
+ * The running order, and what answers each section.
+ *
+ * The order is the exam's own assessment criteria rather than a generic report
+ * template: domain-driven design, a clear development process, full-scale
+ * automation including CI and delivery, deploy automation via containerization
+ * or orchestration, and two or more target platforms. An examiner reading this
+ * straight through should meet each criterion under its own heading, in that
+ * order, instead of having to assemble it from pages about screens and data
+ * shapes.
+ *
+ * That is also why the interface, frontend, data-model and playtest pages are
+ * not here. They are good pages and the site still serves them; they answer a
+ * question this document is not being read to answer.
+ *
+ * One criterion has no section: **the development process itself** — branching
+ * model, Conventional Commits, the `master` ruleset, review, release. Those
+ * practices exist, but no page under `docs/` describes them, and assembling a
+ * report out of pages that do not exist is not something this file can do. The
+ * gap is recorded here rather than papered over with a section that would
+ * render as a lead paragraph above nothing.
+ */
 const SECTIONS = [
   {
     title: "Introduction",
@@ -26,39 +47,34 @@ const SECTIONS = [
     pages: ["overview/what-is-fantasywiki.md", "overview/glossary.md"],
   },
   {
-    title: "Requirements",
-    lead: "The domain model as a wall of notes, the functional obligations traced to what specifies and satisfies each, the quality attributes with the mechanism that enforces them, and the constraints.",
-    pages: ["overview/requirements.md"],
-  },
-  {
-    title: "Design",
-    lead: "The architecture — context, containers, packages and layers — then how data moves through it, what is stored, and the screens it is played through.",
+    title: "Domain-driven design",
+    lead: "How the model was discovered before it was written down, which DDD archetype each concept became and the perimeter the model deliberately sets, and one aggregate invariant followed all the way to the line that enforces it.",
     pages: [
-      "architecture/index.md",
-      "architecture/data-flow.md",
-      "architecture/data-model.md",
-      "architecture/interface.md",
+      "overview/requirements.md",
+      "docs/architecture/ddd-building-blocks.md",
+      "docs/adr/0007-derived-team-credits.md",
     ],
   },
   {
-    title: "Technologies",
-    lead: "Every technology the project runs on, the alternative it was chosen over, and the constraint that decided it.",
-    pages: ["overview/technologies.md"],
+    title: "Architecture and target platforms",
+    lead: "The system in context, containers and layers; the boundary that let a second persistence target arrive without a change above it; and the two runtimes the project technically involves, with the decision record that explains why the second one exists.",
+    pages: [
+      "architecture/index.md",
+      "docs/architecture/backend-architecture.md",
+      "docs/architecture/persistence-targets.md",
+      "overview/technologies.md",
+      "docs/adr/0004-scoring-engine-platform.md",
+    ],
   },
   {
-    title: "Code",
-    lead: "The two halves of the codebase whose structure is a decision rather than a convention.",
-    pages: ["docs/architecture/backend-architecture.md", "architecture/frontend.md"],
+    title: "Automation and continuous integration",
+    lead: "The workflow graph and what a green build is allowed to mean, then the suites that decide it and the tiers they are split into.",
+    pages: ["quality/ci-cd.md", "quality/testing.md"],
   },
   {
-    title: "Testing",
-    lead: "What the automated suites cover and what they deliberately do not, and the tier no suite can stand in for.",
-    pages: ["quality/testing.md", "quality/playtest.md"],
-  },
-  {
-    title: "Deployment",
-    lead: "Which branch reaches which environment, what runs where, and what has to be green first.",
-    pages: ["architecture/deployment.md", "quality/ci-cd.md"],
+    title: "Deployment, containerization and orchestration",
+    lead: "Which branch reaches which environment and in what order, the target that is shipped as a container image rather than deployed, and the whole stack orchestrated locally from one file.",
+    pages: ["architecture/deployment.md", "docs/development/docker-local-dev.md"],
   },
   {
     title: "Conclusions",

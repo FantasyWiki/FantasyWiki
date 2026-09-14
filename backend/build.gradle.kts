@@ -38,9 +38,20 @@ tasks.named<NpmTask>("npm_run_dev") {
 // The Mongo suite starts its own single-node replica set unless MONGO_URL points
 // at one, so this needs nothing installed; it is sequenced after the D1 suite
 // only to keep two Vitest pools off the machine at once.
+// `vitest run --coverage` is `vitest run` plus a report, so CI asks for the
+// report from the run it was already going to do. Without this the D1 suite is
+// executed twice per push, once for the gate and once for the coverage board.
+// Locally the plain run stays the default: the report costs time nobody reads.
+tasks.register<NpmTask>("npm_run_test_coverage") {
+    dependsOn("npmInstall")
+    args.set(listOf("run", "test-coverage"))
+}
+
+val d1Suite = if (project.hasProperty("coverage")) "npm_run_test_coverage" else "npm_run_test"
+
 tasks.named<NpmTask>("npm_run_testmongo") {
     dependsOn("npmInstall")
-    mustRunAfter("npm_run_test")
+    mustRunAfter("npm_run_test", "npm_run_test_coverage")
 }
 
 tasks.register("check") {
@@ -49,7 +60,7 @@ tasks.register("check") {
         "npm_run_format",
         "npm_run_lint",
         "npm_run_typecheck",
-        "npm_run_test",
+        d1Suite,
         "npm_run_testmongo",
     )
 }

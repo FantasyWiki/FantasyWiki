@@ -297,7 +297,7 @@ This ensures variety and prevents players from gaming a single event type.
 
 **For each article in your portfolio**:
 
-1. Read the previous day's pageviews from the **Pageview Complete** `-user` bulk dump (not the live API, see ADR 0004)
+1. Read the previous day's pageviews from the **per-article Analytics (AQS) API**, one range request per contracted article (Pageview Complete dumps remain the scale-out fallback, see ADR 0004)
 2. Calculate Base Points (log-binned Normalized-Views model, §2.1 / ADR 0001-0002)
 3. Add Synergy Bonus (mutual + one-way links, capped at 3.0)
 4. Check if a weekly event applies → add event bonus
@@ -649,7 +649,7 @@ Each Monday (with tournament start):
 ✅ Chemistry reconciled to **additive flat points on schema-adjacent positions** (FUT-style), superseding all-pairs Mutual/One-Way synergy
 ✅ Contract cap corrected **10 → 11** (one per formation position)
 ✅ Economy parameters surfaced (stipend / fee / renewal premium / min-hold / wealth ceiling, ADR 0003)
-✅ Daily scoring moved to **~05:00 UTC on D+1**, sourced from **Pageview Complete dumps** (ADR 0004), superseding the 00:00-UTC live-API fetch
+✅ Daily scoring moved to **~05:00 UTC on D+1**, sourced from the **per-article Analytics (AQS) API** (ADR 0004), superseding the 00:00-UTC framing
 ✅ Monthly Power Tournament marked **deferred**; weekly tournament retained
 
 ### v5.4 (historical)

@@ -37,6 +37,7 @@ Seams, layers, and modules. The rules they implement live in `domain/`.
 | Doc | What it answers |
 |---|---|
 | [Backend Architecture](./architecture/backend-architecture.md) | Routes → Services → Repositories layering |
+| [DDD Building Blocks](./architecture/ddd-building-blocks.md) | Which DDD archetype each concept became, and the perimeter the model sets |
 | [Persistence Targets](./architecture/persistence-targets.md) | D1 or MongoDB, how one is chosen, and what replaces SQL atomicity |
 | [Auth Modes](./architecture/auth-modes.md) | Why username/password exists in one build and is absent from the deployed one |
 | [Sessions and Sign-in Doors](./architecture/sessions.md) | One session cookie, three doors that mint it, and the guards that read it |

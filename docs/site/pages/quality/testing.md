@@ -16,7 +16,7 @@ able to run this suite unchanged and have it mean the same thing. A test that
 reaches for a query because it is convenient has quietly made that impossible.
 
 This is no longer a promise the suite makes about a hypothetical target. There
-are two, MongoDB and D1, and `./gradlew check` runs the same files against
+are two, D1 and MongoDB, and `./gradlew check` runs the same files against
 both.
 
 ## Three suites, three purposes
@@ -143,7 +143,7 @@ expects fails the test rather than escaping to the network.
 → [Frontend Testing](../docs/development/frontend-testing.md): what every mount
 already has, how to stub one response, and where a test goes
 
-## What the coverage figures do and do not say
+## How to read the coverage figures
 
 [The coverage board](../index.md#coverage) reports line coverage for all three
 suites. Two things about it are worth stating, because both are routinely

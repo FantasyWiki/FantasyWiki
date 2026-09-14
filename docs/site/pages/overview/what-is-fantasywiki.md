@@ -68,7 +68,7 @@ flowchart LR
     AI["Workers AI<br/><small>Article Genie</small>"]
   end
 
-  DB[("MongoDB<br/><small>the game's store</small>")]
+  DB[("Cloudflare D1<br/><small>the game's store</small>")]
 
   subgraph Batch["Once a night"]
     COL["Scoring Collector<br/><small>Kotlin · GitHub Actions</small>"]
@@ -112,7 +112,7 @@ sequenceDiagram
   participant COL as Scoring Collector
   participant BE as Backend Worker
   participant WM as Wikimedia
-  participant DB as MongoDB
+  participant DB as Cloudflare D1
 
   CRON->>COL: run for date D
   COL->>BE: GET /internal/scoring-inputs?date=D
@@ -124,7 +124,7 @@ sequenceDiagram
   WM-->>COL: raw facts
   COL->>BE: POST /internal/performances (chunked)
   BE->>BE: points = f(views, chemistry, language scale)
-  BE->>DB: upsert performances (_id = teamId:date)
+  BE->>DB: upsert performances, keyed (teamId, date)
   Note over BE,DB: idempotent, re-running a day is safe
 ```
 

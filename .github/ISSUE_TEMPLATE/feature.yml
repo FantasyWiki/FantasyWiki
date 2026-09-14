@@ -1,0 +1,64 @@
+name: ✨ Feature
+description: Something the game should do that it does not do yet
+title: "feat: "
+labels: [feature]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        FantasyWiki's unit of play is a private league of friends. A feature that
+        only makes sense for a global market is likely to be declined, so say who
+        it is for.
+
+        If the feature introduces a word the documentation does not already use,
+        say so in the last field: a new concept needs an entry in the glossary
+        before it needs code.
+
+  - type: textarea
+    id: story
+    attributes:
+      label: Who wants it, and what for
+      description: One sentence, as a user story. The "so that" is the part that gets argued with.
+      placeholder: As a league admin, I want to close a league early, so that a season nobody is playing stops accruing scores.
+    validations:
+      required: true
+
+  - type: textarea
+    id: today
+    attributes:
+      label: What happens today instead
+      description: The current behaviour, and why it falls short. If there is a workaround, name it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: shape
+    attributes:
+      label: How it might work
+      description: >-
+        Optional, and deliberately last among the design fields. A proposal is
+        welcome, but the two fields above are what decides whether this is built.
+
+  - type: dropdown
+    id: rules
+    attributes:
+      label: Does this change a game rule?
+      description: >-
+        Scoring, pricing, settlement, chemistry, standings and the league
+        lifecycle are specified in docs/domain/ and the ADRs. Changing one is not
+        off limits, but it needs an ADR rather than a pull request.
+      options:
+        - "No: it is presentation, navigation or convenience"
+        - "Yes: it changes a documented rule"
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: vocabulary
+    attributes:
+      label: New vocabulary
+      description: >-
+        Any term this feature needs that is not already in CONTEXT.md, with what
+        you mean by it. Leave empty if it reuses existing terms.
+      placeholder: "Fixture: one scheduled head-to-head between two teams in a league week."

@@ -1,97 +1,42 @@
 name: Coverage
 
+# This workflow used to re-run both test suites to measure them, which meant the
+# frontend suite executed twice per push and the backend's D1 suite did too.
+# `check.yml` now asks its own runs for a coverage report (`-Pcoverage`), so all
+# that is left here is handing the result to Codecov.
+#
+# It stays a workflow of its own rather than a step in `check.yml` for one
+# reason: it needs `CODECOV_TOKEN`, and `check.yml` must keep naming no secret,
+# because that is the workflow a pull request from a fork is allowed to run.
 on:
   workflow_call:
   workflow_dispatch:
 
 jobs:
-  backend-coverage:
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: "backend/package.json"
-          cache: "npm"
-          cache-dependency-path: |
-            package-lock.json
-            backend/package-lock.json
-
-      # The shared packages live at the repo root, so Node resolves their
-      # imports from the root `node_modules` — not the backend's. Skipping this
-      # only worked while every `@js-temporal/polyfill` use in `model/` was a
-      # type, which the transform elides; the first runtime use turns the import
-      # real and the whole suite fails to load. `./gradlew check` installs the
-      # root the same way, which is why it never saw this.
-      - name: Install shared dependencies
-        run: npm ci
-
-      - name: Install backend dependencies
-        run: npm ci
-        working-directory: backend
-
-      - name: Run backend coverage
-        run: npm run test-coverage
-        working-directory: backend
-
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v7
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-      # Handed to the documentation build, which draws the coverage board from
-      # the reports the suites actually produced rather than re-running them.
-      - name: Publish the summary for the docs build
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-backend
-          path: backend/coverage/coverage-summary.json
-          if-no-files-found: warn
-          retention-days: 7
-
-  # Split from the backend deliberately: this suite is regression smoke over the
-  # stores, services and a few views, and its number means something different
-  # (see docs/site/pages/quality/testing.md). Reporting both makes that visible;
-  # folding them into one figure would hide it.
-  frontend-coverage:
+  codecov:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
+      # Codecov reads the report against the sources it describes, so the
+      # checkout is still needed even though nothing is built here.
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - name: Collect the backend's coverage
+        id: collect
+        uses: actions/download-artifact@v8
+        continue-on-error: true
         with:
-          node-version-file: "frontend/package.json"
-          cache: "npm"
-          cache-dependency-path: |
-            package-lock.json
-            frontend/package-lock.json
+          name: codecov-backend
+          path: backend/coverage
 
-      - name: Install shared dependencies
-        run: npm ci
-
-      - name: Install frontend dependencies
-        run: npm ci
-        working-directory: frontend
-
-      - name: Run frontend coverage
-        run: npm run test-coverage
-        working-directory: frontend
-
-      - name: Publish the summary for the docs build
-        if: always()
-        uses: actions/upload-artifact@v7
+      # A run whose backend job was filtered out has no report to upload, and
+      # that is not a failure. Uploading nothing, on the other hand, would let
+      # Codecov record an empty report as a coverage collapse.
+      - name: Upload to Codecov
+        if: steps.collect.outcome == 'success'
+        uses: codecov/codecov-action@v7
         with:
-          name: coverage-frontend
-          path: frontend/coverage/coverage-summary.json
-          if-no-files-found: warn
-          retention-days: 7
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: backend/coverage

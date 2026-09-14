@@ -11,10 +11,22 @@ related:
 
 # Persistence Targets
 
-The backend runs on **one of two stores**, chosen per deployment: Cloudflare D1
-(SQLite) or MongoDB. Nothing above `repositories/` knows which, services and
-routes are handed the `Repositories` interfaces, and the same integration suite
-runs against either.
+The backend runs on **Cloudflare D1**, SQLite at the edge. It is what production
+and preview deploy to, and it is the only store any deployment has ever used.
+
+**MongoDB is a second implementation of the same repository interfaces**, run
+locally and never deployed. It is not a fallback and not a migration in
+progress: it exists so that the boundary between the domain and its storage is
+demonstrated rather than asserted. Nothing above `repositories/` knows which of
+the two it is talking to, services and routes are handed the `Repositories`
+interfaces, and the same integration suite runs against either on every
+`./gradlew check`.
+
+That is what keeps the store a decision instead of a dependency. A system with
+one implementation of a storage interface has an untested claim; this one has a
+second store that passed the first one's conformance suite unchanged, so moving
+to whichever offer is cheaper later is work that has already been rehearsed once,
+rather than a rewrite discovered at the worst moment.
 
 ## Choosing one
 
@@ -222,6 +234,7 @@ lineups with it; D1 declares that as `ON DELETE CASCADE`, and
 
 ## Related
 
+- [DDD Building Blocks](./ddd-building-blocks.md): why this layer is an anti-corruption layer
 - [Backend Architecture](./backend-architecture.md)
 - [Backend Testing](../development/backend-testing.md)
 - [ADR 0007: Derived Team Credits](../adr/0007-derived-team-credits.md)

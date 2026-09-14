@@ -1,24 +1,49 @@
 name: Check
+
+# Three jobs rather than one `./gradlew check`, for two reasons that are not
+# about tidiness. They ran sequentially on one runner — backend 2m35s, frontend
+# 1m18s, collector 1m00s — so the wall clock was their sum; on separate runners
+# it is the longest of them. And only the backend needs a MongoDB container, so
+# the other two stop paying for an image pull they never use.
+#
+# Splitting on separate runners rather than passing `--parallel` is deliberate:
+# `backend/build.gradle.kts` sequences the Mongo suite after the D1 one to keep
+# two Vitest pools off one machine, and `--parallel` would put the frontend's
+# pool back beside them.
+#
+# This workflow names no secret, and must keep naming none: it is the one a pull
+# request from a fork can be allowed to run.
 on:
   workflow_call:
+    inputs:
+      frontend:
+        description: Run the frontend checks.
+        type: boolean
+        default: true
+      backend:
+        description: Run the backend checks.
+        type: boolean
+        default: true
+      collector:
+        description: Run the scoring collector's checks.
+        type: boolean
+        default: true
   workflow_dispatch:
 
 jobs:
-  check:
+  # `!= false` rather than a bare truth test: a `workflow_dispatch` run declares
+  # none of these inputs, and an absent input must mean "run it", never "skip
+  # it". Every default in this file fails towards doing the work.
+  backend:
+    if: ${{ inputs.backend != false }}
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: DanySK/action-checkout@0.2.31
-      - name: Determine dry-run flag
-        id: check_branch
-        shell: bash
-        run: |
-          ruby << 'RUBY' >> $GITHUB_OUTPUT
-            branch = ENV['GITHUB_REF'].sub(/^refs\/heads\//, '')
-            keywords = %w[gradle kotlin publish release deploy]
-            dry = keywords.any? { |kw| branch.include?(kw) } ? '' : '--dry-run'
-            puts "dry_run=#{dry}"
-          RUBY
+
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
+
       # The backend suite runs against both persistence targets
       # (docs/architecture/persistence-targets.md). It starts a MongoDB replica
       # set of its own when `MONGO_URL` is unset, which is what makes a local
@@ -43,10 +68,88 @@ jobs:
           echo "MongoDB did not become ready within 60s" >&2
           docker logs mongo >&2
           exit 1
+
+      # `npm_ci` is the root install, and it is not optional. `model/` and `dto/`
+      # are siblings of the subprojects, not children, so a bare `import
+      # "@js-temporal/polyfill"` inside `model/league.ts` resolves by walking up
+      # to the **root** `node_modules` — never into `backend/node_modules`. The
+      # root `check` task has always depended on it; splitting the jobs is what
+      # made that dependency visible.
+      #
+      # `-Pcoverage` swaps the D1 suite for the same suite with `--coverage`.
+      # The report is a by-product of the run the gate needed anyway, which is
+      # what stops `coverage.yml` from executing these tests a second time.
       - name: Check
-        run: ./gradlew check
+        run: ./gradlew npm_ci :backend:check -Pcoverage
         env:
           MONGO_URL: mongodb://127.0.0.1:27017/fantasywiki_test?directConnection=true
+
+      - name: Publish the backend's coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-backend
+          path: backend/coverage/coverage-summary.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      # Codecov wants the LCOV report rather than the summary the docs board
+      # reads, and `coverage.yml` is where the upload happens because that is
+      # where the token is allowed to be.
+      - name: Publish the backend's coverage for Codecov
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: codecov-backend
+          path: backend/coverage/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # Measured separately from the backend, and reported separately, on purpose:
+  # this suite is regression smoke over the stores, services and a few views, and
+  # its number means something different from the backend's
+  # (docs/site/pages/quality/testing.md). Folding them into one figure would hide
+  # that difference rather than summarise it.
+  frontend:
+    if: ${{ inputs.frontend != false }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: DanySK/action-checkout@0.2.31
+
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
+
+      # `npm_ci` is the root install, and it is not optional. `model/` and `dto/`
+      # are siblings of the subprojects, not children, so a bare `import
+      # "@js-temporal/polyfill"` inside `model/league.ts` resolves by walking up
+      # to the **root** `node_modules` — never into `backend/node_modules`. The
+      # root `check` task has always depended on it; splitting the jobs is what
+      # made that dependency visible.
+      - name: Check
+        run: ./gradlew npm_ci :frontend:check -Pcoverage
+
+      - name: Publish the frontend's coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-frontend
+          path: frontend/coverage/coverage-summary.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  collector:
+    if: ${{ inputs.collector != false }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: DanySK/action-checkout@0.2.31
+
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
+
+      - name: Check
+        run: ./gradlew :scoring-collector:check
 
       # `check` already depends on koverXmlReport, so this costs nothing but the
       # upload. The documentation build reads it to draw the collector's bar.
@@ -59,10 +162,19 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  # The one context the `master` ruleset requires, `ci-cd / success`. Its name is
+  # load-bearing: the rule matches it as an exact string, so renaming this job
+  # leaves every pull request waiting for a check that will never report.
+  #
+  # `always()` is what lets a skipped job above count as "not a failure". A job
+  # that never runs reports nothing at all, so without this the path filters
+  # would deadlock the merge button instead of speeding it up.
   success:
     runs-on: ubuntu-24.04
     needs:
-      - check
+      - backend
+      - frontend
+      - collector
     if: >-
       always() && (
         contains(join(needs.*.result, ','), 'failure')

@@ -15,5 +15,6 @@ Crucially, models represent strict relational boundaries and normalized data. Th
 
 ## Related
 
+- [DDD Building Blocks](../architecture/ddd-building-blocks.md): which archetype each concept became
 - [Shared DTO Package](./shared-dto-package.md)
 - [DTO Dressing Pattern](../architecture/dto-dressing-pattern.md)

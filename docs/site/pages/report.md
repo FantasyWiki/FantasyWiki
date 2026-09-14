@@ -1,6 +1,6 @@
 ---
 title: Exam report
-description: Every page of this documentation in one document, in the order the report asks for.
+description: The documentation this project is assessed on, in one document, in the order the exam criteria ask for.
 type: guide
 outline: 2
 ---

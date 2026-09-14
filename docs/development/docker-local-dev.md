@@ -102,8 +102,8 @@ both serverless. Nothing in production runs a container of this app, so no
 project does ship, the Kotlin scoring collector, is not part of this stack;
 it is [below](#publishing-images).
 
-Two things are missing from the image, and they are missing for different
-reasons. It carries Node but no JDK, the bind mount puts `gradlew` right there
+The image is deliberately narrow in two places, for different reasons. It
+carries Node but no JDK, the bind mount puts `gradlew` right there
 in `/workspace` with nothing behind it, and the only Cloudflare credential it
 is ever handed is the Genie's API token, which is narrower than the deploy
 credential CI holds but is not read-only, see the note on Workers Scripts ·

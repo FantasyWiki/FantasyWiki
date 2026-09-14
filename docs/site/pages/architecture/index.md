@@ -51,10 +51,11 @@ flowchart TB
     WF["<b>Settlement Workflow</b><br/><small>durable, resumable</small>"]
     AI["<b>Workers AI</b><br/><small>Article Genie</small>"]
     RL["Rate limiters<br/><small>reports · genie</small>"]
+    DB[("<b>D1</b><br/><small>SQLite at the edge</small>")]
   end
 
-  subgraph ST["Persistence"]
-    DB[("<b>MongoDB</b><br/><small>replica set</small>")]
+  subgraph ST["The second target"]
+    MG[("<b>MongoDB</b><br/><small>replica set, run locally</small>")]
   end
 
   subgraph GHA["GitHub Actions"]
@@ -66,7 +67,8 @@ flowchart TB
 
   FE -->|"HTTPS · /api/* · session cookie"| BE
   FE -->|"titles, thumbnails, summaries"| WM
-  BE -->|"one connection per request"| DB
+  BE -->|"a binding, not a connection"| DB
+  BE -.->|"the same contracts, locally"| MG
   BE --> RL
   BE -->|"schedules settlement"| WF
   WF --> DB
@@ -77,21 +79,21 @@ flowchart TB
   COL -->|"daily views · link graph"| WM
 
   classDef store fill:#fdf3d6,stroke:#d8b03a;
-  class DB store;
+  class DB,MG store;
 ```
 
-The store sits outside the Cloudflare box because it is the one container that
-is not a Cloudflare service. It is also the one container that can be swapped:
-the backend holds repository *interfaces*, and the Cloudflare deployment
-configures the second implementation, D1, in MongoDB's place. Which one a
-build gets is decided in a single module, below.
+The store inside the Cloudflare box is the one production runs on. The box
+beside it is the same system persisted somewhere else entirely: the backend holds
+repository *interfaces*, and MongoDB is a second implementation of every one of
+them, run locally rather than deployed. Which implementation a build gets is
+decided in a single module, below.
 
 | Container | Runtime | Deployed by | Documented in |
 |---|---|---|---|
 | Frontend | Vue 3 + Ionic SPA | Cloudflare Pages, per branch | [Frontend](./frontend.md) |
 | Backend | Hono on a Cloudflare Worker | Wrangler, per branch | [Backend Architecture](../docs/architecture/backend-architecture.md) |
-| MongoDB | A replica set, reached over the driver | Indexes and baseline on first connection | [Data model](./data-model.md) |
-| D1 | SQLite at the edge, the second target | Migrations replayed on deploy | [Persistence Targets](../docs/architecture/persistence-targets.md) |
+| D1 | SQLite at the edge, reached through a binding | Migrations replayed on deploy | [Data model](./data-model.md) |
+| MongoDB | A replica set, reached over the driver — the second target, not deployed | Indexes and baseline on first connection | [Persistence Targets](../docs/architecture/persistence-targets.md) |
 | Settlement Workflow | Cloudflare Workflows | Bundled with the Worker | [ADR 0003](../docs/adr/0003-closed-trading-economy.md) |
 | Scoring Collector | Kotlin/JVM, `application` plugin | GitHub Actions cron + GHCR image | [Scoring Pipeline](../docs/architecture/scoring-pipeline.md) |
 
@@ -143,14 +145,14 @@ flowchart TB
   R["<b>Routes</b>, <code>routes/</code><br/><small>parse · auth · respond</small>"]
   S["<b>Services</b>, <code>services/</code><br/><small>logic · typed Results</small>"]
   I["<b>Repository interfaces</b>, <code>repositories/*.ts</code><br/><small>contracts, no queries</small>"]
+  D["<b>D1 implementations</b>, <code>repositories/d1/</code><br/><small>SQL and its errors — deployed</small>"]
   M["<b>Mongo implementations</b>, <code>repositories/mongo/</code><br/><small>documents, pipelines, transactions</small>"]
-  D["<b>D1 implementations</b>, <code>repositories/d1/</code><br/><small>SQL and its errors</small>"]
   C["<b>composition.ts</b><br/><small>picks the implementation</small>"]
 
   R --> S --> I
   C -.->|"provides"| I
-  M -->|"implements"| I
   D -->|"implements"| I
+  M -->|"implements"| I
 
   classDef seam fill:#fdf3d6,stroke:#d8b03a;
   class C,I seam;

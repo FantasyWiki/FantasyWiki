@@ -98,11 +98,11 @@ across both reads and the write. This is safe on both counts that matter:
   `SEARCH c USING INDEX idx_contracts_teamId (teamId=?)`. It is still an indexed lookup, not a scan
   of the whole `contracts` table.
 
-## The seam this leaves open
+## Where the constant is pinned
 
 A SQL view takes no bind parameters, so it cannot receive `STARTING_CREDITS` from `model/team.ts`,
-the migration inlines `1000` as a literal. That is a genuine duplication, and the honest answer is
-that it is pinned by a test rather than by the type system:
+the migration inlines `1000` as a literal. The duplication is deliberate, and it is pinned by a
+test rather than by the type system:
 `backend/src/tests/repositories/d1/teamCreditsView.d1.test.ts` asserts that a team with an empty
 ledger reads back exactly `STARTING_CREDITS`. Change the constant without changing the migration and
 that test fails. It sits in the D1 tier because the literal is D1's, and so is the `COALESCE` over a
@@ -126,6 +126,8 @@ the same rule.
 
 ## Related
 
+- [DDD Building Blocks](../architecture/ddd-building-blocks.md): where the aggregate invariant
+  rule this ADR trades against is stated.
 - [ADR 0003: Closed Trading Economy](./0003-closed-trading-economy.md): where `purchasePrice` and
   `salePayout` come from.
 - [ADR 0005: Contract Pricing](./0005-contract-pricing.md): how the amounts are computed.

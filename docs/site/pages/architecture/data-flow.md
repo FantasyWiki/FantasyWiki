@@ -22,7 +22,7 @@ sequenceDiagram
   participant B as Browser
   participant W as Worker (/auth)
   participant G as Google
-  participant DB as MongoDB
+  participant DB as D1
 
   B->>W: GET /auth/google
   W->>G: OAuth redirect
@@ -30,7 +30,7 @@ sequenceDiagram
   B->>W: GET /auth/google?code=…
   W->>G: exchange code
   G-->>W: profile (googleId, email)
-  W->>DB: find or create google_account + player<br/>in one transaction
+  W->>DB: INSERT OR IGNORE google_account,<br/>then INSERT player
   DB-->>W: player
   W->>W: sign JWT (HS256)
   W-->>B: Set-Cookie session_token<br/>HttpOnly · Secure · redirect to the app
@@ -72,7 +72,7 @@ sequenceDiagram
   participant RT as Route
   participant SV as Service
   participant RP as Repository (interface)
-  participant DB as MongoDB
+  participant DB as D1
 
   FE->>MW: GET /api/leagues/:id/my-team<br/><small>credentials: include</small>
   MW->>MW: verify session_token
@@ -80,7 +80,7 @@ sequenceDiagram
   RT->>RT: currentPlayer, identity from the JWT, never the URL
   RT->>SV: teamService.forPlayer(leagueId, playerId)
   SV->>RP: teams.findByPlayerAndLeague(…)
-  RP->>DB: findOne({ playerId, leagueId })
+  RP->>DB: SELECT … JOIN team_credits<br/>WHERE playerId = ? AND leagueId = ?
   DB-->>RP: document
   RP-->>SV: Result of Team or TeamError
   SV-->>RT: Result of TeamDTO or TeamError
@@ -123,7 +123,7 @@ sequenceDiagram
   participant FE as Frontend
   participant BE as Backend
   participant WM as Wikimedia
-  participant DB as MongoDB
+  participant DB as D1
 
   FE->>WM: top-read snapshot for the league's edition
   WM-->>FE: ranked articles, priced as they hydrate
@@ -135,8 +135,7 @@ sequenceDiagram
   FE->>BE: POST /api/leagues/:id/my-contracts { articleId }
   BE->>WM: 30-day average views
   BE->>BE: price = f(base points, language scale)
-  BE->>DB: transaction, is the article free?<br/>can the team afford it?
-  BE->>DB: insert the contract · bump leagues.revision
+  BE->>DB: INSERT … SELECT … WHERE<br/>credits ≥ price AND article free<br/>AND squad under the cap
   BE-->>FE: the signed contract
 ```
 
@@ -153,11 +152,14 @@ Two facts about this flow are load-bearing and are specified elsewhere:
 - **Credits are derived, not stored.** A team's balance is computed from its
   contracts and payouts on every read, so a balance and a portfolio can never
   disagree. → [ADR 0007](../docs/adr/0007-derived-team-credits.md)
-- **The two checks and the insert are one write.** The article being free and
-  the team being able to afford it are evaluated inside the transaction that
-  inserts the contract, and that transaction bumps the league's `revision` so a
-  concurrent purchase in the same league is retried rather than interleaved.
-  → [Guarded writes](./data-model.md#guarded-writes-and-what-replaces-single-statement-atomicity)
+- **The checks and the insert are one statement.** Sufficient credits, the
+  article not already held in the league, and the squad being under its cap are
+  all conditions of the `SELECT` that feeds the `INSERT`, so nothing can change
+  between the check and the write. The caller learns which guard refused from the
+  number of rows the statement reported changing. The second target reaches the
+  same guarantee differently, through a transaction that bumps the league's
+  `revision`.
+  → [Guarded writes](./data-model.md#guarded-writes-and-where-the-condition-lives)
 
 The three-state availability model, and which actions each state permits, is
 [Article Availability](../docs/domain/article-availability.md).
@@ -174,12 +176,12 @@ sequenceDiagram
   participant CO as Scoring Collector (JVM)
   participant BE as Backend Worker
   participant WM as Wikimedia
-  participant DB as MongoDB
+  participant DB as D1
 
   CR->>CO: run for date D
   CO->>BE: GET /internal/scoring-inputs?date=D<br/><small>bearer secret</small>
-  BE->>DB: lineups ⋈ contracts active on D<br/><small>$lookup</small>
-  DB-->>BE: documents
+  BE->>DB: teams ⋈ leagues ⋈ lineups,<br/>then contracts active on D<br/><small>JOIN</small>
+  DB-->>BE: rows
   BE-->>CO: per team: articles, article pairs,<br/>opaque formation snapshot
 
   par throttled fan-out
@@ -191,7 +193,7 @@ sequenceDiagram
 
   CO->>BE: POST /internal/performances (chunks of 100)
   BE->>BE: apply the curve + language scale
-  BE->>DB: upsert _id = "teamId:date"
+  BE->>DB: upsert on (teamId, date)
   Note over BE,DB: re-running date D is safe
 ```
 
@@ -214,7 +216,7 @@ flowchart LR
   Q -->|"otherwise"| SET["Settle: pay out at value,<br/>book the gain or loss"]
   REN --> N["Notify the owner"]
   SET --> N
-  N --> DB[("MongoDB")]
+  N --> DB[("D1")]
 
   classDef seam fill:#fdf3d6,stroke:#d8b03a;
   class WF seam;

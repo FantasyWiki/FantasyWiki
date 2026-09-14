@@ -15,5 +15,6 @@ The Backend executes these aggregations, resolving relationships and converting 
 
 ## Related
 
+- [DDD Building Blocks](../architecture/ddd-building-blocks.md): which archetype each concept became
 - [What Are Model Entities](./what-are-model-entities.md)
 - [DTO Dressing Pattern](../architecture/dto-dressing-pattern.md)

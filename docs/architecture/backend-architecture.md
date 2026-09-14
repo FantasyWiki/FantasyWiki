@@ -110,6 +110,7 @@ A deployment runs on exactly one store, and `composition.ts` is the only module 
 
 ## Related
 
+- [DDD Building Blocks](./ddd-building-blocks.md): which archetype each concept became
 - [Persistence Targets](./persistence-targets.md)
 - [Backend Testing](../development/backend-testing.md)
 - [Backend Error Constants](./backend-error-constants.md)

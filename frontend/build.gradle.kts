@@ -29,12 +29,23 @@ tasks.register<NpmTask>("devNoMock") {
     environment.set(mapOf("VITE_MOCK" to "false"))
 }
 
+// `vitest run --coverage` is `vitest run` plus a report, so CI asks for the
+// report from the run it was already going to do. Without this the suite is
+// executed twice per push, once for the gate and once for the coverage board.
+// Locally the plain run stays the default: the report costs time nobody reads.
+tasks.register<NpmTask>("npm_run_test_coverage") {
+    dependsOn("npmInstall")
+    args.set(listOf("run", "test-coverage"))
+}
+
+val suite = if (project.hasProperty("coverage")) "npm_run_test_coverage" else "npm_run_test"
+
 tasks.register("check") {
     dependsOn(
         "npm_audit",
         "npm_run_format",
         "npm_run_lint",
-        "npm_run_test",
+        suite,
     )
 }
 

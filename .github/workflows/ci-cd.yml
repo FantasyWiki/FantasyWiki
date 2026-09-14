@@ -17,61 +17,119 @@ jobs:
       || startsWith(github.head_ref, 'dependabot/')
     outputs:
       docs: ${{ steps.touched.outputs.docs }}
+      frontend: ${{ steps.touched.outputs.frontend }}
+      backend: ${{ steps.touched.outputs.backend }}
+      collector: ${{ steps.touched.outputs.collector }}
     steps:
       - run: 'true'
 
-      # Whether this push touched anything the documentation site is built
-      # from. Answered through the compare API rather than a checkout plus a
+      # Which parts of the repository this change can possibly have broken.
+      #
+      # Answered through the compare API rather than a checkout plus a
       # path-filter action: the dispatcher already runs on every push, and this
       # adds a couple of seconds to it instead of a whole extra job.
       #
-      # Anything it cannot answer — a first push to a branch, a manual run —
-      # counts as touched. Publishing an unchanged site costs two minutes;
-      # skipping a changed one ships stale documentation.
-      - name: Did this touch the docs?
+      # Every uncertainty resolves to *running* the work. A first push, a manual
+      # run, a failed compare, a change to the build itself or to CI, and both
+      # branches that deploy — all of them run everything. A filter that wrongly
+      # skips ships a break behind a green check, which is strictly worse than a
+      # slow build; a filter that wrongly runs costs two minutes.
+      - name: What did this touch?
         id: touched
         env:
           GH_TOKEN: ${{ github.token }}
-          BEFORE: ${{ github.event.before }}
-          AFTER: ${{ github.sha }}
+          # A push compares against what the branch was; a pull request compares
+          # against the branch it targets, otherwise `github.event.before` is
+          # empty on every pull request and nothing is ever filtered.
+          BEFORE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          AFTER: ${{ github.event.pull_request.head.sha || github.sha }}
         shell: bash
         run: |
-          if [ -z "${BEFORE}" ] || [ "${BEFORE}" = "0000000000000000000000000000000000000000" ]; then
-            echo "docs=true" >> "$GITHUB_OUTPUT"
-            echo "No comparable base — treating the docs as touched."
+          set -uo pipefail
+
+          run_all() {
+            {
+              echo "docs=true"
+              echo "frontend=true"
+              echo "backend=true"
+              echo "collector=true"
+            } >> "$GITHUB_OUTPUT"
+            echo "Running everything: $1"
             exit 0
+          }
+
+          # `master` and `dev` deploy, and `master` republishes the documentation
+          # site, whose coverage board is drawn from the reports these jobs
+          # upload. A filtered run there would publish a board with holes in it.
+          case "${GITHUB_REF_NAME}" in
+            master|dev) run_all "${GITHUB_REF_NAME} deploys." ;;
+          esac
+
+          if [ -z "${BEFORE}" ] || [ "${BEFORE}" = "0000000000000000000000000000000000000000" ]; then
+            run_all "no comparable base."
           fi
 
           files=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BEFORE}...${AFTER}" \
-            --jq '.files[].filename' 2>/dev/null) || {
-            echo "docs=true" >> "$GITHUB_OUTPUT"
-            echo "Compare failed — treating the docs as touched."
-            exit 0
-          }
+            --jq '.files[].filename' 2>/dev/null) || run_all "the compare failed."
+
+          # Anything that changes how everything is built, tested or shipped.
+          if grep -qE '^(package\.json|package-lock\.json|build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew|gradle/|\.github/(workflows|actions)/)' <<< "$files"; then
+            run_all "the build or CI itself changed."
+          fi
+
+          # `model/` and `dto/` are packages both Node subprojects compile
+          # against, so a change to either is a change to both. Getting this
+          # wrong is the one way this filter can ship a broken frontend behind a
+          # green check — see docs/architecture/backend-architecture.md.
+          frontend=false
+          backend=false
+          collector=false
+
+          if grep -qE '^(model/|dto/)' <<< "$files"; then
+            frontend=true
+            backend=true
+          fi
+          grep -qE '^frontend/' <<< "$files" && frontend=true
+          grep -qE '^backend/' <<< "$files" && backend=true
+          grep -qE '^(scoring-collector/|docker/)' <<< "$files" && collector=true
 
           # `docs/**` covers the site itself now that it lives at `docs/site`.
           # `backend/openapi.yaml` is the one documentation file that lives
           # outside `docs/`, next to the Worker it describes — the API reference
           # is rendered from it, so a change to it has to republish the site.
-          if grep -qE '^(docs/|backend/openapi\.yaml|CONTEXT\.md|PRODUCT\.md|DESIGN\.md|AGENTS\.md|CLAUDE\.md|\.github/workflows/(docs|coverage)\.yml)' <<< "$files"; then
-            echo "docs=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "docs=false" >> "$GITHUB_OUTPUT"
+          docs=false
+          if grep -qE '^(docs/|backend/openapi\.yaml|CONTEXT\.md|PRODUCT\.md|DESIGN\.md|AGENTS\.md|CLAUDE\.md)' <<< "$files"; then
+            docs=true
           fi
-          echo "docs touched: $(tail -1 "$GITHUB_OUTPUT")"
+
+          {
+            echo "docs=${docs}"
+            echo "frontend=${frontend}"
+            echo "backend=${backend}"
+            echo "collector=${collector}"
+          } >> "$GITHUB_OUTPUT"
+          echo "docs=${docs} frontend=${frontend} backend=${backend} collector=${collector}"
 
   ci-cd:
     needs:
       - dispatcher
     uses: ./.github/workflows/check.yml
-    secrets: inherit
+    with:
+      frontend: ${{ needs.dispatcher.outputs.frontend == 'true' }}
+      backend: ${{ needs.dispatcher.outputs.backend == 'true' }}
+      collector: ${{ needs.dispatcher.outputs.collector == 'true' }}
     permissions:
       contents: write
       packages: write
 
+  # After `ci-cd` rather than beside it: the report it uploads is a by-product of
+  # that run, which is what stops the suites being executed a second time here.
+  # Skipped with the backend job, because there is then no report to hand over.
   coverage:
     needs:
       - dispatcher
+      - ci-cd
+    if: needs.dispatcher.outputs.backend == 'true'
     uses: ./.github/workflows/coverage.yml
     secrets: inherit
     permissions:
@@ -94,7 +152,11 @@ jobs:
       - dispatcher
       - ci-cd
       - coverage
-    if: needs.dispatcher.outputs.docs == 'true'
+    if: >-
+      ${{ always()
+      && needs.ci-cd.result == 'success'
+      && needs.coverage.result != 'failure'
+      && needs.dispatcher.outputs.docs == 'true' }}
     uses: ./.github/workflows/docs.yml
     permissions:
       contents: read

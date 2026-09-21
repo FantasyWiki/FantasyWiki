@@ -195,6 +195,12 @@ would add no second runtime.
 - **Accepted cost:** no type sharing with the TypeScript DTOs. The collector
   re-declares the handful of wire shapes it touches as Kotlin data classes, and a
   change to those endpoints has to be made in two languages.
+- **Accepted cost: a small second platform.** Keeping every rule in the backend
+  leaves the collector a fetcher, a small module beside the TypeScript codebase.
+  The larger JVM module this ADR first planned would have held a second copy of
+  the scoring rules, which is the drift the decision above exists to prevent.
+  Why that trade was taken over the platform split is on
+  [Technologies](https://fantasywiki.github.io/FantasyWiki/overview/technologies.html).
 - **Supersedes** the Requirements document's §2/§4 daily-at-00:00 and
   global-tournament framing; `docs/domain/fantawiki-requirements.md` is
   reconciled to match.

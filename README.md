@@ -9,8 +9,9 @@
 <!-- TAGLINE: one punchy line. Keep it concrete, name real articles. -->
 *Your squad is only as good as the world's curiosity.*
 
-[![CI/CD](https://github.com/FantasyWiki/FantasyWiki/actions/workflows/dispatcher.yml/badge.svg?branch=master)](https://github.com/FantasyWiki/FantasyWiki/actions/workflows/dispatcher.yml)
+[![CI/CD](https://github.com/FantasyWiki/FantasyWiki/actions/workflows/ci-cd.yml/badge.svg?branch=master)](https://github.com/FantasyWiki/FantasyWiki/actions/workflows/ci-cd.yml)
 [![Backend coverage](https://img.shields.io/codecov/c/github/FantasyWiki/FantasyWiki/master?label=backend%20coverage)](https://codecov.io/gh/FantasyWiki/FantasyWiki)
+[![Latest release](https://img.shields.io/github/v/release/FantasyWiki/FantasyWiki?sort=semver&label=release)](https://github.com/FantasyWiki/FantasyWiki/releases)
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue)](./LICENSE)
 
 **🚧 Work in progress, the game is still being built, and this README grows with it.**
@@ -226,7 +227,7 @@ This one needs no Cloudflare account, of the Gradle tasks, only `dev` does.
 
 Frontend → <http://localhost:5173> · Backend → <http://127.0.0.1:8787>
 
-With `VITE_MOCK=true`, MSW mocks every `/api/*` call *except* `/api/session` and
+With `VITE_MOCK=true`, MSW mocks every `/api/*` call *except* `/api/v1/session` and
 `/auth/*`, so you get a **real Google login** against **mocked game data**.
 
 <!--
@@ -341,8 +342,10 @@ Adding to the docs? Read
 - Follow [`api-naming-rules.md`](./docs/development/api-naming-rules.md): identity is always resolved server-side from the session, never from a client-supplied `playerId`.
 - npm scripts take **no separators**: `formatfix`, not `format:fix` ([why](./docs/development/npm-script-naming.md)).
 - Docs are **lowercase kebab-case**, grouped by concept. State a rule once, then link to it.
-- Commits follow **Conventional Commits**: enforced by a `commit-msg` hook Gradle installs.
+- Commits follow **Conventional Commits**: enforced by a `commit-msg` hook Gradle installs. The version of every release is computed from them on `master` ([release process](./docs/development/release-process.md)), so choose the type with care.
 - `./gradlew check --parallel` must pass before opening a PR.
+- Working with an AI agent? It reads [`AGENTS.md`](./AGENTS.md); how AI was used here is declared in [`AI-DECLARATION.md`](./AI-DECLARATION.md).
+- Found a vulnerability? Report it privately, never in an issue: see [`SECURITY.md`](./SECURITY.md).
 
 ## License
 

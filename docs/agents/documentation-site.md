@@ -323,7 +323,7 @@ What `prepare.mjs` does, in order:
 4. Copies `docs/**`, excluding `docs/site/` and everything in `UNPUBLISHED`,
    which today is `docs/agents/`, into `build/content/docs/`, renaming
    `README.md` to `index.md` and copying `docs/assets/` alongside.
-5. Copies the five repo-root charter files to the mirror root, which is what
+5. Copies the seven repo-root charter files to the mirror root, which is what
    makes `../../CONTEXT.md` resolve from a doc that has moved.
 6. Rewrites any link that points somewhere the site does not host, a source
    file like `../../backend/migrations/0008_league_closure.sql`, or one of the

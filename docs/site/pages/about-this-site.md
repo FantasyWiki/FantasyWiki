@@ -47,7 +47,7 @@ updated by hand, is one of those files:
 ```mermaid
 flowchart LR
   D["docs/**<br/><small>minus site/ and agents/</small>"] --> P
-  C["CONTEXT · PRODUCT · DESIGN<br/>AGENTS · CLAUDE<br/><small>the charter</small>"] --> P
+  C["CONTEXT · PRODUCT · DESIGN<br/>AGENTS · CLAUDE<br/>AI-DECLARATION · SECURITY<br/><small>the charter</small>"] --> P
   A["docs/site/pages/**<br/><small>authored tier</small>"] --> P
 
   P["prepare.mjs"] --> M["the markdown mirror<br/><small>build/content</small>"]
@@ -215,7 +215,7 @@ describes production, and a QA copy of it would be a second URL nobody knows
 which of to trust.
 
 It runs only when the push touched something the site is built from: anything
-under `docs/`, `backend/openapi.yaml`, one of the five charter files at the
+under `docs/`, `backend/openapi.yaml`, one of the seven charter files at the
 repository root, or the two workflows that feed it. The dispatcher answers that with the compare API rather
 than a checkout, and **anything it cannot answer counts as touched**, a first
 push to a branch, a manual run, an API that failed. Publishing an unchanged site

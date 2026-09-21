@@ -33,12 +33,11 @@ import { mapLinks } from "./markdown.mjs";
  * not here. They are good pages and the site still serves them; they answer a
  * question this document is not being read to answer.
  *
- * One criterion has no section: **the development process itself** — branching
- * model, Conventional Commits, the `master` ruleset, review, release. Those
- * practices exist, but no page under `docs/` describes them, and assembling a
- * report out of pages that do not exist is not something this file can do. The
- * gap is recorded here rather than papered over with a section that would
- * render as a lead paragraph above nothing.
+ * The development process, the branching model, Conventional Commits, the
+ * `master` ruleset, review and release, follows domain-driven design because
+ * that is where the criteria put it. The use of generative AI closes the body,
+ * before the conclusions, because it is a statement about how everything above
+ * was produced rather than about any one part of it.
  */
 const SECTIONS = [
   {
@@ -53,6 +52,15 @@ const SECTIONS = [
       "overview/requirements.md",
       "docs/architecture/ddd-building-blocks.md",
       "docs/adr/0007-derived-team-credits.md",
+    ],
+  },
+  {
+    title: "Development process",
+    lead: "How a change reaches production: the branches sized for two authors, the commit convention the release is computed from, the one gate every merge passes, how a version is cut and what it names, and the licence the work is published under.",
+    pages: [
+      "docs/development/development-process.md",
+      "docs/development/release-process.md",
+      "docs/adr/0009-agpl-license.md",
     ],
   },
   {
@@ -75,6 +83,11 @@ const SECTIONS = [
     title: "Deployment, containerization and orchestration",
     lead: "Which branch reaches which environment and in what order, the target that is shipped as a container image rather than deployed, and the whole stack orchestrated locally from one file.",
     pages: ["architecture/deployment.md", "docs/development/docker-local-dev.md"],
+  },
+  {
+    title: "Use of generative AI",
+    lead: "Which AI tools were used to build the project, at what level of involvement in each process, how agents were kept inside the project's rules, and which skills they used and why.",
+    pages: ["docs/development/ai-assistance.md"],
   },
   {
     title: "Conclusions",

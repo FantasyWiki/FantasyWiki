@@ -40,8 +40,10 @@ const CHARTER = [
   { file: "CONTEXT.md", title: "Domain Glossary (source)", type: "charter" },
   { file: "PRODUCT.md", title: "Product Vision", type: "charter" },
   { file: "DESIGN.md", title: "Design System", type: "charter" },
-  { file: "AGENTS.md", title: "Agent Skills", type: "charter" },
-  { file: "CLAUDE.md", title: "Agent Instructions", type: "charter" },
+  { file: "AGENTS.md", title: "Agent Instructions", type: "charter" },
+  { file: "CLAUDE.md", title: "Claude Code Entry Point", type: "charter" },
+  { file: "AI-DECLARATION.md", title: "AI Declaration", type: "charter" },
+  { file: "SECURITY.md", title: "Security Policy", type: "charter" },
 ];
 
 /** Top-level repository directories that are code, not documentation. */

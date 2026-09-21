@@ -134,6 +134,41 @@ formula.
 → [ADR 0004](../docs/adr/0004-scoring-engine-platform.md) ·
 [Nightly Scoring Pipeline](../docs/architecture/scoring-pipeline.md)
 
+### Why the JVM share is small
+
+The split between the two platforms falls short of the guideline that the
+dominant one stay under three quarters of the project: the TypeScript side is
+most of the code, and the collector is a small module beside it. That is the
+consequence of a design decision, and it is the same decision that keeps the
+two platforms coherent.
+
+**The second platform was designed to be larger.** The first version of
+[ADR 0004](../docs/adr/0004-scoring-engine-platform.md), on 2026-06-21, had the
+nightly engine read contracts and write scores and standings straight to D1,
+and compute base points, chemistry and a weekly tournament itself, in a runtime
+of its own. Most of the game's scoring would have lived there.
+
+**It was cut in two steps, both on purpose.** By 2026-07-13 the engine posted to
+two backend endpoints instead of writing the database, because a second writer
+would have to carry every rule about what a valid row is. Then the arithmetic
+went too. The scoring rules were already implemented in `model/`, in
+TypeScript, because the Worker prices contracts with the same curve, and a
+Kotlin engine that computed points would have been a second implementation of
+them, kept in step by hand and checked by golden vectors. On 2026-07-14 commit
+`d1910f0` moved all of it to `model/scoring.ts`, deleted the Kotlin `Scoring.kt`,
+and left the collector a fetcher that posts raw facts.
+
+**The two platform criteria pull against each other here, and the project chose
+coherence.** Core entities that span platforms should be defined so as to
+minimise duplication; a large second platform, in a system whose rules already
+live on the first, is duplication by construction. Keeping one formula in one
+language is what made the collector small, and moving code to the JVM to raise
+its share would bring back exactly the second copy the cut removed.
+
+Work that needs a long-running process rather than a request, such as the daily
+challenges planned next, belongs on the JVM for the reason the collector does,
+and the share will move with it.
+
 ## The workspace
 
 **A Gradle-orchestrated monorepo** over three separate repositories or a bare

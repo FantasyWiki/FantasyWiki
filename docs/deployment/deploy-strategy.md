@@ -23,22 +23,31 @@ This document describes the FantasyWiki Cloudflare deployment strategy across lo
 
 ## CI/CD Workflows
 
-### 1. Dispatcher Workflow (`dispatcher.yml`)
-- **Trigger**: `push`, `pull_request`, `workflow_dispatch`
-- **Purpose**: route CI/CD execution and call reusable workflows
-- **Output**: calls `build.yml` (CI) and `deploy.yml` (deployment flow)
+### 1. Entry point (`ci-cd.yml`)
+- **Trigger**: `push`, `pull_request` (forks included), `workflow_dispatch`
+- **Purpose**: a `dispatcher` job decides which parts a change can have broken,
+  then calls the reusable workflows below
 
-### 2. Build Workflow (`build.yml`)
-- **Trigger**: `workflow_call` from `dispatcher.yml`
+### 2. Check (`check.yml`)
+- **Trigger**: `workflow_call` from `ci-cd.yml`
 - **Purpose**:
-  - run `./gradlew check` on all branches
-  - no deployment logic (CI only)
+  - format, lint, typecheck, audit and every test suite, on all branches
+  - the backend suite as a matrix, one leg per persistence target
+  - no deployment logic, and no secret, so a fork's pull request may run it
 
-### 3. Deploy Workflow (`deploy.yml`)
+### 3. Deploy (`deploy.yml`)
 - **Trigger**: `workflow_call`, `workflow_dispatch`
 - **Purpose**: deploy backend, frontend, and D1 migrations to explicit target environments
   - `master`: backend `backend`, Pages project `frontend`, D1 `db`
   - `dev`: backend `backend-preview`, Pages project `frontend`, D1 `db-preview`
+
+### 4. Release (`release.yml`)
+- **Trigger**: `workflow_call` from `ci-cd.yml`, on a push to `master`, after the
+  production deploy succeeds
+- **Purpose**: compute the next version from the Conventional Commits since the
+  last one, tag it, and publish a GitHub release; the collector image is then
+  tagged with the same version. See
+  [Release Process](../development/release-process.md).
 
 ---
 
@@ -146,3 +155,5 @@ const app = new Hono<{ Bindings: Bindings }>();
 - [Dev Branch & QA Deployment](./dev-branch-deployment.md)
 - [Setup QA Deploy](./setup-qa-deploy.md)
 - [Local Development Setup](../development/local-dev-setup.md)
+- [Development Process](../development/development-process.md): how a change reaches a deploying branch
+- [Release Process](../development/release-process.md): the version cut after a production deploy

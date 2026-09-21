@@ -65,8 +65,11 @@ Seams, layers, and modules. The rules they implement live in `domain/`.
 | [Running FantasyWiki in Docker](./development/docker-local-dev.md) | `./gradlew noGenie` with no credentials to obtain, and the three other combinations |
 | [Backend Testing](./development/backend-testing.md) | The test tiers, which layer each may name, and how to seed |
 | [Frontend Testing](./development/frontend-testing.md) | What the browser suite is for, and the two constraints that bite |
-| [API Naming Rules](./development/api-naming-rules.md) | URL, identity, and request-body conventions |
+| [API Naming Rules](./development/api-naming-rules.md) | URL, identity, request-body and versioning conventions |
 | [NPM Script Naming](./development/npm-script-naming.md) | Why `formatfix`, not `format:fix` |
+| [Development Process](./development/development-process.md) | Branches, commits, the `master` ruleset, and why the process is this size |
+| [Release Process](./development/release-process.md) | How a version is computed from the commits, and what it names |
+| [AI Assistance](./development/ai-assistance.md) | Which AI tools and skills were used, for what, and under which constraints |
 
 ### `deployment/`, shipping it
 | Doc | What it answers |
@@ -86,7 +89,8 @@ doc disagree, **the ADR wins**.
 [0005 Contract Pricing](./adr/0005-contract-pricing.md) ·
 [0006 Article Genie](./adr/0006-article-genie.md) ·
 [0007 Derived Team Credits](./adr/0007-derived-team-credits.md) ·
-[0008 League Invitation Codes](./adr/0008-league-invitation-codes.md)
+[0008 League Invitation Codes](./adr/0008-league-invitation-codes.md) ·
+[0009 AGPL-3.0 Licence](./adr/0009-agpl-license.md)
 
 ## The published site
 
@@ -114,7 +118,9 @@ These stay at the root because they are entry points, not reference material:
 - [`CONTEXT.md`](../CONTEXT.md): the **canonical domain glossary**. Start here for vocabulary.
 - [`PRODUCT.md`](../PRODUCT.md): product vision and tone.
 - [`DESIGN.md`](../DESIGN.md): brand and UI tone.
-- [`CLAUDE.md`](../CLAUDE.md) / [`AGENTS.md`](../AGENTS.md): agent instructions.
+- [`AGENTS.md`](../AGENTS.md): agent instructions, which [`CLAUDE.md`](../CLAUDE.md) imports.
+- [`AI-DECLARATION.md`](../AI-DECLARATION.md): how AI was used to build the project, machine-readable.
+- [`SECURITY.md`](../SECURITY.md): how to report a vulnerability, privately.
 
 ## Conventions
 

@@ -25,7 +25,7 @@ The `dev` branch is the cloud **quality assurance** environment:
 Deployment is handled by a single reusable workflow:
 
 - file: `.github/workflows/deploy.yml`
-- trigger path: called from `dispatcher.yml` on repository events
+- trigger path: called from the `dispatcher` job in `ci-cd.yml` on repository events
 - manual trigger: `workflow_dispatch`
 
 ## What Gets Deployed on `dev`

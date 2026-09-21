@@ -2,6 +2,11 @@ name: Publish Images
 
 on:
   workflow_call:
+    inputs:
+      version:
+        description: The version this revision was released as; empty when it was not released.
+        type: string
+        default: ""
   workflow_dispatch:
 
 # Only the branches that already deploy. A feature branch's image would be an
@@ -65,11 +70,14 @@ jobs:
           # that; see the one in scoring.yml.
           images: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
           # `sha-<short>` on every build is the tag a rollback names; the
-          # branch aliases are what a human or a compose file pulls.
+          # branch aliases are what a human or a compose file pulls; a released
+          # revision also carries its version, the same one as its GitHub
+          # release, so the image and the notes describing it share a name.
           tags: |
             type=sha,format=short
             type=raw,value=latest,enable=${{ github.ref_name == 'master' }}
             type=raw,value=dev,enable=${{ github.ref_name == 'dev' }}
+            type=raw,value=${{ inputs.version }},enable=${{ inputs.version != '' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6

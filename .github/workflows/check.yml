@@ -1,15 +1,16 @@
 name: Check
 
-# Three jobs rather than one `./gradlew check`, for two reasons that are not
+# Separate jobs rather than one `./gradlew check`, for two reasons that are not
 # about tidiness. They ran sequentially on one runner — backend 2m35s, frontend
 # 1m18s, collector 1m00s — so the wall clock was their sum; on separate runners
-# it is the longest of them. And only the backend needs a MongoDB container, so
-# the other two stop paying for an image pull they never use.
+# it is the longest of them. And only the MongoDB leg needs a MongoDB container,
+# so the rest stop paying for an image pull they never use.
 #
 # Splitting on separate runners rather than passing `--parallel` is deliberate:
 # `backend/build.gradle.kts` sequences the Mongo suite after the D1 one to keep
 # two Vitest pools off one machine, and `--parallel` would put the frontend's
-# pool back beside them.
+# pool back beside them. The backend's own two suites are split the same way,
+# as the legs of a matrix, which is what lets them overlap at all.
 #
 # This workflow names no secret, and must keep naming none: it is the one a pull
 # request from a fork can be allowed to run.
@@ -34,9 +35,34 @@ jobs:
   # `!= false` rather than a bare truth test: a `workflow_dispatch` run declares
   # none of these inputs, and an absent input must mean "run it", never "skip
   # it". Every default in this file fails towards doing the work.
+  #
+  # One leg per persistence target (docs/architecture/persistence-targets.md).
+  # The backend suite is the same files run against D1 and against MongoDB, and
+  # a failure that happens on one store only is a different finding from one that
+  # happens on both, so each target reports on its own. `fail-fast` is off for
+  # that reason: cancelling the Mongo leg because D1 failed would hide exactly
+  # the comparison the two legs exist to make.
+  #
+  # The format, lint, typecheck and audit gates belong to the code, not to a
+  # store, so only the D1 leg runs them; the Mongo leg runs its suite and nothing
+  # else. Together the legs are `:backend:check`, which is still what a local
+  # run executes, in sequence.
   backend:
     if: ${{ inputs.backend != false }}
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: d1
+            # `-Pcoverage` swaps the D1 suite for the same suite with
+            # `--coverage`. The report is a by-product of the run the gate
+            # needed anyway, which is what stops `coverage.yml` from executing
+            # these tests a second time.
+            tasks: :backend:check -x :backend:npm_run_testmongo -Pcoverage
+          - target: mongo
+            tasks: :backend:npm_run_testmongo
+    name: backend (${{ matrix.target }})
     steps:
       - name: Checkout
         uses: DanySK/action-checkout@0.2.31
@@ -44,14 +70,14 @@ jobs:
       - name: Set up the build
         uses: ./.github/actions/setup-build
 
-      # The backend suite runs against both persistence targets
-      # (docs/architecture/persistence-targets.md). It starts a MongoDB replica
-      # set of its own when `MONGO_URL` is unset, which is what makes a local
-      # `./gradlew check` need nothing installed — but on a runner that means
-      # downloading a ~220MB `mongod` on every build, so CI hands it a container
-      # instead. A single node is enough; a replica set is required because the
-      # guarded writes are transactions.
+      # The Mongo suite starts a replica set of its own when `MONGO_URL` is
+      # unset, which is what makes a local `./gradlew check` need nothing
+      # installed — but on a runner that means downloading a ~220MB `mongod` on
+      # every build, so CI hands it a container instead. A single node is
+      # enough; a replica set is required because the guarded writes are
+      # transactions.
       - name: Start MongoDB
+        if: matrix.target == 'mongo'
         run: |
           set -euo pipefail
           docker run -d --name mongo -p 27017:27017 mongo:8 --replSet rs0 --bind_ip_all
@@ -75,17 +101,17 @@ jobs:
       # to the **root** `node_modules` — never into `backend/node_modules`. The
       # root `check` task has always depended on it; splitting the jobs is what
       # made that dependency visible.
-      #
-      # `-Pcoverage` swaps the D1 suite for the same suite with `--coverage`.
-      # The report is a by-product of the run the gate needed anyway, which is
-      # what stops `coverage.yml` from executing these tests a second time.
       - name: Check
-        run: ./gradlew npm_ci :backend:check -Pcoverage
+        run: ./gradlew npm_ci ${{ matrix.tasks }}
         env:
+          # Read by the Mongo suite only; the D1 suite never looks at it.
           MONGO_URL: mongodb://127.0.0.1:27017/fantasywiki_test?directConnection=true
 
+      # Both reports come from the D1 leg alone. Two legs uploading one artifact
+      # name would race, and the coverage board and Codecov would get whichever
+      # finished last.
       - name: Publish the backend's coverage
-        if: always()
+        if: always() && matrix.target == 'd1'
         uses: actions/upload-artifact@v7
         with:
           name: coverage-backend
@@ -97,7 +123,7 @@ jobs:
       # reads, and `coverage.yml` is where the upload happens because that is
       # where the token is allowed to be.
       - name: Publish the backend's coverage for Codecov
-        if: always()
+        if: always() && matrix.target == 'd1'
         uses: actions/upload-artifact@v7
         with:
           name: codecov-backend

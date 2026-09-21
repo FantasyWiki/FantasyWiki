@@ -1,0 +1,53 @@
+name: Release
+
+# Turns a push to `master` into a version, when the commits since the last one
+# call for it. Called by `ci-cd.yml` after the production deploy, so a version
+# names a revision that passed `check` and is what production is running.
+#
+# The version is computed, never typed: semantic-release reads the Conventional
+# Commits since the last tag and applies `release.config.mjs`. It pushes a tag
+# and publishes a GitHub release with the notes. It commits nothing, because
+# `master` takes pull requests and signed commits only.
+on:
+  workflow_call:
+    outputs:
+      version:
+        description: The version this revision was released as, empty when there was nothing to release.
+        value: ${{ jobs.release.outputs.version }}
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      # The whole history: the last release is found by walking back from HEAD
+      # to the nearest tag, and a shallow clone has neither.
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: "package.json"
+
+      # The root install is where semantic-release and the shared preset live.
+      - name: Install
+        run: npm ci
+
+      - name: Release
+        run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Read off the tag rather than parsed from the tool's output: a revision
+      # that released nothing has no tag of its own, and says so by printing
+      # nothing.
+      - name: Read the version
+        id: version
+        shell: bash
+        run: echo "version=$(git tag --points-at HEAD | sort -V | tail -1)" >> "$GITHUB_OUTPUT"

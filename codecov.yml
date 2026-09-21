@@ -1,9 +1,13 @@
 coverage:
   status:
-    # Fail only when total coverage drops below the fixed minimum.
+    # Reported, never gating. The `master` ruleset requires `ci-cd / success`
+    # alone, and a status that turns red below a fixed number would be one the
+    # docs say does not exist (docs/site/pages/quality/ci-cd.md). The target
+    # stays so the status still shows how far the figure is from it.
     project:
       default:
         target: 70%
         threshold: 0%
-    # Never gate on coverage of the changed lines alone.
+        informational: true
+    # Never report on coverage of the changed lines alone.
     patch: off

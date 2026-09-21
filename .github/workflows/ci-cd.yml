@@ -9,12 +9,19 @@ concurrency:
   cancel-in-progress: ${{ !contains(github.ref, 'master') }}
 
 jobs:
+  # Every event runs, pull requests from forks included. A fork's pull request
+  # gets `check.yml`, which names no secret; everything that does need one is
+  # either gated on a deploying branch (`deploy`, `release`, `publish-images`,
+  # `docs`) or skipped for forks below (`coverage`), and on a `pull_request`
+  # event GitHub hands a fork no secrets to begin with.
+  #
+  # A pull request from a branch of this repository is also built on push, and
+  # both runs are kept on purpose. The push run filters against the previous
+  # push, so a branch whose backend failed and whose next push touched only
+  # `docs/` would go green on push. The pull-request run filters against the
+  # base branch, the whole diff, and it is the one the `master` ruleset reads.
   dispatcher:
     runs-on: ubuntu-24.04
-    if: >-
-      github.event_name != 'pull_request'
-      || github.event.pull_request.head.repo.full_name == github.repository
-      || startsWith(github.head_ref, 'dependabot/')
     outputs:
       docs: ${{ steps.touched.outputs.docs }}
       frontend: ${{ steps.touched.outputs.frontend }}
@@ -98,7 +105,7 @@ jobs:
           # outside `docs/`, next to the Worker it describes — the API reference
           # is rendered from it, so a change to it has to republish the site.
           docs=false
-          if grep -qE '^(docs/|backend/openapi\.yaml|CONTEXT\.md|PRODUCT\.md|DESIGN\.md|AGENTS\.md|CLAUDE\.md)' <<< "$files"; then
+          if grep -qE '^(docs/|backend/openapi\.yaml|CONTEXT\.md|PRODUCT\.md|DESIGN\.md|AGENTS\.md|CLAUDE\.md|AI-DECLARATION\.md|SECURITY\.md)' <<< "$files"; then
             docs=true
           fi
 
@@ -124,12 +131,16 @@ jobs:
 
   # After `ci-cd` rather than beside it: the report it uploads is a by-product of
   # that run, which is what stops the suites being executed a second time here.
-  # Skipped with the backend job, because there is then no report to hand over.
+  # Skipped with the backend job, because there is then no report to hand over,
+  # and for a fork's pull request, which has no Codecov token to upload with.
   coverage:
     needs:
       - dispatcher
       - ci-cd
-    if: needs.dispatcher.outputs.backend == 'true'
+    if: >-
+      needs.dispatcher.outputs.backend == 'true'
+      && (github.event_name != 'pull_request'
+      || github.event.pull_request.head.repo.full_name == github.repository)
     uses: ./.github/workflows/coverage.yml
     secrets: inherit
     permissions:
@@ -163,13 +174,34 @@ jobs:
       pages: write
       id-token: write
 
+  # A version for what production now runs (docs/development/release-process.md).
+  # After deploy rather than beside it: a version names what production runs,
+  # so a revision that failed to reach production is not released, and its
+  # commits are released with the next one that does.
+  release:
+    needs:
+      - deploy
+    if: github.event_name == 'push' && github.ref_name == 'master'
+    uses: ./.github/workflows/release.yml
+    permissions:
+      contents: write
+
   # Container images to GHCR, for the services Cloudflare does not host. Behind
   # the same gate as deploy — an image is only worth publishing for a revision
-  # that passed check.
+  # that passed check. After release, so that a released revision's image also
+  # carries its version. Release is skipped everywhere but `master`, and a
+  # skipped dependency must not skip this job, hence `always()`.
   publish-images:
     needs:
       - ci-cd
+      - release
+    if: >-
+      ${{ always()
+      && needs.ci-cd.result == 'success'
+      && needs.release.result != 'failure' }}
     uses: ./.github/workflows/publish-images.yml
+    with:
+      version: ${{ needs.release.outputs.version }}
     secrets: inherit
     permissions:
       contents: read

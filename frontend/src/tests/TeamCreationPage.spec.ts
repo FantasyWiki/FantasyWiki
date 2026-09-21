@@ -29,7 +29,7 @@ let pinia: Pinia;
  */
 function mockMyLeagues(ids: string[]) {
   server.use(
-    http.get("*/api/leagues", () =>
+    http.get("*/api/v1/leagues", () =>
       HttpResponse.json(leagues.filter((lg) => ids.includes(lg.id)))
     )
   );
@@ -83,7 +83,7 @@ describe("TeamCreationPage.vue", () => {
       expect(wrapper.find("ion-input").exists()).toBe(true);
     });
 
-    it("loads the Global League from /api/leagues/global and shows it", async () => {
+    it("loads the Global League from /api/v1/leagues/global and shows it", async () => {
       const wrapper = await mountPage();
 
       expect(wrapper.text()).toContain("Global League");
@@ -107,7 +107,7 @@ describe("TeamCreationPage.vue", () => {
 
     it("shows an error message and re-enables the form when team creation fails", async () => {
       server.use(
-        http.post("*/api/leagues/:leagueId/my-team", () =>
+        http.post("*/api/v1/leagues/:leagueId/my-team", () =>
           HttpResponse.json(
             { error: "This team name is already taken in this league." },
             { status: 400 }
@@ -195,7 +195,7 @@ describe("TeamCreationPage.vue", () => {
 
     it("says so instead of offering a form when the league cannot be loaded", async () => {
       server.use(
-        http.get("*/api/leagues/:leagueId", () =>
+        http.get("*/api/v1/leagues/:leagueId", () =>
           HttpResponse.json({ error: "League not found" }, { status: 404 })
         )
       );

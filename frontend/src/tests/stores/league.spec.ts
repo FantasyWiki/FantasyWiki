@@ -31,7 +31,9 @@ describe("league store — active/ended split and selection", () => {
   });
 
   it("clears the selection instead of fabricating a placeholder league when none is active", async () => {
-    server.use(http.get("*/api/leagues", () => HttpResponse.json([americas])));
+    server.use(
+      http.get("*/api/v1/leagues", () => HttpResponse.json([americas]))
+    );
 
     const store = useLeagueStore();
     await store.fetchLeagues();

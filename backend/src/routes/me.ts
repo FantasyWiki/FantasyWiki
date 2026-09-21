@@ -56,7 +56,7 @@ const VALIDATION_ERRORS: string[] = [
  * the absence means to a player — the same code quota exhaustion already
  * returns, and the same one the frontend already knows how to dismiss.
  *
- * Belt and braces: `GET /api/session` reports the same fact as a feature flag
+ * Belt and braces: `GET /api/v1/session` reports the same fact as a feature flag
  * and the frontend hides the Genie's entry point, so this should be unreachable
  * from the app itself.
  */

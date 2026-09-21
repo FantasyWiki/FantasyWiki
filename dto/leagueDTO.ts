@@ -53,7 +53,7 @@ export interface LeagueDTO {
  * A league's invitation code, served *only* by the endpoint that checks the
  * caller may have it.
  *
- * Pointedly not a field on `LeagueDTO`: `GET /api/leagues/:id` is unscoped by
+ * Pointedly not a field on `LeagueDTO`: `GET /api/v1/leagues/:id` is unscoped by
  * design, so a code riding on that shape could be read straight off a public
  * endpoint and used to walk through the gate it exists to guard. See
  * docs/adr/0008-league-invitation-codes.md.

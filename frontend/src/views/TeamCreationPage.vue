@@ -85,7 +85,7 @@ const { data: league, isError } = useQuery({
   // real backend, which has no `GET /leagues/:id` (and no
   // `LeagueService.getLeagueById` behind it). That endpoint, and whatever
   // screen links here, are what the join-a-league flow still needs; signup (no
-  // param) goes through `/api/leagues/global` and works today.
+  // param) goes through `/api/v1/leagues/global` and works today.
   queryFn: () =>
     leagueId.value
       ? api.leagues.getById(leagueId.value)

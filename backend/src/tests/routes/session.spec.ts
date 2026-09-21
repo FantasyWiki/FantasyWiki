@@ -25,7 +25,7 @@ function get(env: Record<string, unknown>) {
   return app.request("/session", {}, env);
 }
 
-describe("GET /api/session", () => {
+describe("GET /api/v1/session", () => {
   it("carries the signed-in player's identity from the JWT", async () => {
     const body = (await (await get({})).json()) as SessionDTO;
 

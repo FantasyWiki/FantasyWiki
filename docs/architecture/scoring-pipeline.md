@@ -20,10 +20,10 @@ GitHub Actions (cron ~05:00 UTC, master only, production environment)
         │
         ▼
  :scoring-collector  (Kotlin/JVM)
-        │  1. GET  /internal/scoring-inputs?date=D   ──► backend (Worker)
+        │  1. GET  /internal/v1/scoring-inputs?date=D   ──► backend (Worker)
         │  2. per-article daily views (AQS)          ──► Wikimedia
         │     link graph among paired articles       ──► Wikimedia (≤3 concurrent)
-        │  3. POST /internal/performances (chunked)  ──► backend ──► D1 `performances`
+        │  3. POST /internal/v1/performances (chunked)  ──► backend ──► D1 `performances`
         ▼
  backend reads D1 exactly as before
  (/:id/my-performances, /:id/leaderboard, untouched by this pipeline)
@@ -52,12 +52,12 @@ Wikimedia (public). It holds no D1 credential and no persistent state.
 guard (`app.route("/internal", internal)`) behind Hono's `bearerAuth` comparing
 against `c.env.SCORING_INGEST_SECRET`.
 
-- **`GET /internal/scoring-inputs?date=YYYY-MM-DD`** → one row per team across
+- **`GET /internal/v1/scoring-inputs?date=YYYY-MM-DD`** → one row per team across
   all leagues: `{ leagueId, teamId, domain, articles[], chemistryLinks[[a,b]],
   formationSnapshot }`. Backed by `ScoringService` joining `lineups` with active
   contracts (`settled = 0` and `purchaseDate ≤ D < expireDate`), resolving
   `position → contractId → articleId`.
-- **`POST /internal/performances`** → idempotent chunked upsert of
+- **`POST /internal/v1/performances`** → idempotent chunked upsert of
   `{ date, results: [{ teamId, articleViews[], chemistryLevels[],
   formationSnapshot }] }`. `PerformanceRepository.upsertDaily` issues
   `INSERT … ON CONFLICT(teamId, date) DO UPDATE` inside `db.batch()` chunks, so

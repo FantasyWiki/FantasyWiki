@@ -83,13 +83,13 @@ start answering 404 for a signed-in visitor who has not created a player yet.
 
 ## What the session tells the frontend
 
-`GET /api/session` echoes the claims back and adds `features`, read off the
+`GET /api/v1/session` echoes the claims back and adds `features`, read off the
 Worker's own bindings, not off config. A deployment that was never given the
 Workers AI binding cannot answer for the Article Genie whatever a variable says,
 so the frontend hides the entry point rather than offering a feature that 500s
 ([Article Genie](./article-genie-llm.md)).
 
-Signing out is `DELETE /api/session`, which expires the same cookie. The
+Signing out is `DELETE /api/v1/session`, which expires the same cookie. The
 frontend keeps `isAuthenticated` in the app store and its router guard bounces a
 protected route to `/home` **with the login modal already open**, a silent
 redirect is indistinguishable from a broken link.

@@ -23,7 +23,7 @@ const RUNNING_CODE = "ZK7QW";
 
 function serveLeagueByCode(league: Record<string, unknown>) {
   server.use(
-    http.get("*/api/leagues/by-code/:code", () => HttpResponse.json(league))
+    http.get("*/api/v1/leagues/by-code/:code", () => HttpResponse.json(league))
   );
 }
 

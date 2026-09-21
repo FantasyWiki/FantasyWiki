@@ -92,7 +92,7 @@ describe("TeamRequiredModal.vue", () => {
     // A failed fetch leaves the list empty, which reads exactly like "no team".
     // Prompting on it would put an established player behind a modal they
     // cannot dismiss, whose only exit is a form the backend then rejects.
-    server.use(http.get("*/api/leagues", () => HttpResponse.error()));
+    server.use(http.get("*/api/v1/leagues", () => HttpResponse.error()));
     signIn();
     await useLeagueStore().fetchLeagues();
 
@@ -125,7 +125,7 @@ describe("TeamRequiredModal.vue", () => {
   it("does not cover the team-creation page it sends the player to", async () => {
     // The team-creation guard re-fetches the league list to decide entry; a
     // teamless player has none, which is what lets them onto the page.
-    server.use(http.get("*/api/leagues", () => HttpResponse.json([])));
+    server.use(http.get("*/api/v1/leagues", () => HttpResponse.json([])));
     signIn();
     setTeams([]);
 

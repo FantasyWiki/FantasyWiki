@@ -11,7 +11,7 @@
 import type { ChemistryLevel } from "../model/enums";
 
 /**
- * One team's daily scoring inputs, as returned by GET /internal/scoring-inputs.
+ * One team's daily scoring inputs, as returned by GET /internal/v1/scoring-inputs.
  *
  * Deliberately free of any formation/schema/position concepts: the backend owns
  * all of that (it resolves `CHEMISTRY_LINKS[schema]` against the placed
@@ -45,7 +45,7 @@ export interface ScoringInputDTO {
 }
 
 /**
- * One team's raw daily scoring signals, as sent to POST /internal/performances.
+ * One team's raw daily scoring signals, as sent to POST /internal/v1/performances.
  *
  * The engine sends *facts it fetched from Wikimedia*, not a computed score: the
  * backend owns all scoring math (`model/scoring.ts` `teamDailyScore`) so
@@ -66,7 +66,7 @@ export interface PerformanceResultDTO {
   formationSnapshot: string;
 }
 
-/** Body of POST /internal/performances. Chunkable: the engine may send several. */
+/** Body of POST /internal/v1/performances. Chunkable: the engine may send several. */
 export interface PerformanceIngestDTO {
   /** Scored calendar day, YYYY-MM-DD. */
   date: string;

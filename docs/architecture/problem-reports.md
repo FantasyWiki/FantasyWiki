@@ -16,7 +16,7 @@ timestamp and the permanent URL, and returns `html_url` in the create response.
 
 | Layer | Module | Responsibility |
 | --- | --- | --- |
-| Route | `backend/src/routes/reports.ts` | `POST /api/reports`. Resolves the player from the session, checks the rate limiter, maps failures to status codes. |
+| Route | `backend/src/routes/reports.ts` | `POST /api/v1/reports`. Resolves the player from the session, checks the rate limiter, maps failures to status codes. |
 | Service | `backend/src/services/problemReport.ts` | Validates, builds the issue title/body/labels. |
 | Client | `backend/src/services/githubClient.ts` | `GitHubClient` interface + `GitHubApiClient`. Injected, so tests substitute a stub. |
 | Composable | `frontend/src/composables/useProblemReport.ts` | Form state, submission, cooldown, fallback URL. |

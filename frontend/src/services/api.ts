@@ -42,7 +42,10 @@ import type {
   PasswordSessionDTO,
 } from "../../../dto/passwordAuthDTO";
 
-const API_BASE_URL = "/api";
+// The major version lives in the path segment: a future v2 can be served
+// alongside v1 on the backend while this constant is the one line that moves
+// clients over (backend/openapi.yaml carries the same rule).
+export const API_BASE_URL = "/api/v1";
 
 /**
  * Carries the HTTP status and the backend's error code alongside the message.
@@ -425,7 +428,7 @@ export const sessionApi = {
  * routes (docs/architecture/auth-modes.md). The form that calls this is gated
  * on `VITE_PASSWORD_AUTH`.
  *
- * Its own fetch rather than `apiRequest`, which prefixes `/api` to everything
+ * Its own fetch rather than `apiRequest`, which prefixes `/api/v1` to everything
  * it is given: these live under `/auth`, beside the Google entry point. The
  * session arrives the same way it does from Google — as the `session_token`
  * cookie — so the caller goes on to `sessionApi.get()` exactly as

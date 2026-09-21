@@ -19,7 +19,7 @@ begins.
 ```mermaid
 flowchart TB
   S1["<b>1 · Mocking</b><br/>If VITE_MOCK is true, start MSW and<br/><i>await</i> worker.start()"]
-  S2["<b>2 · Session</b><br/>Activate Pinia, then GET /api/session<br/>and restore the player"]
+  S2["<b>2 · Session</b><br/>Activate Pinia, then GET /api/v1/session<br/>and restore the player"]
   S3["<b>3 · App</b><br/>createApp → router · Ionic · Pinia · i18n · VueQuery"]
   S4["<b>4 · Mount</b><br/>await router.isReady(), then mount"]
 
@@ -110,7 +110,7 @@ far from the cause.
 ## Running it without a backend
 
 `VITE_MOCK=true` puts MSW in front of every `/api/*` call, with two deliberate
-holes: `/api/session` and `/auth/*` pass through to the real local Worker, so
+holes: `/api/v1/session` and `/auth/*` pass through to the real local Worker, so
 sign-in is exercised for real while the game data is fabricated.
 
 The same handlers run in the test suite, with `onUnhandledRequest: "error"`,

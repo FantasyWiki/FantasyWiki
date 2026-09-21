@@ -34,7 +34,7 @@ sequenceDiagram
   DB-->>W: player
   W->>W: sign JWT (HS256)
   W-->>B: Set-Cookie session_token<br/>HttpOnly · Secure · redirect to the app
-  B->>W: GET /api/session (cookie)
+  B->>W: GET /api/v1/session (cookie)
   W-->>B: the signed-in player
 ```
 
@@ -74,7 +74,7 @@ sequenceDiagram
   participant RP as Repository (interface)
   participant DB as D1
 
-  FE->>MW: GET /api/leagues/:id/my-team<br/><small>credentials: include</small>
+  FE->>MW: GET /api/v1/leagues/:id/my-team<br/><small>credentials: include</small>
   MW->>MW: verify session_token
   MW->>RT: context + repositories
   RT->>RT: currentPlayer, identity from the JWT, never the URL
@@ -91,7 +91,7 @@ Three conventions are doing real work here.
 
 **Identity comes from the session, never from the client.** The API has no
 endpoint that accepts a `playerId`; self-scoped data is reached through
-`/api/me` or a `my-` prefix, and the route resolves who is asking from the JWT.
+`/api/v1/me` or a `my-` prefix, and the route resolves who is asking from the JWT.
 Hiding an id from a URL is not a security control, resolving it server-side is.
 → [API Naming Rules](../docs/development/api-naming-rules.md)
 
@@ -107,11 +107,11 @@ decided once, in `composition.ts`.
 
 | Scope | Examples |
 |---|---|
-| Public reads | `GET /api/leagues/public`, `/api/leagues/:id`, `/:id/leaderboard`, `/:id/contracts` |
+| Public reads | `GET /api/v1/leagues/public`, `/api/v1/leagues/:id`, `/:id/leaderboard`, `/:id/contracts` |
 | Self-scoped | `/:id/my-team`, `/:id/my-contracts`, `/:id/my-performances`, `/:id/my-notifications`, `/:id/my-role`, `/:id/my-departure` |
 | Admin-scoped | `/:id/invite-code`, `/:id/closure` |
-| Session | `/api/session`, `/api/me/genie-seeds`, `/api/me/genie-turns` |
-| Service-to-service | `/internal/scoring-inputs`, `/internal/performances` |
+| Session | `/api/v1/session`, `/api/v1/me/genie-seeds`, `/api/v1/me/genie-turns` |
+| Service-to-service | `/internal/v1/scoring-inputs`, `/internal/v1/performances` |
 
 ## 3. Buying a contract
 
@@ -127,12 +127,12 @@ sequenceDiagram
 
   FE->>WM: top-read snapshot for the league's edition
   WM-->>FE: ranked articles, priced as they hydrate
-  FE->>BE: GET /api/leagues/:id/contracts
+  FE->>BE: GET /api/v1/leagues/:id/contracts
   BE->>DB: contracts already held in this league
   BE-->>FE: who owns what
   Note over FE: Free Agent · Owned by Viewer · Owned by Other
 
-  FE->>BE: POST /api/leagues/:id/my-contracts { articleId }
+  FE->>BE: POST /api/v1/leagues/:id/my-contracts { articleId }
   BE->>WM: 30-day average views
   BE->>BE: price = f(base points, language scale)
   BE->>DB: INSERT … SELECT … WHERE<br/>credits ≥ price AND article free<br/>AND squad under the cap
@@ -179,7 +179,7 @@ sequenceDiagram
   participant DB as D1
 
   CR->>CO: run for date D
-  CO->>BE: GET /internal/scoring-inputs?date=D<br/><small>bearer secret</small>
+  CO->>BE: GET /internal/v1/scoring-inputs?date=D<br/><small>bearer secret</small>
   BE->>DB: teams ⋈ leagues ⋈ lineups,<br/>then contracts active on D<br/><small>JOIN</small>
   DB-->>BE: rows
   BE-->>CO: per team: articles, article pairs,<br/>opaque formation snapshot
@@ -191,7 +191,7 @@ sequenceDiagram
   end
   WM-->>CO: raw facts only
 
-  CO->>BE: POST /internal/performances (chunks of 100)
+  CO->>BE: POST /internal/v1/performances (chunks of 100)
   BE->>BE: apply the curve + language scale
   BE->>DB: upsert on (teamId, date)
   Note over BE,DB: re-running date D is safe

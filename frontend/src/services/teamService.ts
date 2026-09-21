@@ -15,8 +15,7 @@ import {
 } from "../../../dto/formationDTO";
 import { ContractDTO, type RawContract } from "../../../dto/contractDTO";
 import { Temporal } from "@js-temporal/polyfill";
-
-const BASE = "";
+import { API_BASE_URL } from "@/services/api";
 
 type RawTeamLineUp = {
   formation: {
@@ -56,7 +55,7 @@ function deserializeLineup(raw: RawTeamLineUp): TeamLineUp {
  * Returns a TeamResponse containing a fully resolved FormationDTO and bench.
  */
 export async function fetchTeam(leagueId: string): Promise<TeamLineUp> {
-  const res = await fetch(`${BASE}/api/leagues/${leagueId}/lineup`, {
+  const res = await fetch(`${API_BASE_URL}/leagues/${leagueId}/lineup`, {
     credentials: "include",
   });
   if (!res.ok) throw new Error(`Failed to fetch lineup: ${res.status}`);
@@ -78,7 +77,7 @@ export async function fetchRivalLineup(
   teamId: string
 ): Promise<TeamLineUp> {
   const res = await fetch(
-    `${BASE}/api/leagues/${leagueId}/teams/${teamId}/lineup`,
+    `${API_BASE_URL}/leagues/${leagueId}/teams/${teamId}/lineup`,
     { credentials: "include" }
   );
   if (!res.ok) throw new Error(`Failed to fetch team lineup: ${res.status}`);
@@ -98,7 +97,7 @@ export async function saveTeamApi(
     bench: ContractDTO[];
   }
 ): Promise<void> {
-  const res = await fetch(`${BASE}/api/leagues/${leagueId}/lineup`, {
+  const res = await fetch(`${API_BASE_URL}/leagues/${leagueId}/lineup`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     credentials: "include",

@@ -117,7 +117,7 @@ export const leagues: LeagueDTO[] = [
 /**
  * Public leagues the current player has **no team in** — what the featured
  * shelf is for, and the only fixtures that exercise it. They are kept out of
- * `leagues` because that array is the answer to `GET /api/leagues`, which means
+ * `leagues` because that array is the answer to `GET /api/v1/leagues`, which means
  * "the leagues I play"; a league appearing in both would defeat the filter the
  * shelf applies.
  *

@@ -86,13 +86,13 @@ function appFor(googleAccountId: string) {
     await next();
   });
   app.use("*", injectDeps());
-  app.route("/api/reports", reports);
+  app.route("/api/v1/reports", reports);
   return app;
 }
 
 function post(app: Hono, body: unknown) {
   return app.request(
-    "/api/reports",
+    "/api/v1/reports",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -109,7 +109,7 @@ const VALID_REPORT = {
   contactConsent: false,
 };
 
-describe("POST /api/reports", () => {
+describe("POST /api/v1/reports", () => {
   let app: Hono;
 
   beforeEach(async () => {

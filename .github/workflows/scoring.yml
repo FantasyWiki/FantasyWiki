@@ -2,7 +2,7 @@ name: Nightly scoring
 
 # Component 3 of the scoring engine (docs/architecture/scoring-pipeline.md): runs the
 # Kotlin :scoring-collector nightly to fetch each contracted article's daily
-# Wikimedia signals and POST them to the backend's /internal endpoints, which
+# Wikimedia signals and POST them to the backend's /internal/v1 endpoints, which
 # score and persist them.
 #
 # It runs the collector as the container image publish-images.yml pushes to

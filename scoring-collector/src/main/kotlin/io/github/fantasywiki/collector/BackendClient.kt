@@ -13,7 +13,7 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 
 /**
- * Talks to the backend's two `/internal` endpoints — the only privileged surface
+ * Talks to the backend's two `/internal/v1` endpoints — the only privileged surface
  * the collector touches (one bearer secret, no D1 credential; ADR 0004's
  * single-writer boundary). The backend, not this client, computes scores.
  */
@@ -23,9 +23,9 @@ class BackendClient(private val http: HttpClient, private val backendUrl: String
         const val CHUNK_SIZE = 100
     }
 
-    /** The day's scorable teams (GET /internal/scoring-inputs). */
+    /** The day's scorable teams (GET /internal/v1/scoring-inputs). */
     suspend fun getScoringInputs(date: String): List<ScoringInput> {
-        val response = http.get("$backendUrl/internal/scoring-inputs") {
+        val response = http.get("$backendUrl/internal/v1/scoring-inputs") {
             bearerAuth(ingestSecret)
             parameter("date", date)
         }
@@ -35,10 +35,10 @@ class BackendClient(private val http: HttpClient, private val backendUrl: String
         return response.body()
     }
 
-    /** Ingest the computed-upstream raw signals (POST /internal/performances), chunked. */
+    /** Ingest the computed-upstream raw signals (POST /internal/v1/performances), chunked. */
     suspend fun postPerformances(date: String, results: List<PerformanceResult>) {
         for (chunk in results.chunked(CHUNK_SIZE)) {
-            val response = http.post("$backendUrl/internal/performances") {
+            val response = http.post("$backendUrl/internal/v1/performances") {
                 bearerAuth(ingestSecret)
                 contentType(ContentType.Application.Json)
                 setBody(PerformanceIngest(date, chunk))

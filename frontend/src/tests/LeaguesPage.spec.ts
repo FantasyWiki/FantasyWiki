@@ -163,7 +163,7 @@ describe("LeaguesPage", () => {
   });
 
   it("invites a player with no leagues to find one", async () => {
-    server.use(http.get("*/api/leagues", () => HttpResponse.json([])));
+    server.use(http.get("*/api/v1/leagues", () => HttpResponse.json([])));
 
     const page = await mountPage();
 
@@ -179,7 +179,7 @@ describe("LeaguesPage", () => {
     // a page keying off the list alone tells an established player they own
     // nothing whenever the server hiccups.
     server.use(
-      http.get("*/api/leagues", () =>
+      http.get("*/api/v1/leagues", () =>
         HttpResponse.json({ error: "boom" }, { status: 500 })
       )
     );
@@ -196,7 +196,7 @@ describe("LeaguesPage", () => {
   it("recovers when a retry succeeds", async () => {
     let failed = false;
     server.use(
-      http.get("*/api/leagues", () => {
+      http.get("*/api/v1/leagues", () => {
         if (failed) return HttpResponse.json(leagues);
         failed = true;
         return HttpResponse.json({ error: "boom" }, { status: 500 });
@@ -218,7 +218,7 @@ describe("LeaguesPage", () => {
   it("does not refetch when the store has already loaded", async () => {
     let calls = 0;
     server.use(
-      http.get("*/api/leagues", () => {
+      http.get("*/api/v1/leagues", () => {
         calls += 1;
         return HttpResponse.json(leagues);
       })
@@ -242,11 +242,11 @@ describe("LeaguesPage", () => {
 
   it("reports a failed public-leagues fetch as an error, not as an empty shelf", async () => {
     // The regression this guards: the featured shelf used to ignore
-    // `isError` entirely, so a failed `GET /api/leagues/public` fell through
+    // `isError` entirely, so a failed `GET /api/v1/leagues/public` fell through
     // to the "will be listed here" placeholder — exactly the empty-vs-error
     // confusion the enrolled grid above was built to avoid.
     server.use(
-      http.get("*/api/leagues/public", () =>
+      http.get("*/api/v1/leagues/public", () =>
         HttpResponse.json({ error: "boom" }, { status: 500 })
       )
     );
@@ -261,7 +261,7 @@ describe("LeaguesPage", () => {
   it("recovers the featured shelf when a retry succeeds", async () => {
     let failed = false;
     server.use(
-      http.get("*/api/leagues/public", () => {
+      http.get("*/api/v1/leagues/public", () => {
         if (failed) {
           return HttpResponse.json(leagues.filter((l) => l.id === "global"));
         }

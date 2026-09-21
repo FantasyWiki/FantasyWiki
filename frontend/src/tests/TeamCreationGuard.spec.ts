@@ -18,7 +18,7 @@ import { leagues } from "@/mocks/data/leagues";
  */
 function mockMyLeagues(ids: string[]) {
   server.use(
-    http.get("*/api/leagues", () =>
+    http.get("*/api/v1/leagues", () =>
       HttpResponse.json(leagues.filter((lg) => ids.includes(lg.id)))
     )
   );
@@ -81,7 +81,7 @@ describe("team creation route guard", () => {
   it("lets the player through when the league list cannot be fetched", async () => {
     // Fail open: the backend still refuses a duplicate, whereas redirecting on
     // a failed fetch would lock a genuinely new player out of signup.
-    server.use(http.get("*/api/leagues", () => HttpResponse.error()));
+    server.use(http.get("*/api/v1/leagues", () => HttpResponse.error()));
 
     expect(await typePath("/team-creation")).toBe("/team-creation");
   });

@@ -128,7 +128,7 @@
           </div>
 
           <!-- Same confusion the enrolled grid above was built to avoid: a
-               failed `GET /api/leagues/public` used to fall straight through
+               failed `GET /api/v1/leagues/public` used to fall straight through
                to the "will be listed here" placeholder, reporting a server
                error as "there is simply nothing to join". -->
           <ion-card

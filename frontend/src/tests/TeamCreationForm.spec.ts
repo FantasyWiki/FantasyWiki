@@ -41,7 +41,7 @@ describe("TeamCreationForm.vue", () => {
   it("names the league it was handed, without looking one up", async () => {
     let globalWasFetched = false;
     server.use(
-      http.get("*/api/leagues/global", () => {
+      http.get("*/api/v1/leagues/global", () => {
         globalWasFetched = true;
         return HttpResponse.json(leagues[0]);
       })
@@ -68,7 +68,7 @@ describe("TeamCreationForm.vue", () => {
   it("posts to the league it was handed and emits the created team", async () => {
     let postedTo = "";
     server.use(
-      http.post("*/api/leagues/:leagueId/my-team", ({ params }) => {
+      http.post("*/api/v1/leagues/:leagueId/my-team", ({ params }) => {
         postedTo = params.leagueId as string;
         return HttpResponse.json(
           { id: "team-9", name: "I Maghi", player: null, credits: 1000 },
@@ -92,7 +92,7 @@ describe("TeamCreationForm.vue", () => {
   it("rejects a name that is too short without calling the API", async () => {
     let posted = false;
     server.use(
-      http.post("*/api/leagues/:leagueId/my-team", () => {
+      http.post("*/api/v1/leagues/:leagueId/my-team", () => {
         posted = true;
         return HttpResponse.json({}, { status: 201 });
       })
@@ -108,7 +108,7 @@ describe("TeamCreationForm.vue", () => {
 
   it("surfaces the API error and stays on the form", async () => {
     server.use(
-      http.post("*/api/leagues/:leagueId/my-team", () =>
+      http.post("*/api/v1/leagues/:leagueId/my-team", () =>
         HttpResponse.json(
           { error: "This team name is already taken in this league." },
           { status: 400 }

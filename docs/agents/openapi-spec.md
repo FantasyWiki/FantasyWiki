@@ -45,6 +45,11 @@ The path is decided by
 [API Naming Rules](../development/api-naming-rules.md): document what exists,
 and never invent an id-bearing variant of a self-scoped route.
 
+Every path carries its version segment, `/api/v1/...` or `/internal/v1/...`,
+because the Worker mounts them there and the gate compares literally. When you
+change the contract, bump `info.version` too: the minor for an addition, and a
+new path version (with a major) for a break, as the naming rules say.
+
 Worth the effort, because it is what the reader came for: **every status the
 handler can answer**, and what causes it; **which security scheme applies**,
 where the operation departs from the document default; and **the reason**, where

@@ -36,7 +36,7 @@ describe("backend app", () => {
 
   it("requires JWT cookie for protected routes", async () => {
     const response = await app.fetch(
-      new Request("http://localhost/api/session"),
+      new Request("http://localhost/api/v1/session"),
       makeEnv(),
     );
 
@@ -57,7 +57,7 @@ describe("backend app", () => {
     );
 
     const response = await app.fetch(
-      new Request("http://localhost/api/session", {
+      new Request("http://localhost/api/v1/session", {
         headers: { Cookie: `session_token=${token}` },
       }),
       env,

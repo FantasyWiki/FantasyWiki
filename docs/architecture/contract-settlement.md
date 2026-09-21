@@ -105,7 +105,7 @@ A contract whose `expireDate` is today is due for settlement today *and* still
 scorable for yesterday: `getActiveContracts(D)` selects
 `settled = 0 AND purchaseDate <= D AND expireDate > D`, and today's expiry
 satisfies all three for `D = yesterday`. Settle it first and the article is gone
-from `/internal/scoring-inputs` before the collector asks, the team's final
+from `/internal/v1/scoring-inputs` before the collector asks, the team's final
 contract-day scores zero, and nothing anywhere reports that it happened.
 
 So settlement runs **two hours after** the collector's 05:00 UTC cron

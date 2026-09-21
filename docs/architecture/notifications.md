@@ -54,9 +54,9 @@ string and is rebuilt by `deserializeNotification`, see
 
 | endpoint | scope |
 | --- | --- |
-| `GET /api/player/notifications` | every league the caller plays in |
-| `GET /api/leagues/{id}/my-notifications` | one league |
-| `PATCH /api/notifications/{id}/read` | mark one read |
+| `GET /api/v1/player/notifications` | every league the caller plays in |
+| `GET /api/v1/leagues/{id}/my-notifications` | one league |
+| `PATCH /api/v1/notifications/{id}/read` | mark one read |
 
 Both reads resolve the player from the session and never take a `playerId`
 ([API Naming Rules](../development/api-naming-rules.md)). `markAsRead` matches on

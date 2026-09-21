@@ -30,7 +30,7 @@ enum class ChemistryLevel {
 }
 
 /**
- * One team's daily scoring inputs from GET /internal/scoring-inputs — the JVM-side
+ * One team's daily scoring inputs from GET /internal/v1/scoring-inputs — the JVM-side
  * mirror of `dto/scoring.ts` `ScoringInputDTO` (kept in lockstep by hand; ADR 0004
  * accepts no type-sharing across runtimes). Free of any formation/schema concepts:
  * the backend already resolved the schema's Chemistry Links to concrete article
@@ -53,7 +53,7 @@ data class ScoringInput(
 )
 
 /**
- * One team's raw daily signals sent to POST /internal/performances — the mirror of
+ * One team's raw daily signals sent to POST /internal/v1/performances — the mirror of
  * `dto/scoring.ts` `PerformanceResultDTO`. The collector sends *facts it fetched*,
  * never a computed score: the backend owns all scoring math.
  */
@@ -69,7 +69,7 @@ data class PerformanceResult(
     val formationSnapshot: String,
 )
 
-/** Body of POST /internal/performances — mirror of `dto/scoring.ts` `PerformanceIngestDTO`. */
+/** Body of POST /internal/v1/performances — mirror of `dto/scoring.ts` `PerformanceIngestDTO`. */
 @Serializable
 data class PerformanceIngest(
     /** Scored calendar day, `YYYY-MM-DD`. */

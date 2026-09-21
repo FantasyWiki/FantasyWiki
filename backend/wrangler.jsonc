@@ -259,7 +259,7 @@
       // remote proxy session and demand Cloudflare credentials. A fresh clone
       // has none, so the whole backend would refuse to start over one optional
       // feature. Without the binding the Article Genie reports itself asleep
-      // and the frontend hides its entry point (`GET /api/session` -> features).
+      // and the frontend hides its entry point (`GET /api/v1/session` -> features).
       // 07:00 UTC, after the scoring collector — see the production env.
       "triggers": {
         "crons": ["0 7 * * *"],

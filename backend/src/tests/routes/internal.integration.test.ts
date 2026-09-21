@@ -39,14 +39,14 @@ describe("/internal routes", () => {
 
   it("rejects a missing or wrong bearer token with 401", async () => {
     const noAuth = await app.request(
-      `/internal/scoring-inputs?date=${SCORE_DATE}`,
+      `/internal/v1/scoring-inputs?date=${SCORE_DATE}`,
       {},
       env,
     );
     expect(noAuth.status).toBe(401);
 
     const wrong = await app.request(
-      `/internal/scoring-inputs?date=${SCORE_DATE}`,
+      `/internal/v1/scoring-inputs?date=${SCORE_DATE}`,
       { headers: { Authorization: "Bearer nope" } },
       env,
     );
@@ -55,21 +55,21 @@ describe("/internal routes", () => {
 
   it("rejects a malformed or missing date with 400 (authed)", async () => {
     const badFormat = await app.request(
-      "/internal/scoring-inputs?date=2026/07/12",
+      "/internal/v1/scoring-inputs?date=2026/07/12",
       { headers: { ...AUTH } },
       env,
     );
     expect(badFormat.status).toBe(400);
 
     const missing = await app.request(
-      "/internal/scoring-inputs",
+      "/internal/v1/scoring-inputs",
       { headers: { ...AUTH } },
       env,
     );
     expect(missing.status).toBe(400);
 
     const postBadDate = await app.request(
-      "/internal/performances",
+      "/internal/v1/performances",
       {
         method: "POST",
         headers: { ...AUTH, "Content-Type": "application/json" },
@@ -107,7 +107,7 @@ describe("/internal routes", () => {
     );
 
     const getRes = await app.request(
-      `/internal/scoring-inputs?date=${SCORE_DATE}`,
+      `/internal/v1/scoring-inputs?date=${SCORE_DATE}`,
       { headers: { ...AUTH } },
       env,
     );
@@ -123,7 +123,7 @@ describe("/internal routes", () => {
     // Engine posts raw signals; the backend scores them (domain "en" -> L=1.0):
     // basePoints(64000)=5.0 + "good" synergy 0.5 = 5.5.
     const postRes = await app.request(
-      "/internal/performances",
+      "/internal/v1/performances",
       {
         method: "POST",
         headers: { ...AUTH, "Content-Type": "application/json" },

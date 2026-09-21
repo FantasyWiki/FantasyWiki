@@ -133,27 +133,27 @@ const mockWikimediaSearch = {
 export const handlers = [
   // ── Session & Auth → passthrough al backend reale ──────────────────────────
   // Il login Google è un redirect del browser (non fetch), MSW non lo vede.
-  // /api/session è invece una fetch normale: la lasciamo passare al backend
+  // /api/v1/session è invece una fetch normale: la lasciamo passare al backend
   // reale così il JWT viene letto davvero dopo il login Google.
   http.get("*/auth/*", () => passthrough()),
-  http.get("*/api/session", () => passthrough()),
-  http.delete("*/api/session", () => passthrough()),
+  http.get("*/api/v1/session", () => passthrough()),
+  http.delete("*/api/v1/session", () => passthrough()),
 
   // ── Player ──────────────────────────────────────────────────────────────────
-  http.get("*/api/player", () => {
+  http.get("*/api/v1/player", () => {
     const player = players.find((p) => p.id === currentPlayerId);
     if (!player)
       return HttpResponse.json({ error: "Player not found" }, { status: 404 });
     return HttpResponse.json(player);
   }),
 
-  http.get("*/api/player/teams", () => {
+  http.get("*/api/v1/player/teams", () => {
     return HttpResponse.json(
       teams.filter((t) => t.player.id === currentPlayerId)
     );
   }),
 
-  http.get("*/api/player/notifications", () => {
+  http.get("*/api/v1/player/notifications", () => {
     const playerTeamIds = teams
       .filter((t) => t.player.id === currentPlayerId)
       .map((t) => t.id);
@@ -163,7 +163,7 @@ export const handlers = [
   }),
 
   // ── Leagues ─────────────────────────────────────────────────────────────────
-  http.get("*/api/leagues", () => HttpResponse.json(leagues)),
+  http.get("*/api/v1/leagues", () => HttpResponse.json(leagues)),
 
   // Founding a league writes it into the mock's own list, so the league
   // section and the selector show it immediately afterwards — the same thing
@@ -196,7 +196,7 @@ export const handlers = [
     });
   }),
 
-  http.get("*/api/wikipedia-editions", () =>
+  http.get("*/api/v1/wikipedia-editions", () =>
     HttpResponse.json([
       { code: "en", autonym: "English", englishName: "English" },
       { code: "it", autonym: "italiano", englishName: "Italian" },
@@ -206,7 +206,7 @@ export const handlers = [
     ])
   ),
 
-  http.post("*/api/leagues", async ({ request }) => {
+  http.post("*/api/v1/leagues", async ({ request }) => {
     const body = (await request.json()) as Partial<CreateLeagueRequest>;
     if (!isLeagueName(body.name) || !isTeamName(body.teamName)) {
       return HttpResponse.json(
@@ -240,7 +240,7 @@ export const handlers = [
 
   // Mirrors the real endpoint's two 404s: a league nobody may invite to, and a
   // public league that simply has no code.
-  http.get("*/api/leagues/:leagueId/invite-code", ({ params }) => {
+  http.get("*/api/v1/leagues/:leagueId/invite-code", ({ params }) => {
     const code = invitationCodes[String(params.leagueId)];
     if (!code)
       return HttpResponse.json(
@@ -251,11 +251,11 @@ export const handlers = [
   }),
 
   // The preview an invitation code resolves to. Registered before
-  // `/api/leagues/:leagueId` for the same reason the real route is registered
+  // `/api/v1/leagues/:leagueId` for the same reason the real route is registered
   // before its own wildcard — and it answers a wrong, unused or malformed code
   // with the one 404 the backend gives all three, so nothing here can teach the
   // UI to tell them apart when the server will not.
-  http.get("*/api/leagues/by-code/:code", ({ params }) => {
+  http.get("*/api/v1/leagues/by-code/:code", ({ params }) => {
     const code = normalizeInvitationCode(String(params.code));
     const leagueId = Object.keys(invitationCodes).find(
       (id) => invitationCodes[id] === code
@@ -271,27 +271,27 @@ export const handlers = [
   // Mirrors the real endpoint: every public league, the caller's own included.
   // Filtering those out is the league section's job, so returning them here is
   // what actually exercises it.
-  http.get("*/api/leagues/public", () =>
+  http.get("*/api/v1/leagues/public", () =>
     HttpResponse.json(
       allLeagues().filter((l) => l.visibility === LeagueVisibility.PUBLIC)
     )
   ),
 
-  http.get("*/api/leagues/global", () => {
+  http.get("*/api/v1/leagues/global", () => {
     const league = leagues.find((l) => l.id === "global");
     if (!league)
       return HttpResponse.json({ error: "League not found" }, { status: 404 });
     return HttpResponse.json(league);
   }),
 
-  http.get("*/api/leagues/:leagueId", ({ params }) => {
+  http.get("*/api/v1/leagues/:leagueId", ({ params }) => {
     const league = allLeagues().find((l) => l.id === params.leagueId);
     if (!league)
       return HttpResponse.json({ error: "League not found" }, { status: 404 });
     return HttpResponse.json(league);
   }),
 
-  http.get("*/api/leagues/:leagueId/my-role", ({ params }) => {
+  http.get("*/api/v1/leagues/:leagueId/my-role", ({ params }) => {
     const leagueId = String(params.leagueId);
     if (!allLeagues().some((l) => l.id === leagueId))
       return HttpResponse.json({ error: "League not found" }, { status: 404 });
@@ -305,7 +305,7 @@ export const handlers = [
   // endpoint writes the column — nothing is removed from the list, so the
   // league page keeps rendering afterwards, which is the behaviour worth
   // exercising (docs/domain/league-lifecycle.md).
-  http.post("*/api/leagues/:leagueId/closure", ({ params }) => {
+  http.post("*/api/v1/leagues/:leagueId/closure", ({ params }) => {
     const league = leagues.find((l) => l.id === params.leagueId);
     if (!league)
       return HttpResponse.json({ error: "League not found" }, { status: 404 });
@@ -326,7 +326,7 @@ export const handlers = [
   // that leaves behind, the same two ways the real transaction does: an empty
   // league is deleted outright, and one whose admin walked out passes to
   // whoever has been in it longest.
-  http.post("*/api/leagues/:leagueId/my-departure", ({ params }) => {
+  http.post("*/api/v1/leagues/:leagueId/my-departure", ({ params }) => {
     const leagueId = String(params.leagueId);
     const team = getMyTeam(leagueId);
     if (!team)
@@ -355,40 +355,46 @@ export const handlers = [
     return HttpResponse.json({ leagueDeleted: false });
   }),
 
-  http.post("*/api/leagues/:leagueId/my-team", async ({ params, request }) => {
-    const body = (await request.json()) as {
-      name?: string;
-      invitationCode?: string;
-    };
-    if (!body.name || typeof body.name !== "string") {
-      return HttpResponse.json({ error: "name is required" }, { status: 400 });
+  http.post(
+    "*/api/v1/leagues/:leagueId/my-team",
+    async ({ params, request }) => {
+      const body = (await request.json()) as {
+        name?: string;
+        invitationCode?: string;
+      };
+      if (!body.name || typeof body.name !== "string") {
+        return HttpResponse.json(
+          { error: "name is required" },
+          { status: 400 }
+        );
+      }
+
+      // The join gate, as far as devMock can honour it: a league with a code
+      // wants that code. Without this the mock would let a wrong code through and
+      // the flow would only look right until it met the real backend.
+      const required = invitationCodes[String(params.leagueId)];
+      if (
+        required &&
+        normalizeInvitationCode(body.invitationCode ?? "") !== required
+      ) {
+        return HttpResponse.json(
+          { error: "This league is private. An invitation code is required." },
+          { status: 403 }
+        );
+      }
+
+      const player = players.find((p) => p.id === currentPlayerId);
+      const team: TeamDTO = {
+        id: `team-${teams.length + 1}`,
+        name: body.name.trim(),
+        player: player!,
+        credits: 1000,
+      };
+      return HttpResponse.json(team, { status: 201 });
     }
+  ),
 
-    // The join gate, as far as devMock can honour it: a league with a code
-    // wants that code. Without this the mock would let a wrong code through and
-    // the flow would only look right until it met the real backend.
-    const required = invitationCodes[String(params.leagueId)];
-    if (
-      required &&
-      normalizeInvitationCode(body.invitationCode ?? "") !== required
-    ) {
-      return HttpResponse.json(
-        { error: "This league is private. An invitation code is required." },
-        { status: 403 }
-      );
-    }
-
-    const player = players.find((p) => p.id === currentPlayerId);
-    const team: TeamDTO = {
-      id: `team-${teams.length + 1}`,
-      name: body.name.trim(),
-      player: player!,
-      credits: 1000,
-    };
-    return HttpResponse.json(team, { status: 201 });
-  }),
-
-  http.get("*/api/leagues/:leagueId/my-team", ({ params }) => {
+  http.get("*/api/v1/leagues/:leagueId/my-team", ({ params }) => {
     const team = getMyTeam(params.leagueId as string);
     if (!team)
       return HttpResponse.json(
@@ -398,7 +404,7 @@ export const handlers = [
     return HttpResponse.json(team);
   }),
 
-  http.get("*/api/leagues/:leagueId/lineup", ({ params }) => {
+  http.get("*/api/v1/leagues/:leagueId/lineup", ({ params }) => {
     const leagueId = String(params.leagueId);
     const key = teamResponseKey(leagueId);
 
@@ -416,7 +422,7 @@ export const handlers = [
   // Another team's line-up. The fixture is the same XI for every team id: the
   // mock exists so the rival page is navigable, and inventing a distinct squad
   // per team would be fixture data pretending to be a scouting feature.
-  http.get("*/api/leagues/:leagueId/teams/:teamId/lineup", ({ params }) => {
+  http.get("*/api/v1/leagues/:leagueId/teams/:teamId/lineup", ({ params }) => {
     const response =
       mockTeamResponses[teamResponseKey(String(params.leagueId))];
     if (!response) {
@@ -428,7 +434,7 @@ export const handlers = [
     return HttpResponse.json(response);
   }),
 
-  http.put("*/api/leagues/:leagueId/lineup", async ({ params, request }) => {
+  http.put("*/api/v1/leagues/:leagueId/lineup", async ({ params, request }) => {
     const leagueId = String(params.leagueId);
     const key = teamResponseKey(leagueId);
 
@@ -459,14 +465,14 @@ export const handlers = [
     HttpResponse.json(mockWikimediaSearch)
   ),
 
-  http.get("*/api/leagues/:leagueId/my-contracts", ({ params }) => {
+  http.get("*/api/v1/leagues/:leagueId/my-contracts", ({ params }) => {
     const team = getMyTeam(params.leagueId as string);
     if (!team) return HttpResponse.json([]);
     return HttpResponse.json(contracts.filter((c) => c.team.id === team.id));
   }),
 
   http.post(
-    "*/api/leagues/:leagueId/my-contracts",
+    "*/api/v1/leagues/:leagueId/my-contracts",
     async ({ params, request }) => {
       const data = (await request.json()) as {
         articleId: string;
@@ -497,7 +503,7 @@ export const handlers = [
   ),
 
   http.post(
-    "*/api/leagues/:leagueId/my-contracts/:contractId/renew",
+    "*/api/v1/leagues/:leagueId/my-contracts/:contractId/renew",
     ({ params }) => {
       const team = getMyTeam(params.leagueId as string);
       if (!team)
@@ -523,7 +529,7 @@ export const handlers = [
   ),
 
   http.delete(
-    "*/api/leagues/:leagueId/my-contracts/:contractId/renew",
+    "*/api/v1/leagues/:leagueId/my-contracts/:contractId/renew",
     ({ params }) => {
       const team = getMyTeam(params.leagueId as string);
       if (!team)
@@ -553,7 +559,7 @@ export const handlers = [
     }
   ),
 
-  http.get("*/api/leagues/:leagueId/contracts", ({ params }) => {
+  http.get("*/api/v1/leagues/:leagueId/contracts", ({ params }) => {
     const league = allLeagues().find((l) => l.id === params.leagueId);
     if (!league) return HttpResponse.json([]);
     const teamIds = rosterOf(league.id).map((t) => t.id);
@@ -562,7 +568,7 @@ export const handlers = [
     );
   }),
 
-  http.get("*/api/leagues/:leagueId/my-notifications", ({ params }) => {
+  http.get("*/api/v1/leagues/:leagueId/my-notifications", ({ params }) => {
     const league = allLeagues().find((l) => l.id === params.leagueId);
     if (!league) return HttpResponse.json([]);
     const teamIdsInLeague = rosterOf(league.id).map((t) => t.id);
@@ -572,7 +578,7 @@ export const handlers = [
   }),
 
   // ── Teams ────────────────────────────────────────────────────────────────────
-  http.get("*/api/teams/:teamId", ({ params }) => {
+  http.get("*/api/v1/teams/:teamId", ({ params }) => {
     const team = teams.find((t) => t.id === params.teamId);
     if (!team)
       return HttpResponse.json({ error: "Team not found" }, { status: 404 });
@@ -581,19 +587,19 @@ export const handlers = [
     return HttpResponse.json(team);
   }),
 
-  http.get("*/api/teams/:teamId/contracts", ({ params }) => {
+  http.get("*/api/v1/teams/:teamId/contracts", ({ params }) => {
     return HttpResponse.json(
       contracts.filter((c) => c.team.id === params.teamId)
     );
   }),
 
-  http.get("*/api/teams/:teamId/notifications", ({ params }) => {
+  http.get("*/api/v1/teams/:teamId/notifications", ({ params }) => {
     return HttpResponse.json(
       notifications.filter((n) => n.contract.team.id === params.teamId)
     );
   }),
 
-  http.post("*/api/teams/:teamId/contracts", async ({ params, request }) => {
+  http.post("*/api/v1/teams/:teamId/contracts", async ({ params, request }) => {
     const data = (await request.json()) as {
       teamID: string;
       articleID: string;
@@ -632,7 +638,7 @@ export const handlers = [
   }),
 
   // ── Contracts ────────────────────────────────────────────────────────────────
-  http.get("*/api/contracts/:contractId", ({ params }) => {
+  http.get("*/api/v1/contracts/:contractId", ({ params }) => {
     const contract = contracts.find((c) => c.id === params.contractId);
     if (!contract)
       return HttpResponse.json(
@@ -642,7 +648,7 @@ export const handlers = [
     return HttpResponse.json(contract);
   }),
 
-  http.delete("*/api/contracts/:contractId", ({ params }) => {
+  http.delete("*/api/v1/contracts/:contractId", ({ params }) => {
     const idx = contracts.findIndex((c) => c.id === params.contractId);
     if (idx === -1)
       return HttpResponse.json(
@@ -666,7 +672,7 @@ export const handlers = [
   }),
 
   // ── Notifications ─────────────────────────────────────────────────────────────
-  http.get("*/api/notifications", () => {
+  http.get("*/api/v1/notifications", () => {
     const playerTeamIds = teams
       .filter((t) => t.player.id === currentPlayerId)
       .map((t) => t.id);
@@ -675,7 +681,7 @@ export const handlers = [
     );
   }),
 
-  http.patch("*/api/notifications/:notificationId/read", ({ params }) => {
+  http.patch("*/api/v1/notifications/:notificationId/read", ({ params }) => {
     const notif = notifications.find((n) => n.id === params.notificationId);
     if (!notif)
       return HttpResponse.json(
@@ -687,9 +693,9 @@ export const handlers = [
   }),
 
   // ── Articles ──────────────────────────────────────────────────────────────────
-  http.get("*/api/articles", () => HttpResponse.json(articles)),
+  http.get("*/api/v1/articles", () => HttpResponse.json(articles)),
 
-  http.get("*/api/articles/:articleId", ({ params }) => {
+  http.get("*/api/v1/articles/:articleId", ({ params }) => {
     const article = articles.find(
       (a: { id: string | readonly string[] | undefined }) =>
         a.id === params.articleId
@@ -700,7 +706,7 @@ export const handlers = [
   }),
 
   // ── Leaderboard ────────────────────────────────────────────────────────────────
-  http.get("*/api/leagues/:leagueId/leaderboard", ({ params }) => {
+  http.get("*/api/v1/leagues/:leagueId/leaderboard", ({ params }) => {
     const leagueId = params.leagueId as string;
     const league = allLeagues().find((l) => l.id === leagueId);
     if (!league) return HttpResponse.json([]);
@@ -755,7 +761,7 @@ export const handlers = [
     return HttpResponse.json(entries);
   }),
 
-  http.get("*/api/leagues/:leagueId/my-performances", ({ params }) => {
+  http.get("*/api/v1/leagues/:leagueId/my-performances", ({ params }) => {
     const leagueId = params.leagueId as string;
     const myTeam = getMyTeam(leagueId);
     if (!myTeam) return HttpResponse.json([]);
@@ -784,12 +790,12 @@ export const handlers = [
   // The Article Genie's two model calls. No model runs in mock mode: the seed
   // reads as a chemistry query and the turn narrows to a single survivor, which
   // is enough to drive the panel through to its results.
-  http.post("*/api/me/genie-seeds", async ({ request }) => {
+  http.post("*/api/v1/me/genie-seeds", async ({ request }) => {
     const { query } = (await request.json()) as { query: string };
     return HttpResponse.json({ keywords: query, anchors: [] });
   }),
 
-  http.post("*/api/me/genie-turns", async ({ request }) => {
+  http.post("*/api/v1/me/genie-turns", async ({ request }) => {
     const { candidates, history } = (await request.json()) as {
       candidates: { id: number }[];
       history: unknown[];
@@ -811,7 +817,7 @@ export const handlers = [
 
   // Problem reports. Nothing is really filed on GitHub in mock mode — the mock
   // just hands back a plausible issue so the success card can be exercised.
-  http.post("*/api/reports", () =>
+  http.post("*/api/v1/reports", () =>
     HttpResponse.json(
       {
         issueNumber: 1234,

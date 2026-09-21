@@ -99,7 +99,7 @@ VITE_MOCK=true
 - `VITE_BACKEND_URL` is used as-is by the frontend runtime, so include
   `http://` explicitly for local backend.
 - `VITE_MOCK=true` enables MSW (Mock Service Worker), which intercepts all API
-  calls except `/api/session` and `/auth/*`, which pass through to the real
+  calls except `/api/v1/session` and `/auth/*`, which pass through to the real
   local backend.
 - `VITE_DEV_LOGIN=true` puts a **Continue as demo player** button on the login
   screen, which mints the same session Google would without going near Google,
@@ -221,7 +221,7 @@ up by one optional feature.
 
 The consequence is visible in exactly one place: the **Article Genie** button
 next to the market's search bar is not rendered. The backend reports the feature
-off on `GET /api/session` and the frontend hides both the trigger and the panel,
+off on `GET /api/v1/session` and the frontend hides both the trigger and the panel,
 so there is no broken button to click. Everything else, leagues, the market,
 formations, scoring, behaves normally.
 
@@ -338,7 +338,7 @@ Browser
   │
   ├─ GET /auth/callback (Vue page)
   │      │
-  │      └─ GET /api/session ────────────► Wrangler (127.0.0.1:8787)
+  │      └─ GET /api/v1/session ────────────► Wrangler (127.0.0.1:8787)
   │                                              │ Reads JWT from cookie
   │                                              │ Returns user info
   │
@@ -346,7 +346,7 @@ Browser
                                                  Returns mock data from handlers.ts
 ```
 
-The key insight: MSW uses `passthrough()` for `/api/session` and `/auth/*`,
+The key insight: MSW uses `passthrough()` for `/api/v1/session` and `/auth/*`,
 so those requests reach the real Wrangler backend. Everything else is mocked.
 
 ---
@@ -357,7 +357,7 @@ so those requests reach the real Wrangler backend. Everything else is mocked.
 |-------|-------|-----|
 | `ERR_SSL_PROTOCOL_ERROR` | `VITE_BACKEND_URL` missing `http://` prefix | Add `http://` explicitly in `.env.local` |
 | `redirect_uri_mismatch` | Local URI not registered in Google Console | Follow Step 3 above |
-| `401` on `/api/session` | `FRONTEND_URL` in `.dev.vars` still points to production | Check `.dev.vars` exists inside `backend/` and restart Wrangler |
+| `401` on `/api/v1/session` | `FRONTEND_URL` in `.dev.vars` still points to production | Check `.dev.vars` exists inside `backend/` and restart Wrangler |
 | Backend not reachable | Wrangler not running or wrong port | Run `npm run dev` in `backend/` and check the port in the log |
 | Cookie not sent | Browser privacy settings blocking cookies | Use Chrome/Firefox, disable aggressive privacy extensions during dev |
 | Wrangler asks you to log in to Cloudflare | You started the `local-genie` env (or added an `ai` binding to `local`) | Use `npm run dev`, the Genie is optional, see above |

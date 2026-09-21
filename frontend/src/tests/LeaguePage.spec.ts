@@ -169,7 +169,7 @@ describe("LeaguePage.vue", () => {
     // 10 UTC days in, 20 to go, so the season is 31 days counted inclusively.
     const today = Temporal.Now.plainDateISO("UTC");
     server.use(
-      http.get("*/api/leagues/:leagueId", () =>
+      http.get("*/api/v1/leagues/:leagueId", () =>
         HttpResponse.json({
           ...leagues[0],
           startDate: `${today.subtract({ days: 10 })}T00:00:00Z`,
@@ -190,7 +190,7 @@ describe("LeaguePage.vue", () => {
 
   it("withholds the podium until the first scoring day has closed", async () => {
     server.use(
-      http.get("*/api/leagues/:leagueId/leaderboard", () =>
+      http.get("*/api/v1/leagues/:leagueId/leaderboard", () =>
         HttpResponse.json(
           deepBoard(6).map((e) => ({
             ...e,
@@ -211,14 +211,14 @@ describe("LeaguePage.vue", () => {
   it("counts down to kick-off and lists the entrants for a league that has not started", async () => {
     const today = Temporal.Now.plainDateISO("UTC");
     server.use(
-      http.get("*/api/leagues/:leagueId", () =>
+      http.get("*/api/v1/leagues/:leagueId", () =>
         HttpResponse.json({
           ...leagues[0],
           startDate: `${today.add({ days: 5 })}T00:00:00Z`,
           endDate: `${today.add({ days: 35 })}T23:59:59Z`,
         })
       ),
-      http.get("*/api/leagues/:leagueId/leaderboard", () =>
+      http.get("*/api/v1/leagues/:leagueId/leaderboard", () =>
         HttpResponse.json(
           deepBoard(4).map((e) => ({
             ...e,
@@ -261,7 +261,7 @@ describe("LeaguePage.vue", () => {
 
   it("keeps the podium off a finished league with no standings to crown", async () => {
     server.use(
-      http.get("*/api/leagues/:leagueId/leaderboard", () =>
+      http.get("*/api/v1/leagues/:leagueId/leaderboard", () =>
         HttpResponse.json([])
       )
     );
@@ -364,7 +364,7 @@ describe("LeaguePage.vue", () => {
 
   it("leaves every row unmarked in a league the viewer has no team in", async () => {
     server.use(
-      http.get("*/api/leagues/:leagueId/my-team", () =>
+      http.get("*/api/v1/leagues/:leagueId/my-team", () =>
         HttpResponse.json(
           { error: "No team found for this league" },
           { status: 404 }
@@ -383,7 +383,7 @@ describe("LeaguePage.vue", () => {
   // an empty state.
   it("lists every team before the first scoring day has closed", async () => {
     server.use(
-      http.get("*/api/leagues/:leagueId/leaderboard", () =>
+      http.get("*/api/v1/leagues/:leagueId/leaderboard", () =>
         HttpResponse.json(
           deepBoard(GLOBAL_TEAM_COUNT).map((e) => ({
             ...e,
@@ -403,7 +403,7 @@ describe("LeaguePage.vue", () => {
 
   it("shows the empty state only when the league has no teams at all", async () => {
     server.use(
-      http.get("*/api/leagues/:leagueId/leaderboard", () =>
+      http.get("*/api/v1/leagues/:leagueId/leaderboard", () =>
         HttpResponse.json([])
       )
     );
@@ -416,7 +416,7 @@ describe("LeaguePage.vue", () => {
 
   it("says the standings failed rather than claiming the league is empty", async () => {
     server.use(
-      http.get("*/api/leagues/:leagueId/leaderboard", () =>
+      http.get("*/api/v1/leagues/:leagueId/leaderboard", () =>
         HttpResponse.json({ error: "boom" }, { status: 500 })
       )
     );
@@ -448,11 +448,11 @@ describe("LeaguePage.vue", () => {
 
   it("reveals a long board in batches and extends it on infinite scroll", async () => {
     server.use(
-      http.get("*/api/leagues/:leagueId/leaderboard", () =>
+      http.get("*/api/v1/leagues/:leagueId/leaderboard", () =>
         HttpResponse.json(deepBoard(60))
       ),
       // The viewer has no row here, so nothing forces extra batches open.
-      http.get("*/api/leagues/:leagueId/my-team", () =>
+      http.get("*/api/v1/leagues/:leagueId/my-team", () =>
         HttpResponse.json(
           { error: "No team found for this league" },
           { status: 404 }
@@ -498,7 +498,7 @@ describe("LeaguePage.vue", () => {
   /** A running season, so the footer is offered at all. */
   function runningLeague(overrides: Record<string, unknown> = {}) {
     const today = Temporal.Now.plainDateISO("UTC");
-    return http.get("*/api/leagues/:leagueId", () =>
+    return http.get("*/api/v1/leagues/:leagueId", () =>
       HttpResponse.json({
         ...leagues[1],
         startDate: `${today.subtract({ days: 3 })}T00:00:00Z`,
@@ -509,7 +509,7 @@ describe("LeaguePage.vue", () => {
   }
 
   function roleIs(isMember: boolean, isAdmin: boolean) {
-    return http.get("*/api/leagues/:leagueId/my-role", () =>
+    return http.get("*/api/v1/leagues/:leagueId/my-role", () =>
       HttpResponse.json({ isMember, isAdmin })
     );
   }
@@ -592,7 +592,7 @@ describe("LeaguePage.vue", () => {
     server.use(runningLeague(), roleIs(true, false));
     let left = false;
     server.use(
-      http.post("*/api/leagues/:leagueId/my-departure", () => {
+      http.post("*/api/v1/leagues/:leagueId/my-departure", () => {
         left = true;
         return HttpResponse.json({ success: true });
       })
@@ -619,7 +619,7 @@ describe("LeaguePage.vue", () => {
   it("returns to the league section when leaving deleted the league", async () => {
     server.use(runningLeague(), roleIs(true, false));
     server.use(
-      http.post("*/api/leagues/:leagueId/my-departure", () =>
+      http.post("*/api/v1/leagues/:leagueId/my-departure", () =>
         HttpResponse.json({ leagueDeleted: true })
       )
     );
@@ -641,7 +641,7 @@ describe("LeaguePage.vue", () => {
   it("stays put when leaving left the league standing", async () => {
     server.use(runningLeague(), roleIs(true, false));
     server.use(
-      http.post("*/api/leagues/:leagueId/my-departure", () =>
+      http.post("*/api/v1/leagues/:leagueId/my-departure", () =>
         HttpResponse.json({ leagueDeleted: false })
       )
     );
@@ -664,7 +664,7 @@ describe("LeaguePage.vue", () => {
     server.use(runningLeague(), roleIs(true, false));
     let left = false;
     server.use(
-      http.post("*/api/leagues/:leagueId/my-departure", () => {
+      http.post("*/api/v1/leagues/:leagueId/my-departure", () => {
         left = true;
         return HttpResponse.json({ success: true });
       })

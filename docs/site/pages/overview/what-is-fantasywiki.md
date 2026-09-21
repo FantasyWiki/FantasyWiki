@@ -115,14 +115,14 @@ sequenceDiagram
   participant DB as Cloudflare D1
 
   CRON->>COL: run for date D
-  COL->>BE: GET /internal/scoring-inputs?date=D
+  COL->>BE: GET /internal/v1/scoring-inputs?date=D
   BE->>DB: lineups ⋈ active contracts
   DB-->>BE: teams, articles, article pairs
   BE-->>COL: one row per team
   COL->>WM: daily views per article
   COL->>WM: link graph among the paired articles
   WM-->>COL: raw facts
-  COL->>BE: POST /internal/performances (chunked)
+  COL->>BE: POST /internal/v1/performances (chunked)
   BE->>BE: points = f(views, chemistry, language scale)
   BE->>DB: upsert performances, keyed (teamId, date)
   Note over BE,DB: idempotent, re-running a day is safe

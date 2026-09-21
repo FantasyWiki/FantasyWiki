@@ -51,6 +51,17 @@ export type App = Hono<{ Bindings: Bindings; Variables: AppVariables }>;
 const wikimedia = createWikimediaClient();
 
 /**
+ * The major version lives in the path rather than in a header or a query
+ * parameter, so a future v2 can be mounted beside v1 here while clients
+ * migrate off it — no content negotiation, just another `app.route(...)`
+ * line. Defined once and reused for every mount rather than typed out per
+ * route, so bumping the version is a one-line change (backend/openapi.yaml
+ * carries the same rule in its `info.description`).
+ */
+export const API_V1 = "/api/v1";
+export const INTERNAL_V1 = "/internal/v1";
+
+/**
  * Every route the backend serves in every build.
  *
  * A function rather than a module-level `app` because there is more than one
@@ -99,9 +110,12 @@ export function createApp(): App {
 
   // Internal routes for the scoring engine — service-token auth (not user JWT),
   // so mounted outside the /api/* Google-JWT guard (docs/architecture/scoring-pipeline.md).
-  app.route("/internal", internal);
+  app.route(INTERNAL_V1, internal);
 
-  // Protected routes - apply JWT middleware
+  // Protected routes - apply JWT middleware. Matched against the unversioned
+  // "/api/*" rather than API_V1 so the guard covers every version mounted
+  // under /api — present and future — without a second line the day v2 shows
+  // up.
   app.use("/api/*", async (c, next) => {
     const handler = jwt({
       secret: c.env.JWT_SECRET,
@@ -112,25 +126,25 @@ export function createApp(): App {
   });
 
   // Mount session routes
-  app.route("/api/session", session);
+  app.route(`${API_V1}/session`, session);
 
   // Mount leagues routes
-  app.route("/api/leagues", leagues);
+  app.route(`${API_V1}/leagues`, leagues);
 
   // Mount notifications routes
-  app.route("/api/notifications", notifications);
+  app.route(`${API_V1}/notifications`, notifications);
 
   // Mount player routes
-  app.route("/api/player", player);
+  app.route(`${API_V1}/player`, player);
 
-  // Mount self-scoped player routes (/api/me — identity from the JWT)
-  app.route("/api/me", me);
+  // Mount self-scoped player routes (/api/v1/me — identity from the JWT)
+  app.route(`${API_V1}/me`, me);
 
   // Mount problem report routes
-  app.route("/api/reports", reports);
+  app.route(`${API_V1}/reports`, reports);
 
   // The Wikipedia editions a league can be founded on (#531)
-  app.route("/api/wikipedia-editions", wikipediaEditionRoutes);
+  app.route(`${API_V1}/wikipedia-editions`, wikipediaEditionRoutes);
 
   return app;
 }

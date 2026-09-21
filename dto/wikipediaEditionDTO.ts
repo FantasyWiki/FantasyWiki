@@ -3,7 +3,7 @@
  *
  * The list of these replaces `LEAGUE_DOMAINS` — a hand-maintained constant of two
  * codes — with something Wikimedia and its own readership decide (#531). Served
- * by `GET /api/wikipedia-editions`.
+ * by `GET /api/v1/wikipedia-editions`.
  *
  * Two names and no view figures. The picker shows the English name over the
  * edition's domain (`Italian` / `it.wikipedia`), which is how a league states its

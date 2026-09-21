@@ -39,7 +39,7 @@ function neverNarrows() {
         })),
       })
     ),
-    http.post("*/api/me/genie-turns", async ({ request }) => {
+    http.post("*/api/v1/me/genie-turns", async ({ request }) => {
       const { candidates } = (await request.json()) as {
         candidates: { id: number }[];
       };
@@ -112,7 +112,7 @@ describe("useGenie", () => {
       ),
       // …and a turn that narrows gently, so the loop stays in the question
       // phase instead of dropping straight to five.
-      http.post("*/api/me/genie-turns", async ({ request }) => {
+      http.post("*/api/v1/me/genie-turns", async ({ request }) => {
         const { candidates } = (await request.json()) as {
           candidates: { id: number }[];
         };
@@ -170,7 +170,7 @@ describe("useGenie", () => {
             })),
           })
       ),
-      http.post("*/api/me/genie-turns", async ({ request }) => {
+      http.post("*/api/v1/me/genie-turns", async ({ request }) => {
         const body = (await request.json()) as {
           candidates: { id: number }[];
           history: { question: string; answer: string }[];
@@ -229,7 +229,7 @@ describe("useGenie", () => {
             })),
           })
       ),
-      http.post("*/api/me/genie-turns", async ({ request }) => {
+      http.post("*/api/v1/me/genie-turns", async ({ request }) => {
         const { candidates } = (await request.json()) as {
           candidates: { id: number }[];
         };
@@ -275,7 +275,7 @@ describe("useGenie", () => {
 
   it("does not resume an asleep session onto a screen with nothing to do", async () => {
     server.use(
-      http.post("*/api/me/genie-seeds", () =>
+      http.post("*/api/v1/me/genie-seeds", () =>
         HttpResponse.json({ error: "GENIE_ASLEEP" }, { status: 503 })
       )
     );
@@ -359,7 +359,7 @@ describe("useGenie", () => {
 
   it("falls asleep when the model is unavailable", async () => {
     server.use(
-      http.post("*/api/me/genie-seeds", () =>
+      http.post("*/api/v1/me/genie-seeds", () =>
         HttpResponse.json({ error: "GENIE_ASLEEP" }, { status: 503 })
       )
     );

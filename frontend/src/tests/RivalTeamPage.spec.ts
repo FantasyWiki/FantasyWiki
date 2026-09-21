@@ -46,7 +46,7 @@ function board(): LeaderboardEntryDTO[] {
 
 function stubBoard(entries: LeaderboardEntryDTO[]) {
   server.use(
-    http.get("*/api/leagues/:leagueId/leaderboard", () =>
+    http.get("*/api/v1/leagues/:leagueId/leaderboard", () =>
       HttpResponse.json(entries)
     )
   );

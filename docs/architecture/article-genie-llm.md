@@ -20,13 +20,13 @@ all of it.
 
 ```
 BROWSER  (useGenie composable)
-  parse   POST /api/me/genie-seeds { query }
+  parse   POST /api/v1/me/genie-seeds { query }
           ← { keywords, anchors: [...] }
   seed    S1 = searchTitles("linksto:A linksto:B"), title + description
           S2 = searchTitles(keywords)             , always, never routed away
           S3 = outbound(A) ∩ outbound(B)          , from the cached link sets
           merge + dedupe, rank by mutual links, cap 40
-  loop    POST /api/me/genie-turns { query, history, candidates, bucket }
+  loop    POST /api/v1/me/genie-turns { query, history, candidates, bucket }
           ← { utterance, keep: [ids], options, kind, done }
   finish  survivors → fetchMarketArticlesByTitle → priced rows,
           re-ranked by (mutual links desc, price asc)
@@ -83,7 +83,7 @@ type LlmClient = { ask(messages: Message[]): Promise<string> };
 
 ## Turn protocol
 
-`POST /api/me/genie-turns`, self-scoped, identity from the JWT, no `playerId` from the client
+`POST /api/v1/me/genie-turns`, self-scoped, identity from the JWT, no `playerId` from the client
 (see [API Naming Rules](../development/api-naming-rules.md)).
 
 **Request**
@@ -260,16 +260,16 @@ The absence then propagates in one direction, from the binding outwards:
 
 | Layer | Behaviour when `env.AI` is undefined |
 |-------|--------------------------------------|
-| `GET /api/session` | `features.articleGenie: false` |
-| `POST /api/me/genie-seeds`, `/genie-turns` | 503 `GENIE_ASLEEP`, checked *before* the rate limiter so a build that never offers the feature cannot spend the player's quota on it |
+| `GET /api/v1/session` | `features.articleGenie: false` |
+| `POST /api/v1/me/genie-seeds`, `/genie-turns` | 503 `GENIE_ASLEEP`, checked *before* the rate limiter so a build that never offers the feature cannot spend the player's quota on it |
 | `MarketPage.vue` | No trigger button and no modal, the app store's `isArticleGenieAvailable` gates both |
 
 Two points of design, both deliberate:
 
 - **The flag is read off the binding, not off a var.** A deployment cannot claim a capability it
   has no credentials for, so config and reality cannot drift apart.
-- **It rides on the session** rather than on a `/api/features` route of its own, because
-  `/api/session` is the one `/api/*` path MSW passes through to the real backend
+- **It rides on the session** rather than on a `/api/v1/features` route of its own, because
+  `/api/v1/session` is the one `/api/*` path MSW passes through to the real backend
   (`frontend/src/mocks/handlers.ts`). In `devMock`, the mode someone running the app for the first
   time uses, a dedicated route would be answered by a handler that cannot know what the Worker is
   bound to.

@@ -48,13 +48,13 @@ function appFor(googleAccountId: string) {
     await next();
   });
   app.use("*", injectDeps());
-  app.route("/api/me", me);
+  app.route("/api/v1/me", me);
   return app;
 }
 
 function post(app: Hono, body: unknown) {
   return app.request(
-    "/api/me/genie-turns",
+    "/api/v1/me/genie-turns",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -90,7 +90,7 @@ const GOOD_REPLY = JSON.stringify({
   done: false,
 });
 
-describe("POST /api/me/genie-turns", () => {
+describe("POST /api/v1/me/genie-turns", () => {
   let app: Hono;
 
   beforeEach(async () => {
@@ -198,7 +198,7 @@ describe("POST /api/me/genie-turns", () => {
     stubAi(GOOD_REPLY);
 
     const response = await app.request(
-      "/api/me/genie-turns",
+      "/api/v1/me/genie-turns",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -245,7 +245,7 @@ describe("POST /api/me/genie-turns", () => {
     // The other half of the feature. The guard runs ahead of body parsing, so
     // an empty body is enough to prove which check answered.
     const response = await app.request(
-      "/api/me/genie-seeds",
+      "/api/v1/me/genie-seeds",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

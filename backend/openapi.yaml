@@ -21,12 +21,17 @@ info:
     | Prefix | Who calls it | How |
     |---|---|---|
     | `/auth/*` | A browser being signed in | Nothing yet — this is where a session is minted |
-    | `/api/*` | The frontend, as a signed-in player | The `session_token` cookie, HTTP-only |
-    | `/internal/*` | The scoring engine | A bearer service token |
+    | `/api/v1/*` | The frontend, as a signed-in player | The `session_token` cookie, HTTP-only |
+    | `/internal/v1/*` | The scoring engine | A bearer service token |
+
+    The major version lives in the path segment (`v1`), not in a header or a
+    query parameter, so a future `v2` can be mounted beside `v1` while clients
+    migrate; `version` above is the contract version, and its major component
+    must always equal that segment.
 
     Identity is always resolved server-side, from the session or the token. No
     endpoint takes a `playerId` from the client, which is why the self-scoped
-    reads are spelled `/api/me` and `my-…` rather than carrying an id in the
+    reads are spelled `/api/v1/me` and `my-…` rather than carrying an id in the
     path.
 
     Every failure answers the same shape, a single `error` field carrying a
@@ -74,14 +79,14 @@ tags:
   - name: Article Genie
     description: >
       The conversational article finder. Present only where the deployment has
-      the Workers AI binding; GET /api/session reports whether it does.
+      the Workers AI binding; GET /api/v1/session reports whether it does.
   - name: Reports
     description: Filing a problem report as a GitHub issue.
   - name: Reference data
     description: Answers that are the same for every player.
   - name: Internal
     description: >
-      The scoring engine's two endpoints. Outside /api/* because the caller is a
+      The scoring engine's two endpoints. Outside /api/v1/* because the caller is a
       service rather than a person, and authenticated with a shared bearer
       secret instead of a session.
 
@@ -335,7 +340,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /internal/scoring-inputs:
+  /internal/v1/scoring-inputs:
     get:
       operationId: getScoringInputs
       tags: [Internal]
@@ -375,7 +380,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /internal/performances:
+  /internal/v1/performances:
     post:
       operationId: ingestPerformances
       tags: [Internal]
@@ -413,7 +418,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
-  /api/session:
+  /api/v1/session:
     get:
       operationId: getSession
       tags: [Session]
@@ -446,7 +451,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
-  /api/leagues:
+  /api/v1/leagues:
     get:
       operationId: getMyLeagues
       tags: [Leagues]
@@ -514,7 +519,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /api/leagues/global:
+  /api/v1/leagues/global:
     get:
       operationId: getGlobalLeague
       tags: [Leagues]
@@ -535,7 +540,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /api/leagues/public:
+  /api/v1/leagues/public:
     get:
       operationId: getPublicLeagues
       tags: [Leagues]
@@ -558,7 +563,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/leagues/by-code/{code}:
+  /api/v1/leagues/by-code/{code}:
     get:
       operationId: getLeagueByInviteCode
       tags: [Leagues]
@@ -598,7 +603,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/leagues/{id}:
+  /api/v1/leagues/{id}:
     get:
       operationId: getLeague
       tags: [Leagues]
@@ -623,7 +628,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/leagues/{id}/leaderboard:
+  /api/v1/leagues/{id}/leaderboard:
     get:
       operationId: getLeaderboard
       tags: [Leagues]
@@ -646,7 +651,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/leagues/{id}/my-role:
+  /api/v1/leagues/{id}/my-role:
     get:
       operationId: getMyRole
       tags: [Leagues]
@@ -670,7 +675,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/leagues/{id}/invite-code:
+  /api/v1/leagues/{id}/invite-code:
     get:
       operationId: getInviteCode
       tags: [Leagues]
@@ -700,7 +705,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/leagues/{id}/closure:
+  /api/v1/leagues/{id}/closure:
     post:
       operationId: closeLeague
       tags: [Leagues]
@@ -741,7 +746,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/leagues/{id}/my-team:
+  /api/v1/leagues/{id}/my-team:
     get:
       operationId: getMyTeam
       tags: [Teams]
@@ -834,7 +839,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/leagues/{id}/my-departure:
+  /api/v1/leagues/{id}/my-departure:
     post:
       operationId: leaveLeague
       tags: [Teams]
@@ -879,7 +884,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/leagues/{id}/contracts:
+  /api/v1/leagues/{id}/contracts:
     get:
       operationId: getLeagueContracts
       tags: [Market]
@@ -903,7 +908,7 @@ paths:
         "404":
           $ref: "#/components/responses/NoSuchLeague"
 
-  /api/leagues/{id}/my-contracts:
+  /api/v1/leagues/{id}/my-contracts:
     get:
       operationId: getMyContracts
       tags: [Market]
@@ -979,7 +984,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/leagues/{id}/my-contracts/{contractId}/sell:
+  /api/v1/leagues/{id}/my-contracts/{contractId}/sell:
     post:
       operationId: sellContract
       tags: [Market]
@@ -1015,7 +1020,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/leagues/{id}/my-contracts/{contractId}/renew:
+  /api/v1/leagues/{id}/my-contracts/{contractId}/renew:
     post:
       operationId: electRenewal
       tags: [Market]
@@ -1085,7 +1090,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/leagues/{id}/lineup:
+  /api/v1/leagues/{id}/lineup:
     get:
       operationId: getMyLineup
       tags: [Line-ups]
@@ -1140,7 +1145,7 @@ paths:
         "404":
           $ref: "#/components/responses/NoSuchPlayer"
 
-  /api/leagues/{id}/teams/{teamId}/lineup:
+  /api/v1/leagues/{id}/teams/{teamId}/lineup:
     get:
       operationId: getRivalLineup
       tags: [Line-ups]
@@ -1175,7 +1180,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/leagues/{id}/my-performances:
+  /api/v1/leagues/{id}/my-performances:
     get:
       operationId: getMyPerformances
       tags: [Line-ups]
@@ -1210,7 +1215,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/leagues/{id}/my-notifications:
+  /api/v1/leagues/{id}/my-notifications:
     get:
       operationId: getMyLeagueNotifications
       tags: [Notifications]
@@ -1233,7 +1238,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/notifications/{id}/read:
+  /api/v1/notifications/{id}/read:
     patch:
       operationId: markNotificationRead
       tags: [Notifications]
@@ -1264,7 +1269,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/player:
+  /api/v1/player:
     get:
       operationId: getPlayer
       tags: [Session]
@@ -1285,7 +1290,7 @@ paths:
         "404":
           $ref: "#/components/responses/NoSuchPlayer"
 
-  /api/player/notifications:
+  /api/v1/player/notifications:
     get:
       operationId: getMyNotifications
       tags: [Notifications]
@@ -1306,7 +1311,7 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
-  /api/me/genie-seeds:
+  /api/v1/me/genie-seeds:
     post:
       operationId: seedGenie
       tags: [Article Genie]
@@ -1373,7 +1378,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /api/me/genie-turns:
+  /api/v1/me/genie-turns:
     post:
       operationId: takeGenieTurn
       tags: [Article Genie]
@@ -1419,7 +1424,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /api/reports:
+  /api/v1/reports:
     post:
       operationId: createProblemReport
       tags: [Reports]
@@ -1474,7 +1479,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /api/wikipedia-editions:
+  /api/v1/wikipedia-editions:
     get:
       operationId: getWikipediaEditions
       tags: [Reference data]
@@ -1518,7 +1523,7 @@ components:
       type: http
       scheme: bearer
       description: >
-        The shared secret the scoring engine presents on /internal/*. Compared
+        The shared secret the scoring engine presents on /internal/v1/*. Compared
         in constant time, and an unset secret fails closed rather than open.
 
   parameters:

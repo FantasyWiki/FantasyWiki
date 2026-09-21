@@ -44,7 +44,7 @@ function parseDay(value: string | undefined): Temporal.PlainDate | null {
   }
 }
 
-// GET /internal/scoring-inputs?date=YYYY-MM-DD — the day's scorable teams.
+// GET /internal/v1/scoring-inputs?date=YYYY-MM-DD — the day's scorable teams.
 internal.get("/scoring-inputs", async (c) => {
   const day = parseDay(c.req.query("date"));
   if (day === null) {
@@ -58,7 +58,7 @@ internal.get("/scoring-inputs", async (c) => {
   return c.json(result.value);
 });
 
-// POST /internal/performances — idempotent, chunkable ingest of computed rows.
+// POST /internal/v1/performances — idempotent, chunkable ingest of computed rows.
 internal.post("/performances", async (c) => {
   const body = await c.req.json<PerformanceIngestDTO>().catch(() => null);
   if (body === null) {

@@ -82,7 +82,7 @@ describe("username/password sign-in", () => {
     });
 
     const session = await app.request(
-      "/api/session",
+      "/api/v1/session",
       { headers: { Cookie: `session_token=${sessionCookie(registered)}` } },
       { ...env, JWT_SECRET, FRONTEND_URL },
     );

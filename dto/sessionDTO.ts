@@ -1,5 +1,5 @@
 /**
- * What `GET /api/session` returns: who the player is, plus the parts of the app
+ * What `GET /api/v1/session` returns: who the player is, plus the parts of the app
  * this deployment can actually offer them.
  */
 export interface SessionDTO {
@@ -22,9 +22,9 @@ export interface SessionDTO {
  * for.
  *
  * This rides on the session rather than on a route of its own because
- * `/api/session` is the one `/api/*` path MSW passes through to the real
+ * `/api/v1/session` is the one `/api/v1/*` path MSW passes through to the real
  * backend (`frontend/src/mocks/handlers.ts`). In `devMock` — the mode someone
- * running the app for the first time uses — a dedicated `/api/features` route
+ * running the app for the first time uses — a dedicated `/api/v1/features` route
  * would be answered by a handler that cannot know what the Worker is bound to.
  */
 export interface SessionFeaturesDTO {

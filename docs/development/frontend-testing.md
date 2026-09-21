@@ -65,7 +65,7 @@ test:
 
 ```ts
 server.use(
-  http.get("*/api/leagues", () => HttpResponse.json(leagues.filter(mine)))
+  http.get("*/api/v1/leagues", () => HttpResponse.json(leagues.filter(mine)))
 );
 ```
 

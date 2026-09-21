@@ -7,7 +7,7 @@ import AuthCallbackPage from "@/views/auth/AuthCallbackPage.vue";
 
 function mockSession() {
   server.use(
-    http.get("*/api/session", () =>
+    http.get("*/api/v1/session", () =>
       HttpResponse.json({
         sub: "player-1",
         email: "player@example.com",
@@ -22,7 +22,7 @@ function mockSession() {
 /** A brand-new player is in no league yet — the default fixture hands out all
  * of them, which would make the team-creation guard bounce them. */
 function mockNoLeagues() {
-  server.use(http.get("*/api/leagues", () => HttpResponse.json([])));
+  server.use(http.get("*/api/v1/leagues", () => HttpResponse.json([])));
 }
 
 describe("AuthCallbackPage.vue", () => {

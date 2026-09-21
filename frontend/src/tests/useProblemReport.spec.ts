@@ -71,7 +71,7 @@ describe("useProblemReport", () => {
   // A backend outage must never cost the reporter their words.
   it("offers a pre-filled GitHub link when the report cannot be filed", async () => {
     server.use(
-      http.post("*/api/reports", () =>
+      http.post("*/api/v1/reports", () =>
         HttpResponse.json(
           { error: "REPORT_SUBMISSION_FAILED" },
           { status: 502 }
@@ -98,7 +98,7 @@ describe("useProblemReport", () => {
   // Our own throttle must not hand out a bypass — that would defeat it.
   it("shows a cooldown and no GitHub bypass when rate limited", async () => {
     server.use(
-      http.post("*/api/reports", () =>
+      http.post("*/api/v1/reports", () =>
         HttpResponse.json({ error: "REPORT_RATE_LIMITED" }, { status: 429 })
       )
     );
